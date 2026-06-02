@@ -43,12 +43,7 @@ export default async function SettingsRoute({
   return (
     <SettingsShell
       activeTab={data.activeTab}
-      visibleTabs={data.visibleTabs.map((t) => ({
-        id: t.id,
-        label: t.label,
-        group: t.group,
-        searchTerms: t.searchTerms,
-      }))}
+      visibleTabs={data.visibleTabs}
       canManageSettings={has("settings_manage")}
       canManageSessions={has("settings_manage") || has("session_settings_manage")}
       canManageExpenseSettings={has("settings_manage")}

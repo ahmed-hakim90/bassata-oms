@@ -47,17 +47,17 @@ type Props = {
   ) => void;
 };
 
-const STEP_TITLES = ["Basic Info", "Product Type", "Pricing", "Inventory"] as const;
+const STEP_TITLES = ["البيانات الأساسية", "نوع المنتج", "التسعير", "المخزون"] as const;
 const PRODUCT_TYPE_CHOICES: Array<{
   id: ProductFormValues["product_type"];
   label: string;
   hint: string;
 }> = [
-  { id: "finished_product", label: "Retail Product", hint: "Standard sellable item" },
-  { id: "finished", label: "Weight Product", hint: "Priced by weight or amount" },
-  { id: "ingredient", label: "Ingredient", hint: "Used to produce recipes" },
-  { id: "packaging_material", label: "Packaging Material", hint: "Cups, spoons, boxes and packs" },
-  { id: "service", label: "Service", hint: "Non-stock service line" },
+  { id: "finished_product", label: "منتج بيع مباشر", hint: "منتج جاهز للبيع" },
+  { id: "finished", label: "منتج وزني", hint: "يُسعّر حسب الوزن أو الكمية" },
+  { id: "ingredient", label: "مكوّن", hint: "يُستخدم في تحضير الوصفات" },
+  { id: "packaging_material", label: "مواد تعبئة", hint: "أكواب وملاعق وعلب وأكياس" },
+  { id: "service", label: "خدمة", hint: "خدمة بدون مخزون" },
 ];
 
 export function GuidedProductDetailsForm({
@@ -121,7 +121,7 @@ export function GuidedProductDetailsForm({
     }
     const isValid = await validateStep(step);
     if (!isValid) {
-      setErrorText("Please complete required fields before moving forward.");
+      setErrorText("يرجى إكمال الحقول المطلوبة قبل المتابعة.");
       return;
     }
     setErrorText(null);
@@ -150,15 +150,15 @@ export function GuidedProductDetailsForm({
       {step === 1 ? (
         <div className="space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">Product Name</Label>
+            <Label htmlFor="name">اسم المنتج</Label>
             <Input id="name" {...form.register("name")} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>Category</Label>
+              <Label>التصنيف</Label>
               <Select value={values.category_id} onValueChange={(v) => form.setValue("category_id", v ?? "", { shouldValidate: true })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category">
+                  <SelectValue placeholder="اختر التصنيف">
                     {(value) => selectLabelById(categories, value, (c) => c.name)}
                   </SelectValue>
                 </SelectTrigger>
@@ -176,13 +176,13 @@ export function GuidedProductDetailsForm({
               <Input id="sku" {...form.register("sku")} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="barcode">Barcode</Label>
+              <Label htmlFor="barcode">الباركود</Label>
               <Input id="barcode" {...form.register("barcode")} />
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="image_url">Product Image URL</Label>
-            <Input id="image_url" value={values.image_url ?? ""} onChange={(e) => form.setValue("image_url", e.target.value || null)} placeholder="https://..." />
+            <Label htmlFor="image_url">رابط صورة المنتج</Label>
+            <Input id="image_url" value={values.image_url ?? ""} onChange={(e) => form.setValue("image_url", e.target.value || null)} placeholder="https://example.com/image.jpg" />
           </div>
         </div>
       ) : null}
@@ -190,7 +190,7 @@ export function GuidedProductDetailsForm({
       {step === 2 ? (
         <div className="space-y-4">
           <div className="grid gap-2">
-            <Label>Product type</Label>
+            <Label>نوع المنتج</Label>
             <div className="grid gap-2 sm:grid-cols-2">
               {PRODUCT_TYPE_CHOICES.map((item) => (
                 <button
@@ -210,7 +210,7 @@ export function GuidedProductDetailsForm({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>Selling style</Label>
+              <Label>طريقة البيع</Label>
               <Select value={values.sales_unit_type} onValueChange={(v) => {
                 const nextSales = (v ?? "piece") as ProductFormValues["sales_unit_type"];
                 form.setValue("sales_unit_type", nextSales, { shouldValidate: true });
@@ -219,10 +219,10 @@ export function GuidedProductDetailsForm({
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {[
-                    { id: "piece", label: "Retail Product" },
-                    { id: "weight", label: "Weight Product" },
-                    { id: "volume", label: "Ingredient" },
-                    { id: "pack", label: "Packaging Material" },
+                    { id: "piece", label: "منتج بيع مباشر" },
+                    { id: "weight", label: "منتج وزني" },
+                    { id: "volume", label: "مكوّن" },
+                    { id: "pack", label: "مواد تعبئة" },
                   ].map((u) => (
                     <SelectItem key={u.id} value={u.id} label={u.label}>{u.label}</SelectItem>
                   ))}
@@ -230,7 +230,7 @@ export function GuidedProductDetailsForm({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Inventory unit</Label>
+              <Label>وحدة المخزون</Label>
               <Select value={values.sale_unit} onValueChange={(v) => form.setValue("sale_unit", (v ?? "piece") as ProductFormValues["sale_unit"], { shouldValidate: true })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -248,11 +248,11 @@ export function GuidedProductDetailsForm({
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="base_price">Cost Price</Label>
+              <Label htmlFor="base_price">سعر التكلفة</Label>
               <Input id="base_price" type="number" step="0.01" {...form.register("base_price", { valueAsNumber: true })} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="sale_price">Sale Price</Label>
+              <Label htmlFor="sale_price">سعر البيع</Label>
               <Input
                 id="sale_price"
                 type="number"
@@ -268,30 +268,30 @@ export function GuidedProductDetailsForm({
       {step === 4 ? (
         <div className="space-y-4">
           <div className="rounded-xl border border-border/60 p-3 text-sm">
-            <div className="font-medium">{values.name || "Unnamed product"}</div>
+            <div className="font-medium">{values.name || "منتج بدون اسم"}</div>
             <div className="text-muted-foreground">
-              Type {values.product_type} | Cost {values.base_price} {currency}
+              النوع {values.product_type} | التكلفة {values.base_price} {currency}
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">الوصف</Label>
             <Textarea id="description" rows={3} {...form.register("description")} />
           </div>
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={values.is_active} onCheckedChange={(v) => form.setValue("is_active", Boolean(v))} />
-              Active
+              نشط
             </label>
             {showInventoryTracking ? (
               <>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox checked={values.track_inventory} onCheckedChange={(v) => form.setValue("track_inventory", Boolean(v))} />
-                  Track inventory
+                  تتبّع المخزون
                 </label>
                 {showExpiryTracking ? (
                   <label className="flex items-center gap-2 text-sm">
                     <Checkbox checked={values.expiry_tracking_enabled} onCheckedChange={(v) => form.setValue("expiry_tracking_enabled", v === true)} />
-                    Track expiry
+                    تتبّع الصلاحية
                   </label>
                 ) : null}
               </>
@@ -299,7 +299,7 @@ export function GuidedProductDetailsForm({
             {souqnaEnabled && (values.product_type === "finished_product" || values.product_type === "finished") ? (
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={values.publish_to_souqna} onCheckedChange={(v) => form.setValue("publish_to_souqna", Boolean(v))} />
-                Publish to Souqna
+                نشر في سوقنا
               </label>
             ) : null}
           </div>
@@ -312,7 +312,7 @@ export function GuidedProductDetailsForm({
           className="flex w-full items-center justify-between text-left text-sm font-medium"
           onClick={() => setAdvancedOpen((current) => !current)}
         >
-          <span>Advanced Settings</span>
+          <span>إعدادات متقدمة</span>
           {advancedOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </button>
         {advancedOpen ? (
@@ -320,7 +320,7 @@ export function GuidedProductDetailsForm({
           {showInventoryTracking ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label>Tracking Mode</Label>
+                <Label>طريقة التتبع</Label>
                 <Select value={values.inventory_tracking_mode} onValueChange={(v) => form.setValue("inventory_tracking_mode", (v ?? "standard") as ProductFormValues["inventory_tracking_mode"], { shouldValidate: true })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -331,7 +331,7 @@ export function GuidedProductDetailsForm({
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Rotation Method</Label>
+                <Label>آلية تدوير المخزون</Label>
                 <Select value={values.inventory_rotation_method} onValueChange={(v) => form.setValue("inventory_rotation_method", (v ?? "FIFO") as ProductFormValues["inventory_rotation_method"], { shouldValidate: true })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -347,12 +347,12 @@ export function GuidedProductDetailsForm({
             <>
               <label className="flex items-center gap-2 rounded-xl border p-3">
                 <Checkbox checked={values.expiry_tracking_enabled} onCheckedChange={(v) => form.setValue("expiry_tracking_enabled", v === true)} />
-                <span className="text-sm">Batch settings: track expiry dates</span>
+                <span className="text-sm">إعدادات الدُفعات: تتبّع تواريخ الصلاحية</span>
               </label>
               {values.expiry_tracking_enabled ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label>Shelf Life Value</Label>
+                    <Label>مدة الصلاحية</Label>
                     <Input
                       type="number"
                       min={0}
@@ -360,7 +360,7 @@ export function GuidedProductDetailsForm({
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Shelf Life Unit</Label>
+                    <Label>وحدة مدة الصلاحية</Label>
                     <Select
                       value={values.shelf_life_unit ?? "days"}
                       onValueChange={(v) =>
@@ -384,7 +384,7 @@ export function GuidedProductDetailsForm({
                 </div>
               ) : null}
               <div className="grid gap-2">
-                <Label>Expiry Policy</Label>
+                <Label>سياسة انتهاء الصلاحية</Label>
                 <Select value={values.expiry_policy} onValueChange={(v) => form.setValue("expiry_policy", (v ?? "block_sale") as ProductFormValues["expiry_policy"])}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -399,7 +399,7 @@ export function GuidedProductDetailsForm({
           {showFractionalQuantity ? (
             <label className="flex items-center gap-2 rounded-xl border p-2">
               <Checkbox checked={values.allow_fractional_quantity} onCheckedChange={(v) => form.setValue("allow_fractional_quantity", v === true)} />
-              <span className="text-xs">Unit conversions: allow fractional quantity</span>
+              <span className="text-xs">تحويل الوحدات: السماح بالكمية الكسرية</span>
             </label>
           ) : null}
           {showPriceByAmount || showWholesale || showSerialNumber ? (
@@ -409,24 +409,24 @@ export function GuidedProductDetailsForm({
                   <Checkbox checked={values.allow_price_input} onCheckedChange={(v) => form.setValue("allow_price_input", v === true)} />
                   <span className="text-xs">
                     {showPriceByAmount && showSerialNumber
-                      ? "Serial number / price by amount"
+                      ? "رقم تسلسلي / سعر حسب الكمية"
                       : showPriceByAmount
-                        ? "Price by amount"
-                        : "Serial number"}
+                        ? "سعر حسب الكمية"
+                        : "رقم تسلسلي"}
                   </span>
                 </label>
               ) : null}
               {showWholesale ? (
                 <label className="flex items-center gap-2 rounded-xl border p-2">
                   <Checkbox checked={values.wholesale_enabled} onCheckedChange={(v) => form.setValue("wholesale_enabled", v === true)} />
-                  <span className="text-xs">Wholesale</span>
+                  <span className="text-xs">جملة</span>
                 </label>
               ) : null}
             </div>
           ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>Product type (advanced)</Label>
+              <Label>نوع المنتج (متقدم)</Label>
               <Select value={values.product_type} onValueChange={(v) => {
                 const nextType = (v ?? "finished_product") as ProductFormValues["product_type"];
                 form.setValue("product_type", nextType, { shouldValidate: true });
@@ -441,7 +441,7 @@ export function GuidedProductDetailsForm({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Base unit (advanced)</Label>
+              <Label>وحدة الأساس (متقدم)</Label>
               <Select value={values.base_unit} onValueChange={(v) => form.setValue("base_unit", (v ?? "piece") as ProductFormValues["base_unit"], { shouldValidate: true })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -458,16 +458,16 @@ export function GuidedProductDetailsForm({
 
       <DialogFooter className="px-0 pb-0">
         <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
+          إلغاء
         </Button>
         <Button type="button" variant="outline" disabled={step === 1} onClick={() => setStep((current) => Math.max(1, current - 1))}>
-          Back
+          رجوع
         </Button>
         <Button type="button" variant="outline" disabled={step === 4} onClick={() => { void goToStep(Math.min(4, step + 1)); }}>
-          Next
+          التالي
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {isEdit ? "Save changes" : "Create product"}
+          {isEdit ? "حفظ التعديلات" : "إنشاء المنتج"}
         </Button>
       </DialogFooter>
     </form>

@@ -61,7 +61,6 @@ export function LanguageSync() {
     const root = document.documentElement;
     root.lang = language;
     root.dir = language === "ar" ? "rtl" : "ltr";
-    document.body.classList.toggle("font-arabic", language === "ar");
 
     translateTree(document.body, language);
 

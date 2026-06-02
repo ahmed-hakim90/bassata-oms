@@ -89,7 +89,7 @@ export function AppSidebar({
         {!sidebarCollapsed && (
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{APP_NAME}</p>
-            <p className="text-xs text-muted-foreground">Operations</p>
+            <p className="text-xs text-muted-foreground">العمليات</p>
           </div>
         )}
         <Button
@@ -97,6 +97,7 @@ export function AppSidebar({
           size="icon-sm"
           className={cn("ml-auto", sidebarCollapsed && "mx-auto")}
           onClick={toggleSidebar}
+          aria-label={sidebarCollapsed ? "توسيع الشريط الجانبي" : "طي الشريط الجانبي"}
         >
           {sidebarCollapsed ? (
             <ChevronRight className="size-4" />
@@ -116,6 +117,7 @@ export function AppSidebar({
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.label)}
+                    aria-expanded={!collapsed}
                     className="mb-2 flex w-full items-center px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
                   >
                     {group.label}

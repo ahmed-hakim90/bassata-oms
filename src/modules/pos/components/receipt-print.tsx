@@ -25,7 +25,7 @@ export function ReceiptPrint({
     <div id="SweetFlow-receipt" className="hidden print:block print:p-6">
       <div className="mx-auto max-w-xs font-mono text-sm">
         <p className="text-center font-bold">SweetFlow POS</p>
-        <p className="text-center text-xs">Order {orderNumber}</p>
+        <p className="text-center text-xs">طلب رقم {orderNumber}</p>
         <hr className="my-3 border-dashed" />
         <ul className="space-y-2">
           {lines.map((line) => (
@@ -34,7 +34,7 @@ export function ReceiptPrint({
                 <span>
                   {line.name}
                   <br />
-                  {line.quantity} {line.saleUnit ?? "piece"} × {formatCurrency(line.unitPrice)}
+                  {line.quantity} {line.saleUnit ?? "قطعة"} × {formatCurrency(line.unitPrice)}
                   {line.saleUnit ? `/${line.saleUnit}` : ""}
                 </span>
                 <span>{formatCurrency(line.lineTotal)}</span>
@@ -44,17 +44,17 @@ export function ReceiptPrint({
         </ul>
         <hr className="my-3 border-dashed" />
         <div className="flex justify-between">
-          <span>Subtotal</span>
+          <span>الإجمالي الفرعي</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
         {discount > 0 ? (
           <div className="flex justify-between">
-            <span>Discount</span>
+            <span>الخصم</span>
             <span>-{formatCurrency(discount)}</span>
           </div>
         ) : null}
         <div className="flex justify-between font-bold">
-          <span>Total ({paymentMethod})</span>
+          <span>الإجمالي ({paymentMethod})</span>
           <span>{formatCurrency(total)}</span>
         </div>
         {payments.length > 1 ? (
@@ -67,7 +67,7 @@ export function ReceiptPrint({
             ))}
           </div>
         ) : null}
-        <p className="mt-6 text-center text-xs">Thank you!</p>
+        <p className="mt-6 text-center text-xs">شكرًا لك!</p>
       </div>
     </div>
   );

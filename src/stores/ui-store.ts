@@ -26,7 +26,7 @@ export const useUiStore = create<UiState>()(
     (set) => ({
       sidebarCollapsed: false,
       theme: "system",
-      language: "en",
+      language: "ar",
       activeStoreId: null,
       collapsedGroups: {},
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),

@@ -27,25 +27,25 @@ const businessTypeSchema = z.enum(BUSINESS_ACTIVITY_TYPES);
 
 export const onboardingPayloadSchema = z.object({
   organization: z.object({
-    name: z.string().min(2, "Organization name is required"),
+    name: z.string().min(2, "اسم المؤسسة مطلوب"),
     logoUrl: z.string().optional(),
     currency: z.string().min(1).default("USD"),
     timezone: z.string().min(1).default("America/New_York"),
-    country: z.string().min(1, "Country is required"),
+    country: z.string().min(1, "الدولة مطلوبة"),
     taxEnabled: z.boolean(),
     taxRate: z.number().min(0).max(100),
     taxInclusive: z.boolean(),
   }),
   store: z.object({
-    name: z.string().min(2, "Store name is required"),
-    address: z.string().min(1, "Address is required"),
+    name: z.string().min(2, "اسم الفرع مطلوب"),
+    address: z.string().min(1, "العنوان مطلوب"),
     phone: z.string().optional(),
     timezone: z.string().min(1).default("America/New_York"),
   }),
   owner: z.object({
-    name: z.string().min(2, "Owner name is required"),
-    email: z.string().email("Valid email is required"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    name: z.string().min(2, "اسم المالك مطلوب"),
+    email: z.string().email("البريد الإلكتروني غير صالح"),
+    password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
   }),
   businessType: businessTypeSchema,
   defaultSettings: z.object({

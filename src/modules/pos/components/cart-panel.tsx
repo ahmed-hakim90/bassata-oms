@@ -32,9 +32,9 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
   const total = getCartTotal(cart, discountAmount);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-none bg-white shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-black/5">
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-none bg-white shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-black/5">
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <h2 className="font-heading text-lg font-semibold">Cart</h2>
+        <h2 className="font-heading text-lg font-semibold">السلة</h2>
         {cart.length > 0 && (
           <div className="flex gap-1.5">
             <Button
@@ -43,10 +43,10 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
               className="h-10 rounded-xl px-3"
               onClick={() => holdCart(customer?.name)}
             >
-              Hold
+              تعليق
             </Button>
             <Button variant="ghost" size="sm" className="h-10 rounded-xl px-3" onClick={clearCart}>
-              Clear
+              مسح
             </Button>
           </div>
         )}
@@ -58,7 +58,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
         <div className="border-b px-4 py-3">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <Clock3 className="size-3.5" />
-            Held orders
+            الطلبات المعلّقة
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {heldCarts.map((held) => (
@@ -87,10 +87,10 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
         </div>
       ) : null}
 
-      <ScrollArea className="h-0 min-h-0 flex-1 px-2">
+      <ScrollArea className="min-h-0 flex-1 px-2">
         {cart.length === 0 ? (
           <p className="px-2 py-12 text-center text-sm text-muted-foreground">
-            Tap products to add items
+            اضغط على المنتجات لإضافة أصناف
           </p>
         ) : (
           <ul className="space-y-2.5 py-2">
@@ -109,10 +109,10 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
                     </p>
                   </div>
                   <p className="mt-0.5 text-sm text-muted-foreground">
-                    {formatCurrency(line.unitPrice)} {line.saleUnit ? `/${line.saleUnit}` : "each"}
+                    {formatCurrency(line.unitPrice)} {line.saleUnit ? `/${line.saleUnit}` : "للوحدة"}
                   </p>
                   {line.wholesaleApplied ? (
-                    <p className="mt-1 text-xs font-medium text-emerald-700">Wholesale price applied</p>
+                    <p className="mt-1 text-xs font-medium text-emerald-700">تم تطبيق سعر الجملة</p>
                   ) : null}
                 </div>
                 <div className="mt-2.5 flex items-center justify-between gap-2 xl:mt-0 xl:flex-col xl:items-end xl:gap-1">
@@ -167,7 +167,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
           </p>
         )}
         <div className="mb-3 flex justify-between text-base">
-          <span className="text-muted-foreground">Subtotal</span>
+          <span className="text-muted-foreground">الإجمالي الفرعي</span>
           <span className="font-semibold tabular-nums">
             {formatCurrency(subtotal)}
           </span>
@@ -175,7 +175,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
         {discountsEnabled ? (
           <div className="mb-3 grid gap-1.5">
             <label className="text-sm text-muted-foreground" htmlFor="cart-discount">
-              Discount
+              الخصم
             </label>
             <Input
               id="cart-discount"
@@ -191,7 +191,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
         ) : null}
         {discountAmount > 0 ? (
           <div className="mb-3 flex justify-between text-sm">
-            <span className="text-muted-foreground">Discount</span>
+            <span className="text-muted-foreground">الخصم</span>
             <span className="font-medium tabular-nums text-emerald-700">
               -{formatCurrency(discountAmount)}
             </span>
@@ -199,7 +199,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
         ) : null}
         <Separator className="mb-3" />
         <div className="mb-3 flex justify-between text-base">
-          <span className="font-medium">Total</span>
+          <span className="font-medium">الإجمالي</span>
           <span className="font-semibold tabular-nums">
             {formatCurrency(total)}
           </span>
@@ -209,7 +209,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
           disabled={cart.length === 0 || checkoutDisabled}
           onClick={onCheckout}
         >
-          Pay {formatCurrency(total)}
+          دفع {formatCurrency(total)}
         </Button>
       </div>
     </div>

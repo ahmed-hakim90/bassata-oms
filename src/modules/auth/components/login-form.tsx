@@ -5,7 +5,7 @@ import { loginAction } from "@/modules/auth/actions/login.action";
 import { APP_NAME } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { SweetFormField } from "@/components/SweetFlow/form-field";
 
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(loginAction, null);
@@ -15,13 +15,12 @@ export function LoginForm() {
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Sign in with your owner, manager, or cashier account
+          سجّل الدخول بحساب المالك أو المدير أو الكاشير
         </p>
       </div>
 
       <form action={formAction} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+        <SweetFormField id="email" label="البريد الإلكتروني">
           <Input
             id="email"
             name="email"
@@ -30,9 +29,8 @@ export function LoginForm() {
             autoComplete="email"
             defaultValue="owner@SweetFlow.local"
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+        </SweetFormField>
+        <SweetFormField id="password" label="كلمة المرور">
           <Input
             id="password"
             name="password"
@@ -40,19 +38,19 @@ export function LoginForm() {
             required
             autoComplete="current-password"
           />
-        </div>
+        </SweetFormField>
         {state?.error && (
           <p className="text-sm text-destructive">{state.error}</p>
         )}
         <Button type="submit" className="w-full" disabled={pending}>
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? "جاري تسجيل الدخول…" : "تسجيل الدخول"}
         </Button>
         <p className="text-center text-sm">
           <a
             href="/forgot-password"
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
-            Forgot password?
+            نسيت كلمة المرور؟
           </a>
         </p>
       </form>

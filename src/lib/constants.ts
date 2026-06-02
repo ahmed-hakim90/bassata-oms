@@ -230,62 +230,62 @@ export function canViewCosts(role: UserRole, permissions?: Set<PermissionKey>): 
 
 export const NAV_GROUPS = [
   {
-    label: "Dashboard",
+    label: "لوحة التحكم",
     items: [
-      { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
+      { label: "لوحة التحكم", href: "/", icon: "LayoutDashboard" },
     ],
   },
   {
-    label: "Sales",
+    label: "المبيعات",
     items: [
-      { label: "POS", href: "/pos", icon: "ShoppingCart" },
-      { label: "Orders", href: "/orders", icon: "Receipt" },
-      { label: "Sessions", href: "/sessions", icon: "Clock" },
+      { label: "نقطة البيع", href: "/pos", icon: "ShoppingCart" },
+      { label: "الطلبات", href: "/orders", icon: "Receipt" },
+      { label: "الجلسات", href: "/sessions", icon: "Clock" },
     ],
   },
   {
-    label: "Inventory",
+    label: "المخزون",
     items: [
-      { label: "Products", href: "/products", icon: "Package" },
-      { label: "Stock", href: "/inventory", icon: "Warehouse" },
-      { label: "Purchases", href: "/inventory/purchases", icon: "Truck" },
-      { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
-      { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
-      { label: "Stock Count", href: "/inventory/stock-count", icon: "ClipboardList" },
+      { label: "المنتجات", href: "/products", icon: "Package" },
+      { label: "المخزون", href: "/inventory", icon: "Warehouse" },
+      { label: "المشتريات", href: "/inventory/purchases", icon: "Truck" },
+      { label: "التحويلات", href: "/inventory/transfers", icon: "ArrowLeftRight" },
+      { label: "الهالك", href: "/inventory/waste", icon: "Trash2" },
+      { label: "جرد المخزون", href: "/inventory/stock-count", icon: "ClipboardList" },
     ],
   },
   {
-    label: "Customers",
+    label: "العملاء",
     items: [
-      { label: "Customers", href: "/customers", icon: "Users" },
-      { label: "Loyalty", href: "/customers/loyalty", icon: "Heart" },
-      { label: "Statements", href: "/customers", icon: "ScrollText" },
+      { label: "العملاء", href: "/customers", icon: "Users" },
+      { label: "الولاء", href: "/customers/loyalty", icon: "Heart" },
+      { label: "الكشوفات", href: "/customers", icon: "ScrollText" },
     ],
   },
   {
-    label: "Accounting",
+    label: "الحسابات",
     items: [
-      { label: "Expenses", href: "/expenses", icon: "Wallet" },
-      { label: "Cost Centers", href: "/settings/cost-centers", icon: "Landmark" },
-      { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
+      { label: "المصروفات", href: "/expenses", icon: "Wallet" },
+      { label: "مراكز التكلفة", href: "/settings/cost-centers", icon: "Landmark" },
+      { label: "الموردون", href: "/inventory/suppliers", icon: "Building2" },
     ],
   },
   {
-    label: "Reports",
+    label: "التقارير",
     items: [
-      { label: "Sales", href: "/reports", icon: "BarChart3" },
-      { label: "Inventory", href: "/inventory/movements", icon: "Warehouse" },
-      { label: "Customers", href: "/customers", icon: "Users" },
-      { label: "Accounting", href: "/expenses", icon: "Wallet" },
+      { label: "المبيعات", href: "/reports", icon: "BarChart3" },
+      { label: "المخزون", href: "/inventory/movements", icon: "Warehouse" },
+      { label: "العملاء", href: "/customers", icon: "Users" },
+      { label: "الحسابات", href: "/expenses", icon: "Wallet" },
     ],
   },
   {
-    label: "Administration",
+    label: "الإدارة",
     items: [
-      { label: "Users", href: "/users", icon: "Shield" },
-      { label: "Devices", href: "/settings", icon: "CalendarCheck" },
-      { label: "Settings", href: "/settings", icon: "Settings" },
-      { label: "Audit Logs", href: "/audit", icon: "ScrollText" },
+      { label: "المستخدمون", href: "/users", icon: "Shield" },
+      { label: "الأجهزة", href: "/settings", icon: "CalendarCheck" },
+      { label: "الإعدادات", href: "/settings", icon: "Settings" },
+      { label: "سجل المراجعة", href: "/audit", icon: "ScrollText" },
     ],
   },
 ] as const;

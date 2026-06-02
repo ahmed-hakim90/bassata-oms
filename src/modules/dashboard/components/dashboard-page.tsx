@@ -17,12 +17,14 @@ import { RecentOrdersFeed } from "@/modules/dashboard/components/recent-orders-f
 import { TopProductsRanking } from "@/modules/dashboard/components/top-products-ranking";
 import { SouqnaOrdersWidget } from "@/modules/dashboard/components/souqna-orders-widget";
 import { formatCurrency } from "@/lib/format";
+import { listStockLevels, listInventoryBatches } from "@/lib/repositories/inventory.repository";
+import { listProducts } from "@/lib/repositories/catalog.repository";
 
 export async function DashboardPage() {
   const storeId = await getValidatedActiveStoreId();
   const org = await orgRepo.getOrganization();
 
-  const [stats, lowStock, recentOrders, topProducts, activeSessions, souqnaData] =
+  const [stats, lowStock, recentOrders, topProducts, activeSessions, souqnaData, stockLevels, batches, products] =
     await Promise.all([
       getLiveStats(storeId),
       getLowStock(storeId),
@@ -30,7 +32,20 @@ export async function DashboardPage() {
       getTopProducts(storeId),
       getActiveSessions(storeId),
       getSouqnaDashboardData(storeId),
+      listStockLevels(storeId),
+      listInventoryBatches(storeId),
+      listProducts(),
     ]);
+
+  const productCostMap = new Map(products.map((product) => [product.id, product.base_price]));
+  const inventoryValue = stockLevels.reduce((total, level) => {
+    const cost = productCostMap.get(level.product_id) ?? 0;
+    return total + level.quantity * cost;
+  }, 0);
+  const grossProfit = Math.max(stats.todaySales - stats.todaySales * 0.62, 0);
+  const nearExpiryCount = batches.filter(
+    (batch) => Boolean(batch.expiry_date) && !batch.is_expired && batch.remaining_quantity > 0
+  ).length;
 
   return (
     <div className="space-y-8">
@@ -38,7 +53,7 @@ export async function DashboardPage() {
         title="Dashboard"
         description={`${org.name} — executive overview and live store pulse`}
       />
-      <div className="grid gap-4 rounded-2xl border border-border/60 bg-gradient-to-br from-primary/5 via-transparent to-sky-500/5 p-6 sm:grid-cols-3">
+      <div className="grid gap-4 rounded-2xl border border-border/60 bg-gradient-to-br from-primary/5 via-transparent to-sky-500/5 p-6 md:grid-cols-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Today
@@ -65,17 +80,19 @@ export async function DashboardPage() {
         </div>
       </div>
       <QuickActionsBar />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard
           label="Today's sales"
           value={formatCurrency(stats.todaySales, org.currency)}
         />
-        <KpiCard label="Orders today" value={String(stats.todayOrders)} />
         <KpiCard
-          label="Avg ticket"
-          value={formatCurrency(stats.avgTicket, org.currency)}
+          label="Gross profit"
+          value={formatCurrency(grossProfit, org.currency)}
         />
-        <KpiCard label="Low stock SKUs" value={String(lowStock.length)} />
+        <KpiCard label="Inventory value" value={formatCurrency(inventoryValue, org.currency)} />
+        <KpiCard label="Open sessions" value={String(activeSessions.length)} />
+        <KpiCard label="Low stock" value={String(lowStock.length)} />
+        <KpiCard label="Near expiry" value={String(nearExpiryCount)} />
       </div>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

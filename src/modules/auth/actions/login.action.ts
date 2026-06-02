@@ -22,7 +22,7 @@ export async function loginAction(
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { success: false, error: "Email and password are required." };
+    return { success: false, error: "البريد الإلكتروني وكلمة المرور مطلوبان." };
   }
 
   const supabase = await createClient();
@@ -30,14 +30,14 @@ export async function loginAction(
 
   if (error || !data.user) {
     await writeAuthFailureAudit(email, "invalid_credentials");
-    return { success: false, error: "Invalid email or password." };
+    return { success: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة." };
   }
 
   const appUser = await userRepo.getUserByAuthId(data.user.id);
   if (!appUser || !appUser.is_active) {
     await supabase.auth.signOut();
     await writeAuthFailureAudit(email, "inactive_or_unprovisioned");
-    return { success: false, error: "Account is inactive or not provisioned." };
+    return { success: false, error: "الحساب غير نشط أو غير مُهيأ." };
   }
 
   const cookieStore = await cookies();

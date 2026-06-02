@@ -64,8 +64,15 @@ export function MobileNav({
   permissions?: Set<PermissionKey>;
 }) {
   const pathname = usePathname();
-  const mobileItems = filterNavByAccess(userRole, permissions, featureFlags)
-    .flatMap((group) => group.items)
+  const allItems = filterNavByAccess(userRole, permissions, featureFlags).flatMap(
+    (group) => group.items
+  );
+  const allowedItems = new Set<string>(allItems.map((item) => item.href));
+  const priority = ["/", "/pos", "/products", "/inventory", "/settings"];
+  const mobileItems = priority
+    .filter((href) => allowedItems.has(href))
+    .map((href) => allItems.find((item) => item.href === href))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .slice(0, 5);
 
   return (
@@ -78,6 +85,7 @@ export function MobileNav({
             <li key={item.href} className="flex-1">
               <Link
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex flex-col items-center gap-1 rounded-[var(--radius-button)] px-2 py-2 text-[10px] font-medium transition-colors",
                   active

@@ -37,23 +37,23 @@ export interface CheckoutResult {
 
 export async function completeCheckout(input: CheckoutInput): Promise<CheckoutResult> {
   if (!input.sessionId) {
-    throw new Error("Active cashier session required");
+    throw new Error("جلسة كاشير نشطة مطلوبة");
   }
 
   await assertPeriodOpen(input.storeId);
 
   const session = await sessionRepo.getSession(input.sessionId);
   if (!session || session.status !== "open" || session.store_id !== input.storeId) {
-    throw new Error("Invalid or closed cashier session");
+    throw new Error("جلسة الكاشير غير صالحة أو مغلقة");
   }
   if (input.deviceId && session.device_id && session.device_id !== input.deviceId) {
-    throw new Error("Session does not match this device");
+    throw new Error("الجلسة لا تتطابق مع هذا الجهاز");
   }
 
   const settings = await getSessionSettings();
   const lifecycle = computeSessionLifecycle(session, settings);
   if (lifecycle.blocksSales && !input.override?.expiredSession) {
-    throw new Error("Session expired — close shift to continue");
+    throw new Error("انتهت الجلسة - أغلق الوردية للمتابعة");
   }
 
   const lines = input.cart.map((line) => ({
@@ -69,7 +69,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     const variants = await catalogRepo.listVariants(line.productId);
     const activeVariants = variants.filter((v) => v.is_active);
     if (activeVariants.length > 0 && !line.variantId) {
-      throw new Error(`Variant required for ${line.name}`);
+      throw new Error(`الخيار مطلوب للمنتج ${line.name}`);
     }
   }
 
@@ -95,7 +95,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
 
     const expired = productBatches.some((batch) => batch.expiry_date && new Date(batch.expiry_date) < today);
     if (expired && (product.expiry_policy ?? "block_sale") === "block_sale") {
-      throw new Error(`${line.name} has expired stock and is blocked by expiry policy`);
+      throw new Error(`مخزون ${line.name} منتهي الصلاحية وممنوع بيعه حسب السياسة`);
     }
 
     const nearExpiry = productBatches.some(
@@ -131,7 +131,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
       : await orderRepo.completeCheckoutRpc(checkoutPayload);
 
   const order = await orderRepo.getOrder(result.order_id);
-  if (!order) throw new Error("Order not found after checkout");
+  if (!order) throw new Error("لم يتم العثور على الطلب بعد إتمام البيع");
 
   if (input.customer?.id && (await isFeatureEnabled("loyalty"))) {
     await earnPoints({
