@@ -20,6 +20,8 @@ export interface AdjustStockInput {
     batchNumber?: string | null;
     productionDate?: string | null;
     expiryDate?: string | null;
+    shelfLifeValue?: number | null;
+    shelfLifeUnit?: "days" | "months" | "years" | null;
     receivedDate?: string | null;
     supplierId?: string | null;
     purchaseInvoiceId?: string | null;

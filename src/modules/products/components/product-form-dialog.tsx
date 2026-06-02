@@ -11,6 +11,7 @@ import {
   INVENTORY_TRACKING_MODES,
   MEASUREMENT_UNITS,
   PRODUCT_TYPES,
+  SHELF_LIFE_UNITS,
   type BusinessActivitySettings,
   type ProductTemplateSettings,
 } from "@/lib/constants";
@@ -20,11 +21,8 @@ import {
 } from "@/modules/products/lib/apply-product-template";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
+import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createProductAction,
@@ -32,15 +30,15 @@ import {
 } from "@/modules/products/actions/product.actions";
 import { RecipeEditor } from "./recipe-editor";
 import { VariantEditor } from "./variant-editor";
-import { GuidedProductDetailsForm } from "./guided-product-details-form";
+import { GuidedProductDetailsForm } from "@/modules/products/components/guided-product-details-form";
 import { toast } from "sonner";
 
 const productSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  sku: z.string().min(1, "SKU is required"),
-  barcode: z.string().min(1, "Barcode is required"),
+      name: z.string().min(1, "اسم المنتج مطلوب"),
+      sku: z.string().min(1, "كود المنتج مطلوب"),
+      barcode: z.string().min(1, "الباركود مطلوب"),
   image_url: z.string().nullable(),
-  category_id: z.string().min(1, "Category is required"),
+      category_id: z.string().min(1, "التصنيف مطلوب"),
   base_price: z.number().min(0),
   description: z.string(),
   sale_price: z.number().min(0).nullable(),
@@ -53,9 +51,8 @@ const productSchema = z.object({
   inventory_rotation_method: z.enum(INVENTORY_ROTATION_METHODS),
   expiry_policy: z.enum(EXPIRY_POLICIES),
   expiry_tracking_enabled: z.boolean(),
-  shelf_life_days: z.number().int().min(0),
-  shelf_life_months: z.number().int().min(0),
-  shelf_life_years: z.number().int().min(0),
+  shelf_life_value: z.number().int().min(0),
+  shelf_life_unit: z.enum(SHELF_LIFE_UNITS),
   unit: z.enum(MEASUREMENT_UNITS),
   sale_unit: z.enum(MEASUREMENT_UNITS),
   base_unit: z.enum(MEASUREMENT_UNITS),
@@ -116,9 +113,8 @@ export function ProductFormDialog({
       inventory_rotation_method: "FIFO",
       expiry_policy: "block_sale",
       expiry_tracking_enabled: false,
-      shelf_life_days: 0,
-      shelf_life_months: 0,
-      shelf_life_years: 0,
+      shelf_life_value: 0,
+      shelf_life_unit: "days",
       unit: "piece",
       base_unit: "piece",
       sale_unit: "piece",
@@ -166,9 +162,8 @@ export function ProductFormDialog({
         inventory_rotation_method: product.inventory_rotation_method ?? "FIFO",
         expiry_policy: product.expiry_policy ?? "block_sale",
         expiry_tracking_enabled: product.expiry_tracking_enabled ?? false,
-        shelf_life_days: product.shelf_life_days ?? 0,
-        shelf_life_months: product.shelf_life_months ?? 0,
-        shelf_life_years: product.shelf_life_years ?? 0,
+        shelf_life_value: product.shelf_life_value ?? 0,
+        shelf_life_unit: product.shelf_life_unit ?? "days",
         unit: product.unit,
         base_unit: product.base_unit ?? product.unit,
         sale_unit: product.sale_unit,
@@ -196,9 +191,8 @@ export function ProductFormDialog({
         inventory_rotation_method: "FIFO",
         expiry_policy: "block_sale",
         expiry_tracking_enabled: false,
-        shelf_life_days: 0,
-        shelf_life_months: 0,
-        shelf_life_years: 0,
+        shelf_life_value: 0,
+        shelf_life_unit: "days",
         unit: "piece",
         base_unit: "piece",
         sale_unit: "piece",
@@ -239,41 +233,39 @@ export function ProductFormDialog({
       };
       if (isEdit && product) {
         await updateProductAction(product.id, payload);
-        toast.success("Product updated");
+        toast.success("تم تحديث المنتج");
       } else {
         await createProductAction(payload);
-        toast.success("Product created");
+        toast.success("تم إنشاء المنتج");
       }
       onOpenChange(false);
       onSaved?.();
     } catch {
-      toast.error("Could not save product");
+      toast.error("تعذر حفظ المنتج");
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit product" : "New product"}</DialogTitle>
-          <DialogDescription>
-            Menu items, ingredients, pricing, and recipes.
-          </DialogDescription>
-        </DialogHeader>
+      <StandardModalContent
+        size="md"
+        title={isEdit ? "تعديل منتج" : "منتج جديد"}
+        description="عناصر المنيو والمكونات والأسعار والوصفات."
+      >
 
         <Tabs defaultValue="details">
           <TabsList className="w-full">
             <TabsTrigger value="details" className="flex-1">
-              Details
+              التفاصيل
             </TabsTrigger>
             {showVariantsTab ? (
               <TabsTrigger value="variants" className="flex-1">
-                Variants
+                الخيارات
               </TabsTrigger>
             ) : null}
             {showRecipeTab ? (
               <TabsTrigger value="recipe" className="flex-1">
-                Recipe
+                الوصفة
               </TabsTrigger>
             ) : null}
           </TabsList>
@@ -285,6 +277,7 @@ export function ProductFormDialog({
               souqnaEnabled={souqnaEnabled}
               isEdit={isEdit}
               currency={currency}
+              activityType={businessActivitySettings.activity_type}
               onCancel={() => onOpenChange(false)}
               onSubmit={form.handleSubmit(onSubmit)}
               onApplyActivityTemplate={!isEdit ? applyActivityTemplate : undefined}
@@ -311,7 +304,7 @@ export function ProductFormDialog({
             </TabsContent>
           ) : null}
         </Tabs>
-      </DialogContent>
+      </StandardModalContent>
     </Dialog>
   );
 }

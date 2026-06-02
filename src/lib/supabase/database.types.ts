@@ -264,9 +264,8 @@ export type ProductRow = {
   inventory_rotation_method?: string;
   expiry_policy?: string;
   expiry_tracking_enabled?: boolean;
-  shelf_life_days?: number;
-  shelf_life_months?: number;
-  shelf_life_years?: number;
+  shelf_life_value?: number;
+  shelf_life_unit?: string;
   unit: string;
   base_unit?: string;
   sale_unit: string;

@@ -1,12 +1,15 @@
 import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapMovement, mapStockLevel } from "@/lib/repositories/mappers";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
+import { calculateExpiryDate } from "@/lib/inventory/expiry";
 import type { InventoryBatch, InventoryMovement, MovementType, StockLevel } from "@/lib/types";
 
 interface BatchInput {
   batchNumber?: string | null;
   productionDate?: string | null;
   expiryDate?: string | null;
+  shelfLifeValue?: number | null;
+  shelfLifeUnit?: "days" | "months" | "years" | null;
   receivedDate?: string | null;
   supplierId?: string | null;
   purchaseInvoiceId?: string | null;
@@ -101,6 +104,13 @@ export async function adjustStock(input: {
   let batchId: string | null = null;
   let batchNumber: string | null = null;
   if (input.batch?.batchNumber) {
+    const resolvedExpiryDate =
+      input.batch.expiryDate ??
+      calculateExpiryDate(
+        input.batch.productionDate,
+        input.batch.shelfLifeValue,
+        input.batch.shelfLifeUnit
+      );
     batchNumber = input.batch.batchNumber.trim();
     const { data: existingBatch, error: batchLookupError } = await (db as any)
       .from("inventory_batches")
@@ -122,13 +132,13 @@ export async function adjustStock(input: {
         .from("inventory_batches")
         .update({
           remaining_quantity: nextRemaining,
-          expiry_date: input.batch.expiryDate ?? null,
+          expiry_date: resolvedExpiryDate ?? null,
           production_date: input.batch.productionDate ?? null,
           supplier_id: input.batch.supplierId ?? null,
           purchase_invoice_id: input.batch.purchaseInvoiceId ?? null,
           updated_at: new Date().toISOString(),
           is_expired:
-            (input.batch.expiryDate ? new Date(input.batch.expiryDate) : new Date("9999-12-31")) <
+            (resolvedExpiryDate ? new Date(resolvedExpiryDate) : new Date("9999-12-31")) <
             new Date(),
         })
         .eq("id", existingBatch.id);
@@ -149,13 +159,13 @@ export async function adjustStock(input: {
           purchase_invoice_id: input.batch.purchaseInvoiceId ?? null,
           received_date: input.batch.receivedDate ?? new Date().toISOString().slice(0, 10),
           production_date: input.batch.productionDate ?? null,
-          expiry_date: input.batch.expiryDate ?? null,
+          expiry_date: resolvedExpiryDate ?? null,
           quantity: input.quantityDelta,
           remaining_quantity: input.quantityDelta,
           unit: input.unit ?? "piece",
           created_by: input.createdBy,
           is_expired:
-            (input.batch.expiryDate ? new Date(input.batch.expiryDate) : new Date("9999-12-31")) <
+            (resolvedExpiryDate ? new Date(resolvedExpiryDate) : new Date("9999-12-31")) <
             new Date(),
         })
         .select("id")
@@ -181,7 +191,14 @@ export async function adjustStock(input: {
       reason: input.reason ?? null,
       batch_id: batchId,
       batch_number: batchNumber,
-      expiry_date: input.batch?.expiryDate ?? null,
+      expiry_date:
+        input.batch?.expiryDate ??
+        calculateExpiryDate(
+          input.batch?.productionDate,
+          input.batch?.shelfLifeValue,
+          input.batch?.shelfLifeUnit
+        ) ??
+        null,
       created_by: input.createdBy,
     })
     .select()

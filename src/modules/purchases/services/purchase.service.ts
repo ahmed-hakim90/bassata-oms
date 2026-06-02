@@ -5,26 +5,8 @@ import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { adjustStock } from "@/lib/services/inventory-movement.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
+import { calculateExpiryDate, toIsoDate } from "@/lib/inventory/expiry";
 import type { PurchaseInvoice, PurchaseInvoiceLine } from "@/lib/types";
-
-function toIsoDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  return new Date(value).toISOString().slice(0, 10);
-}
-
-function addExpiry(
-  productionDate: string | null,
-  shelfLifeDays: number,
-  shelfLifeMonths: number,
-  shelfLifeYears: number
-): string | null {
-  if (!productionDate) return null;
-  const d = new Date(productionDate);
-  d.setDate(d.getDate() + shelfLifeDays);
-  d.setMonth(d.getMonth() + shelfLifeMonths);
-  d.setFullYear(d.getFullYear() + shelfLifeYears);
-  return d.toISOString().slice(0, 10);
-}
 
 export interface PurchaseWithLines extends PurchaseInvoice {
   lines: PurchaseInvoiceLine[];
@@ -226,12 +208,13 @@ export async function receivePurchase(
         productionDate: toIsoDate(line.production_date),
         expiryDate:
           toIsoDate(line.expiry_date) ??
-          addExpiry(
+          calculateExpiryDate(
             toIsoDate(line.production_date),
-            product?.shelf_life_days ?? 0,
-            product?.shelf_life_months ?? 0,
-            product?.shelf_life_years ?? 0
+            product?.shelf_life_value ?? 0,
+            product?.shelf_life_unit ?? "days"
           ),
+        shelfLifeValue: product?.shelf_life_value ?? 0,
+        shelfLifeUnit: product?.shelf_life_unit ?? "days",
         receivedDate: new Date().toISOString().slice(0, 10),
         supplierId: invoice.supplier_id,
         purchaseInvoiceId: invoice.id,

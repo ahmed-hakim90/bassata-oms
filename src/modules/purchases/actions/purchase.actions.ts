@@ -82,6 +82,9 @@ export async function addPurchaseLineAction(input: {
   productId: string;
   quantity: number;
   unitCost: number;
+  batchNumber?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
 }): Promise<PurchaseActionResult<PurchaseInvoiceLine>> {
   return runPurchaseAction(async () => {
     await requireFeature("purchases");
@@ -96,6 +99,9 @@ export async function updatePurchaseLineAction(input: {
   lineId: string;
   quantity: number;
   unitCost: number;
+  batchNumber?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
 }): Promise<PurchaseActionResult<PurchaseInvoiceLine>> {
   return runPurchaseAction(async () => {
     await requireFeature("purchases");

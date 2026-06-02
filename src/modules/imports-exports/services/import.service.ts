@@ -4,6 +4,7 @@ import * as importRepo from "@/lib/repositories/import.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
+import { SHELF_LIFE_UNITS } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 
 export const PRODUCT_IMPORT_COLUMNS = [
@@ -19,9 +20,8 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "inventory_rotation_method",
   "expiry_tracking_enabled",
   "expiry_policy",
-  "shelf_life_days",
-  "shelf_life_months",
-  "shelf_life_years",
+  "shelf_life_value",
+  "shelf_life_unit",
   "base_unit",
   "sale_unit",
 ] as const;
@@ -66,9 +66,8 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
       inventory_rotation_method: normalized.inventory_rotation_method ?? "FIFO",
       expiry_tracking_enabled: normalized.expiry_tracking_enabled ?? "false",
       expiry_policy: normalized.expiry_policy ?? "block_sale",
-      shelf_life_days: normalized.shelf_life_days ?? "0",
-      shelf_life_months: normalized.shelf_life_months ?? "0",
-      shelf_life_years: normalized.shelf_life_years ?? "0",
+      shelf_life_value: normalized.shelf_life_value ?? "0",
+      shelf_life_unit: normalized.shelf_life_unit ?? "days",
       base_unit: normalized.base_unit ?? "piece",
       sale_unit: normalized.sale_unit ?? "piece",
     };
@@ -101,6 +100,13 @@ export function validateProductRows(rows: ProductImportRow[]): ImportValidationE
         row: rowNum,
         field: "inventory_tracking_mode",
         message: "Invalid tracking mode",
+      });
+    }
+    if (!SHELF_LIFE_UNITS.includes(row.shelf_life_unit as (typeof SHELF_LIFE_UNITS)[number])) {
+      errors.push({
+        row: rowNum,
+        field: "shelf_life_unit",
+        message: "Invalid shelf life unit",
       });
     }
   });
@@ -183,9 +189,8 @@ export async function bulkImportProducts(
           (row.inventory_rotation_method as Product["inventory_rotation_method"]) ?? "FIFO",
         expiry_tracking_enabled: parseBool(row.expiry_tracking_enabled, false),
         expiry_policy: (row.expiry_policy as Product["expiry_policy"]) ?? "block_sale",
-        shelf_life_days: Number(row.shelf_life_days) || 0,
-        shelf_life_months: Number(row.shelf_life_months) || 0,
-        shelf_life_years: Number(row.shelf_life_years) || 0,
+        shelf_life_value: Number(row.shelf_life_value) || 0,
+        shelf_life_unit: (row.shelf_life_unit as Product["shelf_life_unit"]) ?? "days",
         unit: "piece",
         base_unit: (row.base_unit as Product["base_unit"]) ?? "piece",
         sale_unit: (row.sale_unit as Product["sale_unit"]) ?? "piece",

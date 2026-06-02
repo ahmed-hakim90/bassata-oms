@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import type { FeatureFlag } from "@/lib/constants";
 import type {
   AppUser,
@@ -29,12 +30,21 @@ import { SystemFeaturesTab } from "@/modules/system/components/settings/system-f
 import { AuditSettingsTab } from "@/modules/system/components/settings/audit-settings-tab";
 import { SouqnaSettingsTab } from "@/modules/system/components/settings/souqna-settings-tab";
 import { BusinessActivitySettingsTab } from "@/modules/system/components/settings/business-activity-settings-tab";
-import type { SettingsTabId } from "@/modules/system/components/settings/settings-tabs";
+import {
+  groupSettingsTabs,
+  type SettingsGroup,
+  type SettingsTabId,
+} from "@/modules/system/components/settings/settings-tabs";
 import type { SouqnaIntegrationLog, SouqnaPublicApiConfig } from "@/lib/types";
 
 export interface SettingsShellProps {
   activeTab: SettingsTabId;
-  visibleTabs: { id: SettingsTabId; label: string }[];
+  visibleTabs: {
+    id: SettingsTabId;
+    label: string;
+    group: SettingsGroup;
+    searchTerms: string[];
+  }[];
   canManageSettings: boolean;
   canManageSessions: boolean;
   canManageExpenseSettings: boolean;
@@ -146,6 +156,7 @@ export function SettingsShell({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const [settingsQuery, setSettingsQuery] = useState("");
 
   const setTab = useCallback(
     (tab: string) => {
@@ -169,6 +180,15 @@ export function SettingsShell({
   const bundle = settingsBundle;
   const session = bundle?.sessionSettings ?? sessionSettings;
   const flags = bundle?.featureFlags ?? featureFlags;
+  const filteredTabs = useMemo(() => {
+    const query = settingsQuery.trim().toLowerCase();
+    if (!query) return visibleTabs;
+    return visibleTabs.filter((tab) => {
+      const haystack = `${tab.label} ${tab.group} ${tab.searchTerms.join(" ")}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [settingsQuery, visibleTabs]);
+  const groupedTabs = useMemo(() => groupSettingsTabs(filteredTabs), [filteredTabs]);
 
   return (
     <>
@@ -177,13 +197,35 @@ export function SettingsShell({
         description="Organization, branches, POS, expenses, users, and system configuration"
       />
       <Tabs value={activeTab} onValueChange={setTab} className="space-y-6">
-        <TabsList className="flex-wrap">
-          {visibleTabs.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id}>
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="space-y-3 rounded-xl border border-border/60 p-4">
+          <Input
+            aria-label="Search settings"
+            placeholder="Search settings..."
+            value={settingsQuery}
+            onChange={(event) => setSettingsQuery(event.target.value)}
+          />
+          <div className="space-y-3">
+            {groupedTabs.map((group) => (
+              <div key={group.group}>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.group}
+                </p>
+                <TabsList className="h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
+                  {group.tabs.map((tab) => (
+                    <TabsTrigger key={tab.id} value={tab.id}>
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
+            ))}
+            {groupedTabs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No settings match your search.
+              </p>
+            ) : null}
+          </div>
+        </div>
 
         {canManageSettings && bundle ? (
           <>

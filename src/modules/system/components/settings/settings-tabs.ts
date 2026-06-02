@@ -14,32 +14,86 @@ export const SETTINGS_TAB_IDS = [
 
 export type SettingsTabId = (typeof SETTINGS_TAB_IDS)[number];
 
+export const SETTINGS_GROUPS = [
+  "Organization",
+  "POS",
+  "Inventory",
+  "Customers",
+  "Security",
+  "Advanced",
+] as const;
+export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
+
 export const SETTINGS_TABS: {
   id: SettingsTabId;
   label: string;
   permissions: PermissionKey[];
+  group: SettingsGroup;
+  searchTerms: string[];
 }[] = [
-  { id: "business", label: "Business", permissions: ["settings_manage"] },
+  {
+    id: "business",
+    label: "Company",
+    permissions: ["settings_manage"],
+    group: "Organization",
+    searchTerms: ["organization", "company", "branding"],
+  },
   {
     id: "business-activity",
-    label: "Business Activity",
+    label: "Branding & Activity",
     permissions: ["manage_business_activity", "settings_manage"],
+    group: "Organization",
+    searchTerms: ["business activity", "templates", "branding"],
   },
-  { id: "branches", label: "Stores", permissions: ["settings_manage"] },
+  {
+    id: "branches",
+    label: "Branches & Devices",
+    permissions: ["settings_manage"],
+    group: "Organization",
+    searchTerms: ["branches", "stores", "devices", "terminals"],
+  },
   {
     id: "pos",
-    label: "POS & Sessions",
+    label: "POS, Receipts & Payments",
     permissions: ["settings_manage", "session_settings_manage"],
+    group: "POS",
+    searchTerms: ["pos", "sessions", "receipts", "payments"],
   },
   {
     id: "expenses",
-    label: "Expenses",
+    label: "Units, Transfers & Expenses",
     permissions: ["settings_manage", "cost_center_manage"],
+    group: "Inventory",
+    searchTerms: ["units", "transfers", "expenses", "cost centers"],
   },
-  { id: "users", label: "Users & Roles", permissions: ["user_manage"] },
-  { id: "features", label: "System Features", permissions: ["settings_manage"] },
-  { id: "souqna", label: "Souqna", permissions: ["settings_manage"] },
-  { id: "audit", label: "Audit", permissions: ["audit_view"] },
+  {
+    id: "users",
+    label: "Users, Roles & Permissions",
+    permissions: ["user_manage"],
+    group: "Security",
+    searchTerms: ["users", "roles", "permissions", "security"],
+  },
+  {
+    id: "features",
+    label: "Feature Flags",
+    permissions: ["settings_manage"],
+    group: "Advanced",
+    searchTerms: ["feature flags", "flags", "toggles"],
+  },
+  {
+    id: "souqna",
+    label: "Integrations",
+    permissions: ["settings_manage"],
+    group: "Advanced",
+    searchTerms: ["integration", "souqna", "api", "webhook"],
+  },
+  {
+    id: "audit",
+    label: "Audit",
+    permissions: ["audit_view"],
+    group: "Advanced",
+    searchTerms: ["audit", "logs"],
+  },
 ];
 
 export function tabVisible(
@@ -56,6 +110,18 @@ export function getVisibleSettingsTabs(
   isOwner: boolean
 ): (typeof SETTINGS_TABS)[number][] {
   return SETTINGS_TABS.filter((tab) => tabVisible(tab, permissions, isOwner));
+}
+
+export function groupSettingsTabs(
+  tabs: Array<Pick<(typeof SETTINGS_TABS)[number], "id" | "label" | "group" | "searchTerms">>
+): Array<{
+  group: SettingsGroup;
+  tabs: Array<Pick<(typeof SETTINGS_TABS)[number], "id" | "label" | "group" | "searchTerms">>;
+}> {
+  return SETTINGS_GROUPS.map((group) => ({
+    group,
+    tabs: tabs.filter((tab) => tab.group === group),
+  })).filter((entry) => entry.tabs.length > 0);
 }
 
 export function resolveSettingsTab(

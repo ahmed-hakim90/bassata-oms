@@ -7,17 +7,45 @@ import type {
   ProductSalesUnitType,
 } from "@/lib/constants";
 
+export const NORMALIZED_PRODUCT_TEMPLATE_IDS = [
+  "retail_product",
+  "weight_product",
+  "ingredient",
+  "packaging_material",
+  "service",
+] as const;
+
+export type NormalizedProductTemplateId = (typeof NORMALIZED_PRODUCT_TEMPLATE_IDS)[number];
+
+export function normalizeProductTemplateId(
+  templateId: ProductTemplateId
+): NormalizedProductTemplateId {
+  switch (templateId) {
+    case "supermarket_weight_product":
+      return "weight_product";
+    case "restaurant_ingredient":
+    case "ice_cream_ingredient":
+      return "ingredient";
+    case "retail_product":
+    case "packaging_material":
+    case "service":
+      return templateId;
+    default:
+      return "retail_product";
+  }
+}
+
 /** Default template when opening the new-product form, per business activity. */
 export const DEFAULT_PRODUCT_TEMPLATE_ID_BY_ACTIVITY: Record<
   BusinessActivityType,
   ProductTemplateId
 > = {
   cafe: "retail_product",
-  ice_cream: "retail_product",
-  restaurant: "retail_product",
-  supermarket: "retail_product",
+  ice_cream: "ice_cream_ingredient",
+  restaurant: "restaurant_ingredient",
+  supermarket: "supermarket_weight_product",
   retail: "retail_product",
-  wholesale: "retail_product",
+  wholesale: "supermarket_weight_product",
   mixed: "retail_product",
 };
 
@@ -57,9 +85,8 @@ export type ProductTemplateFormSlice = Pick<
   | "inventory_rotation_method"
   | "expiry_policy"
   | "expiry_tracking_enabled"
-  | "shelf_life_days"
-  | "shelf_life_months"
-  | "shelf_life_years"
+  | "shelf_life_value"
+  | "shelf_life_unit"
   | "allow_fractional_quantity"
   | "allow_price_input"
   | "track_inventory"
@@ -79,9 +106,8 @@ export function productTemplateToFormValues(
     inventory_rotation_method: template.inventory_rotation_method,
     expiry_policy: template.expiry_policy,
     expiry_tracking_enabled: template.expiry_tracking_enabled,
-    shelf_life_days: template.shelf_life_days,
-    shelf_life_months: template.shelf_life_months,
-    shelf_life_years: template.shelf_life_years,
+    shelf_life_value: template.shelf_life_value,
+    shelf_life_unit: template.shelf_life_unit,
     allow_fractional_quantity: template.allow_fractional_quantity,
     allow_price_input: template.allow_price_input,
     track_inventory: template.track_inventory,
@@ -97,4 +123,13 @@ export function getTemplateFromSettings(
 ): ProductTemplate {
   const id = resolveProductTemplateId(activityType, productType, salesUnitType);
   return templates[id];
+}
+
+export function resolveNormalizedProductTemplateId(
+  activityType: BusinessActivityType,
+  productType: ProductType,
+  salesUnitType?: ProductSalesUnitType
+): NormalizedProductTemplateId {
+  const templateId = resolveProductTemplateId(activityType, productType, salesUnitType);
+  return normalizeProductTemplateId(templateId);
 }

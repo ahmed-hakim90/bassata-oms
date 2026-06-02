@@ -220,6 +220,8 @@ export type InventoryRotationMethod = (typeof INVENTORY_ROTATION_METHODS)[number
 
 export const EXPIRY_POLICIES = ["block_sale", "warn_only", "manager_override"] as const;
 export type ExpiryPolicy = (typeof EXPIRY_POLICIES)[number];
+export const SHELF_LIFE_UNITS = ["days", "months", "years"] as const;
+export type ShelfLifeUnit = (typeof SHELF_LIFE_UNITS)[number];
 
 export function canViewCosts(role: UserRole, permissions?: Set<PermissionKey>): boolean {
   if (permissions?.has("costs_view")) return true;
@@ -228,27 +230,28 @@ export function canViewCosts(role: UserRole, permissions?: Set<PermissionKey>): 
 
 export const NAV_GROUPS = [
   {
-    label: "Main",
+    label: "Dashboard",
     items: [
       { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
-      { label: "POS", href: "/pos", icon: "ShoppingCart" },
-      { label: "Orders", href: "/orders", icon: "Receipt" },
-      { label: "Online Orders", href: "/orders/online", icon: "ClipboardList" },
     ],
   },
   {
-    label: "Operations",
+    label: "Sales",
+    items: [
+      { label: "POS", href: "/pos", icon: "ShoppingCart" },
+      { label: "Orders", href: "/orders", icon: "Receipt" },
+      { label: "Sessions", href: "/sessions", icon: "Clock" },
+    ],
+  },
+  {
+    label: "Inventory",
     items: [
       { label: "Products", href: "/products", icon: "Package" },
-      { label: "Inventory", href: "/inventory", icon: "Warehouse" },
-      { label: "Movements", href: "/inventory/movements", icon: "History" },
+      { label: "Stock", href: "/inventory", icon: "Warehouse" },
       { label: "Purchases", href: "/inventory/purchases", icon: "Truck" },
-      { label: "Suppliers", href: "/inventory/suppliers", icon: "Landmark" },
       { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
       { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
       { label: "Stock Count", href: "/inventory/stock-count", icon: "ClipboardList" },
-      { label: "Sessions", href: "/sessions", icon: "Clock" },
-      { label: "Expenses", href: "/expenses", icon: "Wallet" },
     ],
   },
   {
@@ -256,21 +259,33 @@ export const NAV_GROUPS = [
     items: [
       { label: "Customers", href: "/customers", icon: "Users" },
       { label: "Loyalty", href: "/customers/loyalty", icon: "Heart" },
+      { label: "Statements", href: "/customers", icon: "ScrollText" },
     ],
   },
   {
-    label: "Insights",
+    label: "Accounting",
     items: [
-      { label: "Reports", href: "/reports", icon: "BarChart3" },
-      { label: "Monthly Closing", href: "/monthly-closing", icon: "CalendarCheck" },
-      { label: "Imports/Exports", href: "/imports-exports", icon: "FileSpreadsheet" },
+      { label: "Expenses", href: "/expenses", icon: "Wallet" },
+      { label: "Cost Centers", href: "/settings/cost-centers", icon: "Landmark" },
+      { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
     ],
   },
   {
-    label: "System",
+    label: "Reports",
     items: [
-      { label: "Organization", href: "/organization", icon: "Building2" },
+      { label: "Sales", href: "/reports", icon: "BarChart3" },
+      { label: "Inventory", href: "/inventory/movements", icon: "Warehouse" },
+      { label: "Customers", href: "/customers", icon: "Users" },
+      { label: "Accounting", href: "/expenses", icon: "Wallet" },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { label: "Users", href: "/users", icon: "Shield" },
+      { label: "Devices", href: "/settings", icon: "CalendarCheck" },
       { label: "Settings", href: "/settings", icon: "Settings" },
+      { label: "Audit Logs", href: "/audit", icon: "ScrollText" },
     ],
   },
 ] as const;
@@ -414,9 +429,8 @@ export type ProductTemplate = {
   inventory_rotation_method: InventoryRotationMethod;
   expiry_policy: ExpiryPolicy;
   expiry_tracking_enabled: boolean;
-  shelf_life_days: number;
-  shelf_life_months: number;
-  shelf_life_years: number;
+  shelf_life_value: number;
+  shelf_life_unit: ShelfLifeUnit;
   allow_fractional_quantity: boolean;
   allow_price_input: boolean;
   track_inventory: boolean;
@@ -590,9 +604,8 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       inventory_rotation_method: "FIFO",
       expiry_policy: "warn_only",
       expiry_tracking_enabled: false,
-      shelf_life_days: 0,
-      shelf_life_months: 0,
-      shelf_life_years: 0,
+      shelf_life_value: 0,
+      shelf_life_unit: "days",
       allow_fractional_quantity: false,
       allow_price_input: false,
       track_inventory: true,
@@ -610,9 +623,8 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       inventory_rotation_method: "FEFO",
       expiry_policy: "block_sale",
       expiry_tracking_enabled: true,
-      shelf_life_days: 3,
-      shelf_life_months: 0,
-      shelf_life_years: 0,
+      shelf_life_value: 3,
+      shelf_life_unit: "days",
       allow_fractional_quantity: true,
       allow_price_input: true,
       track_inventory: true,
@@ -630,9 +642,8 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       inventory_rotation_method: "FEFO",
       expiry_policy: "block_sale",
       expiry_tracking_enabled: true,
-      shelf_life_days: 7,
-      shelf_life_months: 0,
-      shelf_life_years: 0,
+      shelf_life_value: 7,
+      shelf_life_unit: "days",
       allow_fractional_quantity: true,
       allow_price_input: false,
       track_inventory: true,
@@ -650,9 +661,8 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       inventory_rotation_method: "FEFO",
       expiry_policy: "block_sale",
       expiry_tracking_enabled: true,
-      shelf_life_days: 30,
-      shelf_life_months: 0,
-      shelf_life_years: 0,
+      shelf_life_value: 30,
+      shelf_life_unit: "days",
       allow_fractional_quantity: true,
       allow_price_input: false,
       track_inventory: true,
@@ -670,9 +680,8 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       inventory_rotation_method: "FIFO",
       expiry_policy: "warn_only",
       expiry_tracking_enabled: false,
-      shelf_life_days: 0,
-      shelf_life_months: 0,
-      shelf_life_years: 0,
+      shelf_life_value: 0,
+      shelf_life_unit: "days",
       allow_fractional_quantity: false,
       allow_price_input: false,
       track_inventory: true,
@@ -690,9 +699,8 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       inventory_rotation_method: "FIFO",
       expiry_policy: "warn_only",
       expiry_tracking_enabled: false,
-      shelf_life_days: 0,
-      shelf_life_months: 0,
-      shelf_life_years: 0,
+      shelf_life_value: 0,
+      shelf_life_unit: "days",
       allow_fractional_quantity: false,
       allow_price_input: false,
       track_inventory: false,

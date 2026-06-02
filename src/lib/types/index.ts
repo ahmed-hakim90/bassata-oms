@@ -18,6 +18,7 @@ import type {
   InventoryRotationMethod,
   ExpiryPolicy,
   ProductSalesUnitType,
+  ShelfLifeUnit,
   SalesMode,
   VariantKind,
   VariantPriceMode,
@@ -31,6 +32,7 @@ export type {
   InventoryRotationMethod,
   ExpiryPolicy,
   ProductSalesUnitType,
+  ShelfLifeUnit,
   SalesMode,
   VariantKind,
   VariantPriceMode,
@@ -142,9 +144,8 @@ export interface Product {
   inventory_rotation_method?: InventoryRotationMethod;
   expiry_policy?: ExpiryPolicy;
   expiry_tracking_enabled?: boolean;
-  shelf_life_days?: number;
-  shelf_life_months?: number;
-  shelf_life_years?: number;
+  shelf_life_value?: number;
+  shelf_life_unit?: ShelfLifeUnit;
   unit: MeasurementUnit;
   sale_unit?: MeasurementUnit;
   base_unit?: MeasurementUnit;
