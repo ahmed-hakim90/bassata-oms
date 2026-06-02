@@ -1,0 +1,513 @@
+import type {
+  AppSetting,
+  AppUser,
+  AuditLog,
+  CashierSession,
+  Category,
+  Customer,
+  Device,
+  Expense,
+  ExpenseCategory,
+  CostCenter,
+  Permission,
+  ImportJob,
+  InventoryMovement,
+  LoyaltyLedgerEntry,
+  LoyaltyRule,
+  MeasurementUnit,
+  MonthlyClose,
+  OnlineOrder,
+  OnlineOrderItem,
+  Order,
+  OrderItem,
+  OrderItemDeduction,
+  OrderPayment,
+  Organization,
+  Product,
+  ProductRecipe,
+  ProductRecipeLine,
+  ProductType,
+  ProductVariant,
+  PurchaseInvoice,
+  PurchaseInvoiceLine,
+  SupplierPayment,
+  StockCount,
+  StockCountLine,
+  StockLevel,
+  Store,
+  Supplier,
+  TransferOrder,
+  TransferOrderLine,
+  WasteRecord,
+  Warehouse,
+} from "@/lib/types";
+import type { UserRole } from "@/lib/constants";
+import type {
+  AppSettingRow,
+  AuditLogRow,
+  CategoryRow,
+  CustomerRow,
+  DeviceRow,
+  ExpenseRow,
+  ExpenseCategoryRow,
+  CostCenterRow,
+  PermissionRow,
+  ImportJobRow,
+  LoyaltyLedgerRow,
+  LoyaltyRuleRow,
+  MonthlyCloseRow,
+  MovementRow,
+  OnlineOrderItemRow,
+  OnlineOrderRow,
+  OrderItemDeductionRow,
+  OrderItemRow,
+  OrderPaymentRow,
+  OrderRow,
+  OrganizationRow,
+  ProductRow,
+  RecipeLineRow,
+  RecipeRow,
+  PurchaseLineRow,
+  PurchaseRow,
+  SupplierPaymentRow,
+  SessionRow,
+  StockCountLineRow,
+  StockCountRow,
+  StockLevelRow,
+  StoreRow,
+  SupplierRow,
+  TransferLineRow,
+  TransferRow,
+  UserRow,
+  VariantRow,
+  WasteRow,
+  WarehouseRow,
+} from "@/lib/supabase/database.types";
+
+function num(v: number | string): number {
+  return typeof v === "string" ? parseFloat(v) : v;
+}
+
+export function mapOrganization(row: OrganizationRow): Organization {
+  return {
+    id: row.id,
+    name: row.name,
+    currency: row.currency,
+    timezone: row.timezone,
+    logo_url: row.logo_url ?? null,
+    country: row.country ?? "",
+    settings: (row.settings ?? {}) as Record<string, unknown>,
+    created_at: row.created_at,
+  };
+}
+
+export function mapStore(row: StoreRow): Store {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    name: row.name,
+    code: row.code ?? "",
+    address: row.address,
+    phone: row.phone ?? "",
+    timezone: row.timezone ?? null,
+    is_active: row.is_active,
+    settings: (row.settings ?? {}) as Record<string, unknown>,
+  };
+}
+
+export function mapWarehouse(row: WarehouseRow): Warehouse {
+  return row;
+}
+
+export function mapUser(row: UserRow, storeIds: string[]): AppUser {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    auth_user_id: row.auth_user_id,
+    name: row.name,
+    email: row.email,
+    role: row.role as UserRole,
+    is_active: row.is_active,
+    store_ids: storeIds,
+  };
+}
+
+export function mapDevice(row: DeviceRow): Device {
+  return row;
+}
+
+export function mapCategory(row: CategoryRow): Category {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    name: row.name,
+    sort_order: row.sort_order,
+    color: row.color,
+    icon: row.icon,
+  };
+}
+
+export function mapProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    name: row.name,
+    sku: row.sku,
+    barcode: row.barcode,
+    category_id: row.category_id ?? "",
+    base_price: num(row.base_price),
+    description: row.description ?? "",
+    sale_price: row.sale_price != null ? num(row.sale_price) : null,
+    publish_to_souqna: row.publish_to_souqna ?? false,
+    image_url: row.image_url,
+    is_active: row.is_active,
+    is_popular: row.is_popular,
+    track_inventory: row.track_inventory,
+    product_type: (row.product_type ?? "finished") as ProductType,
+    unit: (row.unit ?? "piece") as MeasurementUnit,
+    last_unit_cost: num(row.last_unit_cost ?? 0),
+    cost_unit: (row.cost_unit ?? row.unit ?? "piece") as MeasurementUnit,
+    updated_at: row.updated_at ?? row.created_at,
+  };
+}
+
+export function mapVariant(row: VariantRow): ProductVariant {
+  return {
+    ...row,
+    price_delta: num(row.price_delta),
+    price: row.price != null ? num(row.price) : null,
+    image_url: row.image_url ?? null,
+  };
+}
+
+export function mapStockLevel(row: StockLevelRow): StockLevel {
+  return { ...row, quantity: row.quantity, reorder_point: row.reorder_point };
+}
+
+export function mapMovement(row: MovementRow): InventoryMovement {
+  return {
+    ...row,
+    movement_type: row.movement_type as InventoryMovement["movement_type"],
+    reference_id: row.reference_id,
+  };
+}
+
+export function mapSupplier(row: SupplierRow): Supplier {
+  return row;
+}
+
+export function mapSupplierPayment(row: SupplierPaymentRow): SupplierPayment {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    store_id: row.store_id,
+    supplier_id: row.supplier_id,
+    amount: num(row.amount),
+    payment_method: row.payment_method as SupplierPayment["payment_method"],
+    reference: row.reference,
+    notes: row.notes,
+    paid_at: row.paid_at,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    voided_at: row.voided_at,
+  };
+}
+
+export function mapPurchase(row: PurchaseRow): PurchaseInvoice {
+  return {
+    id: row.id,
+    store_id: row.store_id,
+    warehouse_id: row.warehouse_id,
+    supplier_id: row.supplier_id,
+    invoice_number: row.invoice_number,
+    status: row.status as PurchaseInvoice["status"],
+    subtotal: num(row.subtotal),
+    extra_cost: num(row.extra_cost ?? 0),
+    tax: num(row.tax),
+    total: num(row.total),
+    received_at: row.received_at,
+    cancelled_at: row.cancelled_at ?? null,
+    created_by: row.created_by,
+    created_at: row.created_at,
+  };
+}
+
+export function mapPurchaseLine(row: PurchaseLineRow): PurchaseInvoiceLine {
+  return {
+    id: row.id,
+    invoice_id: row.invoice_id,
+    product_id: row.product_id,
+    variant_id: row.variant_id,
+    quantity: row.quantity,
+    unit_cost: num(row.unit_cost),
+    line_total: num(row.line_total),
+    landed_unit_cost: row.landed_unit_cost == null ? null : num(row.landed_unit_cost),
+    landed_line_total: row.landed_line_total == null ? null : num(row.landed_line_total),
+  };
+}
+
+export function mapTransfer(row: TransferRow): TransferOrder {
+  return {
+    id: row.id,
+    from_store_id: row.from_store_id,
+    to_store_id: row.to_store_id,
+    from_warehouse_id: row.from_warehouse_id,
+    to_warehouse_id: row.to_warehouse_id,
+    status: row.status as TransferOrder["status"],
+    sent_at: row.sent_at,
+    received_at: row.received_at,
+    created_by: row.created_by,
+    created_at: row.created_at,
+  };
+}
+
+export function mapTransferLine(row: TransferLineRow): TransferOrderLine {
+  return row;
+}
+
+export function mapWaste(row: WasteRow): WasteRecord {
+  return row;
+}
+
+export function mapStockCount(row: StockCountRow): StockCount {
+  return {
+    id: row.id,
+    store_id: row.store_id,
+    warehouse_id: row.warehouse_id,
+    status: row.status as StockCount["status"],
+    started_at: row.started_at,
+    completed_at: row.completed_at,
+    created_by: row.created_by,
+  };
+}
+
+export function mapStockCountLine(row: StockCountLineRow): StockCountLine {
+  return row;
+}
+
+export function mapSession(row: SessionRow): CashierSession {
+  return {
+    id: row.id,
+    store_id: row.store_id,
+    device_id: row.device_id,
+    cashier_id: row.cashier_id,
+    opened_at: row.opened_at,
+    closed_at: row.closed_at,
+    opening_cash: num(row.opening_cash),
+    expected_cash: row.expected_cash != null ? num(row.expected_cash) : null,
+    actual_cash: row.actual_cash != null ? num(row.actual_cash) : null,
+    variance: row.variance != null ? num(row.variance) : null,
+    status: row.status as CashierSession["status"],
+    notes: row.notes,
+    closed_by: row.closed_by ?? null,
+    close_reason: row.close_reason ?? null,
+    force_closed: row.force_closed ?? false,
+  };
+}
+
+export function mapCustomer(row: CustomerRow): Customer {
+  return {
+    ...row,
+    total_spent: num(row.total_spent),
+    account_balance: num(row.account_balance ?? 0),
+    credit_limit: num(row.credit_limit ?? 0),
+    payment_terms: row.payment_terms ?? "",
+  };
+}
+
+export function mapOrder(row: OrderRow): Order {
+  return {
+    id: row.id,
+    store_id: row.store_id,
+    session_id: row.session_id,
+    order_number: row.order_number,
+    customer_id: row.customer_id,
+    status: row.status as Order["status"],
+    subtotal: num(row.subtotal),
+    discount: num(row.discount),
+    tax: num(row.tax),
+    total: num(row.total),
+    payment_status: row.payment_status as Order["payment_status"],
+    created_by: row.created_by,
+    created_at: row.created_at,
+  };
+}
+
+export function mapOrderItem(row: OrderItemRow): OrderItem {
+  return {
+    id: row.id,
+    order_id: row.order_id,
+    product_id: row.product_id,
+    variant_id: row.variant_id,
+    quantity: row.quantity,
+    unit_price: num(row.unit_price),
+    modifiers: (row.modifiers ?? []) as OrderItem["modifiers"],
+    line_total: num(row.line_total),
+    unit_cost: num(row.unit_cost ?? 0),
+    line_cost: num(row.line_cost ?? 0),
+  };
+}
+
+export function mapOrderItemDeduction(row: OrderItemDeductionRow): OrderItemDeduction {
+  return {
+    id: row.id,
+    order_item_id: row.order_item_id,
+    ingredient_product_id: row.ingredient_product_id,
+    quantity: num(row.quantity),
+    unit: row.unit as MeasurementUnit,
+    unit_cost: num(row.unit_cost),
+    line_cost: num(row.line_cost),
+  };
+}
+
+export function mapRecipe(row: RecipeRow): ProductRecipe {
+  return row;
+}
+
+export function mapRecipeLine(row: RecipeLineRow): ProductRecipeLine {
+  return {
+    id: row.id,
+    recipe_id: row.recipe_id,
+    ingredient_product_id: row.ingredient_product_id,
+    quantity: num(row.quantity),
+    unit: row.unit as MeasurementUnit,
+    sort_order: row.sort_order,
+  };
+}
+
+export function mapOrderPayment(row: OrderPaymentRow): OrderPayment {
+  return {
+    id: row.id,
+    order_id: row.order_id,
+    method: row.method as OrderPayment["method"],
+    amount: num(row.amount),
+    reference: row.reference,
+  };
+}
+
+export function mapOnlineOrder(row: OnlineOrderRow): OnlineOrder {
+  return {
+    id: row.id,
+    store_id: row.store_id,
+    customer_id: row.customer_id,
+    order_id: row.order_id,
+    customer_name: row.customer_name,
+    customer_phone: row.customer_phone,
+    status: row.status as OnlineOrder["status"],
+    subtotal: num(row.subtotal),
+    discount: num(row.discount),
+    tax: num(row.tax),
+    total: num(row.total),
+    notes: row.notes,
+    source: row.source ?? "qr_menu",
+    external_order_id: row.external_order_id ?? null,
+    checkout_session_id: row.checkout_session_id ?? null,
+    fulfillment_type: row.fulfillment_type ?? null,
+    delivery_area: row.delivery_area ?? null,
+    delivery_address: row.delivery_address ?? null,
+    delivery_fee: num(row.delivery_fee ?? 0),
+    payment_method: row.payment_method ?? null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export function mapOnlineOrderItem(row: OnlineOrderItemRow): OnlineOrderItem {
+  return {
+    id: row.id,
+    online_order_id: row.online_order_id,
+    product_id: row.product_id,
+    variant_id: row.variant_id,
+    quantity: row.quantity,
+    unit_price: num(row.unit_price),
+    line_total: num(row.line_total),
+  };
+}
+
+export function mapExpense(row: ExpenseRow): Expense {
+  return {
+    ...row,
+    amount: num(row.amount),
+    quantity: row.quantity != null ? num(row.quantity) : null,
+    unit_cost: row.unit_cost != null ? num(row.unit_cost) : null,
+    payment_method: row.payment_method as Expense["payment_method"],
+    expense_source: row.expense_source as Expense["expense_source"],
+    status: row.status as Expense["status"],
+  };
+}
+
+export function mapCostCenter(row: CostCenterRow): CostCenter {
+  return { ...row, type: row.type as CostCenter["type"] };
+}
+
+export function mapExpenseCategory(row: ExpenseCategoryRow): ExpenseCategory {
+  return row;
+}
+
+export function mapPermission(row: PermissionRow): Permission {
+  return row;
+}
+
+export function mapLoyaltyRule(row: LoyaltyRuleRow): LoyaltyRule {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    points_per_currency: num(row.points_per_currency),
+    redemption_rate: num(row.redemption_rate),
+    is_active: row.is_active,
+  };
+}
+
+export function mapLoyaltyLedger(row: LoyaltyLedgerRow): LoyaltyLedgerEntry {
+  return row;
+}
+
+export function mapMonthlyClose(row: MonthlyCloseRow): MonthlyClose {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    store_id: row.store_id,
+    period_start: row.period_start,
+    period_end: row.period_end,
+    status: row.status as MonthlyClose["status"],
+    summary: (row.summary ?? {}) as MonthlyClose["summary"],
+    closed_by: row.closed_by,
+    closed_at: row.closed_at,
+  };
+}
+
+export function mapImportJob(row: ImportJobRow): ImportJob {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    type: row.type,
+    status: row.status as ImportJob["status"],
+    file_url: row.file_url,
+    result: (row.result ?? {}) as Record<string, unknown>,
+    created_by: row.created_by,
+    created_at: row.created_at,
+  };
+}
+
+export function mapAuditLog(row: AuditLogRow): AuditLog {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    store_id: row.store_id,
+    user_id: row.user_id,
+    action: row.action,
+    entity_type: row.entity_type,
+    entity_id: row.entity_id,
+    metadata: (row.metadata ?? {}) as Record<string, unknown>,
+    created_at: row.created_at,
+  };
+}
+
+export function mapAppSetting(row: AppSettingRow): AppSetting {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    key: row.key,
+    value: (row.value ?? {}) as Record<string, unknown>,
+  };
+}

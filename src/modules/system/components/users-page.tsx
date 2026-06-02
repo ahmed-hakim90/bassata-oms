@@ -1,0 +1,539 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Shield } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/SweetFlow/page-header";
+import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { StatusPill } from "@/components/SweetFlow/status-pill";
+import type { AppUser, Store, Permission, PermissionKey } from "@/lib/types";
+import type { UserRole } from "@/lib/constants";
+import { PermissionsMatrix } from "@/modules/accounting/components/permissions-matrix";
+import { UserPermissionOverrides } from "@/modules/accounting/components/user-permission-overrides";
+import {
+  createUserAction,
+  deactivateUserAction,
+  resetUserPinAction,
+  resetUserPasswordAction,
+  updateUserAction,
+} from "@/modules/system/actions/system.actions";
+
+interface UsersPageProps {
+  users: AppUser[];
+  stores: Store[];
+  devices: { id: string; store_id: string; name: string }[];
+  userDeviceIds: Record<string, string[]>;
+  permissionsData: {
+    permissions: Permission[];
+    matrix: Record<UserRole, PermissionKey[]>;
+    userGrants: Record<string, { permission_key: string; granted: boolean }[]>;
+  } | null;
+  embedded?: boolean;
+}
+
+export function UsersPage({
+  users,
+  stores,
+  devices,
+  userDeviceIds,
+  permissionsData,
+  embedded,
+}: UsersPageProps) {
+  const [pending, startTransition] = useTransition();
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    role: "cashier" as AppUser["role"],
+    storeIds: [stores[0]?.id ?? ""],
+    deviceIds: [] as string[],
+    restrictDevices: false,
+    pin: "1234",
+    password: "",
+  });
+  const [pinReset, setPinReset] = useState<Record<string, string>>({});
+  const [passwordReset, setPasswordReset] = useState<Record<string, string>>({});
+  const [edits, setEdits] = useState(
+    Object.fromEntries(
+      users.map((u) => [
+        u.id,
+        {
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          storeIds: u.store_ids,
+          deviceIds: userDeviceIds[u.id] ?? [],
+          restrictDevices: (userDeviceIds[u.id]?.length ?? 0) > 0,
+          isActive: u.is_active,
+        },
+      ])
+    )
+  );
+
+  const saveUser = (id: string) => {
+    startTransition(async () => {
+      try {
+        await updateUserAction(id, {
+          ...edits[id],
+          deviceIds: edits[id]?.restrictDevices ? edits[id]?.deviceIds : [],
+        });
+        toast.success("User updated");
+      } catch {
+        toast.error("Could not update user");
+      }
+    });
+  };
+
+  const create = () => {
+    startTransition(async () => {
+      try {
+        await createUserAction({
+          ...form,
+          deviceIds: form.restrictDevices ? form.deviceIds : undefined,
+        });
+        toast.success("User created");
+      } catch {
+        toast.error("Failed to create user");
+      }
+    });
+  };
+
+  return (
+    <>
+      {embedded ? null : (
+        <PageHeader
+          title="Users & Roles"
+          description="Manage team access and cashier PINs"
+        />
+      )}
+
+      <Tabs defaultValue="team" className="space-y-6">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="create">Create user</TabsTrigger>
+          <TabsTrigger value="stores">Store access</TabsTrigger>
+          <TabsTrigger value="pin">PIN reset</TabsTrigger>
+          <TabsTrigger value="passwords">Password reset</TabsTrigger>
+          <TabsTrigger value="roles">Role & status</TabsTrigger>
+          {permissionsData ? <TabsTrigger value="permissions">Permissions</TabsTrigger> : null}
+        </TabsList>
+
+        <TabsContent value="team">
+          <div className="grid gap-3">
+            {users.map((u) => (
+              <div
+                key={u.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-white px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Shield className="size-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{u.name}</p>
+                    <p className="text-sm text-muted-foreground">{u.email}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <StatusPill label={u.role} variant="info" />
+                  <StatusPill
+                    label={u.is_active ? "active" : "inactive"}
+                    variant={u.is_active ? "success" : "draft"}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="create">
+          <OperationalCard title="Create user">
+            <div className="grid max-w-lg gap-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Temporary Password</Label>
+                <Input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  minLength={8}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select
+                  value={form.role}
+                  onValueChange={(v) =>
+                    setForm({ ...form, role: (v ?? "cashier") as AppUser["role"] })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["owner", "manager", "cashier", "inventory", "viewer"] as const).map(
+                      (r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.role === "cashier" && (
+                <div className="space-y-2">
+                  <Label>PIN</Label>
+                  <Input
+                    value={form.pin}
+                    onChange={(e) => setForm({ ...form, pin: e.target.value })}
+                    maxLength={6}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Store Access</Label>
+                <div className="grid gap-2 rounded-xl border border-border/60 p-3">
+                  {stores.map((store) => (
+                    <label key={store.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={form.storeIds.includes(store.id)}
+                        onCheckedChange={(v) => {
+                          const next =
+                            v === true
+                              ? [...new Set([...form.storeIds, store.id])]
+                              : form.storeIds.filter((id) => id !== store.id);
+                          setForm({ ...form, storeIds: next });
+                        }}
+                      />
+                      {store.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {form.role === "cashier" && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <Checkbox
+                      checked={form.restrictDevices}
+                      onCheckedChange={(v) =>
+                        setForm({
+                          ...form,
+                          restrictDevices: v === true,
+                          deviceIds: v === true ? form.deviceIds : [],
+                        })
+                      }
+                    />
+                    Restrict to specific POS devices
+                  </label>
+                  {form.restrictDevices ? (
+                    <div className="grid gap-2 rounded-xl border border-border/60 p-3">
+                      {devices
+                        .filter((d) => form.storeIds.includes(d.store_id))
+                        .map((device) => (
+                          <label key={device.id} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={form.deviceIds.includes(device.id)}
+                              onCheckedChange={(v) => {
+                                const next =
+                                  v === true
+                                    ? [...new Set([...form.deviceIds, device.id])]
+                                    : form.deviceIds.filter((id) => id !== device.id);
+                                setForm({ ...form, deviceIds: next });
+                              }}
+                            />
+                            {device.name}
+                          </label>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Empty means all devices in allowed branches.
+                    </p>
+                  )}
+                </div>
+              )}
+              <Button onClick={create} disabled={pending}>
+                Create User
+              </Button>
+            </div>
+          </OperationalCard>
+        </TabsContent>
+
+        <TabsContent value="stores">
+          <OperationalCard title="Store access by user">
+            <div className="space-y-6">
+              {users.map((u) => (
+                <div key={u.id} className="border-b border-border/60 pb-4 last:border-0">
+                  <p className="mb-2 font-medium">{u.name}</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {stores.map((store) => (
+                      <label key={store.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={(edits[u.id]?.storeIds ?? u.store_ids).includes(store.id)}
+                          onCheckedChange={(v) => {
+                            const current = edits[u.id]?.storeIds ?? u.store_ids;
+                            const next =
+                              v === true
+                                ? [...new Set([...current, store.id])]
+                                : current.filter((id) => id !== store.id);
+                            setEdits({
+                              ...edits,
+                              [u.id]: { ...edits[u.id], storeIds: next },
+                            });
+                          }}
+                        />
+                        {store.name}
+                      </label>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    disabled={pending}
+                    onClick={() => saveUser(u.id)}
+                  >
+                    Save store access
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </OperationalCard>
+        </TabsContent>
+
+        <TabsContent value="pin">
+          <OperationalCard title="Cashier PIN reset">
+            <div className="space-y-4">
+              {users.filter((u) => u.role === "cashier").length === 0 ? (
+                <p className="text-sm text-muted-foreground">No cashier accounts.</p>
+              ) : (
+                users
+                  .filter((u) => u.role === "cashier")
+                  .map((u) => (
+                    <div key={u.id} className="flex max-w-md flex-wrap items-center gap-2">
+                      <span className="min-w-[8rem] text-sm font-medium">{u.name}</span>
+                      <Input
+                        placeholder="New PIN (4–8 digits)"
+                        maxLength={8}
+                        className="max-w-[10rem]"
+                        value={pinReset[u.id] ?? ""}
+                        onChange={(e) =>
+                          setPinReset({ ...pinReset, [u.id]: e.target.value })
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pending || !(pinReset[u.id]?.length >= 4)}
+                        onClick={() => {
+                          startTransition(async () => {
+                            try {
+                              await resetUserPinAction(u.id, pinReset[u.id]);
+                              setPinReset({ ...pinReset, [u.id]: "" });
+                              toast.success("PIN reset");
+                            } catch {
+                              toast.error("Could not reset PIN");
+                            }
+                          });
+                        }}
+                      >
+                        Reset PIN
+                      </Button>
+                    </div>
+                  ))
+              )}
+            </div>
+          </OperationalCard>
+        </TabsContent>
+
+        <TabsContent value="passwords">
+          <OperationalCard title="Reset login password">
+            <p className="mb-4 text-sm text-muted-foreground">
+              Sets a new password for the user&apos;s email login. Share it securely.
+            </p>
+            <div className="space-y-4">
+              {users.filter((u) => u.auth_user_id).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No users with login accounts.</p>
+              ) : (
+                users
+                  .filter((u) => u.auth_user_id)
+                  .map((u) => (
+                    <div key={u.id} className="flex max-w-lg flex-wrap items-center gap-2">
+                      <span className="min-w-[8rem] text-sm font-medium">{u.name}</span>
+                      <Input
+                        type="password"
+                        placeholder="New password (8+ chars)"
+                        className="max-w-[14rem]"
+                        value={passwordReset[u.id] ?? ""}
+                        onChange={(e) =>
+                          setPasswordReset({ ...passwordReset, [u.id]: e.target.value })
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pending || (passwordReset[u.id]?.length ?? 0) < 8}
+                        onClick={() => {
+                          startTransition(async () => {
+                            try {
+                              await resetUserPasswordAction(u.id, passwordReset[u.id]!);
+                              setPasswordReset({ ...passwordReset, [u.id]: "" });
+                              toast.success("Password reset");
+                            } catch {
+                              toast.error("Could not reset password");
+                            }
+                          });
+                        }}
+                      >
+                        Reset password
+                      </Button>
+                    </div>
+                  ))
+              )}
+            </div>
+          </OperationalCard>
+        </TabsContent>
+
+        <TabsContent value="roles">
+          <OperationalCard title="Role and status">
+            <div className="space-y-6">
+              {users.map((u) => (
+                <div
+                  key={u.id}
+                  className="grid gap-3 border-b border-border/60 pb-4 last:border-0 md:grid-cols-[1fr_1fr_1fr_auto]"
+                >
+                  <p className="font-medium md:col-span-4 md:mb-1">{u.name}</p>
+                  <Input
+                    value={edits[u.id]?.name ?? u.name}
+                    onChange={(e) =>
+                      setEdits({
+                        ...edits,
+                        [u.id]: { ...edits[u.id], name: e.target.value },
+                      })
+                    }
+                  />
+                  <Input
+                    value={edits[u.id]?.email ?? u.email}
+                    onChange={(e) =>
+                      setEdits({
+                        ...edits,
+                        [u.id]: { ...edits[u.id], email: e.target.value },
+                      })
+                    }
+                  />
+                  <Select
+                    value={edits[u.id]?.role ?? u.role}
+                    onValueChange={(role) =>
+                      setEdits({
+                        ...edits,
+                        [u.id]: {
+                          ...edits[u.id],
+                          role: (role ?? u.role) as AppUser["role"],
+                        },
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(["owner", "manager", "cashier", "inventory", "viewer"] as const).map(
+                        (role) => (
+                          <SelectItem key={role} value={role}>
+                            {role}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={edits[u.id]?.isActive ?? u.is_active}
+                        onCheckedChange={(v) =>
+                          setEdits({
+                            ...edits,
+                            [u.id]: { ...edits[u.id], isActive: v === true },
+                          })
+                        }
+                      />
+                      Active
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => saveUser(u.id)}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!u.is_active || pending}
+                      onClick={() => {
+                        startTransition(async () => {
+                          try {
+                            await deactivateUserAction(u.id);
+                            toast.success("User deactivated");
+                          } catch {
+                            toast.error("Could not deactivate user");
+                          }
+                        });
+                      }}
+                    >
+                      Deactivate
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </OperationalCard>
+        </TabsContent>
+
+        {permissionsData ? (
+          <TabsContent value="permissions" className="space-y-6">
+            <PermissionsMatrix
+              permissions={permissionsData.permissions}
+              matrix={permissionsData.matrix}
+            />
+            <UserPermissionOverrides
+              users={users}
+              permissions={permissionsData.permissions}
+              initialGrants={permissionsData.userGrants}
+            />
+          </TabsContent>
+        ) : null}
+      </Tabs>
+    </>
+  );
+}

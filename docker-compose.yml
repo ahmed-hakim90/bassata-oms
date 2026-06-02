@@ -1,0 +1,21 @@
+# Local Supabase for SweetFlow POS development.
+# Requires Supabase CLI: https://supabase.com/docs/guides/cli
+#
+# Usage:
+#   supabase start          # starts local stack (preferred)
+#   docker compose up -d    # optional Postgres-only fallback (not used by default)
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    profiles: ["postgres-only"]
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - SweetFlow_pg:/var/lib/postgresql/data
+
+volumes:
+  SweetFlow_pg:
