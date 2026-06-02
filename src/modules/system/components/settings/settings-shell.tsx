@@ -51,6 +51,7 @@ export interface SettingsShellProps {
     sessionSettings: SessionSettings;
     onlineMenuSettings: OnlineMenuSettings;
     businessActivitySettings: import("@/lib/constants").BusinessActivitySettings;
+    productTemplateSettings: import("@/lib/constants").ProductTemplateSettings;
     costCenters: CostCenter[];
     stores: Store[];
     warehouses: Warehouse[];
@@ -195,6 +196,7 @@ export function SettingsShell({
             <TabsContent value="business-activity">
               <BusinessActivitySettingsTab
                 initialSettings={bundle.businessActivitySettings}
+                initialTemplates={bundle.productTemplateSettings}
               />
             </TabsContent>
             <TabsContent value="branches">

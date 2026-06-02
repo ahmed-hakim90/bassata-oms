@@ -32,7 +32,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
   const total = getCartTotal(cart, discountAmount);
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-none bg-white shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-black/5">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-none bg-white shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-black/5">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h2 className="font-heading text-lg font-semibold">Cart</h2>
         {cart.length > 0 && (
@@ -87,7 +87,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
         </div>
       ) : null}
 
-      <ScrollArea className="flex-1 px-2">
+      <ScrollArea className="h-0 min-h-0 flex-1 px-2">
         {cart.length === 0 ? (
           <p className="px-2 py-12 text-center text-sm text-muted-foreground">
             Tap products to add items

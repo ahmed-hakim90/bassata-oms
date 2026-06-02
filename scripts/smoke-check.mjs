@@ -102,6 +102,10 @@ const migrations = [
   "030_souqna_integration.sql",
   "031_souqna_provider_completion.sql",
   "032_fix_pairing_anon_grants.sql",
+  "033_business_activity.sql",
+  "034_multi_org_onboarding.sql",
+  "035_harden_security_definer_search_path.sql",
+  "036_generalized_inventory_architecture.sql",
 ];
 for (const m of migrations) {
   const p = resolve(root, "supabase/migrations", m);
@@ -111,5 +115,8 @@ for (const m of migrations) {
   }
 }
 console.log("✓ All migration files present");
+
+console.log("→ npm run verify:rls-policies");
+run("npm", ["run", "verify:rls-policies"]);
 
 console.log("\nAutomated smoke check passed. Run manual steps in docs/SMOKE_TEST.md");

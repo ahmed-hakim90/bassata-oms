@@ -17,7 +17,7 @@ Copy from `.env.example` and fill values in your host (Vercel, Docker, etc.).
 
 ## Database migrations
 
-Apply all files under `supabase/migrations/` in order through **031**:
+Apply all files under `supabase/migrations/` in order through **036**:
 
 - `018` — session management, checkout session enforcement
 - `021` — POS device pairing
@@ -30,6 +30,10 @@ Apply all files under `supabase/migrations/` in order through **031**:
 - `029` — purchase landed cost allocation fields
 - `030` — Souqna integration (products, online orders, logs)
 - `031` — Souqna provider completion (webhook, stats)
+- `033` — business activity modes, pricing tiers, checkout hardening
+- `034` — multi-org onboarding and tenant mutation policy hardening
+- `035` — SECURITY DEFINER search_path hardening
+- `036` — generalized inventory architecture (batch/expiry/serial foundations)
 
 ```bash
 supabase link --project-ref <your-ref>

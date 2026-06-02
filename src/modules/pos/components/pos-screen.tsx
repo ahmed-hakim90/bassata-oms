@@ -387,10 +387,10 @@ export function PosScreen({
 
         <Sheet open={cartOpen} onOpenChange={setCartOpen}>
           <SheetContent
-            side="right"
-            className="w-full max-w-full gap-0 p-0 sm:max-w-none sm:w-[min(460px,94vw)] sm:bg-transparent sm:p-3"
+            side="bottom"
+            className="flex max-h-[min(92dvh,100%)] flex-col gap-0 overflow-hidden rounded-t-2xl border-t p-0"
           >
-            <div className="flex h-full min-h-0 flex-col pt-10">
+            <div className="flex min-h-0 flex-1 flex-col">
               <CartPanel
                 onCheckout={() => {
                   setCartOpen(false);

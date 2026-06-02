@@ -242,6 +242,9 @@ export type CategoryRow = {
   sort_order: number;
   color: string;
   icon: string;
+  expiry_tracking_enabled_default?: boolean;
+  inventory_rotation_method_default?: string;
+  expiry_policy_default?: string;
 };
 export type ProductRow = {
   id: string;
@@ -256,12 +259,23 @@ export type ProductRow = {
   is_popular: boolean;
   track_inventory: boolean;
   product_type: string;
+  inventory_product_type?: string;
+  inventory_tracking_mode?: string;
+  inventory_rotation_method?: string;
+  expiry_policy?: string;
+  expiry_tracking_enabled?: boolean;
+  shelf_life_days?: number;
+  shelf_life_months?: number;
+  shelf_life_years?: number;
   unit: string;
+  base_unit?: string;
   sale_unit: string;
   sales_unit_type: string;
   allow_fractional_quantity: boolean;
   allow_price_input: boolean;
   wholesale_enabled: boolean;
+  supports_weight_sale?: boolean;
+  supports_amount_sale?: boolean;
   last_unit_cost: number;
   cost_unit: string;
   description: string;
@@ -338,6 +352,10 @@ export type MovementRow = {
   reference_type: string | null;
   reference_id: string | null;
   reason: string | null;
+  batch_id?: string | null;
+  batch_number?: string | null;
+  serial_number?: string | null;
+  expiry_date?: string | null;
   created_by: string;
   created_at: string;
 };
@@ -387,6 +405,9 @@ export type PurchaseLineRow = {
   line_total: number;
   landed_unit_cost: number | null;
   landed_line_total: number | null;
+  batch_number?: string | null;
+  production_date?: string | null;
+  expiry_date?: string | null;
 };
 export type TransferRow = {
   id: string;
@@ -407,6 +428,8 @@ export type TransferLineRow = {
   variant_id: string | null;
   quantity_sent: number;
   quantity_received: number;
+  batch_id?: string | null;
+  batch_number?: string | null;
 };
 export type WasteRow = {
   id: string;
@@ -417,6 +440,9 @@ export type WasteRow = {
   quantity: number;
   reason_code: string;
   notes: string;
+  batch_id?: string | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
   created_by: string;
   created_at: string;
 };
@@ -437,6 +463,33 @@ export type StockCountLineRow = {
   expected_qty: number;
   counted_qty: number;
   variance: number;
+  batch_id?: string | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+};
+export type InventoryBatchRow = {
+  id: string;
+  org_id: string;
+  store_id: string;
+  warehouse_id: string;
+  product_id: string;
+  variant_id: string | null;
+  batch_number: string;
+  source_type: string;
+  source_document_id: string | null;
+  supplier_id: string | null;
+  purchase_invoice_id: string | null;
+  received_date: string;
+  production_date: string | null;
+  expiry_date: string | null;
+  quantity: number;
+  remaining_quantity: number;
+  unit: string;
+  is_expired: boolean;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 };
 export type SessionRow = {
   id: string;

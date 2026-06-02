@@ -21,10 +21,12 @@ export async function listCostCenters(storeId?: string): Promise<CostCenter[]> {
 
 export async function getCostCenter(id: string): Promise<CostCenter | null> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { data, error } = await db
     .from("cost_centers")
     .select("*")
     .eq("id", id)
+    .eq("org_id", orgId)
     .maybeSingle();
   if (error) throwDbError(error, "getCostCenter");
   return data ? mapCostCenter(data) : null;
@@ -58,10 +60,12 @@ export async function updateCostCenter(
   patch: Partial<Pick<CostCenter, "name" | "code" | "type" | "is_active" | "store_id">>
 ): Promise<CostCenter | null> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { data, error } = await db
     .from("cost_centers")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", id)
+    .eq("org_id", orgId)
     .select()
     .maybeSingle();
   if (error) throwDbError(error, "updateCostCenter");

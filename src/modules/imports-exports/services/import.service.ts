@@ -15,6 +15,15 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "is_active",
   "is_popular",
   "track_inventory",
+  "inventory_tracking_mode",
+  "inventory_rotation_method",
+  "expiry_tracking_enabled",
+  "expiry_policy",
+  "shelf_life_days",
+  "shelf_life_months",
+  "shelf_life_years",
+  "base_unit",
+  "sale_unit",
 ] as const;
 
 export type ProductImportRow = Record<(typeof PRODUCT_IMPORT_COLUMNS)[number], string>;
@@ -53,6 +62,15 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
       is_active: normalized.is_active ?? "true",
       is_popular: normalized.is_popular ?? "false",
       track_inventory: normalized.track_inventory ?? "true",
+      inventory_tracking_mode: normalized.inventory_tracking_mode ?? "standard",
+      inventory_rotation_method: normalized.inventory_rotation_method ?? "FIFO",
+      expiry_tracking_enabled: normalized.expiry_tracking_enabled ?? "false",
+      expiry_policy: normalized.expiry_policy ?? "block_sale",
+      shelf_life_days: normalized.shelf_life_days ?? "0",
+      shelf_life_months: normalized.shelf_life_months ?? "0",
+      shelf_life_years: normalized.shelf_life_years ?? "0",
+      base_unit: normalized.base_unit ?? "piece",
+      sale_unit: normalized.sale_unit ?? "piece",
     };
   });
 
@@ -76,6 +94,14 @@ export function validateProductRows(rows: ProductImportRow[]): ImportValidationE
     const price = Number(row.base_price);
     if (row.base_price && Number.isNaN(price)) {
       errors.push({ row: rowNum, field: "base_price", message: "Invalid price" });
+    }
+    const trackingModes = new Set(["none", "standard", "batch", "batch_and_expiry", "serial_number"]);
+    if (!trackingModes.has(row.inventory_tracking_mode)) {
+      errors.push({
+        row: rowNum,
+        field: "inventory_tracking_mode",
+        message: "Invalid tracking mode",
+      });
     }
   });
 
@@ -151,8 +177,18 @@ export async function bulkImportProducts(
         is_active: parseBool(row.is_active, true),
         is_popular: parseBool(row.is_popular, false),
         track_inventory: parseBool(row.track_inventory, true),
-        product_type: "finished",
+        product_type: "finished_product",
+        inventory_tracking_mode: (row.inventory_tracking_mode as Product["inventory_tracking_mode"]) ?? "standard",
+        inventory_rotation_method:
+          (row.inventory_rotation_method as Product["inventory_rotation_method"]) ?? "FIFO",
+        expiry_tracking_enabled: parseBool(row.expiry_tracking_enabled, false),
+        expiry_policy: (row.expiry_policy as Product["expiry_policy"]) ?? "block_sale",
+        shelf_life_days: Number(row.shelf_life_days) || 0,
+        shelf_life_months: Number(row.shelf_life_months) || 0,
+        shelf_life_years: Number(row.shelf_life_years) || 0,
         unit: "piece",
+        base_unit: (row.base_unit as Product["base_unit"]) ?? "piece",
+        sale_unit: (row.sale_unit as Product["sale_unit"]) ?? "piece",
         last_unit_cost: 0,
         cost_unit: "piece",
       },

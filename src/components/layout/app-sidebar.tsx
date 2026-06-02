@@ -78,7 +78,7 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "flex h-full flex-col border-r border-border/60 bg-sidebar/80 backdrop-blur-xl transition-all duration-300",
+        "flex h-full flex-col overflow-y-auto border-r border-border/60 bg-sidebar/80 backdrop-blur-xl transition-all duration-300",
         sidebarCollapsed ? "w-[72px]" : "w-64"
       )}
     >

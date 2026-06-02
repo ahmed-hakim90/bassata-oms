@@ -16,6 +16,16 @@ export interface AdjustStockInput {
   referenceId?: string | null;
   reason?: string | null;
   createdBy: string;
+  batch?: {
+    batchNumber?: string | null;
+    productionDate?: string | null;
+    expiryDate?: string | null;
+    receivedDate?: string | null;
+    supplierId?: string | null;
+    purchaseInvoiceId?: string | null;
+    sourceType?: "purchase" | "opening_stock" | "transfer" | "production" | "adjustment";
+    sourceDocumentId?: string | null;
+  };
 }
 
 export async function getStockLevel(
@@ -36,6 +46,7 @@ export async function adjustStock(input: AdjustStockInput): Promise<InventoryMov
     ...input,
     trackInventory: product.track_inventory,
     productName: product.name,
+    unit: product.base_unit ?? product.unit,
   });
 
   const orgId = await getOrgId();
@@ -50,6 +61,7 @@ export async function adjustStock(input: AdjustStockInput): Promise<InventoryMov
       warehouseId: input.warehouseId,
       quantityDelta: input.quantityDelta,
       movementType: input.movementType,
+      batchNumber: input.batch?.batchNumber ?? null,
     },
   });
 

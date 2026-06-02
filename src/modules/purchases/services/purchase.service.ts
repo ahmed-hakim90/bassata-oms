@@ -7,6 +7,25 @@ import { adjustStock } from "@/lib/services/inventory-movement.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import type { PurchaseInvoice, PurchaseInvoiceLine } from "@/lib/types";
 
+function toIsoDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function addExpiry(
+  productionDate: string | null,
+  shelfLifeDays: number,
+  shelfLifeMonths: number,
+  shelfLifeYears: number
+): string | null {
+  if (!productionDate) return null;
+  const d = new Date(productionDate);
+  d.setDate(d.getDate() + shelfLifeDays);
+  d.setMonth(d.getMonth() + shelfLifeMonths);
+  d.setFullYear(d.getFullYear() + shelfLifeYears);
+  return d.toISOString().slice(0, 10);
+}
+
 export interface PurchaseWithLines extends PurchaseInvoice {
   lines: PurchaseInvoiceLine[];
   supplierName: string;
@@ -110,6 +129,9 @@ export async function addPurchaseLine(input: {
   variantId?: string | null;
   quantity: number;
   unitCost: number;
+  batchNumber?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
 }): Promise<PurchaseInvoiceLine> {
   const invoice = await purchaseRepo.getPurchase(input.invoiceId);
   if (!invoice) throw new Error("Purchase not found");
@@ -131,6 +153,9 @@ export async function addPurchaseLine(input: {
       line_total: qty * input.unitCost,
       landed_unit_cost: null,
       landed_line_total: null,
+      batch_number: input.batchNumber ?? null,
+      production_date: input.productionDate ?? null,
+      expiry_date: input.expiryDate ?? null,
     }))!;
   } else {
     line = await purchaseRepo.addPurchaseLine({
@@ -142,6 +167,9 @@ export async function addPurchaseLine(input: {
       line_total: input.quantity * input.unitCost,
       landed_unit_cost: null,
       landed_line_total: null,
+      batch_number: input.batchNumber ?? null,
+      production_date: input.productionDate ?? null,
+      expiry_date: input.expiryDate ?? null,
     });
   }
   await purchaseRepo.recalcPurchaseTotals(input.invoiceId);
@@ -179,6 +207,8 @@ export async function receivePurchase(
       landed_unit_cost: landed.landedUnitCost,
       landed_line_total: landed.landedLineTotal,
     });
+    const product = await catalogRepo.getProduct(line.product_id);
+
     await adjustStock({
       storeId: invoice.store_id,
       warehouseId: invoice.warehouse_id,
@@ -189,9 +219,27 @@ export async function receivePurchase(
       referenceType: "purchase_invoice",
       referenceId: invoiceId,
       createdBy: userId,
+      batch: {
+        batchNumber:
+          line.batch_number ??
+          `${invoice.invoice_number}-${line.product_id.slice(0, 6)}-${line.id.slice(0, 6)}`,
+        productionDate: toIsoDate(line.production_date),
+        expiryDate:
+          toIsoDate(line.expiry_date) ??
+          addExpiry(
+            toIsoDate(line.production_date),
+            product?.shelf_life_days ?? 0,
+            product?.shelf_life_months ?? 0,
+            product?.shelf_life_years ?? 0
+          ),
+        receivedDate: new Date().toISOString().slice(0, 10),
+        supplierId: invoice.supplier_id,
+        purchaseInvoiceId: invoice.id,
+        sourceType: "purchase",
+        sourceDocumentId: invoice.id,
+      },
     });
 
-    const product = await catalogRepo.getProduct(line.product_id);
     if (product) {
       await catalogRepo.updateProduct(line.product_id, {
         last_unit_cost: landed.landedUnitCost,
@@ -224,6 +272,9 @@ export async function updatePurchaseLine(input: {
   lineId: string;
   quantity: number;
   unitCost: number;
+  batchNumber?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
 }): Promise<PurchaseInvoiceLine> {
   if (input.quantity <= 0) throw new Error("Invalid quantity");
   if (input.unitCost < 0) throw new Error("Invalid unit cost");
@@ -239,6 +290,9 @@ export async function updatePurchaseLine(input: {
     line_total: input.quantity * input.unitCost,
     landed_unit_cost: null,
     landed_line_total: null,
+    batch_number: input.batchNumber ?? null,
+    production_date: input.productionDate ?? null,
+    expiry_date: input.expiryDate ?? null,
   });
   if (!updated) throw new Error("Failed to update line");
   await purchaseRepo.recalcPurchaseTotals(line.invoice_id);
@@ -306,6 +360,13 @@ export async function voidReceivedPurchase(
       referenceType: "purchase_invoice",
       referenceId: invoiceId,
       createdBy: userId,
+      batch: {
+        batchNumber:
+          line.batch_number ??
+          `${invoice.invoice_number}-${line.product_id.slice(0, 6)}-${line.id.slice(0, 6)}`,
+        sourceType: "purchase",
+        sourceDocumentId: invoice.id,
+      },
     });
   }
 

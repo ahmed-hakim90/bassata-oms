@@ -14,6 +14,9 @@ import type {
   SESSION_STATUSES,
   UserRole,
   BusinessActivityType,
+  InventoryTrackingMode,
+  InventoryRotationMethod,
+  ExpiryPolicy,
   ProductSalesUnitType,
   SalesMode,
   VariantKind,
@@ -24,6 +27,9 @@ import type {
 export type {
   BusinessActivityType,
   BusinessActivitySettings,
+  InventoryTrackingMode,
+  InventoryRotationMethod,
+  ExpiryPolicy,
   ProductSalesUnitType,
   SalesMode,
   VariantKind,
@@ -111,6 +117,9 @@ export interface Category {
   sort_order: number;
   color: string;
   icon: string;
+  expiry_tracking_enabled_default?: boolean;
+  inventory_rotation_method_default?: InventoryRotationMethod;
+  expiry_policy_default?: ExpiryPolicy;
 }
 
 export interface Product {
@@ -129,14 +138,49 @@ export interface Product {
   is_popular: boolean;
   track_inventory: boolean;
   product_type: ProductType;
+  inventory_tracking_mode?: InventoryTrackingMode;
+  inventory_rotation_method?: InventoryRotationMethod;
+  expiry_policy?: ExpiryPolicy;
+  expiry_tracking_enabled?: boolean;
+  shelf_life_days?: number;
+  shelf_life_months?: number;
+  shelf_life_years?: number;
   unit: MeasurementUnit;
   sale_unit?: MeasurementUnit;
+  base_unit?: MeasurementUnit;
   sales_unit_type?: ProductSalesUnitType;
   allow_fractional_quantity?: boolean;
   allow_price_input?: boolean;
   wholesale_enabled?: boolean;
+  supports_weight_sale?: boolean;
+  supports_amount_sale?: boolean;
   last_unit_cost: number;
   cost_unit: MeasurementUnit;
+  updated_at: string;
+}
+
+export interface InventoryBatch {
+  id: string;
+  org_id: string;
+  store_id: string;
+  warehouse_id: string;
+  product_id: string;
+  variant_id: string | null;
+  batch_number: string;
+  source_type: "purchase" | "opening_stock" | "transfer" | "production" | "adjustment";
+  source_document_id: string | null;
+  supplier_id: string | null;
+  purchase_invoice_id: string | null;
+  received_date: string;
+  production_date: string | null;
+  expiry_date: string | null;
+  quantity: number;
+  remaining_quantity: number;
+  unit: MeasurementUnit;
+  is_expired: boolean;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
   updated_at: string;
 }
 
@@ -282,6 +326,9 @@ export interface PurchaseInvoiceLine {
   line_total: number;
   landed_unit_cost: number | null;
   landed_line_total: number | null;
+  batch_number?: string | null;
+  production_date?: string | null;
+  expiry_date?: string | null;
 }
 
 export interface TransferOrder {
@@ -304,6 +351,8 @@ export interface TransferOrderLine {
   variant_id: string | null;
   quantity_sent: number;
   quantity_received: number;
+  batch_id?: string | null;
+  batch_number?: string | null;
 }
 
 export interface WasteRecord {
@@ -313,6 +362,9 @@ export interface WasteRecord {
   product_id: string;
   variant_id: string | null;
   quantity: number;
+  batch_id?: string | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
   reason_code: string;
   notes: string;
   created_by: string;
@@ -337,6 +389,9 @@ export interface StockCountLine {
   expected_qty: number;
   counted_qty: number;
   variance: number;
+  batch_id?: string | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
 }
 
 export interface CashierSession {

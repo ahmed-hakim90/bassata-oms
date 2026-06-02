@@ -14,7 +14,13 @@ export async function listStores(): Promise<Store[]> {
 
 export async function getStore(id: string): Promise<Store | null> {
   const db = await getDb();
-  const { data, error } = await db.from("stores").select("*").eq("id", id).maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("stores")
+    .select("*")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
   if (error) throwDbError(error, "getStore");
   return data ? mapStore(data) : null;
 }
@@ -55,6 +61,7 @@ export async function updateStore(
   >
 ): Promise<Store | null> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { settings, ...rest } = input;
   const row = {
     ...rest,
@@ -64,6 +71,7 @@ export async function updateStore(
     .from("stores")
     .update(row)
     .eq("id", id)
+    .eq("org_id", orgId)
     .select()
     .maybeSingle();
   if (error) throwDbError(error, "updateStore");
@@ -72,10 +80,13 @@ export async function updateStore(
 
 export async function getUserStoreIds(userId: string): Promise<string[]> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { data, error } = await db
     .from("user_store_access")
-    .select("store_id")
-    .eq("user_id", userId);
+    .select("store_id, stores!inner(org_id), users!inner(org_id)")
+    .eq("user_id", userId)
+    .eq("stores.org_id", orgId)
+    .eq("users.org_id", orgId);
   if (error) throwDbError(error, "getUserStoreIds");
   return (data ?? []).map((r) => r.store_id);
 }
@@ -122,11 +133,37 @@ export async function allocateMenuSlug(
 
 export async function setUserStoreAccess(userId: string, storeIds: string[]): Promise<void> {
   const db = await getDb();
+  const orgId = await getOrgId();
+  const { data: userRow, error: userError } = await db
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (userError) throwDbError(userError, "setUserStoreAccess.userScope");
+  if (!userRow) throw new Error("User not found or out of scope");
+
+  const requestedStoreIds = Array.from(new Set(storeIds));
+  let allowedStoreIds: Array<{ id: string }> = [];
+  if (requestedStoreIds.length > 0) {
+    const { data, error } = await db
+      .from("stores")
+      .select("id")
+      .eq("org_id", orgId)
+      .in("id", requestedStoreIds);
+    if (error) throwDbError(error, "setUserStoreAccess.storeScope");
+    allowedStoreIds = data ?? [];
+  }
+  const scopedStoreIds = allowedStoreIds.map((row) => row.id);
+  if (requestedStoreIds.length !== scopedStoreIds.length) {
+    throw new Error("One or more stores are out of scope");
+  }
+
   await db.from("user_store_access").delete().eq("user_id", userId);
-  if (storeIds.length > 0) {
+  if (scopedStoreIds.length > 0) {
     const { error } = await db
       .from("user_store_access")
-      .insert(storeIds.map((store_id) => ({ user_id: userId, store_id })));
+      .insert(scopedStoreIds.map((store_id) => ({ user_id: userId, store_id })));
     if (error) throwDbError(error, "setUserStoreAccess");
   }
 }

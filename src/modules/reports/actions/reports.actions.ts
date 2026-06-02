@@ -5,6 +5,7 @@ import {
   getValidatedActiveStoreId,
   requireFeature,
   requirePermissionOrRole,
+  requireStoreAccess,
 } from "@/lib/auth/guards";
 import { canViewCosts } from "@/lib/constants";
 import * as orgRepo from "@/lib/repositories/organization.repository";
@@ -47,6 +48,9 @@ export async function getReportsData(
   const permissions = await getEffectivePermissions(user);
   const activeStoreId = await getValidatedActiveStoreId();
   const reportStoreId = resolveReportStoreId(activeStoreId, filterStoreId);
+  if (reportStoreId) {
+    await requireStoreAccess(reportStoreId);
+  }
   const inventoryStoreId = reportStoreId ?? activeStoreId;
   const org = await orgRepo.getOrganization();
   const stores = await storeRepo.listStores();

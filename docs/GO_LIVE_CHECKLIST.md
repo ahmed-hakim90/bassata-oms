@@ -5,7 +5,8 @@ Use this checklist before pointing production traffic at a new deployment.
 ## Infrastructure
 
 - [ ] Supabase production project created (Postgres 17+)
-- [ ] All migrations applied through `031` (`supabase db push` or CI migration step)
+- [ ] All migrations applied through `036` (`supabase db push` or CI migration step)
+- [ ] `033`/`034`/`035`/`036` applied in production
 - [ ] `030`/`031` applied if using Souqna integration
 - [ ] `SweetFlow_COOKIE_SECRET` set (32+ random bytes; never commit)
 - [ ] `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set on host
@@ -34,6 +35,7 @@ Use this checklist before pointing production traffic at a new deployment.
 - [ ] Confirm viewer/inventory roles have expected nav access
 - [ ] Monthly closing: close a test period and verify inventory/POS mutations block
 - [ ] Run `npm run smoke:check` on release branch
+- [ ] Confirm `npm run verify:rls-policies` passes (no tables missing RLS/policies)
 
 ## Accounting (if enabled)
 

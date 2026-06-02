@@ -23,10 +23,12 @@ export async function getExpenseCategory(
   id: string
 ): Promise<ExpenseCategory | null> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { data, error } = await db
     .from("expense_categories")
     .select("*")
     .eq("id", id)
+    .eq("org_id", orgId)
     .maybeSingle();
   if (error) throwDbError(error, "getExpenseCategory");
   return data ? mapExpenseCategory(data) : null;
@@ -60,10 +62,12 @@ export async function updateExpenseCategory(
   >
 ): Promise<ExpenseCategory | null> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { data, error } = await db
     .from("expense_categories")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", id)
+    .eq("org_id", orgId)
     .select()
     .maybeSingle();
   if (error) throwDbError(error, "updateExpenseCategory");

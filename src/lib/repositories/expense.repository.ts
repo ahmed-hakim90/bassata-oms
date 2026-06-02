@@ -1,5 +1,6 @@
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapExpense } from "@/lib/repositories/mappers";
+import { listStores } from "@/lib/repositories/store.repository";
 import type { Expense, ExpenseSource, ExpenseStatus } from "@/lib/types";
 
 export interface ExpenseFilters {
@@ -15,7 +16,10 @@ export interface ExpenseFilters {
 
 export async function listExpenses(filters: ExpenseFilters = {}): Promise<Expense[]> {
   const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return [];
   let q = db.from("expenses").select("*").order("created_at", { ascending: false });
+  q = q.in("store_id", storeIds);
   if (filters.storeId) q = q.eq("store_id", filters.storeId);
   if (filters.sessionId) q = q.eq("session_id", filters.sessionId);
   if (filters.costCenterId) q = q.eq("cost_center_id", filters.costCenterId);
@@ -32,9 +36,12 @@ export async function listExpenses(filters: ExpenseFilters = {}): Promise<Expens
 export async function listExpensesBySessionIds(sessionIds: string[]): Promise<Expense[]> {
   if (sessionIds.length === 0) return [];
   const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return [];
   const { data, error } = await db
     .from("expenses")
     .select("*")
+    .in("store_id", storeIds)
     .in("session_id", sessionIds)
     .order("created_at", { ascending: false });
   if (error) throwDbError(error, "listExpensesBySessionIds");
@@ -43,7 +50,14 @@ export async function listExpensesBySessionIds(sessionIds: string[]): Promise<Ex
 
 export async function getExpense(id: string): Promise<Expense | null> {
   const db = await getDb();
-  const { data, error } = await db.from("expenses").select("*").eq("id", id).maybeSingle();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return null;
+  const { data, error } = await db
+    .from("expenses")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
   if (error) throwDbError(error, "getExpense");
   return data ? mapExpense(data) : null;
 }
@@ -87,14 +101,24 @@ export async function updateExpense(
   patch: ExpenseUpdatePatch
 ): Promise<Expense | null> {
   const db = await getDb();
-  const { data, error } = await db.from("expenses").update(patch).eq("id", id).select().maybeSingle();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return null;
+  const { data, error } = await db
+    .from("expenses")
+    .update(patch)
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .select()
+    .maybeSingle();
   if (error) throwDbError(error, "updateExpense");
   return data ? mapExpense(data) : null;
 }
 
 export async function deleteExpense(id: string): Promise<boolean> {
   const db = await getDb();
-  const { error } = await db.from("expenses").delete().eq("id", id);
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return false;
+  const { error } = await db.from("expenses").delete().eq("id", id).in("store_id", storeIds);
   if (error) throwDbError(error, "deleteExpense");
   return !error;
 }

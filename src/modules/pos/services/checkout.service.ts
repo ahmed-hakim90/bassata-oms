@@ -1,8 +1,11 @@
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as sessionRepo from "@/lib/repositories/session.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
+import * as inventoryRepo from "@/lib/repositories/inventory.repository";
+import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import { earnPoints } from "@/modules/loyalty/services/loyalty.service";
 import {
+  getInventoryPolicySettings,
   getSessionSettings,
   isFeatureEnabled,
 } from "@/modules/system/services/settings.service";
@@ -67,6 +70,43 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     const activeVariants = variants.filter((v) => v.is_active);
     if (activeVariants.length > 0 && !line.variantId) {
       throw new Error(`Variant required for ${line.name}`);
+    }
+  }
+
+  const inventoryPolicy = await getInventoryPolicySettings();
+  const warehouse = await warehouseRepo.getDefaultWarehouse(input.storeId);
+  const warehouseId = warehouse?.id ?? null;
+  const allBatches = warehouseId ? await inventoryRepo.listInventoryBatches(input.storeId, warehouseId) : [];
+  const today = new Date();
+  const nearExpiryThreshold = Number(
+    Array.isArray(inventoryPolicy.alert_days) ? inventoryPolicy.alert_days[0] : 7
+  );
+  const nearExpiryDate = new Date();
+  nearExpiryDate.setDate(today.getDate() + nearExpiryThreshold);
+
+  for (const line of input.cart) {
+    const product = await catalogRepo.getProduct(line.productId);
+    if (!product || product.inventory_tracking_mode !== "batch_and_expiry") continue;
+
+    const productBatches = allBatches
+      .filter((batch) => batch.product_id === line.productId && (batch.variant_id ?? null) === (line.variantId ?? null))
+      .filter((batch) => batch.remaining_quantity > 0);
+    if (productBatches.length === 0) continue;
+
+    const expired = productBatches.some((batch) => batch.expiry_date && new Date(batch.expiry_date) < today);
+    if (expired && (product.expiry_policy ?? "block_sale") === "block_sale") {
+      throw new Error(`${line.name} has expired stock and is blocked by expiry policy`);
+    }
+
+    const nearExpiry = productBatches.some(
+      (batch) =>
+        batch.expiry_date &&
+        new Date(batch.expiry_date) >= today &&
+        new Date(batch.expiry_date) <= nearExpiryDate
+    );
+    if (nearExpiry && (product.expiry_policy ?? "block_sale") === "warn_only") {
+      // Do not block; message is consumed by UI toast/alert when surfaced.
+      console.warn(`[expiry-warning] ${line.name} has near-expiry stock`);
     }
   }
 

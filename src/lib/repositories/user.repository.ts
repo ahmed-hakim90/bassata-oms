@@ -20,7 +20,13 @@ export async function getUserByAuthId(authUserId: string): Promise<AppUser | nul
 
 export async function getUser(id: string): Promise<AppUser | null> {
   const db = await getDb();
-  const { data, error } = await db.from("users").select("*").eq("id", id).maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("users")
+    .select("*")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
   if (error) throwDbError(error, "getUser");
   if (!data) return null;
   const storeIds = await getUserStoreIds(data.id);
@@ -71,9 +77,10 @@ export async function updateUser(
   input: Partial<{ name: string; email: string; role: UserRole; is_active: boolean; storeIds: string[] }>
 ): Promise<AppUser | null> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { storeIds, ...userFields } = input;
   if (Object.keys(userFields).length > 0) {
-    const { error } = await db.from("users").update(userFields).eq("id", id);
+    const { error } = await db.from("users").update(userFields).eq("id", id).eq("org_id", orgId);
     if (error) throwDbError(error, "updateUser");
   }
   if (storeIds) await setUserStoreAccess(id, storeIds);

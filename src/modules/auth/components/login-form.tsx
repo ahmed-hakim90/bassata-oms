@@ -11,7 +11,7 @@ export function LoginForm() {
   const [state, formAction, pending] = useActionState(loginAction, null);
 
   return (
-    <div className="w-full max-w-md space-y-8 rounded-3xl border border-border/60 bg-card/80 p-8 shadow-xl backdrop-blur-xl">
+    <div className="w-full max-w-md space-y-3 rounded-3xl border border-border/60 bg-card/80 p-8 shadow-xl backdrop-blur-xl">
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
         <p className="mt-2 text-sm text-muted-foreground">

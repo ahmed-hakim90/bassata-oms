@@ -34,6 +34,10 @@ export function amountFromQuantity(quantity: number, unitPricePerSaleUnit: numbe
 export function formatUnit(unit: MeasurementUnit): string {
   const labels: Record<MeasurementUnit, string> = {
     piece: "Piece",
+    pack: "Pack",
+    carton: "Carton",
+    box: "Box",
+    meter: "Meter",
     bag: "Bag",
     cup: "Cup",
     spoon: "Spoon",
@@ -48,6 +52,10 @@ export function formatUnit(unit: MeasurementUnit): string {
 export function formatUnitShort(unit: MeasurementUnit): string {
   const labels: Record<MeasurementUnit, string> = {
     piece: "pc",
+    pack: "pack",
+    carton: "ctn",
+    box: "box",
+    meter: "m",
     bag: "bag",
     cup: "cup",
     spoon: "sp",

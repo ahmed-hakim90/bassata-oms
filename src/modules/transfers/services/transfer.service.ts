@@ -91,6 +91,8 @@ export async function addTransferLine(input: {
   productId: string;
   variantId?: string | null;
   quantity: number;
+  batchId?: string | null;
+  batchNumber?: string | null;
 }): Promise<TransferOrderLine> {
   const transfer = await transferRepo.getTransfer(input.transferId);
   if (!transfer || transfer.status !== "draft") throw new Error("Transfer not editable");
@@ -106,6 +108,8 @@ export async function addTransferLine(input: {
     return (
       (await transferRepo.updateTransferLine(existing.id, {
         quantity_sent: existing.quantity_sent + input.quantity,
+        batch_id: input.batchId ?? existing.batch_id ?? null,
+        batch_number: input.batchNumber ?? existing.batch_number ?? null,
       })) ?? existing
     );
   }
@@ -116,6 +120,8 @@ export async function addTransferLine(input: {
     variant_id: input.variantId ?? null,
     quantity_sent: input.quantity,
     quantity_received: 0,
+    batch_id: input.batchId ?? null,
+    batch_number: input.batchNumber ?? null,
   });
 }
 
@@ -139,6 +145,11 @@ export async function sendTransfer(transferId: string, userId: string): Promise<
       referenceType: "transfer_order",
       referenceId: transferId,
       createdBy: userId,
+      batch: {
+        batchNumber: line.batch_number ?? null,
+        sourceType: "transfer",
+        sourceDocumentId: transferId,
+      },
     });
   }
 
@@ -184,6 +195,11 @@ export async function receiveTransfer(
       referenceType: "transfer_order",
       referenceId: transferId,
       createdBy: userId,
+      batch: {
+        batchNumber: line.batch_number ?? null,
+        sourceType: "transfer",
+        sourceDocumentId: transferId,
+      },
     });
   }
 
@@ -217,7 +233,8 @@ export async function removeTransferLine(lineId: string): Promise<void> {
 
 export async function updateTransferLineQuantity(
   lineId: string,
-  quantity: number
+  quantity: number,
+  batchNumber?: string | null
 ): Promise<TransferOrderLine> {
   if (quantity <= 0) throw new Error("Invalid quantity");
   const line = await transferRepo.getTransferLine(lineId);
@@ -226,7 +243,10 @@ export async function updateTransferLineQuantity(
   if (!transfer || transfer.status !== "draft") {
     throw new Error("Transfer not editable");
   }
-  const updated = await transferRepo.updateTransferLine(lineId, { quantity_sent: quantity });
+  const updated = await transferRepo.updateTransferLine(lineId, {
+    quantity_sent: quantity,
+    batch_number: batchNumber ?? line.batch_number ?? null,
+  });
   if (!updated) throw new Error("Failed to update line");
   return updated;
 }
@@ -304,6 +324,11 @@ export async function voidTransfer(transferId: string, userId: string): Promise<
         referenceType: "transfer_order",
         referenceId: transferId,
         createdBy: userId,
+        batch: {
+          batchNumber: line.batch_number ?? null,
+          sourceType: "transfer",
+          sourceDocumentId: transferId,
+        },
       });
     }
   } else if (transfer.status === "received") {
@@ -320,6 +345,11 @@ export async function voidTransfer(transferId: string, userId: string): Promise<
         referenceType: "transfer_order",
         referenceId: transferId,
         createdBy: userId,
+        batch: {
+          batchNumber: line.batch_number ?? null,
+          sourceType: "transfer",
+          sourceDocumentId: transferId,
+        },
       });
       await adjustStock({
         storeId: transfer.from_store_id,
@@ -331,6 +361,11 @@ export async function voidTransfer(transferId: string, userId: string): Promise<
         referenceType: "transfer_order",
         referenceId: transferId,
         createdBy: userId,
+        batch: {
+          batchNumber: line.batch_number ?? null,
+          sourceType: "transfer",
+          sourceDocumentId: transferId,
+        },
       });
     }
   } else {

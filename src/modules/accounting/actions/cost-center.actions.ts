@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePermission, requireStoreAccess } from "@/lib/auth/guards";
 import {
   createCostCenter,
   updateCostCenter,
@@ -11,6 +11,9 @@ import type { CostCenterType } from "@/lib/types";
 
 export async function getCostCentersData(storeId?: string) {
   await requirePermission("cost_center_manage");
+  if (storeId) {
+    await requireStoreAccess(storeId);
+  }
   const centers = await listCostCenters(storeId);
   return { centers };
 }
@@ -22,6 +25,9 @@ export async function createCostCenterAction(input: {
   store_id?: string | null;
 }) {
   const user = await requirePermission("cost_center_manage");
+  if (input.store_id) {
+    await requireStoreAccess(input.store_id);
+  }
   const center = await createCostCenter(input, user.id);
   revalidatePath("/settings/cost-centers");
   revalidatePath("/settings");
@@ -39,6 +45,9 @@ export async function updateCostCenterAction(
   }
 ) {
   const user = await requirePermission("cost_center_manage");
+  if (patch.store_id) {
+    await requireStoreAccess(patch.store_id);
+  }
   const center = await updateCostCenter(id, patch, user.id);
   revalidatePath("/settings/cost-centers");
   revalidatePath("/settings");

@@ -12,6 +12,8 @@ export default async function ProductsRoutePage() {
       recipesEnabled={data.recipesEnabled}
       souqnaEnabled={data.souqnaEnabled}
       defaultPublishToSouqna={data.defaultPublishToSouqna}
+      productTemplates={data.productTemplates}
+      businessActivitySettings={data.businessActivitySettings}
     />
   );
 }

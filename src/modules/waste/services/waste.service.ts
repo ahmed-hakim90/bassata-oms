@@ -61,6 +61,9 @@ export async function recordWaste(input: {
   reasonCode: string;
   notes?: string;
   createdBy: string;
+  batchId?: string | null;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
 }): Promise<WasteRecord> {
   await assertPeriodOpen(input.storeId);
   await adjustStock({
@@ -73,6 +76,11 @@ export async function recordWaste(input: {
     referenceType: "waste_record",
     reason: input.reasonCode,
     createdBy: input.createdBy,
+    batch: {
+      batchNumber: input.batchNumber ?? null,
+      expiryDate: input.expiryDate ?? null,
+      sourceType: "adjustment",
+    },
   });
 
   const record = await wasteRepo.createWaste({
@@ -81,6 +89,9 @@ export async function recordWaste(input: {
     product_id: input.productId,
     variant_id: input.variantId ?? null,
     quantity: input.quantity,
+    batch_id: input.batchId ?? null,
+    batch_number: input.batchNumber ?? null,
+    expiry_date: input.expiryDate ?? null,
     reason_code: input.reasonCode,
     notes: input.notes ?? "",
     created_by: input.createdBy,

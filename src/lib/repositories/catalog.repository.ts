@@ -33,7 +33,13 @@ export async function listProducts(options?: {
 
 export async function getProduct(id: string): Promise<Product | null> {
   const db = await getDb();
-  const { data, error } = await db.from("products").select("*").eq("id", id).maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("products")
+    .select("*")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
   if (error) throwDbError(error, "getProduct");
   return data ? mapProduct(data) : null;
 }
@@ -72,14 +78,22 @@ export async function updateProduct(
   input: Partial<Omit<Product, "id" | "org_id" | "updated_at">>
 ): Promise<Product | null> {
   const db = await getDb();
-  const { data, error } = await db.from("products").update(input).eq("id", id).select().maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("products")
+    .update(input)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select()
+    .maybeSingle();
   if (error) throwDbError(error, "updateProduct");
   return data ? mapProduct(data) : null;
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
   const db = await getDb();
-  const { error } = await db.from("products").delete().eq("id", id);
+  const orgId = await getOrgId();
+  const { error } = await db.from("products").delete().eq("id", id).eq("org_id", orgId);
   if (error) throwDbError(error, "deleteProduct");
   return true;
 }
@@ -113,19 +127,28 @@ export async function updateCategory(
   input: Partial<Omit<Category, "id" | "org_id">>
 ): Promise<Category | null> {
   const db = await getDb();
-  const { data, error } = await db.from("categories").update(input).eq("id", id).select().maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("categories")
+    .update(input)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select()
+    .maybeSingle();
   if (error) throwDbError(error, "updateCategory");
   return data ? mapCategory(data) : null;
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { count } = await db
     .from("products")
     .select("id", { count: "exact", head: true })
-    .eq("category_id", id);
+    .eq("category_id", id)
+    .eq("org_id", orgId);
   if (count && count > 0) return false;
-  const { error } = await db.from("categories").delete().eq("id", id);
+  const { error } = await db.from("categories").delete().eq("id", id).eq("org_id", orgId);
   if (error) throwDbError(error, "deleteCategory");
   return true;
 }
@@ -165,7 +188,13 @@ export async function listVariantsForProducts(
 
 export async function getVariant(id: string): Promise<ProductVariant | null> {
   const db = await getDb();
-  const { data, error } = await db.from("product_variants").select("*").eq("id", id).maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("product_variants")
+    .select("*, products!inner(org_id)")
+    .eq("id", id)
+    .eq("products.org_id", orgId)
+    .maybeSingle();
   if (error) throwDbError(error, "getVariant");
   return data ? mapVariant(data) : null;
 }
@@ -216,10 +245,20 @@ export async function updateVariant(
   input: Partial<Omit<ProductVariant, "id" | "product_id">>
 ): Promise<ProductVariant | null> {
   const db = await getDb();
+  const orgId = await getOrgId();
+  const { data: existing, error: existingError } = await db
+    .from("product_variants")
+    .select("id, product_id, products!inner(org_id)")
+    .eq("id", id)
+    .eq("products.org_id", orgId)
+    .maybeSingle();
+  if (existingError) throwDbError(existingError, "updateVariant.scope");
+  if (!existing) return null;
   const { data, error } = await db
     .from("product_variants")
     .update(input)
     .eq("id", id)
+    .eq("product_id", existing.product_id)
     .select()
     .maybeSingle();
   if (error) throwDbError(error, "updateVariant");
@@ -228,7 +267,20 @@ export async function updateVariant(
 
 export async function deleteVariant(id: string): Promise<boolean> {
   const db = await getDb();
-  const { error } = await db.from("product_variants").delete().eq("id", id);
+  const orgId = await getOrgId();
+  const { data: existing, error: existingError } = await db
+    .from("product_variants")
+    .select("id, product_id, products!inner(org_id)")
+    .eq("id", id)
+    .eq("products.org_id", orgId)
+    .maybeSingle();
+  if (existingError) throwDbError(existingError, "deleteVariant.scope");
+  if (!existing) return true;
+  const { error } = await db
+    .from("product_variants")
+    .delete()
+    .eq("id", id)
+    .eq("product_id", existing.product_id);
   if (error) throwDbError(error, "deleteVariant");
   return true;
 }

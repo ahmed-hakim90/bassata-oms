@@ -1,5 +1,6 @@
 import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapOrder, mapOrderItem, mapOrderItemDeduction, mapOrderPayment } from "@/lib/repositories/mappers";
+import { listStores } from "@/lib/repositories/store.repository";
 import type {
   Order,
   OrderItem,
@@ -12,7 +13,10 @@ import type {
 
 export async function listOrders(storeId?: string): Promise<Order[]> {
   const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return [];
   let q = db.from("orders").select("*").order("created_at", { ascending: false });
+  q = q.in("store_id", storeIds);
   if (storeId) q = q.eq("store_id", storeId);
   const { data, error } = await q;
   if (error) throwDbError(error, "listOrders");
@@ -22,9 +26,12 @@ export async function listOrders(storeId?: string): Promise<Order[]> {
 export async function listOrdersBySessionIds(sessionIds: string[]): Promise<Order[]> {
   if (sessionIds.length === 0) return [];
   const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return [];
   const { data, error } = await db
     .from("orders")
     .select("*")
+    .in("store_id", storeIds)
     .in("session_id", sessionIds)
     .order("created_at", { ascending: false });
   if (error) throwDbError(error, "listOrdersBySessionIds");
@@ -41,7 +48,14 @@ export async function getOrderPaymentsForOrders(orderIds: string[]): Promise<Ord
 
 export async function getOrder(id: string): Promise<Order | null> {
   const db = await getDb();
-  const { data, error } = await db.from("orders").select("*").eq("id", id).maybeSingle();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return null;
+  const { data, error } = await db
+    .from("orders")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
   if (error) throwDbError(error, "getOrder");
   return data ? mapOrder(data) : null;
 }
@@ -85,7 +99,15 @@ export async function updateOrderStatus(
   status: Order["status"]
 ): Promise<Order | null> {
   const db = await getDb();
-  const { data, error } = await db.from("orders").update({ status }).eq("id", id).select().maybeSingle();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return null;
+  const { data, error } = await db
+    .from("orders")
+    .update({ status })
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .select()
+    .maybeSingle();
   if (error) throwDbError(error, "updateOrderStatus");
   return data ? mapOrder(data) : null;
 }
@@ -95,10 +117,13 @@ export async function updateOrderPaymentStatus(
   paymentStatus: Order["payment_status"]
 ): Promise<Order | null> {
   const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return null;
   const { data, error } = await db
     .from("orders")
     .update({ payment_status: paymentStatus })
     .eq("id", id)
+    .in("store_id", storeIds)
     .select()
     .maybeSingle();
   if (error) throwDbError(error, "updateOrderPaymentStatus");
@@ -112,6 +137,10 @@ export async function addOrderPayment(input: {
   reference?: string | null;
 }): Promise<OrderPayment> {
   const db = await getDb();
+  const order = await getOrder(input.orderId);
+  if (!order) {
+    throw new Error("Order not found or out of scope");
+  }
   const { data, error } = await db
     .from("order_payments")
     .insert({

@@ -3,12 +3,26 @@ import { writeAuditLog } from "@/lib/services/audit.service";
 import {
   ACTIVITY_PRESETS,
   DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
+  DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY,
+  PRODUCT_TEMPLATE_IDS,
+  SALES_MODES,
   DEFAULT_FEATURE_FLAGS,
   type BusinessActivitySettings,
   type BusinessActivityType,
   type FeatureFlag,
+  type ProductTemplate,
+  type ProductTemplateSettings,
 } from "@/lib/constants";
 import type { AppSetting, OnlineMenuSettings } from "@/lib/types";
+const BUSINESS_ACTIVITY_MANAGED_FLAGS: FeatureFlag[] = [
+  "supermarket_mode",
+  "weight_sales",
+  "price_by_amount",
+  "wholesale_sales",
+  "product_price_tiers",
+  "fixed_weight_variants",
+  "barcode_scanner",
+];
 
 export async function getSettings(): Promise<AppSetting[]> {
   return orgRepo.listSettings();
@@ -60,10 +74,57 @@ export async function updateFeatureFlags(
 
 export async function getBusinessActivitySettings(): Promise<BusinessActivitySettings> {
   const setting = await getSetting("business_activity");
+  return normalizeBusinessActivitySettings(setting?.value ?? null);
+}
+
+function normalizeProductTemplate(
+  template: unknown,
+  fallback: ProductTemplate
+): ProductTemplate {
+  const input = (template ?? {}) as Partial<ProductTemplate>;
   return {
-    ...DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
-    ...(setting?.value ?? {}),
-  } as BusinessActivitySettings;
+    ...fallback,
+    ...input,
+    id: fallback.id,
+    label: typeof input.label === "string" ? input.label : fallback.label,
+  };
+}
+
+export function normalizeProductTemplateSettings(
+  value: Record<string, unknown> | Partial<ProductTemplateSettings> | null | undefined,
+  activityType: BusinessActivityType
+): ProductTemplateSettings {
+  const defaults = DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY[activityType];
+  const input = (value ?? {}) as Record<string, unknown>;
+
+  return PRODUCT_TEMPLATE_IDS.reduce((acc, templateId) => {
+    acc[templateId] = normalizeProductTemplate(input[templateId], defaults[templateId]);
+    return acc;
+  }, {} as ProductTemplateSettings);
+}
+
+export async function getProductTemplateSettings(
+  activityType?: BusinessActivityType
+): Promise<ProductTemplateSettings> {
+  const resolvedActivityType = activityType ?? (await getBusinessActivitySettings()).activity_type;
+  const setting = await getSetting("product_templates");
+  return normalizeProductTemplateSettings(setting?.value ?? null, resolvedActivityType);
+}
+
+export async function updateProductTemplateSettings(
+  input: Partial<ProductTemplateSettings>,
+  userId: string
+) {
+  const business = await getBusinessActivitySettings();
+  const current = await getProductTemplateSettings(business.activity_type);
+  const merged = normalizeProductTemplateSettings(
+    {
+      ...current,
+      ...input,
+    } as Record<string, unknown>,
+    business.activity_type
+  );
+  return upsertSetting("product_templates", merged as unknown as Record<string, unknown>, userId);
 }
 
 export async function updateBusinessActivitySettings(
@@ -71,12 +132,57 @@ export async function updateBusinessActivitySettings(
   userId: string
 ) {
   const current = await getBusinessActivitySettings();
-  return upsertSetting("business_activity", { ...current, ...input }, userId);
+  const merged = normalizeBusinessActivitySettings({ ...current, ...input });
+  const setting = await upsertSetting(
+    "business_activity",
+    merged as unknown as Record<string, unknown>,
+    userId
+  );
+  await updateFeatureFlags(buildBusinessActivityFeatureFlags(merged), userId);
+  return setting;
+}
+
+function normalizeBusinessActivitySettings(
+  value?: Partial<BusinessActivitySettings> | Record<string, unknown> | null
+): BusinessActivitySettings {
+  const isSalesMode = (
+    mode: unknown
+  ): mode is BusinessActivitySettings["default_sales_mode"] =>
+    typeof mode === "string" && (SALES_MODES as readonly string[]).includes(mode);
+
+  const input = (value ?? {}) as Record<string, unknown>;
+  const merged = {
+    ...DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
+    ...input,
+  } as BusinessActivitySettings;
+
+  const enabled_sales_modes = Array.isArray(input.enabled_sales_modes)
+    ? input.enabled_sales_modes.filter(
+        (mode): mode is BusinessActivitySettings["default_sales_mode"] => isSalesMode(mode)
+      )
+    : merged.enabled_sales_modes;
+
+  const safeModes =
+    enabled_sales_modes.length > 0
+      ? enabled_sales_modes
+      : DEFAULT_BUSINESS_ACTIVITY_SETTINGS.enabled_sales_modes;
+
+  const safeDefault =
+    isSalesMode(input.default_sales_mode) && safeModes.includes(input.default_sales_mode)
+      ? input.default_sales_mode
+      : safeModes[0] ?? DEFAULT_BUSINESS_ACTIVITY_SETTINGS.default_sales_mode;
+
+  return {
+    ...merged,
+    enabled_sales_modes: safeModes,
+    default_sales_mode: safeDefault,
+  };
 }
 
 export async function applyActivityPreset(activityType: BusinessActivityType, userId: string) {
   const preset = ACTIVITY_PRESETS[activityType];
   const { featureFlags, ...business } = preset;
+  void featureFlags;
   await updateBusinessActivitySettings(
     {
       ...business,
@@ -84,9 +190,34 @@ export async function applyActivityPreset(activityType: BusinessActivityType, us
     },
     userId
   );
-  if (featureFlags) {
-    await updateFeatureFlags(featureFlags, userId);
+}
+
+function buildBusinessActivityFeatureFlags(
+  settings: BusinessActivitySettings
+): Partial<Record<FeatureFlag, boolean>> {
+  const base = Object.fromEntries(
+    BUSINESS_ACTIVITY_MANAGED_FLAGS.map((flag) => [flag, false])
+  ) as Partial<Record<FeatureFlag, boolean>>;
+
+  const preset = ACTIVITY_PRESETS[settings.activity_type];
+  const presetFlags = preset?.featureFlags ?? {};
+
+  const derived: Partial<Record<FeatureFlag, boolean>> = {
+    ...base,
+    ...presetFlags,
+    supermarket_mode: settings.activity_type === "supermarket",
+    weight_sales: settings.enable_weight_sales,
+    price_by_amount: settings.enable_price_by_amount,
+    wholesale_sales: settings.enable_wholesale_sales,
+    product_price_tiers: settings.enable_wholesale_sales,
+    fixed_weight_variants: settings.enable_variants && settings.enable_weight_sales,
+  };
+
+  if (settings.activity_type === "supermarket") {
+    derived.barcode_scanner = true;
   }
+
+  return derived;
 }
 
 export async function getOrganizationSettings() {
@@ -159,6 +290,16 @@ const DEFAULT_SESSION_SETTINGS = {
   require_manager_override_for_expired_sale: true,
   allow_manager_force_close: true,
   manager_discount_override_amount: null as number | null,
+};
+
+const DEFAULT_INVENTORY_POLICY_SETTINGS = {
+  expiry_alerts_enabled: true,
+  alert_days: [7, 14, 30],
+  default_tracking_mode: "standard",
+  default_rotation_method: "FIFO",
+  default_expiry_policy: "block_sale",
+  block_sale_of_expired_items: true,
+  allow_manager_override: true,
 };
 
 export const DEFAULT_ONLINE_MENU_SETTINGS: OnlineMenuSettings = {
@@ -251,6 +392,22 @@ export async function getSessionSettings() {
     ...DEFAULT_SESSION_SETTINGS,
     ...(setting?.value ?? {}),
   };
+}
+
+export async function getInventoryPolicySettings() {
+  const setting = await getSetting("inventory_policy");
+  return {
+    ...DEFAULT_INVENTORY_POLICY_SETTINGS,
+    ...(setting?.value ?? {}),
+  };
+}
+
+export async function updateInventoryPolicySettings(
+  input: Partial<typeof DEFAULT_INVENTORY_POLICY_SETTINGS>,
+  userId: string
+) {
+  const current = await getInventoryPolicySettings();
+  return upsertSetting("inventory_policy", { ...current, ...input }, userId);
 }
 
 export async function updateSessionSettings(

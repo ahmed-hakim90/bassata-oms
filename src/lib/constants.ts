@@ -175,20 +175,51 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/organization": "settings_manage",
 };
 
-export const PRODUCT_TYPES = ["finished", "ingredient"] as const;
+export const PRODUCT_TYPES = [
+  "finished_product",
+  "raw_material",
+  "semi_finished",
+  "packaging_material",
+  "consumable",
+  "service",
+  "asset",
+  // Legacy aliases kept for compatibility with existing data.
+  "finished",
+  "ingredient",
+] as const;
 export type ProductType = (typeof PRODUCT_TYPES)[number];
 
 export const MEASUREMENT_UNITS = [
   "piece",
+  "kg",
+  "gram",
+  "liter",
+  "ml",
+  "carton",
+  "box",
+  "pack",
+  "meter",
+  // Legacy units kept for compatibility.
   "bag",
   "cup",
   "spoon",
-  "gram",
-  "kg",
-  "ml",
-  "liter",
 ] as const;
 export type MeasurementUnit = (typeof MEASUREMENT_UNITS)[number];
+
+export const INVENTORY_TRACKING_MODES = [
+  "none",
+  "standard",
+  "batch",
+  "batch_and_expiry",
+  "serial_number",
+] as const;
+export type InventoryTrackingMode = (typeof INVENTORY_TRACKING_MODES)[number];
+
+export const INVENTORY_ROTATION_METHODS = ["FIFO", "FEFO", "MANUAL"] as const;
+export type InventoryRotationMethod = (typeof INVENTORY_ROTATION_METHODS)[number];
+
+export const EXPIRY_POLICIES = ["block_sale", "warn_only", "manager_override"] as const;
+export type ExpiryPolicy = (typeof EXPIRY_POLICIES)[number];
 
 export function canViewCosts(role: UserRole, permissions?: Set<PermissionKey>): boolean {
   if (permissions?.has("costs_view")) return true;
@@ -350,9 +381,49 @@ export const DEFAULT_BUSINESS_ACTIVITY_SETTINGS = {
   allow_cashier_wholesale: false,
   require_manager_for_wholesale: true,
   auto_apply_wholesale_by_quantity: false,
+  default_inventory_tracking_mode: "standard" as InventoryTrackingMode,
+  default_inventory_rotation_method: "FIFO" as InventoryRotationMethod,
+  default_expiry_policy: "block_sale" as ExpiryPolicy,
+  enable_batch_tracking: false,
+  enable_expiry_tracking: false,
+  enable_serial_tracking: false,
+  expiry_alert_days: [7, 14, 30] as number[],
 };
 
 export type BusinessActivitySettings = typeof DEFAULT_BUSINESS_ACTIVITY_SETTINGS;
+
+export const PRODUCT_TEMPLATE_IDS = [
+  "retail_product",
+  "supermarket_weight_product",
+  "restaurant_ingredient",
+  "ice_cream_ingredient",
+  "packaging_material",
+  "service",
+] as const;
+export type ProductTemplateId = (typeof PRODUCT_TEMPLATE_IDS)[number];
+
+export type ProductTemplate = {
+  id: ProductTemplateId;
+  label: string;
+  product_type: ProductType;
+  sales_unit_type: ProductSalesUnitType;
+  unit: MeasurementUnit;
+  base_unit: MeasurementUnit;
+  sale_unit: MeasurementUnit;
+  inventory_tracking_mode: InventoryTrackingMode;
+  inventory_rotation_method: InventoryRotationMethod;
+  expiry_policy: ExpiryPolicy;
+  expiry_tracking_enabled: boolean;
+  shelf_life_days: number;
+  shelf_life_months: number;
+  shelf_life_years: number;
+  allow_fractional_quantity: boolean;
+  allow_price_input: boolean;
+  track_inventory: boolean;
+  wholesale_enabled: boolean;
+};
+
+export type ProductTemplateSettings = Record<ProductTemplateId, ProductTemplate>;
 
 export const ACTIVITY_PRESETS: Record<
   BusinessActivityType,
@@ -367,6 +438,12 @@ export const ACTIVITY_PRESETS: Record<
     enable_wholesale_sales: false,
     enable_variants: true,
     enable_price_by_amount: false,
+    default_inventory_tracking_mode: "standard",
+    default_inventory_rotation_method: "FIFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
     featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
   },
   ice_cream: {
@@ -378,6 +455,12 @@ export const ACTIVITY_PRESETS: Record<
     enable_wholesale_sales: false,
     enable_variants: true,
     enable_price_by_amount: false,
+    default_inventory_tracking_mode: "batch_and_expiry",
+    default_inventory_rotation_method: "FEFO",
+    default_expiry_policy: "block_sale",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
     featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
   },
   restaurant: {
@@ -389,6 +472,12 @@ export const ACTIVITY_PRESETS: Record<
     enable_wholesale_sales: false,
     enable_variants: true,
     enable_price_by_amount: false,
+    default_inventory_tracking_mode: "batch_and_expiry",
+    default_inventory_rotation_method: "FEFO",
+    default_expiry_policy: "block_sale",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
     featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
   },
   supermarket: {
@@ -403,6 +492,12 @@ export const ACTIVITY_PRESETS: Record<
     allow_cashier_wholesale: true,
     require_manager_for_wholesale: false,
     auto_apply_wholesale_by_quantity: true,
+    default_inventory_tracking_mode: "batch_and_expiry",
+    default_inventory_rotation_method: "FEFO",
+    default_expiry_policy: "block_sale",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
     featureFlags: {
       supermarket_mode: true,
       weight_sales: true,
@@ -422,6 +517,12 @@ export const ACTIVITY_PRESETS: Record<
     enable_wholesale_sales: false,
     enable_variants: true,
     enable_price_by_amount: false,
+    default_inventory_tracking_mode: "standard",
+    default_inventory_rotation_method: "FIFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: false,
+    enable_expiry_tracking: false,
+    enable_serial_tracking: true,
     featureFlags: { supermarket_mode: false },
   },
   wholesale: {
@@ -435,6 +536,12 @@ export const ACTIVITY_PRESETS: Record<
     enable_price_by_amount: false,
     allow_cashier_wholesale: true,
     auto_apply_wholesale_by_quantity: true,
+    default_inventory_tracking_mode: "batch",
+    default_inventory_rotation_method: "FIFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: false,
+    enable_serial_tracking: true,
     featureFlags: {
       wholesale_sales: true,
       product_price_tiers: true,
@@ -450,6 +557,12 @@ export const ACTIVITY_PRESETS: Record<
     enable_wholesale_sales: true,
     enable_variants: true,
     enable_price_by_amount: true,
+    default_inventory_tracking_mode: "standard",
+    default_inventory_rotation_method: "FIFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: true,
     featureFlags: {
       weight_sales: true,
       price_by_amount: true,
@@ -459,6 +572,147 @@ export const ACTIVITY_PRESETS: Record<
     },
   },
 };
+
+export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
+  BusinessActivityType,
+  ProductTemplateSettings
+> = {
+  cafe: {
+    retail_product: {
+      id: "retail_product",
+      label: "Retail Product",
+      product_type: "finished_product",
+      sales_unit_type: "piece",
+      unit: "piece",
+      base_unit: "piece",
+      sale_unit: "piece",
+      inventory_tracking_mode: "standard",
+      inventory_rotation_method: "FIFO",
+      expiry_policy: "warn_only",
+      expiry_tracking_enabled: false,
+      shelf_life_days: 0,
+      shelf_life_months: 0,
+      shelf_life_years: 0,
+      allow_fractional_quantity: false,
+      allow_price_input: false,
+      track_inventory: true,
+      wholesale_enabled: false,
+    },
+    supermarket_weight_product: {
+      id: "supermarket_weight_product",
+      label: "Supermarket Weight Product",
+      product_type: "finished_product",
+      sales_unit_type: "weight",
+      unit: "kg",
+      base_unit: "kg",
+      sale_unit: "kg",
+      inventory_tracking_mode: "batch_and_expiry",
+      inventory_rotation_method: "FEFO",
+      expiry_policy: "block_sale",
+      expiry_tracking_enabled: true,
+      shelf_life_days: 3,
+      shelf_life_months: 0,
+      shelf_life_years: 0,
+      allow_fractional_quantity: true,
+      allow_price_input: true,
+      track_inventory: true,
+      wholesale_enabled: false,
+    },
+    restaurant_ingredient: {
+      id: "restaurant_ingredient",
+      label: "Restaurant Ingredient",
+      product_type: "raw_material",
+      sales_unit_type: "weight",
+      unit: "kg",
+      base_unit: "kg",
+      sale_unit: "kg",
+      inventory_tracking_mode: "batch_and_expiry",
+      inventory_rotation_method: "FEFO",
+      expiry_policy: "block_sale",
+      expiry_tracking_enabled: true,
+      shelf_life_days: 7,
+      shelf_life_months: 0,
+      shelf_life_years: 0,
+      allow_fractional_quantity: true,
+      allow_price_input: false,
+      track_inventory: true,
+      wholesale_enabled: false,
+    },
+    ice_cream_ingredient: {
+      id: "ice_cream_ingredient",
+      label: "Ice Cream Ingredient",
+      product_type: "raw_material",
+      sales_unit_type: "weight",
+      unit: "kg",
+      base_unit: "kg",
+      sale_unit: "kg",
+      inventory_tracking_mode: "batch_and_expiry",
+      inventory_rotation_method: "FEFO",
+      expiry_policy: "block_sale",
+      expiry_tracking_enabled: true,
+      shelf_life_days: 30,
+      shelf_life_months: 0,
+      shelf_life_years: 0,
+      allow_fractional_quantity: true,
+      allow_price_input: false,
+      track_inventory: true,
+      wholesale_enabled: false,
+    },
+    packaging_material: {
+      id: "packaging_material",
+      label: "Packaging Material",
+      product_type: "packaging_material",
+      sales_unit_type: "pack",
+      unit: "pack",
+      base_unit: "pack",
+      sale_unit: "pack",
+      inventory_tracking_mode: "standard",
+      inventory_rotation_method: "FIFO",
+      expiry_policy: "warn_only",
+      expiry_tracking_enabled: false,
+      shelf_life_days: 0,
+      shelf_life_months: 0,
+      shelf_life_years: 0,
+      allow_fractional_quantity: false,
+      allow_price_input: false,
+      track_inventory: true,
+      wholesale_enabled: false,
+    },
+    service: {
+      id: "service",
+      label: "Service",
+      product_type: "service",
+      sales_unit_type: "piece",
+      unit: "piece",
+      base_unit: "piece",
+      sale_unit: "piece",
+      inventory_tracking_mode: "none",
+      inventory_rotation_method: "FIFO",
+      expiry_policy: "warn_only",
+      expiry_tracking_enabled: false,
+      shelf_life_days: 0,
+      shelf_life_months: 0,
+      shelf_life_years: 0,
+      allow_fractional_quantity: false,
+      allow_price_input: false,
+      track_inventory: false,
+      wholesale_enabled: false,
+    },
+  },
+  ice_cream: {} as ProductTemplateSettings,
+  restaurant: {} as ProductTemplateSettings,
+  supermarket: {} as ProductTemplateSettings,
+  retail: {} as ProductTemplateSettings,
+  wholesale: {} as ProductTemplateSettings,
+  mixed: {} as ProductTemplateSettings,
+};
+
+for (const activity of BUSINESS_ACTIVITY_TYPES) {
+  if (activity === "cafe") continue;
+  DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY[activity] = structuredClone(
+    DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY.cafe
+  );
+}
 
 export const ONLINE_ORDER_SOURCES = ["qr_menu", "souqna"] as const;
 export type OnlineOrderSource = (typeof ONLINE_ORDER_SOURCES)[number];

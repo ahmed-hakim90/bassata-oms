@@ -27,7 +27,7 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="flex h-screen bg-background">
-      <div className="hidden h-full shrink-0 md:flex">
+      <div className="hidden overflow-hidden h-full shrink-0 md:flex">
         <AppSidebar userRole={userRole} featureFlags={featureFlags} permissions={permissions} />
       </div>
 

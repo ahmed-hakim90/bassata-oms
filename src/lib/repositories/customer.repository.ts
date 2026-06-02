@@ -23,7 +23,13 @@ export async function listCustomers(search?: string): Promise<Customer[]> {
 
 export async function getCustomer(id: string): Promise<Customer | null> {
   const db = await getDb();
-  const { data, error } = await db.from("customers").select("*").eq("id", id).maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("customers")
+    .select("*")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
   if (error) throwDbError(error, "getCustomer");
   return data ? mapCustomer(data) : null;
 }
@@ -71,14 +77,22 @@ export async function updateCustomer(
   >
 ): Promise<Customer | null> {
   const db = await getDb();
-  const { data, error } = await db.from("customers").update(patch).eq("id", id).select().maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("customers")
+    .update(patch)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select()
+    .maybeSingle();
   if (error) throwDbError(error, "updateCustomer");
   return data ? mapCustomer(data) : null;
 }
 
 export async function deleteCustomer(id: string): Promise<boolean> {
   const db = await getDb();
-  const { error } = await db.from("customers").delete().eq("id", id);
+  const orgId = await getOrgId();
+  const { error } = await db.from("customers").delete().eq("id", id).eq("org_id", orgId);
   if (error) throwDbError(error, "deleteCustomer");
   return true;
 }
@@ -102,7 +116,14 @@ export async function updateLoyaltyRule(
   patch: Partial<LoyaltyRule>
 ): Promise<LoyaltyRule | null> {
   const db = await getDb();
-  const { data, error } = await db.from("loyalty_rules").update(patch).eq("id", id).select().maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("loyalty_rules")
+    .update(patch)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select()
+    .maybeSingle();
   if (error) throwDbError(error, "updateLoyaltyRule");
   return data ? mapLoyaltyRule(data) : null;
 }

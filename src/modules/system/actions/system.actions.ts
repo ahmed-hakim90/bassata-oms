@@ -14,6 +14,7 @@ import {
   getSessionSettings,
   getOnlineMenuSettings,
   getBusinessActivitySettings,
+  getProductTemplateSettings,
   updateExpenseSettings,
   updateSessionSettings,
   updateOnlineMenuSettings,
@@ -21,6 +22,7 @@ import {
   updateFeatureFlags,
   applyActivityPreset,
   updateBusinessActivitySettings,
+  updateProductTemplateSettings,
   upsertSetting,
 } from "@/modules/system/services/settings.service";
 import {
@@ -131,6 +133,15 @@ export async function applyBusinessActivityPresetAction(
   await applyActivityPreset(activityType, user.id);
   revalidatePath("/settings");
   revalidatePath("/pos");
+}
+
+export async function updateProductTemplateSettingsAction(
+  input: Partial<import("@/lib/constants").ProductTemplateSettings>
+) {
+  const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
+  await updateProductTemplateSettings(input, user.id);
+  revalidatePath("/settings");
+  revalidatePath("/products");
 }
 
 export async function createUserAction(input: {
@@ -340,6 +351,7 @@ export async function getSettingsData() {
     sessionSettings: await getSessionSettings(),
     onlineMenuSettings: await getOnlineMenuSettings(),
     businessActivitySettings: await getBusinessActivitySettings(),
+    productTemplateSettings: await getProductTemplateSettings(),
     costCenters: await listCostCenters(),
     stores: await listStores(),
     warehouses: await warehouseRepo.listWarehouses(),
@@ -408,6 +420,7 @@ async function loadSettingsBundle() {
     sessionSettings: await getSessionSettings(),
     onlineMenuSettings: await getOnlineMenuSettings(),
     businessActivitySettings: await getBusinessActivitySettings(),
+    productTemplateSettings: await getProductTemplateSettings(),
     costCenters: await listCostCenters(),
     stores: await listStores(),
     warehouses: await warehouseRepo.listWarehouses(),

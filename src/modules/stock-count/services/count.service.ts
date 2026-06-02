@@ -14,6 +14,9 @@ export interface CountLineInput {
   productId: string;
   variantId?: string | null;
   countedQty: number;
+  batchId?: string | null;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
 }
 
 async function enrichCount(count: StockCount): Promise<StockCountWithLines> {
@@ -102,6 +105,9 @@ export async function submitCountLines(
         .update({
           counted_qty: input.countedQty,
           variance: input.countedQty - line.expected_qty,
+          batch_id: input.batchId ?? null,
+          batch_number: input.batchNumber ?? null,
+          expiry_date: input.expiryDate ?? null,
         })
         .eq("id", line.id);
     }
@@ -132,6 +138,12 @@ export async function postCountAdjustments(
       referenceId: countId,
       reason: `Count variance: ${line.variance > 0 ? "+" : ""}${line.variance}`,
       createdBy: userId,
+      batch: {
+        batchNumber: line.batch_number ?? null,
+        expiryDate: line.expiry_date ?? null,
+        sourceType: "adjustment",
+        sourceDocumentId: countId,
+      },
     });
   }
 

@@ -3,38 +3,15 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/auth/session";
 import { STORE_COOKIE } from "@/lib/auth/session";
-import { isPlatformBootstrapEmail } from "@/lib/platform/bootstrap";
 import {
-  deploymentHasOrganization,
   initializeOrganization,
-  OrganizationAlreadyExistsError,
+  OwnerEmailAlreadyUsedError,
 } from "@/modules/onboarding/services/bootstrap.service";
 import {
   onboardingPayloadSchema,
   type OnboardingPayload,
 } from "@/modules/onboarding/schemas/onboarding.schema";
-
-export async function getOnboardingAccess(): Promise<{
-  canAccess: boolean;
-  hasOrganization: boolean;
-  isBootstrapAdmin: boolean;
-}> {
-  const hasOrganization = await deploymentHasOrganization();
-  const user = await getCurrentUser();
-
-  if (!hasOrganization) {
-    return { canAccess: true, hasOrganization: false, isBootstrapAdmin: false };
-  }
-
-  const isBootstrapAdmin = Boolean(user?.email && isPlatformBootstrapEmail(user.email));
-  return {
-    canAccess: isBootstrapAdmin,
-    hasOrganization: true,
-    isBootstrapAdmin,
-  };
-}
 
 export interface CompleteOnboardingResult {
   success: boolean;
@@ -44,11 +21,6 @@ export interface CompleteOnboardingResult {
 export async function completeOnboardingAction(
   payload: OnboardingPayload
 ): Promise<CompleteOnboardingResult> {
-  const access = await getOnboardingAccess();
-  if (!access.canAccess) {
-    return { success: false, error: "Onboarding is not available." };
-  }
-
   const parsed = onboardingPayloadSchema.safeParse(payload);
   if (!parsed.success) {
     return {
@@ -79,10 +51,10 @@ export async function completeOnboardingAction(
       maxAge: 60 * 60 * 24 * 30,
     });
   } catch (err) {
-    if (err instanceof OrganizationAlreadyExistsError) {
+    if (err instanceof OwnerEmailAlreadyUsedError) {
       return {
         success: false,
-        error: "An organization already exists. Onboarding cannot be completed again.",
+        error: "Owner email is already used by another company.",
       };
     }
     return {

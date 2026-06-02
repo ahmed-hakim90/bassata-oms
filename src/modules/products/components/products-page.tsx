@@ -18,6 +18,7 @@ import {
 import { deleteProductAction } from "../actions/product.actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import type { BusinessActivitySettings, ProductTemplateSettings } from "@/lib/constants";
 
 interface ProductsPageProps {
   initialProducts: (ProductGridItem & { hasRecipe?: boolean })[];
@@ -26,6 +27,8 @@ interface ProductsPageProps {
   recipesEnabled?: boolean;
   souqnaEnabled?: boolean;
   defaultPublishToSouqna?: boolean;
+  productTemplates: ProductTemplateSettings;
+  businessActivitySettings: BusinessActivitySettings;
 }
 
 export function ProductsPage({
@@ -35,6 +38,8 @@ export function ProductsPage({
   recipesEnabled = false,
   souqnaEnabled = false,
   defaultPublishToSouqna = false,
+  productTemplates,
+  businessActivitySettings,
 }: ProductsPageProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -202,6 +207,8 @@ export function ProductsPage({
         recipesEnabled={recipesEnabled}
         souqnaEnabled={souqnaEnabled}
         defaultPublishToSouqna={defaultPublishToSouqna}
+        productTemplates={productTemplates}
+        businessActivitySettings={businessActivitySettings}
         currency={currency}
         onSaved={() => router.refresh()}
       />

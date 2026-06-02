@@ -144,6 +144,10 @@ export function mapCategory(row: CategoryRow): Category {
     sort_order: row.sort_order,
     color: row.color,
     icon: row.icon,
+    expiry_tracking_enabled_default: row.expiry_tracking_enabled_default ?? false,
+    inventory_rotation_method_default:
+      (row.inventory_rotation_method_default ?? "FIFO") as Category["inventory_rotation_method_default"],
+    expiry_policy_default: (row.expiry_policy_default ?? "block_sale") as Category["expiry_policy_default"],
   };
 }
 
@@ -163,13 +167,24 @@ export function mapProduct(row: ProductRow): Product {
     is_active: row.is_active,
     is_popular: row.is_popular,
     track_inventory: row.track_inventory,
-    product_type: (row.product_type ?? "finished") as ProductType,
+    product_type: (row.product_type ?? "finished_product") as ProductType,
+    inventory_tracking_mode: (row.inventory_tracking_mode ?? "standard") as Product["inventory_tracking_mode"],
+    inventory_rotation_method:
+      (row.inventory_rotation_method ?? "FIFO") as Product["inventory_rotation_method"],
+    expiry_policy: (row.expiry_policy ?? "block_sale") as Product["expiry_policy"],
+    expiry_tracking_enabled: row.expiry_tracking_enabled ?? false,
+    shelf_life_days: row.shelf_life_days ?? 0,
+    shelf_life_months: row.shelf_life_months ?? 0,
+    shelf_life_years: row.shelf_life_years ?? 0,
     unit: (row.unit ?? "piece") as MeasurementUnit,
+    base_unit: (row.base_unit ?? row.unit ?? "piece") as MeasurementUnit,
     sale_unit: (row.sale_unit ?? row.unit ?? "piece") as MeasurementUnit,
     sales_unit_type: (row.sales_unit_type ?? "piece") as Product["sales_unit_type"],
     allow_fractional_quantity: row.allow_fractional_quantity ?? false,
     allow_price_input: row.allow_price_input ?? false,
     wholesale_enabled: row.wholesale_enabled ?? false,
+    supports_weight_sale: row.supports_weight_sale ?? false,
+    supports_amount_sale: row.supports_amount_sale ?? false,
     last_unit_cost: num(row.last_unit_cost ?? 0),
     cost_unit: (row.cost_unit ?? row.unit ?? "piece") as MeasurementUnit,
     updated_at: row.updated_at ?? row.created_at,
@@ -253,6 +268,9 @@ export function mapPurchaseLine(row: PurchaseLineRow): PurchaseInvoiceLine {
     line_total: num(row.line_total),
     landed_unit_cost: row.landed_unit_cost == null ? null : num(row.landed_unit_cost),
     landed_line_total: row.landed_line_total == null ? null : num(row.landed_line_total),
+    batch_number: row.batch_number ?? null,
+    production_date: row.production_date ?? null,
+    expiry_date: row.expiry_date ?? null,
   };
 }
 
@@ -272,11 +290,20 @@ export function mapTransfer(row: TransferRow): TransferOrder {
 }
 
 export function mapTransferLine(row: TransferLineRow): TransferOrderLine {
-  return row;
+  return {
+    ...row,
+    batch_id: row.batch_id ?? null,
+    batch_number: row.batch_number ?? null,
+  };
 }
 
 export function mapWaste(row: WasteRow): WasteRecord {
-  return row;
+  return {
+    ...row,
+    batch_id: row.batch_id ?? null,
+    batch_number: row.batch_number ?? null,
+    expiry_date: row.expiry_date ?? null,
+  };
 }
 
 export function mapStockCount(row: StockCountRow): StockCount {
@@ -292,7 +319,12 @@ export function mapStockCount(row: StockCountRow): StockCount {
 }
 
 export function mapStockCountLine(row: StockCountLineRow): StockCountLine {
-  return row;
+  return {
+    ...row,
+    batch_id: row.batch_id ?? null,
+    batch_number: row.batch_number ?? null,
+    expiry_date: row.expiry_date ?? null,
+  };
 }
 
 export function mapSession(row: SessionRow): CashierSession {

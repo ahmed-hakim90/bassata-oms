@@ -11,48 +11,52 @@ import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { APP_NAME } from "@/lib/constants";
 import { completeOnboardingAction } from "@/modules/onboarding/actions/onboarding.actions";
 import {
+  type OnboardingPayload,
   ONBOARDING_FEATURE_KEYS,
   type OnboardingFeatureKey,
-  type OnboardingPayload,
 } from "@/modules/onboarding/schemas/onboarding.schema";
 
 const STEPS = [
-  "Organization",
-  "First Store",
+  "Company",
+  "First Branch",
   "Owner Account",
-  "Business Settings",
+  "Business Type",
   "Features",
-  "Finish",
+  "Default Settings",
+  "Initial Setup",
 ] as const;
 
 const FEATURE_LABELS: Record<OnboardingFeatureKey, string> = {
   recipes: "Recipes & costing",
-  loyalty: "Loyalty program",
-  credit_sales: "Credit sales",
+  variants: "Variants",
+  weight_sales: "Weight sales",
+  wholesale_sales: "Wholesale sales",
+  purchases: "Purchases",
+  transfers: "Transfers",
   waste: "Waste tracking",
-  transfers: "Stock transfers",
   stock_count: "Stock count",
+  loyalty: "Loyalty program",
+  customer_accounts: "Customer accounts",
+  credit_sales: "Credit sales",
+  monthly_closing: "Monthly closing",
+  imports_exports: "Imports/exports",
   barcode_scanner: "Barcode scanner",
-  online_menu: "QR menu",
-  online_orders: "Online orders",
 };
 
 const DEFAULT_FEATURES = Object.fromEntries(
-  ONBOARDING_FEATURE_KEYS.map((key) => [
-    key,
-    key !== "recipes" && key !== "credit_sales",
-  ])
+  ONBOARDING_FEATURE_KEYS.map((key) => [key, key !== "credit_sales" && key !== "wholesale_sales"])
 ) as Record<OnboardingFeatureKey, boolean>;
+const BUSINESS_TYPES = [
+  "cafe",
+  "ice_cream",
+  "restaurant",
+  "supermarket",
+  "retail",
+  "wholesale",
+  "mixed",
+] as const;
 
-interface OnboardingWizardProps {
-  hasOrganization: boolean;
-  isBootstrapAdmin: boolean;
-}
-
-export function OnboardingWizard({
-  hasOrganization,
-  isBootstrapAdmin,
-}: OnboardingWizardProps) {
+export function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
 
@@ -62,17 +66,54 @@ export function OnboardingWizard({
     currency: "USD",
     timezone: "America/New_York",
     country: "",
-  });
-  const [store, setStore] = useState({ name: "", address: "", phone: "" });
-  const [owner, setOwner] = useState({ name: "", email: "", password: "" });
-  const [business, setBusiness] = useState({
     taxEnabled: true,
     taxRate: 0,
-    receiptHeader: "",
-    receiptFooter: "",
+    taxInclusive: true,
   });
+  const [store, setStore] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    timezone: "America/New_York",
+  });
+  const [owner, setOwner] = useState({ name: "", email: "", password: "" });
+  const [businessType, setBusinessType] = useState<(typeof BUSINESS_TYPES)[number]>("retail");
   const [features, setFeatures] =
     useState<Record<OnboardingFeatureKey, boolean>>(DEFAULT_FEATURES);
+  const [defaultSettings, setDefaultSettings] = useState({
+    paymentMethods: {
+      cash: true,
+      card: true,
+      wallet: true,
+      credit: false,
+      manualWallet: true,
+    },
+    receiptHeader: "",
+    receiptFooter: "",
+    preventNegativeStock: true,
+    defaultTaxBehavior: "inclusive" as "inclusive" | "exclusive",
+    sessionRules: {
+      maxOpenHours: 24,
+      warnAfterHours: 20,
+      blockSalesWhenExpired: true,
+      requireManagerOverrideForExpiredSale: true,
+      allowManagerForceClose: true,
+    },
+    expenseRules: {
+      approvalRequired: false,
+      cashierCanAddSessionExpense: true,
+      allowInventoryPurchaseFromSession: true,
+      preventExpensesInClosedPeriods: true,
+    },
+  });
+  const [initialSetup, setInitialSetup] = useState({
+    createDefaultCostCenters: true,
+    createDefaultExpenseCategories: true,
+    createDefaultProductCategories: true,
+    createDefaultInventoryUnits: true,
+    createFirstPosDevice: false,
+    firstPosDeviceName: "POS-1",
+  });
 
   function handleLogoChange(file: File | null) {
     if (!file) return;
@@ -92,6 +133,8 @@ export function OnboardingWizard({
       case 0:
         if (organization.name.trim().length < 2) return "Organization name is required.";
         if (!organization.country.trim()) return "Country is required.";
+        if (organization.taxRate < 0 || organization.taxRate > 100)
+          return "Tax rate must be between 0 and 100.";
         return null;
       case 1:
         if (store.name.trim().length < 2) return "Store name is required.";
@@ -101,6 +144,19 @@ export function OnboardingWizard({
         if (owner.name.trim().length < 2) return "Owner name is required.";
         if (!owner.email.includes("@")) return "Valid owner email is required.";
         if (owner.password.length < 8) return "Password must be at least 8 characters.";
+        return null;
+      case 5:
+        if (
+          defaultSettings.sessionRules.warnAfterHours >
+          defaultSettings.sessionRules.maxOpenHours
+        ) {
+          return "Session warning hours cannot exceed max open hours.";
+        }
+        return null;
+      case 6:
+        if (initialSetup.createFirstPosDevice && !initialSetup.firstPosDeviceName.trim()) {
+          return "POS device name is required when device creation is enabled.";
+        }
         return null;
       default:
         return null;
@@ -121,8 +177,10 @@ export function OnboardingWizard({
       organization,
       store,
       owner,
-      business,
+      businessType,
+      defaultSettings,
       features,
+      initialSetup,
     };
 
     startTransition(async () => {
@@ -136,16 +194,9 @@ export function OnboardingWizard({
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Welcome to {APP_NAME}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Set up your organization in a few steps
+          Set up your company in seven steps
         </p>
       </div>
-
-      {hasOrganization && isBootstrapAdmin && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-          Bootstrap admin view: an organization already exists. Completing onboarding will
-          fail to prevent duplicate tenants.
-        </p>
-      )}
 
       <div className="flex flex-wrap gap-2">
         {STEPS.map((label, index) => (
@@ -205,6 +256,42 @@ export function OnboardingWizard({
                 onChange={(e) => setOrganization({ ...organization, country: e.target.value })}
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tax rate (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  value={organization.taxRate}
+                  onChange={(e) =>
+                    setOrganization({ ...organization, taxRate: Number(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Tax behavior</Label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={organization.taxInclusive}
+                    onCheckedChange={(checked) =>
+                      setOrganization({ ...organization, taxInclusive: checked === true })
+                    }
+                  />
+                  Tax inclusive
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={organization.taxEnabled}
+                    onCheckedChange={(checked) =>
+                      setOrganization({ ...organization, taxEnabled: checked === true })
+                    }
+                  />
+                  Tax enabled
+                </label>
+              </div>
+            </div>
           </div>
         </OperationalCard>
       )}
@@ -223,6 +310,13 @@ export function OnboardingWizard({
             <div className="space-y-2">
               <Label>Phone</Label>
               <Input value={store.phone} onChange={(e) => setStore({ ...store, phone: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Store timezone</Label>
+              <Input
+                value={store.timezone}
+                onChange={(e) => setStore({ ...store, timezone: e.target.value })}
+              />
             </div>
           </div>
         </OperationalCard>
@@ -256,44 +350,19 @@ export function OnboardingWizard({
       )}
 
       {step === 3 && (
-        <OperationalCard title="Business settings">
-          <div className="grid gap-4">
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={business.taxEnabled}
-                onCheckedChange={(checked) =>
-                  setBusiness({ ...business, taxEnabled: checked === true })
-                }
-              />
-              Tax enabled
-            </label>
-            <div className="space-y-2">
-              <Label>Tax percentage</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                step={0.01}
-                value={business.taxRate}
-                onChange={(e) =>
-                  setBusiness({ ...business, taxRate: Number(e.target.value) || 0 })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Receipt header</Label>
-              <Textarea
-                value={business.receiptHeader}
-                onChange={(e) => setBusiness({ ...business, receiptHeader: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Receipt footer</Label>
-              <Textarea
-                value={business.receiptFooter}
-                onChange={(e) => setBusiness({ ...business, receiptFooter: e.target.value })}
-              />
-            </div>
+        <OperationalCard title="Business type">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {BUSINESS_TYPES.map((type) => (
+              <label key={type} className="flex items-center gap-2 rounded-md border p-3 text-sm">
+                <Checkbox
+                  checked={businessType === type}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) setBusinessType(type);
+                  }}
+                />
+                {type.replace("_", " ")}
+              </label>
+            ))}
           </div>
         </OperationalCard>
       )}
@@ -317,29 +386,195 @@ export function OnboardingWizard({
       )}
 
       {step === 5 && (
-        <OperationalCard title="Review & finish">
-          <dl className="grid gap-3 text-sm">
-            <div>
-              <dt className="text-muted-foreground">Organization</dt>
-              <dd className="font-medium">{organization.name}</dd>
+        <OperationalCard title="Default settings">
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label>Receipt header</Label>
+              <Textarea
+                value={defaultSettings.receiptHeader}
+                onChange={(e) =>
+                  setDefaultSettings({ ...defaultSettings, receiptHeader: e.target.value })
+                }
+              />
             </div>
-            <div>
-              <dt className="text-muted-foreground">Store</dt>
-              <dd className="font-medium">{store.name}</dd>
+            <div className="space-y-2">
+              <Label>Receipt footer</Label>
+              <Textarea
+                value={defaultSettings.receiptFooter}
+                onChange={(e) =>
+                  setDefaultSettings({ ...defaultSettings, receiptFooter: e.target.value })
+                }
+              />
             </div>
-            <div>
-              <dt className="text-muted-foreground">Owner</dt>
-              <dd className="font-medium">
-                {owner.name} ({owner.email})
-              </dd>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {Object.entries(defaultSettings.paymentMethods).map(([key, value]) => (
+                <label key={key} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={value}
+                    onCheckedChange={(checked) =>
+                      setDefaultSettings({
+                        ...defaultSettings,
+                        paymentMethods: {
+                          ...defaultSettings.paymentMethods,
+                          [key]: checked === true,
+                        },
+                      })
+                    }
+                  />
+                  Payment {key}
+                </label>
+              ))}
             </div>
-            <div>
-              <dt className="text-muted-foreground">Tax</dt>
-              <dd className="font-medium">
-                {business.taxEnabled ? `${business.taxRate}%` : "Disabled"}
-              </dd>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={defaultSettings.preventNegativeStock}
+                onCheckedChange={(checked) =>
+                  setDefaultSettings({
+                    ...defaultSettings,
+                    preventNegativeStock: checked === true,
+                  })
+                }
+              />
+              Prevent negative stock
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={defaultSettings.defaultTaxBehavior === "inclusive"}
+                onCheckedChange={(checked) =>
+                  setDefaultSettings({
+                    ...defaultSettings,
+                    defaultTaxBehavior: checked === true ? "inclusive" : "exclusive",
+                  })
+                }
+              />
+              Default tax behavior: inclusive
+            </label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Session max open hours</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={72}
+                  value={defaultSettings.sessionRules.maxOpenHours}
+                  onChange={(e) =>
+                    setDefaultSettings({
+                      ...defaultSettings,
+                      sessionRules: {
+                        ...defaultSettings.sessionRules,
+                        maxOpenHours: Number(e.target.value) || 1,
+                      },
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Session warning hours</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={72}
+                  value={defaultSettings.sessionRules.warnAfterHours}
+                  onChange={(e) =>
+                    setDefaultSettings({
+                      ...defaultSettings,
+                      sessionRules: {
+                        ...defaultSettings.sessionRules,
+                        warnAfterHours: Number(e.target.value) || 1,
+                      },
+                    })
+                  }
+                />
+              </div>
             </div>
-          </dl>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={defaultSettings.expenseRules.approvalRequired}
+                onCheckedChange={(checked) =>
+                  setDefaultSettings({
+                    ...defaultSettings,
+                    expenseRules: {
+                      ...defaultSettings.expenseRules,
+                      approvalRequired: checked === true,
+                    },
+                  })
+                }
+              />
+              Expense approval required
+            </label>
+          </div>
+        </OperationalCard>
+      )}
+
+      {step === 6 && (
+        <OperationalCard title="Initial setup">
+          <div className="grid gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={initialSetup.createDefaultCostCenters}
+                onCheckedChange={(checked) =>
+                  setInitialSetup({ ...initialSetup, createDefaultCostCenters: checked === true })
+                }
+              />
+              Create default cost centers
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={initialSetup.createDefaultExpenseCategories}
+                onCheckedChange={(checked) =>
+                  setInitialSetup({
+                    ...initialSetup,
+                    createDefaultExpenseCategories: checked === true,
+                  })
+                }
+              />
+              Create default expense categories
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={initialSetup.createDefaultProductCategories}
+                onCheckedChange={(checked) =>
+                  setInitialSetup({
+                    ...initialSetup,
+                    createDefaultProductCategories: checked === true,
+                  })
+                }
+              />
+              Create default product categories
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={initialSetup.createDefaultInventoryUnits}
+                onCheckedChange={(checked) =>
+                  setInitialSetup({
+                    ...initialSetup,
+                    createDefaultInventoryUnits: checked === true,
+                  })
+                }
+              />
+              Create default inventory units
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={initialSetup.createFirstPosDevice}
+                onCheckedChange={(checked) =>
+                  setInitialSetup({ ...initialSetup, createFirstPosDevice: checked === true })
+                }
+              />
+              Create first POS device placeholder
+            </label>
+            {initialSetup.createFirstPosDevice && (
+              <div className="space-y-2">
+                <Label>POS device name</Label>
+                <Input
+                  value={initialSetup.firstPosDeviceName}
+                  onChange={(e) =>
+                    setInitialSetup({ ...initialSetup, firstPosDeviceName: e.target.value })
+                  }
+                />
+              </div>
+            )}
+          </div>
         </OperationalCard>
       )}
 
@@ -353,7 +588,7 @@ export function OnboardingWizard({
           </Button>
         ) : (
           <Button type="button" onClick={submit} disabled={pending}>
-            {pending ? "Setting up…" : "Complete setup"}
+            {pending ? "Setting up..." : "Complete setup"}
           </Button>
         )}
       </div>

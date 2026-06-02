@@ -1,7 +1,18 @@
 import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapMovement, mapStockLevel } from "@/lib/repositories/mappers";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
-import type { InventoryMovement, MovementType, StockLevel } from "@/lib/types";
+import type { InventoryBatch, InventoryMovement, MovementType, StockLevel } from "@/lib/types";
+
+interface BatchInput {
+  batchNumber?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
+  receivedDate?: string | null;
+  supplierId?: string | null;
+  purchaseInvoiceId?: string | null;
+  sourceType?: "purchase" | "opening_stock" | "transfer" | "production" | "adjustment";
+  sourceDocumentId?: string | null;
+}
 
 export async function getStockLevel(
   storeId: string,
@@ -46,6 +57,8 @@ export async function adjustStock(input: {
   createdBy: string;
   trackInventory: boolean;
   productName: string;
+  unit?: string;
+  batch?: BatchInput;
 }): Promise<InventoryMovement | null> {
   if (!input.trackInventory) return null;
   const db = await getDb();
@@ -85,6 +98,75 @@ export async function adjustStock(input: {
     if (error) throwDbError(error, "adjustStock.insert");
   }
 
+  let batchId: string | null = null;
+  let batchNumber: string | null = null;
+  if (input.batch?.batchNumber) {
+    batchNumber = input.batch.batchNumber.trim();
+    const { data: existingBatch, error: batchLookupError } = await (db as any)
+      .from("inventory_batches")
+      .select("id, remaining_quantity")
+      .eq("warehouse_id", input.warehouseId)
+      .eq("product_id", input.productId)
+      .is("variant_id", variantId)
+      .eq("batch_number", batchNumber)
+      .maybeSingle();
+    if (batchLookupError) throwDbError(batchLookupError, "adjustStock.batchLookup");
+
+    if (existingBatch) {
+      batchId = existingBatch.id;
+      const nextRemaining = Number(existingBatch.remaining_quantity) + input.quantityDelta;
+      if (preventNegativeStock && nextRemaining < 0) {
+        throw new Error(`Insufficient batch stock for ${input.productName}`);
+      }
+      const { error: batchUpdateError } = await (db as any)
+        .from("inventory_batches")
+        .update({
+          remaining_quantity: nextRemaining,
+          expiry_date: input.batch.expiryDate ?? null,
+          production_date: input.batch.productionDate ?? null,
+          supplier_id: input.batch.supplierId ?? null,
+          purchase_invoice_id: input.batch.purchaseInvoiceId ?? null,
+          updated_at: new Date().toISOString(),
+          is_expired:
+            (input.batch.expiryDate ? new Date(input.batch.expiryDate) : new Date("9999-12-31")) <
+            new Date(),
+        })
+        .eq("id", existingBatch.id);
+      if (batchUpdateError) throwDbError(batchUpdateError, "adjustStock.batchUpdate");
+    } else if (input.quantityDelta > 0) {
+      const { data: newBatch, error: batchInsertError } = await (db as any)
+        .from("inventory_batches")
+        .insert({
+          org_id: (await (await import("@/lib/repositories/organization.repository")).getOrgId()),
+          store_id: input.storeId,
+          warehouse_id: input.warehouseId,
+          product_id: input.productId,
+          variant_id: variantId,
+          batch_number: batchNumber,
+          source_type: input.batch.sourceType ?? "adjustment",
+          source_document_id: input.batch.sourceDocumentId ?? null,
+          supplier_id: input.batch.supplierId ?? null,
+          purchase_invoice_id: input.batch.purchaseInvoiceId ?? null,
+          received_date: input.batch.receivedDate ?? new Date().toISOString().slice(0, 10),
+          production_date: input.batch.productionDate ?? null,
+          expiry_date: input.batch.expiryDate ?? null,
+          quantity: input.quantityDelta,
+          remaining_quantity: input.quantityDelta,
+          unit: input.unit ?? "piece",
+          created_by: input.createdBy,
+          is_expired:
+            (input.batch.expiryDate ? new Date(input.batch.expiryDate) : new Date("9999-12-31")) <
+            new Date(),
+        })
+        .select("id")
+        .single();
+      if (batchInsertError) throwDbError(batchInsertError, "adjustStock.batchInsert");
+      batchId = newBatch?.id ?? null;
+    } else {
+      throw new Error(`Batch ${batchNumber} is required for outbound inventory`);
+    }
+  }
+
   const { data: movement, error: movError } = await db
     .from("inventory_movements")
     .insert({
@@ -97,12 +179,28 @@ export async function adjustStock(input: {
       reference_type: input.referenceType ?? null,
       reference_id: input.referenceId ?? null,
       reason: input.reason ?? null,
+      batch_id: batchId,
+      batch_number: batchNumber,
+      expiry_date: input.batch?.expiryDate ?? null,
       created_by: input.createdBy,
     })
     .select()
     .single();
   if (movError || !movement) throwDbError(movError, "adjustStock.movement");
   return mapMovement(movement);
+}
+
+export async function listInventoryBatches(
+  storeId?: string,
+  warehouseId?: string
+): Promise<InventoryBatch[]> {
+  const db = await getDb();
+  let q = (db as any).from("inventory_batches").select("*").order("expiry_date", { ascending: true });
+  if (storeId) q = q.eq("store_id", storeId);
+  if (warehouseId) q = q.eq("warehouse_id", warehouseId);
+  const { data, error } = await q;
+  if (error) throwDbError(error, "listInventoryBatches");
+  return (data ?? []) as unknown as InventoryBatch[];
 }
 
 export async function listMovements(
