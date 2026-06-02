@@ -34,7 +34,7 @@ export interface PosAccessContext {
 }
 
 export async function resolvePosAccess(
-  options: { requireCashierRole?: boolean } = {}
+  options: { requireCashierRole?: boolean; clearInvalidCashier?: boolean } = {}
 ): Promise<PosAccessContext> {
   let user: AppUser;
   try {
@@ -103,7 +103,9 @@ export async function resolvePosAccess(
       device.id
     );
     if (!targetAllowed) {
-      await setActiveCashierId(null);
+      if (options.clearInvalidCashier) {
+        await setActiveCashierId(null);
+      }
       throw new PosAccessError("Switched cashier not allowed on this device", "access_denied");
     }
   }
@@ -119,13 +121,13 @@ export async function resolvePosAccess(
 export async function requirePosAccess(
   options: { requireCashierRole?: boolean } = {}
 ): Promise<PosAccessContext> {
-  const ctx = await resolvePosAccess(options);
+  const ctx = await resolvePosAccess({ ...options, clearInvalidCashier: true });
   return ctx;
 }
 
 export async function getPosAccessOrNull(): Promise<PosAccessContext | null> {
   try {
-    return await resolvePosAccess();
+    return await resolvePosAccess({ clearInvalidCashier: true });
   } catch (e) {
     if (e instanceof PosAccessError) return null;
     throw e;

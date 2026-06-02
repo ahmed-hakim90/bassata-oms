@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, getRegisteredDeviceContext } from "@/lib/auth/session";
-import { resumePosSessionForUser } from "@/lib/auth/resume-pos-session";
 
 export default async function PosStartPage() {
   const user = await getCurrentUser();
@@ -18,11 +17,5 @@ export default async function PosStartPage() {
   }
 
   const device = await getRegisteredDeviceContext();
-  const preferredStoreId = await resumePosSessionForUser(user);
-
-  if (device && device.storeId !== preferredStoreId) {
-    redirect("/device/pair?from=/pos");
-  }
-
-  redirect(device ? "/pos" : "/device/pair?from=/pos");
+  redirect(device ? "/pos/resume" : "/device/pair?from=/pos");
 }

@@ -106,8 +106,9 @@ export async function setDeviceUnlocked(
 export async function getActiveCashierId(
   storeId: string,
   deviceId: string,
-  user: AppUser
+  _user: AppUser
 ): Promise<string | null> {
+  void _user;
   const cookieStore = await cookies();
   const payload = readSignedCookieValue<{
     cashierId?: string;

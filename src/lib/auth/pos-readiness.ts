@@ -1,4 +1,4 @@
-import { getCurrentUser, setActiveCashierId } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/session";
 import { PosAccessError, resolvePosAccess } from "@/lib/auth/pos-access";
 import { getActiveSession } from "@/modules/sessions/services/session.service";
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
@@ -67,19 +67,7 @@ export async function getPosReadiness(): Promise<PosReadiness> {
     throw e;
   }
 
-  let session = await getActiveSession(ctx.storeId, ctx.activeCashierId);
-  if (!session && (user.role === "owner" || user.role === "manager")) {
-    const ownSession = await getActiveSession(ctx.storeId, user.id);
-    if (ownSession) {
-      if (ctx.activeCashierId !== user.id) {
-        await setActiveCashierId(user.id, {
-          storeId: ctx.storeId,
-          deviceId: ctx.deviceId,
-        });
-      }
-      session = ownSession;
-    }
-  }
+  const session = await getActiveSession(ctx.storeId, ctx.activeCashierId);
   if (!session) {
     return {
       state: "no_session",

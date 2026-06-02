@@ -90,7 +90,7 @@ export async function loginAction(
     if (!deviceCtx) {
       redirect("/device/pair?from=/pos");
     }
-    redirect("/pos");
+    redirect("/pos/resume");
   }
 
   redirect("/");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ interface BranchSettingsTabProps {
 }
 
 export function BranchSettingsTab({ stores, warehouses, devices }: BranchSettingsTabProps) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [origin] = useState(() =>
     typeof window === "undefined" ? "" : window.location.origin
@@ -79,6 +81,17 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
   );
   const [deviceToDelete, setDeviceToDelete] = useState<string | null>(null);
   const [pairingCodes, setPairingCodes] = useState<Record<string, string>>({});
+
+  function syncDeviceEdit(device: { id: string; name: string; store_id: string }) {
+    setDeviceEdits((current) => ({
+      ...current,
+      [device.id]: { name: device.name, storeId: device.store_id },
+    }));
+  }
+
+  function refreshSettings() {
+    router.refresh();
+  }
 
   return (
     <div className="space-y-6">
@@ -397,12 +410,18 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               onCheckedChange={(v) => {
                                 startTransition(async () => {
                                   try {
-                                    await updateDeviceAction(device.id, {
+                                    const updated = await updateDeviceAction(device.id, {
                                       isActive: v === true,
                                     });
+                                    syncDeviceEdit(updated);
+                                    refreshSettings();
                                     toast.success("Device updated");
-                                  } catch {
-                                    toast.error("Failed to update device");
+                                  } catch (error) {
+                                    toast.error(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "Failed to update device"
+                                    );
                                   }
                                 });
                               }}
@@ -430,13 +449,19 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               onClick={() => {
                                 startTransition(async () => {
                                   try {
-                                    await updateDeviceAction(device.id, {
+                                    const updated = await updateDeviceAction(device.id, {
                                       name: deviceEdits[device.id]?.name,
                                       storeId: store.id,
                                     });
+                                    syncDeviceEdit(updated);
+                                    refreshSettings();
                                     toast.success("Device updated");
-                                  } catch {
-                                    toast.error("Failed to update device");
+                                  } catch (error) {
+                                    toast.error(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "Failed to update device"
+                                    );
                                   }
                                 });
                               }}
@@ -473,8 +498,12 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               onClick={() => {
                                 startTransition(async () => {
                                   const result = await registerBrowserDeviceAction(device.id);
-                                  if (result.success) toast.success("This browser is registered");
-                                  else toast.error(result.error ?? "Registration failed");
+                                  if (result.success) {
+                                    refreshSettings();
+                                    toast.success("This browser is registered");
+                                  } else {
+                                    toast.error(result.error ?? "Registration failed");
+                                  }
                                 });
                               }}
                             >
@@ -516,12 +545,16 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               name,
                             });
                             setDeviceAdds({ ...deviceAdds, [store.id]: "" });
+                            syncDeviceEdit(created);
                             const { code } = await generateDevicePairingCodeAction(created.id);
                             setPairingCodes({ ...pairingCodes, [created.id]: code });
                             await navigator.clipboard.writeText(code);
+                            refreshSettings();
                             toast.success("Device created — pairing code copied");
-                          } catch {
-                            toast.error("Failed to create device");
+                          } catch (error) {
+                            toast.error(
+                              error instanceof Error ? error.message : "Failed to create device"
+                            );
                           }
                         });
                       }}
@@ -614,9 +647,15 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
           try {
             await deleteDeviceAction(deviceToDelete);
             setDeviceToDelete(null);
+            setDeviceEdits((current) => {
+              const next = { ...current };
+              delete next[deviceToDelete];
+              return next;
+            });
+            refreshSettings();
             toast.success("Device deleted");
-          } catch {
-            toast.error("Failed to delete device");
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to delete device");
           }
         }}
       />

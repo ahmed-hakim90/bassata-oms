@@ -145,5 +145,5 @@ export async function selectCashierStoreAndContinueAction(storeId: string) {
   if (!deviceCtx) {
     redirect("/device/pair?from=/pos");
   }
-  redirect("/pos");
+  redirect("/pos/resume");
 }

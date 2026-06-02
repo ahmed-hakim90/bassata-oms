@@ -199,17 +199,18 @@ export async function updateDevice(
   userId: string
 ) {
   const device = await deviceRepo.updateDevice({ id, ...input });
-  if (device) {
-    const orgId = await getOrgId();
-    await writeAuditLog({
-      orgId,
-      storeId: device.store_id,
-      userId,
-      action: "device.updated",
-      entityType: "device",
-      entityId: device.id,
-    });
+  if (!device) {
+    throw new Error("Device not found or update not allowed");
   }
+  const orgId = await getOrgId();
+  await writeAuditLog({
+    orgId,
+    storeId: device.store_id,
+    userId,
+    action: "device.updated",
+    entityType: "device",
+    entityId: device.id,
+  });
   return device;
 }
 

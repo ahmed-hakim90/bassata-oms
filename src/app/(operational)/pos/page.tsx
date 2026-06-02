@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
 import { getValidatedActiveStoreId } from "@/lib/auth/guards";
-import {
-  findOpenSessionForUser,
-  resumePosSessionForUser,
-} from "@/lib/auth/resume-pos-session";
+import { findOpenSessionForUser } from "@/lib/auth/resume-pos-session";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import { PosScreen } from "@/modules/pos/components/pos-screen";
 import {
@@ -30,8 +27,7 @@ export default async function PosPage() {
   if (user && (user.role === "owner" || user.role === "manager" || user.role === "cashier")) {
     const openSession = await findOpenSessionForUser(user);
     if (openSession && openSession.storeId !== storeId) {
-      await resumePosSessionForUser(user);
-      redirect("/pos");
+      redirect("/pos/resume");
     }
   }
 
