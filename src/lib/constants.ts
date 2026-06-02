@@ -245,7 +245,7 @@ export const NAV_GROUPS = [
   {
     label: "Sales",
     items: [
-      { label: "POS", href: "/pos", icon: "ShoppingCart" },
+      { label: "POS", href: "/pos/start", icon: "ShoppingCart" },
       { label: "Orders", href: "/orders", icon: "Receipt" },
       { label: "Sessions", href: "/sessions", icon: "Clock" },
     ],

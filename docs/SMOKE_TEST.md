@@ -2,6 +2,8 @@
 
 Run after `supabase db reset` (or `npm run db:push`), `npm run db:seed-auth`, and `npm run dev`.
 
+**Demo accounts (emails, passwords, PINs, branches):** [DEMO_USERS.md](./DEMO_USERS.md)
+
 ## Release gate (automated)
 
 ```bash

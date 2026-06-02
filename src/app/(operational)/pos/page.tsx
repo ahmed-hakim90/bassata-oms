@@ -1,4 +1,9 @@
+import { redirect } from "next/navigation";
 import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import {
+  findOpenSessionForUser,
+  resumePosSessionForUser,
+} from "@/lib/auth/resume-pos-session";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import { PosScreen } from "@/modules/pos/components/pos-screen";
 import {
@@ -19,7 +24,17 @@ import * as permissionRepo from "@/lib/repositories/permission.repository";
 import type { PaymentMethod } from "@/lib/types";
 
 export default async function PosPage() {
+  const user = await getCurrentUser();
   const storeId = await getValidatedActiveStoreId();
+
+  if (user && (user.role === "owner" || user.role === "manager" || user.role === "cashier")) {
+    const openSession = await findOpenSessionForUser(user);
+    if (openSession && openSession.storeId !== storeId) {
+      await resumePosSessionForUser(user);
+      redirect("/pos");
+    }
+  }
+
   const readiness = await getPosReadiness();
   const categories = await getCategoriesForPOS();
   const products = await getProductsForPOS(storeId);
@@ -30,7 +45,6 @@ export default async function PosPage() {
   const flags = await getFeatureFlags();
   const expenseSettings = await getExpenseSettings();
   const sessionSettings = await getSessionSettings();
-  const user = await getCurrentUser();
   const enabledPaymentMethods: PaymentMethod[] = [
     flags.payment_cash ? "cash" : null,
     flags.payment_card ? "card" : null,
@@ -70,6 +84,7 @@ export default async function PosPage() {
       featureFlags={flags}
       canManagerOverride={user?.role === "owner" || user?.role === "manager"}
       managerDiscountOverrideAmount={sessionSettings.manager_discount_override_amount}
+      currentUserName={user?.name ?? null}
     />
   );
 }

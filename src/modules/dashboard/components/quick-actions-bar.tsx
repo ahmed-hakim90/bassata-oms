@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 const actions = [
-  { href: "/pos", label: "POS", icon: ShoppingCart },
+  { href: "/pos/start", label: "POS", icon: ShoppingCart },
   { href: "/sessions", label: "Sessions", icon: Clock },
   { href: "/orders", label: "Orders", icon: Receipt },
   { href: "/expenses", label: "Expenses", icon: Wallet },

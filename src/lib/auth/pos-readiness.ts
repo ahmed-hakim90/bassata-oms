@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser, setActiveCashierId } from "@/lib/auth/session";
 import { PosAccessError, resolvePosAccess } from "@/lib/auth/pos-access";
 import { getActiveSession } from "@/modules/sessions/services/session.service";
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
@@ -30,6 +30,8 @@ function mapPosAccessError(code: PosAccessError["code"]): PosReadinessState {
       return "store_required";
     case "access_denied":
       return "access_denied";
+    case "cashier_required":
+      return "cashier_required";
     case "role_denied":
       return "role_denied";
     default:
@@ -65,7 +67,19 @@ export async function getPosReadiness(): Promise<PosReadiness> {
     throw e;
   }
 
-  const session = await getActiveSession(ctx.storeId, ctx.activeCashierId);
+  let session = await getActiveSession(ctx.storeId, ctx.activeCashierId);
+  if (!session && (user.role === "owner" || user.role === "manager")) {
+    const ownSession = await getActiveSession(ctx.storeId, user.id);
+    if (ownSession) {
+      if (ctx.activeCashierId !== user.id) {
+        await setActiveCashierId(user.id, {
+          storeId: ctx.storeId,
+          deviceId: ctx.deviceId,
+        });
+      }
+      session = ownSession;
+    }
+  }
   if (!session) {
     return {
       state: "no_session",

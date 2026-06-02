@@ -18,6 +18,7 @@ const icons: Partial<
   store_mismatch: Store,
   store_required: Store,
   access_denied: Lock,
+  cashier_required: Lock,
   no_session: Wallet,
   session_warning: AlertTriangle,
   session_expired: AlertTriangle,
@@ -28,7 +29,7 @@ interface PosReadinessBannerProps {
 }
 
 export function PosReadinessBanner({ state }: PosReadinessBannerProps) {
-  if (state === "ready") return null;
+  if (state === "ready" || state === "cashier_required") return null;
 
   const copy = POS_READINESS_COPY[state];
   const Icon = icons[state];

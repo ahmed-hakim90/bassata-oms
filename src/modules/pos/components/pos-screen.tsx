@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Search, ShoppingCart, Wallet } from "lucide-react";
 import { CategoryRail } from "@/modules/pos/components/category-rail";
@@ -31,6 +32,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/format";
 import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
 import { WeightAmountModal } from "@/modules/pos/components/weight-amount-modal";
+import { PosCashierPinGate } from "@/modules/pos/components/pos-cashier-pin-gate";
 
 interface PosScreenProps {
   categories: Category[];
@@ -49,6 +51,7 @@ interface PosScreenProps {
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   canManagerOverride?: boolean;
   managerDiscountOverrideAmount?: number | null;
+  currentUserName?: string | null;
 }
 
 export function PosScreen({
@@ -68,6 +71,7 @@ export function PosScreen({
   featureFlags = {},
   canManagerOverride = false,
   managerDiscountOverrideAmount = null,
+  currentUserName = null,
 }: PosScreenProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -92,6 +96,7 @@ export function PosScreen({
   const salesMode = usePosStore((s) => s.salesMode);
   const setSalesMode = usePosStore((s) => s.setSalesMode);
   const [weightProduct, setWeightProduct] = useState<POSProduct | null>(null);
+  const router = useRouter();
 
   const barcodeEnabled = featureFlags.barcode_scanner !== false;
   const receiptEnabled = featureFlags.receipt_printing !== false;
@@ -239,10 +244,19 @@ export function PosScreen({
         clearCart();
         setPaymentOpen(false);
         toast.success(`Order ${result.orderNumber} completed`);
-      } catch {
-        toast.error("Checkout failed");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Checkout failed");
       }
     });
+  }
+
+  if (readinessState === "cashier_required") {
+    return (
+      <PosCashierPinGate
+        currentUserName={currentUserName}
+        onSuccess={() => router.refresh()}
+      />
+    );
   }
 
   function handleOpenCashDrawer() {
@@ -262,7 +276,14 @@ export function PosScreen({
   return (
     <div className="flex h-dvh max-h-dvh flex-col gap-3 overflow-hidden p-3 lg:gap-4 lg:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <PosReadinessBanner state={readinessState} />
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <PosReadinessBanner state={readinessState} />
+          {currentUserName ? (
+            <span className="rounded-lg border border-border/60 bg-background/70 px-3 py-1 text-sm text-muted-foreground">
+              User: <span className="font-medium text-foreground">{currentUserName}</span>
+            </span>
+          ) : null}
+        </div>
         {featureFlags.wholesale_sales === true ? (
           <div className="inline-flex rounded-xl border p-1">
             <Button
@@ -281,7 +302,7 @@ export function PosScreen({
             </Button>
           </div>
         ) : null}
-        {readinessState === "ready" || readinessState === "session_warning" ? (
+        {readinessState !== "login_required" ? (
           <PosPinSwitch />
         ) : null}
       </div>
@@ -388,9 +409,9 @@ export function PosScreen({
         <Sheet open={cartOpen} onOpenChange={setCartOpen}>
           <SheetContent
             side="bottom"
-            className="flex max-h-[min(92dvh,100%)] flex-col gap-0 overflow-hidden rounded-t-2xl border-t p-0"
+            className="flex h-[min(92dvh,100%)] max-h-[min(92dvh,100%)] flex-col gap-0 overflow-hidden rounded-t-2xl border-t p-0 data-[side=bottom]:h-[min(92dvh,100%)]"
           >
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <CartPanel
                 onCheckout={() => {
                   setCartOpen(false);

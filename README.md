@@ -48,15 +48,20 @@ Production requires Supabase Auth and the environment variables in `.env.example
 
 ## Local dev credentials
 
-After `supabase db reset` and `npm run db:seed-auth`, use the seeded accounts (see `supabase/seed.sql`). Default passwords are set by `scripts/seed-auth.mjs` (typically `demo1234`).
+After `supabase db reset` and `npm run db:seed-auth`, use the demo accounts. Full reference (Arabic + English): **[docs/DEMO_USERS.md](docs/DEMO_USERS.md)**.
+
+Quick login: any seeded email below with password **`demo1234`** (from `scripts/seed-auth.mjs`).
 
 | Email | Role |
 |-------|------|
 | `owner@SweetFlow.local` | owner |
 | `manager@SweetFlow.local` | manager |
-| `cashier1@SweetFlow.local` | cashier |
-| `cashier2@SweetFlow.local` | cashier |
+| `cashier1@SweetFlow.local` | cashier (POS PIN `1234`) |
+| `cashier2@SweetFlow.local` | cashier (POS PIN `1234`) |
 | `inventory@SweetFlow.local` | inventory |
+| `viewer@SweetFlow.local` | viewer |
+
+One-liner demo DB: `npm run db:reset-demo`
 
 > **Note:** The git repository folder is named `SweetFlow-oms`; the npm package and product name is `SweetFlow-pos`.
 

@@ -5,6 +5,7 @@ export type PosReadinessState =
   | "store_mismatch"
   | "store_required"
   | "access_denied"
+  | "cashier_required"
   | "role_denied"
   | "no_session"
   | "session_warning"
@@ -46,6 +47,10 @@ export const POS_READINESS_COPY: Record<
   access_denied: {
     title: "Access denied",
     description: "You are not allowed to use POS on this store or device.",
+  },
+  cashier_required: {
+    title: "Cashier PIN required",
+    description: "Enter cashier PIN on this device before selling.",
   },
   role_denied: {
     title: "POS not available",

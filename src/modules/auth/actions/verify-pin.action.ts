@@ -62,11 +62,6 @@ export async function verifyPinAction(pin: string): Promise<VerifyPinResult> {
   }
 
   const cashierId = data as string;
-  if (cashierId === user.id) {
-    await setActiveCashierId(null);
-    return { success: true, cashierId };
-  }
-
   await setActiveCashierId(cashierId, {
     storeId,
     deviceId: deviceCtx.deviceId,

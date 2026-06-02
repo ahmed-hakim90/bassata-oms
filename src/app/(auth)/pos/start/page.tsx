@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/session";
-import { getRegisteredDeviceContext } from "@/lib/auth/session";
-import { CashierStorePicker } from "@/modules/auth/components/cashier-store-picker";
+import { getCurrentUser, getRegisteredDeviceContext } from "@/lib/auth/session";
+import { resumePosSessionForUser } from "@/lib/auth/resume-pos-session";
 
 export default async function PosStartPage() {
   const user = await getCurrentUser();
@@ -10,8 +9,7 @@ export default async function PosStartPage() {
     redirect("/");
   }
 
-  const allowedStores = user.store_ids;
-  if (allowedStores.length === 0) {
+  if (user.store_ids.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6 text-center text-muted-foreground">
         No branch access assigned. Ask a manager.
@@ -19,21 +17,12 @@ export default async function PosStartPage() {
     );
   }
 
-  if (allowedStores.length === 1) {
-    const { switchCashierStoreAction } = await import("@/modules/auth/actions/device.actions");
-    await switchCashierStoreAction(allowedStores[0]!);
-    const device = await getRegisteredDeviceContext();
-    redirect(device ? "/pos" : "/device/pair?from=/pos");
+  const device = await getRegisteredDeviceContext();
+  const preferredStoreId = await resumePosSessionForUser(user);
+
+  if (device && device.storeId !== preferredStoreId) {
+    redirect("/device/pair?from=/pos");
   }
 
-  const stores = await import("@/lib/repositories/store.repository").then((m) =>
-    m.listStores()
-  );
-  const options = stores.filter((s) => allowedStores.includes(s.id));
-
-  return (
-    <div className="flex min-h-screen items-center justify-center p-6">
-      <CashierStorePicker stores={options} />
-    </div>
-  );
+  redirect(device ? "/pos" : "/device/pair?from=/pos");
 }

@@ -122,9 +122,6 @@ export async function getActiveCashierId(
   ) {
     return payload.cashierId;
   }
-
-  if (user.role === "cashier") return user.id;
-  if (user.role === "owner" || user.role === "manager") return user.id;
   return null;
 }
 

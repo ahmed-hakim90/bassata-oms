@@ -77,7 +77,7 @@ export function AppShellHeader({
           Account
         </Link>
         <Link
-          href="/pos"
+          href="/pos/start"
           className={cn(buttonVariants({ size: "sm" }), "rounded-full shadow-sm")}
         >
           <ShoppingCart className="size-4" />

@@ -3,7 +3,6 @@
 import { Clock3, Minus, Plus, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/format";
 import { getCartSubtotal, getCartTotal, usePosStore } from "@/stores/pos-store";
@@ -34,7 +33,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
   const total = getCartTotal(cart, discountAmount);
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden rounded-none bg-white shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-black/5">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none bg-white shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-black/5">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h2 className="font-heading text-lg font-semibold">{t("Cart")}</h2>
         {cart.length > 0 && (
@@ -89,7 +88,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
         </div>
       ) : null}
 
-      <ScrollArea className="min-h-0 flex-1 px-2">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 [-webkit-overflow-scrolling:touch]">
         {cart.length === 0 ? (
           <p className="px-2 py-12 text-center text-sm text-muted-foreground">
             {t("Tap products to add items")}
@@ -159,7 +158,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
             ))}
           </ul>
         )}
-      </ScrollArea>
+      </div>
 
       <div className="border-t p-4">
         {customer && (

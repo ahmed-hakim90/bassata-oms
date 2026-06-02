@@ -34,6 +34,9 @@ import type {
 import { suggestInventoryExpenseDefaults } from "@/modules/accounting/utils/expense-suggest";
 
 const STEPS = ["Type", "Category", "Amount", "Payment", "Confirm"] as const;
+const SESSION_STEPS = ["Type", "Category", "Amount", "Confirm"] as const;
+const STEP_IDS = [0, 1, 2, 3, 4] as const;
+const SESSION_STEP_IDS = [0, 1, 2, 4] as const;
 
 interface ExpenseWizardProps {
   storeId: string;
@@ -93,6 +96,12 @@ export function ExpenseWizard({
   );
 
   const trackableProducts = products.filter((p) => p.track_inventory);
+  const inventoryPurchaseDisabled =
+    trackableProducts.length === 0 ||
+    (sessionMode && expenseSettings?.allow_inventory_purchase_from_session === false);
+  const visibleSteps = sessionMode ? SESSION_STEPS : STEPS;
+  const visibleStepIds = sessionMode ? SESSION_STEP_IDS : STEP_IDS;
+  const currentStep = visibleStepIds[step] ?? 0;
   const computedAmount = useMemo(() => {
     if (expenseType === "inventory") {
       const q = parseFloat(quantity) || 0;
@@ -103,6 +112,7 @@ export function ExpenseWizard({
   }, [expenseType, quantity, unitCost, amount]);
 
   function selectExpenseType(type: "general" | "inventory") {
+    if (type === "inventory" && inventoryPurchaseDisabled) return;
     setExpenseType(type);
     if (type === "inventory" && expenseSettings) {
       const suggested = suggestInventoryExpenseDefaults(categories, expenseSettings);
@@ -127,12 +137,30 @@ export function ExpenseWizard({
 
   function handleSubmit() {
     const value = computedAmount;
-    if (value <= 0) {
-      toast.error("Enter a valid amount");
-      return;
-    }
     if (!categoryId || !costCenterId) {
       toast.error("Select cost center and category");
+      return;
+    }
+    if (expenseType === "inventory") {
+      if (sessionMode && expenseSettings?.allow_inventory_purchase_from_session === false) {
+        toast.error("Inventory purchase from session is disabled");
+        return;
+      }
+      if (!productId) {
+        toast.error("Select inventory item");
+        return;
+      }
+      if ((parseFloat(quantity) || 0) <= 0) {
+        toast.error("Enter a valid quantity");
+        return;
+      }
+      if ((parseFloat(unitCost) || 0) <= 0) {
+        toast.error("Enter a valid unit cost");
+        return;
+      }
+    }
+    if (value <= 0) {
+      toast.error("Enter a valid amount");
       return;
     }
 
@@ -174,8 +202,8 @@ export function ExpenseWizard({
         setOpen(false);
         resetForm();
         onDone?.();
-      } catch {
-        toast.error("Could not save expense");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save expense");
       }
     });
   }
@@ -183,17 +211,21 @@ export function ExpenseWizard({
   function handleDelete() {
     if (!expense || !confirm("Delete this expense?")) return;
     startTransition(async () => {
-      await deleteExpenseAction(expense.id);
-      toast.success("Expense deleted");
-      setOpen(false);
-      onDone?.();
+      try {
+        await deleteExpenseAction(expense.id);
+        toast.success("Expense deleted");
+        setOpen(false);
+        onDone?.();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not delete expense");
+      }
     });
   }
 
   const content = (
     <div className="space-y-4">
       <div className="flex gap-1">
-        {STEPS.map((label, i) => (
+        {visibleSteps.map((label, i) => (
           <div
             key={label}
             className={`h-1 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-muted"}`}
@@ -202,7 +234,7 @@ export function ExpenseWizard({
         ))}
       </div>
 
-      {step === 0 && (
+      {currentStep === 0 && (
         <div className="grid gap-2">
           <Button
             type="button"
@@ -216,7 +248,7 @@ export function ExpenseWizard({
             type="button"
             variant={expenseType === "inventory" ? "default" : "outline"}
             className="rounded-xl justify-start"
-            disabled={trackableProducts.length === 0}
+            disabled={inventoryPurchaseDisabled}
             onClick={() => selectExpenseType("inventory")}
           >
             Inventory purchase
@@ -224,7 +256,7 @@ export function ExpenseWizard({
         </div>
       )}
 
-      {step === 1 && (
+      {currentStep === 1 && (
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>Cost center</Label>
@@ -261,7 +293,7 @@ export function ExpenseWizard({
         </div>
       )}
 
-      {step === 2 && expenseType === "general" && (
+      {currentStep === 2 && expenseType === "general" && (
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>Title</Label>
@@ -281,7 +313,7 @@ export function ExpenseWizard({
         </div>
       )}
 
-      {step === 2 && expenseType === "inventory" && (
+      {currentStep === 2 && expenseType === "inventory" && (
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>Inventory item</Label>
@@ -342,7 +374,7 @@ export function ExpenseWizard({
         </div>
       )}
 
-      {step === 3 && !sessionMode && (
+      {currentStep === 3 && !sessionMode && (
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>Payment source</Label>
@@ -375,7 +407,7 @@ export function ExpenseWizard({
         </div>
       )}
 
-      {step === 4 && (
+      {currentStep === 4 && (
         <div className="space-y-3 text-sm">
           <p><span className="text-muted-foreground">Type:</span> {expenseType}</p>
           <p><span className="text-muted-foreground">Amount:</span> {computedAmount.toFixed(2)}</p>
@@ -395,7 +427,7 @@ export function ExpenseWizard({
             Back
           </Button>
         )}
-        {step < STEPS.length - 1 ? (
+        {step < visibleSteps.length - 1 ? (
           <Button type="button" className="flex-1 rounded-xl" onClick={() => setStep(step + 1)}>
             Next
           </Button>
@@ -404,7 +436,7 @@ export function ExpenseWizard({
             {expense ? "Update" : "Confirm"}
           </Button>
         )}
-        {expense && step === STEPS.length - 1 && (
+        {expense && step === visibleSteps.length - 1 && (
           <Button type="button" variant="destructive" className="rounded-xl" disabled={pending} onClick={handleDelete}>
             Delete
           </Button>

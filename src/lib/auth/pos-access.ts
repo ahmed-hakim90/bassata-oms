@@ -18,6 +18,7 @@ export class PosAccessError extends Error {
       | "store_mismatch"
       | "store_required"
       | "access_denied"
+      | "cashier_required"
       | "role_denied"
   ) {
     super(message);
@@ -92,7 +93,7 @@ export async function resolvePosAccess(
 
   const activeCashierId = await getActiveCashierId(storeId, device.id, user);
   if (!activeCashierId) {
-    throw new PosAccessError("Cashier context required", "access_denied");
+    throw new PosAccessError("Cashier PIN required", "cashier_required");
   }
 
   if (user.role === "cashier" && activeCashierId !== user.id) {
