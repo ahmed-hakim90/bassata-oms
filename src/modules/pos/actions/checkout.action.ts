@@ -8,7 +8,7 @@ import { getActiveSessionForPos } from "@/lib/auth/pos-access";
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
 import { getSessionSettings } from "@/modules/system/services/settings.service";
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
-import type { FeatureFlag } from "@/lib/constants";
+import type { FeatureFlag, SalesMode } from "@/lib/constants";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
@@ -24,6 +24,7 @@ export async function checkoutAction(input: {
   customer: Customer | null;
   paymentMethod: PaymentMethod;
   payments?: PaymentSplit[];
+  salesMode?: SalesMode;
   discount?: number;
   override?: CheckoutOverride;
 }) {
@@ -48,6 +49,18 @@ export async function checkoutAction(input: {
   }
   if ((input.discount ?? 0) > 0) {
     await requireFeature("customer_discounts");
+  }
+  if ((input.salesMode ?? "retail") === "wholesale") {
+    await requireFeature("wholesale_sales");
+    await requirePermissionOrRole("wholesale_sale", ["owner", "manager", "cashier"]);
+  }
+  if (input.cart.some((line) => line.saleInputMode === "by_weight")) {
+    await requireFeature("weight_sales");
+    await requirePermissionOrRole("weight_sale", ["owner", "manager", "cashier"]);
+  }
+  if (input.cart.some((line) => line.saleInputMode === "by_amount")) {
+    await requireFeature("price_by_amount");
+    await requirePermissionOrRole("price_by_amount_sale", ["owner", "manager", "cashier"]);
   }
 
   const session = await getActiveSessionForPos(ctx);
@@ -115,6 +128,7 @@ export async function checkoutAction(input: {
     customer: input.customer,
     paymentMethod: input.paymentMethod,
     payments: input.payments,
+    salesMode: input.salesMode ?? "retail",
     discount: input.discount ?? 0,
     override: {
       expiredSession: input.override?.expiredSession,

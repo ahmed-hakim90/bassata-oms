@@ -13,6 +13,22 @@ import type {
   SESSION_LIFECYCLE_STATES,
   SESSION_STATUSES,
   UserRole,
+  BusinessActivityType,
+  ProductSalesUnitType,
+  SalesMode,
+  VariantKind,
+  VariantPriceMode,
+  WeightSaleInputMode,
+} from "@/lib/constants";
+
+export type {
+  BusinessActivityType,
+  BusinessActivitySettings,
+  ProductSalesUnitType,
+  SalesMode,
+  VariantKind,
+  VariantPriceMode,
+  WeightSaleInputMode,
 } from "@/lib/constants";
 
 export type { UserRole } from "@/lib/constants";
@@ -114,6 +130,11 @@ export interface Product {
   track_inventory: boolean;
   product_type: ProductType;
   unit: MeasurementUnit;
+  sale_unit?: MeasurementUnit;
+  sales_unit_type?: ProductSalesUnitType;
+  allow_fractional_quantity?: boolean;
+  allow_price_input?: boolean;
+  wholesale_enabled?: boolean;
   last_unit_cost: number;
   cost_unit: MeasurementUnit;
   updated_at: string;
@@ -130,6 +151,26 @@ export interface ProductVariant {
   price: number | null;
   image_url: string | null;
   is_active: boolean;
+  variant_kind: VariantKind;
+  quantity_value: number | null;
+  quantity_unit: MeasurementUnit | null;
+  price_mode: VariantPriceMode | null;
+  fixed_price: number | null;
+}
+
+export interface ProductPriceTier {
+  id: string;
+  org_id: string;
+  product_id: string;
+  variant_id: string | null;
+  name: string;
+  sale_mode: SalesMode;
+  min_quantity: number;
+  unit: MeasurementUnit;
+  price: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface StockLevel {
@@ -358,6 +399,8 @@ export interface Order {
   payment_status: "paid" | "unpaid" | "partial";
   created_by: string;
   created_at: string;
+  sales_mode?: SalesMode;
+  activity_type?: BusinessActivityType;
 }
 
 export interface OrderItem {
@@ -371,6 +414,12 @@ export interface OrderItem {
   line_total: number;
   unit_cost: number;
   line_cost: number;
+  sale_unit: MeasurementUnit | null;
+  base_quantity: number | null;
+  sale_input_mode: WeightSaleInputMode | null;
+  tier_id: string | null;
+  wholesale_applied: boolean;
+  line_note: string | null;
 }
 
 export interface OrderItemDeduction {
@@ -726,4 +775,9 @@ export interface CartLine {
   modifiers: { name: string; price: number }[];
   lineTotal: number;
   imageUrl: string | null;
+  saleUnit?: MeasurementUnit;
+  saleInputMode?: WeightSaleInputMode;
+  enteredAmount?: number;
+  tierId?: string | null;
+  wholesaleApplied?: boolean;
 }

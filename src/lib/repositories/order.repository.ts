@@ -1,6 +1,14 @@
 import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapOrder, mapOrderItem, mapOrderItemDeduction, mapOrderPayment } from "@/lib/repositories/mappers";
-import type { Order, OrderItem, OrderItemDeduction, OrderPayment, PaymentMethod, PaymentSplit } from "@/lib/types";
+import type {
+  Order,
+  OrderItem,
+  OrderItemDeduction,
+  OrderPayment,
+  PaymentMethod,
+  PaymentSplit,
+  SalesMode,
+} from "@/lib/types";
 
 export async function listOrders(storeId?: string): Promise<Order[]> {
   const db = await getDb();
@@ -125,8 +133,16 @@ export async function completeCheckoutRpc(input: {
   deviceId?: string | null;
   customerId: string | null;
   paymentMethod: PaymentMethod;
+  salesMode?: SalesMode;
   discount: number;
-  lines: { product_id: string; variant_id: string | null; quantity: number }[];
+  lines: {
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+    sale_input_mode?: string;
+    entered_amount?: number;
+    tier_id?: string | null;
+  }[];
 }): Promise<{
   order_id: string;
   order_number: string;
@@ -143,6 +159,7 @@ export async function completeCheckoutRpc(input: {
     p_discount: input.discount,
     p_lines: input.lines,
     p_device_id: input.deviceId ?? null,
+    p_sales_mode: input.salesMode ?? "retail",
   });
   if (error) throwDbError(error, "completeCheckout");
   const result = data as Record<string, unknown>;
@@ -162,8 +179,16 @@ export async function completeCheckoutSplitRpc(input: {
   deviceId?: string | null;
   customerId: string | null;
   paymentMethod: PaymentMethod;
+  salesMode?: SalesMode;
   discount: number;
-  lines: { product_id: string; variant_id: string | null; quantity: number }[];
+  lines: {
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+    sale_input_mode?: string;
+    entered_amount?: number;
+    tier_id?: string | null;
+  }[];
   payments: PaymentSplit[];
 }): Promise<{
   order_id: string;
@@ -201,8 +226,16 @@ export async function completeCheckoutExpiredOverrideRpc(input: {
   deviceId?: string | null;
   customerId: string | null;
   paymentMethod: PaymentMethod;
+  salesMode?: SalesMode;
   discount: number;
-  lines: { product_id: string; variant_id: string | null; quantity: number }[];
+  lines: {
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+    sale_input_mode?: string;
+    entered_amount?: number;
+    tier_id?: string | null;
+  }[];
 }): Promise<{
   order_id: string;
   order_number: string;
@@ -238,8 +271,16 @@ export async function completeCheckoutSplitExpiredOverrideRpc(input: {
   deviceId?: string | null;
   customerId: string | null;
   paymentMethod: PaymentMethod;
+  salesMode?: SalesMode;
   discount: number;
-  lines: { product_id: string; variant_id: string | null; quantity: number }[];
+  lines: {
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+    sale_input_mode?: string;
+    entered_amount?: number;
+    tier_id?: string | null;
+  }[];
   payments: PaymentSplit[];
 }): Promise<{
   order_id: string;

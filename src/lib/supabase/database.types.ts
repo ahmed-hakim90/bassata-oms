@@ -50,6 +50,7 @@ export type Database = {
       categories: TableDef<CategoryRow>;
       products: TableDef<ProductRow>;
       product_variants: TableDef<VariantRow>;
+      product_price_tiers: TableDef<ProductPriceTierRow>;
       product_recipes: TableDef<RecipeRow>;
       product_recipe_lines: TableDef<RecipeLineRow>;
       stock_levels: TableDef<StockLevelRow>;
@@ -152,6 +153,14 @@ export type Database = {
           p_receipt_header: string;
           p_receipt_footer: string;
           p_feature_flags: Json;
+          p_business_activity: Json;
+          p_session_settings: Json;
+          p_expense_settings: Json;
+          p_payment_methods: Json;
+          p_prevent_negative_stock: boolean;
+          p_default_tax_behavior: string;
+          p_seed_defaults: Json;
+          p_owner_email: string;
         },
         Json
       >;
@@ -248,6 +257,11 @@ export type ProductRow = {
   track_inventory: boolean;
   product_type: string;
   unit: string;
+  sale_unit: string;
+  sales_unit_type: string;
+  allow_fractional_quantity: boolean;
+  allow_price_input: boolean;
+  wholesale_enabled: boolean;
   last_unit_cost: number;
   cost_unit: string;
   description: string;
@@ -282,6 +296,25 @@ export type VariantRow = {
   price: number | null;
   image_url: string | null;
   is_active: boolean;
+  variant_kind: string;
+  quantity_value: number | null;
+  quantity_unit: string | null;
+  price_mode: string | null;
+  fixed_price: number | null;
+};
+export type ProductPriceTierRow = {
+  id: string;
+  org_id: string;
+  product_id: string;
+  variant_id: string | null;
+  name: string;
+  sale_mode: string;
+  min_quantity: number;
+  unit: string;
+  price: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 export type StockLevelRow = {
   id: string;
@@ -500,6 +533,8 @@ export type OrderRow = {
   tax: number;
   total: number;
   payment_status: string;
+  sales_mode: string;
+  activity_type: string;
   created_by: string;
   created_at: string;
 };
@@ -514,6 +549,12 @@ export type OrderItemRow = {
   line_total: number;
   unit_cost: number;
   line_cost: number;
+  sale_unit: string | null;
+  base_quantity: number | null;
+  sale_input_mode: string | null;
+  tier_id: string | null;
+  wholesale_applied: boolean;
+  line_note: string | null;
 };
 export type OrderItemDeductionRow = {
   id: string;

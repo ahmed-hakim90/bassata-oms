@@ -13,11 +13,14 @@ import {
   getExpenseSettings,
   getSessionSettings,
   getOnlineMenuSettings,
+  getBusinessActivitySettings,
   updateExpenseSettings,
   updateSessionSettings,
   updateOnlineMenuSettings,
   updateOrganizationSettings,
   updateFeatureFlags,
+  applyActivityPreset,
+  updateBusinessActivitySettings,
   upsertSetting,
 } from "@/modules/system/services/settings.service";
 import {
@@ -110,6 +113,24 @@ export async function updateFeatureFlagsAction(flags: Partial<Record<FeatureFlag
   await updateFeatureFlags(flags, user.id);
   revalidatePath("/settings");
   revalidatePath("/", "layout");
+}
+
+export async function updateBusinessActivitySettingsAction(
+  input: Partial<import("@/lib/constants").BusinessActivitySettings>
+) {
+  const user = await requirePermissionOrRole("manage_business_activity", ["owner", "manager"]);
+  await updateBusinessActivitySettings(input, user.id);
+  revalidatePath("/settings");
+  revalidatePath("/pos");
+}
+
+export async function applyBusinessActivityPresetAction(
+  activityType: import("@/lib/constants").BusinessActivityType
+) {
+  const user = await requirePermissionOrRole("manage_business_activity", ["owner", "manager"]);
+  await applyActivityPreset(activityType, user.id);
+  revalidatePath("/settings");
+  revalidatePath("/pos");
 }
 
 export async function createUserAction(input: {
@@ -318,6 +339,7 @@ export async function getSettingsData() {
     expenseSettings: await getExpenseSettings(),
     sessionSettings: await getSessionSettings(),
     onlineMenuSettings: await getOnlineMenuSettings(),
+    businessActivitySettings: await getBusinessActivitySettings(),
     costCenters: await listCostCenters(),
     stores: await listStores(),
     warehouses: await warehouseRepo.listWarehouses(),
@@ -385,6 +407,7 @@ async function loadSettingsBundle() {
     expenseSettings: await getExpenseSettings(),
     sessionSettings: await getSessionSettings(),
     onlineMenuSettings: await getOnlineMenuSettings(),
+    businessActivitySettings: await getBusinessActivitySettings(),
     costCenters: await listCostCenters(),
     stores: await listStores(),
     warehouses: await warehouseRepo.listWarehouses(),

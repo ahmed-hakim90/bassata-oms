@@ -2,6 +2,7 @@ import type { PermissionKey } from "@/lib/constants";
 
 export const SETTINGS_TAB_IDS = [
   "business",
+  "business-activity",
   "branches",
   "pos",
   "expenses",
@@ -19,6 +20,11 @@ export const SETTINGS_TABS: {
   permissions: PermissionKey[];
 }[] = [
   { id: "business", label: "Business", permissions: ["settings_manage"] },
+  {
+    id: "business-activity",
+    label: "Business Activity",
+    permissions: ["manage_business_activity", "settings_manage"],
+  },
   { id: "branches", label: "Stores", permissions: ["settings_manage"] },
   {
     id: "pos",

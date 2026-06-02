@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/format";
 import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
+import { WeightAmountModal } from "@/modules/pos/components/weight-amount-modal";
 
 interface PosScreenProps {
   categories: Category[];
@@ -88,6 +89,9 @@ export function PosScreen({
   const customer = usePosStore((s) => s.customer);
   const paymentMethod = usePosStore((s) => s.paymentMethod);
   const discountAmount = usePosStore((s) => s.discountAmount);
+  const salesMode = usePosStore((s) => s.salesMode);
+  const setSalesMode = usePosStore((s) => s.setSalesMode);
+  const [weightProduct, setWeightProduct] = useState<POSProduct | null>(null);
 
   const barcodeEnabled = featureFlags.barcode_scanner !== false;
   const receiptEnabled = featureFlags.receipt_printing !== false;
@@ -145,6 +149,13 @@ export function PosScreen({
   }
 
   function handleAdd(product: POSProduct) {
+    if (
+      featureFlags.weight_sales === true &&
+      (product.sales_unit_type === "weight" || product.sales_unit_type === "mixed")
+    ) {
+      setWeightProduct(product);
+      return;
+    }
     if (product.hasVariants && product.variants.length > 0) {
       setPickerProduct(product);
       return;
@@ -203,6 +214,7 @@ export function PosScreen({
           customer,
           paymentMethod: checkoutPaymentMethod,
           payments,
+          salesMode,
           discount: discountAmount,
           override: needsDiscountOverride
             ? { discount: true, reason: overrideReason }
@@ -251,6 +263,24 @@ export function PosScreen({
     <div className="flex h-dvh max-h-dvh flex-col gap-3 overflow-hidden p-3 lg:gap-4 lg:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <PosReadinessBanner state={readinessState} />
+        {featureFlags.wholesale_sales === true ? (
+          <div className="inline-flex rounded-xl border p-1">
+            <Button
+              size="sm"
+              variant={salesMode === "retail" ? "default" : "ghost"}
+              onClick={() => setSalesMode("retail")}
+            >
+              Retail
+            </Button>
+            <Button
+              size="sm"
+              variant={salesMode === "wholesale" ? "default" : "ghost"}
+              onClick={() => setSalesMode("wholesale")}
+            >
+              Wholesale
+            </Button>
+          </div>
+        ) : null}
         {readinessState === "ready" || readinessState === "session_warning" ? (
           <PosPinSwitch />
         ) : null}
@@ -400,6 +430,29 @@ export function PosScreen({
           onClose={() => setPickerProduct(null)}
           onSelect={(product, variant) => addToCart(product, variant)}
         />
+      <WeightAmountModal
+        open={Boolean(weightProduct)}
+        onOpenChange={(open) => {
+          if (!open) setWeightProduct(null);
+        }}
+        product={weightProduct}
+        onConfirm={({ quantity, unitPrice, saleInputMode, enteredAmount }) => {
+          if (!weightProduct) return;
+          addItem({
+            productId: weightProduct.id,
+            variantId: null,
+            name: weightProduct.name,
+            quantity,
+            unitPrice,
+            modifiers: [],
+            imageUrl: weightProduct.image_url,
+            saleUnit: weightProduct.sale_unit,
+            saleInputMode,
+            enteredAmount,
+          });
+          setWeightProduct(null);
+        }}
+      />
       </div>
 
       <Button

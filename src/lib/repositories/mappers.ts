@@ -165,6 +165,11 @@ export function mapProduct(row: ProductRow): Product {
     track_inventory: row.track_inventory,
     product_type: (row.product_type ?? "finished") as ProductType,
     unit: (row.unit ?? "piece") as MeasurementUnit,
+    sale_unit: (row.sale_unit ?? row.unit ?? "piece") as MeasurementUnit,
+    sales_unit_type: (row.sales_unit_type ?? "piece") as Product["sales_unit_type"],
+    allow_fractional_quantity: row.allow_fractional_quantity ?? false,
+    allow_price_input: row.allow_price_input ?? false,
+    wholesale_enabled: row.wholesale_enabled ?? false,
     last_unit_cost: num(row.last_unit_cost ?? 0),
     cost_unit: (row.cost_unit ?? row.unit ?? "piece") as MeasurementUnit,
     updated_at: row.updated_at ?? row.created_at,
@@ -177,6 +182,11 @@ export function mapVariant(row: VariantRow): ProductVariant {
     price_delta: num(row.price_delta),
     price: row.price != null ? num(row.price) : null,
     image_url: row.image_url ?? null,
+    variant_kind: (row.variant_kind ?? "standard") as ProductVariant["variant_kind"],
+    quantity_value: row.quantity_value != null ? num(row.quantity_value) : null,
+    quantity_unit: (row.quantity_unit ?? null) as ProductVariant["quantity_unit"],
+    price_mode: (row.price_mode ?? null) as ProductVariant["price_mode"],
+    fixed_price: row.fixed_price != null ? num(row.fixed_price) : null,
   };
 }
 
@@ -328,6 +338,8 @@ export function mapOrder(row: OrderRow): Order {
     tax: num(row.tax),
     total: num(row.total),
     payment_status: row.payment_status as Order["payment_status"],
+    sales_mode: (row.sales_mode ?? "retail") as Order["sales_mode"],
+    activity_type: (row.activity_type ?? "retail") as Order["activity_type"],
     created_by: row.created_by,
     created_at: row.created_at,
   };
@@ -345,6 +357,12 @@ export function mapOrderItem(row: OrderItemRow): OrderItem {
     line_total: num(row.line_total),
     unit_cost: num(row.unit_cost ?? 0),
     line_cost: num(row.line_cost ?? 0),
+    sale_unit: (row.sale_unit ?? null) as OrderItem["sale_unit"],
+    base_quantity: row.base_quantity != null ? num(row.base_quantity) : null,
+    sale_input_mode: (row.sale_input_mode ?? null) as OrderItem["sale_input_mode"],
+    tier_id: row.tier_id ?? null,
+    wholesale_applied: row.wholesale_applied ?? false,
+    line_note: row.line_note ?? null,
   };
 }
 

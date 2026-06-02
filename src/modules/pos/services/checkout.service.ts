@@ -9,6 +9,7 @@ import {
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import type { CartLine, Customer, Order, PaymentMethod, PaymentSplit } from "@/lib/types";
+import type { SalesMode } from "@/lib/constants";
 
 export interface CheckoutInput {
   storeId: string;
@@ -19,6 +20,7 @@ export interface CheckoutInput {
   customer: Customer | null;
   paymentMethod: PaymentMethod;
   payments?: PaymentSplit[];
+  salesMode?: SalesMode;
   discount?: number;
   override?: {
     expiredSession?: boolean;
@@ -55,6 +57,9 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     product_id: line.productId,
     variant_id: line.variantId,
     quantity: line.quantity,
+    sale_input_mode: line.saleInputMode,
+    entered_amount: line.enteredAmount,
+    tier_id: line.tierId ?? null,
   }));
 
   for (const line of input.cart) {
@@ -73,6 +78,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     deviceId: input.deviceId ?? null,
     customerId: input.customer?.id ?? null,
     paymentMethod: input.paymentMethod,
+    salesMode: input.salesMode ?? "retail",
     discount: input.discount ?? 0,
     lines,
   };

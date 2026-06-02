@@ -32,7 +32,10 @@ export function ReceiptPrint({
             <li key={line.id}>
               <div className="flex justify-between gap-2">
                 <span>
-                  {line.name} × {line.quantity}
+                  {line.name}
+                  <br />
+                  {line.quantity} {line.saleUnit ?? "piece"} × {formatCurrency(line.unitPrice)}
+                  {line.saleUnit ? `/${line.saleUnit}` : ""}
                 </span>
                 <span>{formatCurrency(line.lineTotal)}</span>
               </div>

@@ -5,7 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { Category, Product } from "@/lib/types";
-import { MEASUREMENT_UNITS, PRODUCT_TYPES } from "@/lib/constants";
+import { MEASUREMENT_UNITS, PRODUCT_SALES_UNIT_TYPES, PRODUCT_TYPES } from "@/lib/constants";
 import { formatUnit } from "@/lib/units";
 import { selectLabelById } from "@/lib/select-label";
 import {
@@ -60,6 +60,20 @@ const productSchema = z.object({
     "ml",
     "liter",
   ]),
+  sale_unit: z.enum([
+    "piece",
+    "bag",
+    "cup",
+    "spoon",
+    "gram",
+    "kg",
+    "ml",
+    "liter",
+  ]),
+  sales_unit_type: z.enum(["piece", "weight", "volume", "pack", "mixed"]),
+  allow_fractional_quantity: z.boolean(),
+  allow_price_input: z.boolean(),
+  wholesale_enabled: z.boolean(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -105,6 +119,11 @@ export function ProductFormDialog({
       track_inventory: true,
       product_type: "finished",
       unit: "piece",
+      sale_unit: "piece",
+      sales_unit_type: "piece",
+      allow_fractional_quantity: false,
+      allow_price_input: false,
+      wholesale_enabled: false,
     },
   });
 
@@ -125,6 +144,11 @@ export function ProductFormDialog({
         track_inventory: product.track_inventory,
         product_type: product.product_type,
         unit: product.unit,
+        sale_unit: product.sale_unit,
+        sales_unit_type: product.sales_unit_type,
+        allow_fractional_quantity: product.allow_fractional_quantity,
+        allow_price_input: product.allow_price_input,
+        wholesale_enabled: product.wholesale_enabled,
       });
     } else {
       form.reset({
@@ -141,6 +165,11 @@ export function ProductFormDialog({
         track_inventory: true,
         product_type: "finished",
         unit: "piece",
+        sale_unit: "piece",
+        sales_unit_type: "piece",
+        allow_fractional_quantity: false,
+        allow_price_input: false,
+        wholesale_enabled: false,
       });
     }
   }, [open, product, categories, form, defaultPublishToSouqna]);
@@ -283,6 +312,72 @@ export function ProductFormDialog({
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="grid gap-2">
+                  <Label>Sale unit type</Label>
+                  <Select
+                    value={form.watch("sales_unit_type")}
+                    onValueChange={(v) =>
+                      form.setValue(
+                        "sales_unit_type",
+                        (v ?? "piece") as ProductFormValues["sales_unit_type"],
+                        { shouldValidate: true }
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRODUCT_SALES_UNIT_TYPES.map((t) => (
+                        <SelectItem key={t} value={t} label={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Sale unit</Label>
+                  <Select
+                    value={form.watch("sale_unit")}
+                    onValueChange={(v) =>
+                      form.setValue("sale_unit", (v ?? "piece") as ProductFormValues["sale_unit"], {
+                        shouldValidate: true,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MEASUREMENT_UNITS.map((u) => (
+                        <SelectItem key={u} value={u} label={u}>
+                          {formatUnit(u)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    ["allow_fractional_quantity", "Allow fractional quantity"],
+                    ["allow_price_input", "Allow price input"],
+                    ["wholesale_enabled", "Wholesale enabled"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 rounded-xl border p-3">
+                    <Checkbox
+                      checked={form.watch(key)}
+                      onCheckedChange={(v) =>
+                        form.setValue(key, v === true, { shouldValidate: true })
+                      }
+                    />
+                    <span className="text-sm">{label}</span>
+                  </label>
+                ))}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

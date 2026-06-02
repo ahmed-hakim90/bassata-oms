@@ -38,6 +38,11 @@ export function VariantEditor({
     barcode: "",
     price: "",
     image_url: "",
+    variant_kind: "standard" as ProductVariant["variant_kind"],
+    quantity_value: "",
+    quantity_unit: "kg" as NonNullable<ProductVariant["quantity_unit"]>,
+    price_mode: "calculate_from_unit_price" as NonNullable<ProductVariant["price_mode"]>,
+    fixed_price: "",
   });
 
   async function reload() {
@@ -74,8 +79,24 @@ export function VariantEditor({
           price: draft.price ? Number(draft.price) : null,
           image_url: draft.image_url.trim() || null,
           is_active: true,
+          variant_kind: draft.variant_kind,
+          quantity_value: draft.quantity_value ? Number(draft.quantity_value) : null,
+          quantity_unit: draft.quantity_unit,
+          price_mode: draft.price_mode,
+          fixed_price: draft.fixed_price ? Number(draft.fixed_price) : null,
         });
-        setDraft({ name: "", sku: "", barcode: "", price: "", image_url: "" });
+        setDraft({
+          name: "",
+          sku: "",
+          barcode: "",
+          price: "",
+          image_url: "",
+          variant_kind: "standard",
+          quantity_value: "",
+          quantity_unit: "kg",
+          price_mode: "calculate_from_unit_price",
+          fixed_price: "",
+        });
         await reload();
         toast.success("Variant created");
       } catch {
@@ -154,6 +175,71 @@ export function VariantEditor({
               onChange={(e) => setDraft((d) => ({ ...d, image_url: e.target.value }))}
             />
           </div>
+          <div className="grid gap-1">
+            <Label>Variant kind</Label>
+            <select
+              className="h-9 rounded-xl border border-input bg-transparent px-3 text-sm"
+              value={draft.variant_kind}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, variant_kind: e.target.value as ProductVariant["variant_kind"] }))
+              }
+            >
+              <option value="standard">standard</option>
+              <option value="weight_portion">weight_portion</option>
+            </select>
+          </div>
+          {draft.variant_kind === "weight_portion" ? (
+            <>
+              <div className="grid gap-1">
+                <Label>Quantity value</Label>
+                <Input
+                  value={draft.quantity_value}
+                  onChange={(e) => setDraft((d) => ({ ...d, quantity_value: e.target.value }))}
+                  placeholder="0.250"
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label>Quantity unit</Label>
+                <select
+                  className="h-9 rounded-xl border border-input bg-transparent px-3 text-sm"
+                  value={draft.quantity_unit}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      quantity_unit: e.target.value as NonNullable<ProductVariant["quantity_unit"]>,
+                    }))
+                  }
+                >
+                  <option value="kg">kg</option>
+                  <option value="gram">gram</option>
+                </select>
+              </div>
+              <div className="grid gap-1">
+                <Label>Price mode</Label>
+                <select
+                  className="h-9 rounded-xl border border-input bg-transparent px-3 text-sm"
+                  value={draft.price_mode}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      price_mode: e.target.value as NonNullable<ProductVariant["price_mode"]>,
+                    }))
+                  }
+                >
+                  <option value="calculate_from_unit_price">calculate_from_unit_price</option>
+                  <option value="fixed_price">fixed_price</option>
+                </select>
+              </div>
+              <div className="grid gap-1">
+                <Label>Fixed price ({currency})</Label>
+                <Input
+                  value={draft.fixed_price}
+                  onChange={(e) => setDraft((d) => ({ ...d, fixed_price: e.target.value }))}
+                  placeholder="50"
+                />
+              </div>
+            </>
+          ) : null}
         </div>
         <Button className="mt-3" size="sm" onClick={handleCreate} disabled={pending}>
           <Plus className="size-4" /> Add variant

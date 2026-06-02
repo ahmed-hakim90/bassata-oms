@@ -1,6 +1,13 @@
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
-import { DEFAULT_FEATURE_FLAGS, type FeatureFlag } from "@/lib/constants";
+import {
+  ACTIVITY_PRESETS,
+  DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
+  DEFAULT_FEATURE_FLAGS,
+  type BusinessActivitySettings,
+  type BusinessActivityType,
+  type FeatureFlag,
+} from "@/lib/constants";
 import type { AppSetting, OnlineMenuSettings } from "@/lib/types";
 
 export async function getSettings(): Promise<AppSetting[]> {
@@ -49,6 +56,37 @@ export async function updateFeatureFlags(
 ): Promise<AppSetting> {
   const current = await getFeatureFlags();
   return upsertSetting("feature_flags", { ...current, ...flags }, userId);
+}
+
+export async function getBusinessActivitySettings(): Promise<BusinessActivitySettings> {
+  const setting = await getSetting("business_activity");
+  return {
+    ...DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
+    ...(setting?.value ?? {}),
+  } as BusinessActivitySettings;
+}
+
+export async function updateBusinessActivitySettings(
+  input: Partial<BusinessActivitySettings>,
+  userId: string
+) {
+  const current = await getBusinessActivitySettings();
+  return upsertSetting("business_activity", { ...current, ...input }, userId);
+}
+
+export async function applyActivityPreset(activityType: BusinessActivityType, userId: string) {
+  const preset = ACTIVITY_PRESETS[activityType];
+  const { featureFlags, ...business } = preset;
+  await updateBusinessActivitySettings(
+    {
+      ...business,
+      activity_type: activityType,
+    },
+    userId
+  );
+  if (featureFlags) {
+    await updateFeatureFlags(featureFlags, userId);
+  }
 }
 
 export async function getOrganizationSettings() {

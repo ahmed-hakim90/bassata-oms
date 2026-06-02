@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
+import type { SalesMode } from "@/lib/constants";
 
 export interface HeldCart {
   id: string;
@@ -9,6 +10,7 @@ export interface HeldCart {
   cart: CartLine[];
   customer: Customer | null;
   discountAmount: number;
+  salesMode: SalesMode;
   createdAt: string;
 }
 
@@ -19,6 +21,7 @@ interface PosState {
   paymentMethod: PaymentMethod;
   paymentSplits: PaymentSplit[];
   discountAmount: number;
+  salesMode: SalesMode;
   addItem: (line: Omit<CartLine, "id" | "lineTotal"> & { id?: string }) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
   removeItem: (lineId: string) => void;
@@ -27,6 +30,7 @@ interface PosState {
   setCustomer: (customer: Customer | null) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   setPaymentSplits: (payments: PaymentSplit[]) => void;
+  setSalesMode: (mode: SalesMode) => void;
   holdCart: (name?: string) => HeldCart | null;
   resumeHeldCart: (id: string) => boolean;
   removeHeldCart: (id: string) => void;
@@ -48,6 +52,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   paymentMethod: "cash",
   paymentSplits: [],
   discountAmount: 0,
+  salesMode: "retail",
 
   addItem: (line) => {
     const id = line.id ?? `line-${line.productId}-${line.variantId ?? "base"}`;
@@ -118,6 +123,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       paymentMethod: "cash",
       paymentSplits: [],
       discountAmount: 0,
+      salesMode: "retail",
     }),
 
   setDiscountAmount: (amount) => {
@@ -131,6 +137,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   setPaymentMethod: (method) => set({ paymentMethod: method, paymentSplits: [] }),
 
   setPaymentSplits: (payments) => set({ paymentSplits: payments }),
+  setSalesMode: (mode) => set({ salesMode: mode }),
 
   holdCart: (name) => {
     const state = get();
@@ -141,6 +148,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       cart: state.cart,
       customer: state.customer,
       discountAmount: state.discountAmount,
+      salesMode: state.salesMode,
       createdAt: new Date().toISOString(),
     };
     set({
@@ -150,6 +158,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       paymentMethod: "cash",
       paymentSplits: [],
       discountAmount: 0,
+      salesMode: "retail",
     });
     return heldCart;
   },
@@ -166,6 +175,7 @@ export const usePosStore = create<PosState>((set, get) => ({
             cart: state.cart,
             customer: state.customer,
             discountAmount: state.discountAmount,
+            salesMode: state.salesMode,
             createdAt: new Date().toISOString(),
           }
         : null;
@@ -177,6 +187,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       cart: heldCart.cart,
       customer: heldCart.customer,
       discountAmount: heldCart.discountAmount,
+      salesMode: heldCart.salesMode,
       paymentMethod: "cash",
       paymentSplits: [],
     });

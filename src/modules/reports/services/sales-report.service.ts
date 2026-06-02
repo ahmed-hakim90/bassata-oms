@@ -29,6 +29,11 @@ export interface SalesKpi {
   }[];
   revenueByDay: { date: string; revenue: number; cost: number; profit: number; orders: number }[];
   revenueByStore: { storeId: string; storeName: string; revenue: number; cost: number; profit: number }[];
+  wholesaleRevenue: number;
+  retailRevenue: number;
+  weightSalesRevenue: number;
+  pieceQuantitySold: number;
+  weightQuantitySold: number;
 }
 
 export async function getSalesReport(options?: {
@@ -57,6 +62,12 @@ export async function getSalesReport(options?: {
   );
 
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
+  const wholesaleRevenue = orders
+    .filter((o) => o.sales_mode === "wholesale")
+    .reduce((s, o) => s + o.total, 0);
+  const retailRevenue = orders
+    .filter((o) => o.sales_mode !== "wholesale")
+    .reduce((s, o) => s + o.total, 0);
   const orderCount = orders.length;
   const avgOrderValue = orderCount > 0 ? totalRevenue / orderCount : 0;
 
@@ -83,6 +94,15 @@ export async function getSalesReport(options?: {
   }
 
   const totalCost = (items ?? []).reduce((s, item) => s + Number(item.line_cost ?? 0), 0);
+  const weightSalesRevenue = (items ?? [])
+    .filter((item) => item.sale_unit === "kg" || item.sale_unit === "gram")
+    .reduce((s, item) => s + Number(item.line_total ?? 0), 0);
+  const pieceQuantitySold = (items ?? [])
+    .filter((item) => item.sale_unit === "piece")
+    .reduce((s, item) => s + Number(item.base_quantity ?? item.quantity ?? 0), 0);
+  const weightQuantitySold = (items ?? [])
+    .filter((item) => item.sale_unit === "kg" || item.sale_unit === "gram")
+    .reduce((s, item) => s + Number(item.base_quantity ?? item.quantity ?? 0), 0);
   const grossProfit = totalRevenue - totalCost;
   const avgMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
@@ -194,6 +214,11 @@ export async function getSalesReport(options?: {
     avgMargin,
     orderCount,
     avgOrderValue,
+    wholesaleRevenue,
+    retailRevenue,
+    weightSalesRevenue,
+    pieceQuantitySold,
+    weightQuantitySold,
     topProducts,
     topVariants,
     revenueByDay,

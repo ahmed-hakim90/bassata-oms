@@ -101,8 +101,45 @@ export const PERMISSIONS = [
   "imports_exports",
   "monthly_closing_manage",
   "monthly_closing_reopen",
+  "wholesale_sale",
+  "price_by_amount_sale",
+  "weight_sale",
+  "manage_business_activity",
+  "manage_price_tiers",
 ] as const;
 export type PermissionKey = (typeof PERMISSIONS)[number];
+
+export const BUSINESS_ACTIVITY_TYPES = [
+  "cafe",
+  "ice_cream",
+  "restaurant",
+  "supermarket",
+  "retail",
+  "wholesale",
+  "mixed",
+] as const;
+export type BusinessActivityType = (typeof BUSINESS_ACTIVITY_TYPES)[number];
+
+export const SALES_MODES = ["retail", "wholesale"] as const;
+export type SalesMode = (typeof SALES_MODES)[number];
+
+export const PRODUCT_SALES_UNIT_TYPES = [
+  "piece",
+  "weight",
+  "volume",
+  "pack",
+  "mixed",
+] as const;
+export type ProductSalesUnitType = (typeof PRODUCT_SALES_UNIT_TYPES)[number];
+
+export const VARIANT_KINDS = ["standard", "weight_portion"] as const;
+export type VariantKind = (typeof VARIANT_KINDS)[number];
+
+export const VARIANT_PRICE_MODES = ["calculate_from_unit_price", "fixed_price"] as const;
+export type VariantPriceMode = (typeof VARIANT_PRICE_MODES)[number];
+
+export const WEIGHT_SALE_INPUT_MODES = ["by_weight", "by_amount"] as const;
+export type WeightSaleInputMode = (typeof WEIGHT_SALE_INPUT_MODES)[number];
 
 /** Minimum permission to access a nav route (owner bypasses). */
 export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | PermissionKey[]>> = {
@@ -238,6 +275,12 @@ export const FEATURE_FLAGS = [
   "online_menu",
   "online_orders",
   "souqna_integration",
+  "supermarket_mode",
+  "weight_sales",
+  "price_by_amount",
+  "wholesale_sales",
+  "product_price_tiers",
+  "fixed_weight_variants",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -287,6 +330,134 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   online_menu: true,
   online_orders: true,
   souqna_integration: false,
+  supermarket_mode: false,
+  weight_sales: false,
+  price_by_amount: false,
+  wholesale_sales: false,
+  product_price_tiers: false,
+  fixed_weight_variants: false,
+};
+
+export const DEFAULT_BUSINESS_ACTIVITY_SETTINGS = {
+  activity_type: "retail" as BusinessActivityType,
+  enabled_sales_modes: ["retail"] as SalesMode[],
+  default_sales_mode: "retail" as SalesMode,
+  enable_weight_sales: false,
+  enable_piece_sales: true,
+  enable_wholesale_sales: false,
+  enable_variants: true,
+  enable_price_by_amount: false,
+  allow_cashier_wholesale: false,
+  require_manager_for_wholesale: true,
+  auto_apply_wholesale_by_quantity: false,
+};
+
+export type BusinessActivitySettings = typeof DEFAULT_BUSINESS_ACTIVITY_SETTINGS;
+
+export const ACTIVITY_PRESETS: Record<
+  BusinessActivityType,
+  Partial<BusinessActivitySettings> & { featureFlags?: Partial<Record<FeatureFlag, boolean>> }
+> = {
+  cafe: {
+    activity_type: "cafe",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
+  },
+  ice_cream: {
+    activity_type: "ice_cream",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
+  },
+  restaurant: {
+    activity_type: "restaurant",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
+  },
+  supermarket: {
+    activity_type: "supermarket",
+    enabled_sales_modes: ["retail", "wholesale"],
+    default_sales_mode: "retail",
+    enable_weight_sales: true,
+    enable_piece_sales: true,
+    enable_wholesale_sales: true,
+    enable_variants: true,
+    enable_price_by_amount: true,
+    allow_cashier_wholesale: true,
+    require_manager_for_wholesale: false,
+    auto_apply_wholesale_by_quantity: true,
+    featureFlags: {
+      supermarket_mode: true,
+      weight_sales: true,
+      price_by_amount: true,
+      wholesale_sales: true,
+      product_price_tiers: true,
+      fixed_weight_variants: true,
+      barcode_scanner: true,
+    },
+  },
+  retail: {
+    activity_type: "retail",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    featureFlags: { supermarket_mode: false },
+  },
+  wholesale: {
+    activity_type: "wholesale",
+    enabled_sales_modes: ["retail", "wholesale"],
+    default_sales_mode: "wholesale",
+    enable_weight_sales: true,
+    enable_piece_sales: true,
+    enable_wholesale_sales: true,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    allow_cashier_wholesale: true,
+    auto_apply_wholesale_by_quantity: true,
+    featureFlags: {
+      wholesale_sales: true,
+      product_price_tiers: true,
+      weight_sales: true,
+    },
+  },
+  mixed: {
+    activity_type: "mixed",
+    enabled_sales_modes: ["retail", "wholesale"],
+    default_sales_mode: "retail",
+    enable_weight_sales: true,
+    enable_piece_sales: true,
+    enable_wholesale_sales: true,
+    enable_variants: true,
+    enable_price_by_amount: true,
+    featureFlags: {
+      weight_sales: true,
+      price_by_amount: true,
+      wholesale_sales: true,
+      product_price_tiers: true,
+      fixed_weight_variants: true,
+    },
+  },
 };
 
 export const ONLINE_ORDER_SOURCES = ["qr_menu", "souqna"] as const;

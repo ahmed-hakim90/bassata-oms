@@ -28,6 +28,7 @@ import { UsersSettingsTab } from "@/modules/system/components/settings/users-set
 import { SystemFeaturesTab } from "@/modules/system/components/settings/system-features-tab";
 import { AuditSettingsTab } from "@/modules/system/components/settings/audit-settings-tab";
 import { SouqnaSettingsTab } from "@/modules/system/components/settings/souqna-settings-tab";
+import { BusinessActivitySettingsTab } from "@/modules/system/components/settings/business-activity-settings-tab";
 import type { SettingsTabId } from "@/modules/system/components/settings/settings-tabs";
 import type { SouqnaIntegrationLog, SouqnaPublicApiConfig } from "@/lib/types";
 
@@ -49,6 +50,7 @@ export interface SettingsShellProps {
     expenseSettings: ExpenseSettings;
     sessionSettings: SessionSettings;
     onlineMenuSettings: OnlineMenuSettings;
+    businessActivitySettings: import("@/lib/constants").BusinessActivitySettings;
     costCenters: CostCenter[];
     stores: Store[];
     warehouses: Warehouse[];
@@ -188,6 +190,11 @@ export function SettingsShell({
               <BusinessSettingsTab
                 org={bundle.org}
                 onlineMenuSettings={bundle.onlineMenuSettings}
+              />
+            </TabsContent>
+            <TabsContent value="business-activity">
+              <BusinessActivitySettingsTab
+                initialSettings={bundle.businessActivitySettings}
               />
             </TabsContent>
             <TabsContent value="branches">

@@ -109,8 +109,11 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
                     </p>
                   </div>
                   <p className="mt-0.5 text-sm text-muted-foreground">
-                    {formatCurrency(line.unitPrice)} each
+                    {formatCurrency(line.unitPrice)} {line.saleUnit ? `/${line.saleUnit}` : "each"}
                   </p>
+                  {line.wholesaleApplied ? (
+                    <p className="mt-1 text-xs font-medium text-emerald-700">Wholesale price applied</p>
+                  ) : null}
                 </div>
                 <div className="mt-2.5 flex items-center justify-between gap-2 xl:mt-0 xl:flex-col xl:items-end xl:gap-1">
                   <div className="flex items-center gap-1 xl:gap-1.5">
