@@ -23,6 +23,8 @@
     "verify:inventory-crud": "node scripts/verify-inventory-crud.mjs",
     "verify:supplier-payments": "node scripts/verify-supplier-payments.mjs",
     "verify:production": "node scripts/run-production-gate.mjs",
+    "vercel:env": "node scripts/vercel-env-push.mjs",
+    "vercel:deploy": "npx vercel deploy --prod --yes",
     "db:apply-016": "supabase db query --linked --yes -f supabase/migrations/016_supplier_payments.sql",
     "verify:db": "npm run verify:post-006 && npm run verify:inventory-crud && npm run verify:supplier-payments"
   },

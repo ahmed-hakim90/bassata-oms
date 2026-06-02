@@ -358,9 +358,9 @@ export function PosScreen({
         <Sheet open={cartOpen} onOpenChange={setCartOpen}>
           <SheetContent
             side="right"
-            className="w-[min(460px,94vw)] gap-0 bg-transparent p-3 sm:max-w-none"
+            className="w-full max-w-full gap-0 p-0 sm:max-w-none sm:w-[min(460px,94vw)] sm:bg-transparent sm:p-3"
           >
-            <div className="min-h-0 flex-1 pt-10">
+            <div className="flex h-full min-h-0 flex-col pt-10">
               <CartPanel
                 onCheckout={() => {
                   setCartOpen(false);

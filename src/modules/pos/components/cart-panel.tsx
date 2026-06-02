@@ -32,7 +32,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
   const total = getCartTotal(cart, discountAmount);
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+    <div className="flex h-full min-h-0 flex-col rounded-none bg-white shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-black/5">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h2 className="font-heading text-lg font-semibold">Cart</h2>
         {cart.length > 0 && (
@@ -97,49 +97,56 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
             {cart.map((line) => (
               <li
                 key={line.id}
-                className="flex gap-3 rounded-xl bg-muted/40 px-3 py-3"
+                className="rounded-xl bg-muted/40 px-3 py-3 xl:flex xl:items-start xl:gap-3"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-medium">{line.name}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <div className="flex items-start justify-between gap-2 xl:block">
+                    <p className="text-sm font-medium leading-snug xl:truncate xl:text-base">
+                      {line.name}
+                    </p>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums xl:hidden">
+                      {formatCurrency(line.lineTotal)}
+                    </p>
+                  </div>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
                     {formatCurrency(line.unitPrice)} each
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-1.5">
+                <div className="mt-2.5 flex items-center justify-between gap-2 xl:mt-0 xl:flex-col xl:items-end xl:gap-1">
+                  <div className="flex items-center gap-1 xl:gap-1.5">
                     <Button
                       variant="outline"
                       size="icon-xs"
-                      className="size-11 rounded-xl"
+                      className="size-9 rounded-xl xl:size-11"
                       onClick={() =>
                         updateQuantity(line.id, line.quantity - 1)
                       }
                     >
-                      <Minus className="size-4" />
+                      <Minus className="size-3.5 xl:size-4" />
                     </Button>
-                    <span className="w-8 text-center text-base font-medium tabular-nums">
+                    <span className="w-7 text-center text-sm font-medium tabular-nums xl:w-8 xl:text-base">
                       {line.quantity}
                     </span>
                     <Button
                       variant="outline"
                       size="icon-xs"
-                      className="size-11 rounded-xl"
+                      className="size-9 rounded-xl xl:size-11"
                       onClick={() =>
                         updateQuantity(line.id, line.quantity + 1)
                       }
                     >
-                      <Plus className="size-4" />
+                      <Plus className="size-3.5 xl:size-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-11 rounded-xl"
+                      className="size-9 rounded-xl xl:size-11"
                       onClick={() => removeItem(line.id)}
                     >
-                      <Trash2 className="size-4 text-muted-foreground" />
+                      <Trash2 className="size-3.5 text-muted-foreground xl:size-4" />
                     </Button>
                   </div>
-                  <p className="text-base font-semibold tabular-nums">
+                  <p className="hidden text-base font-semibold tabular-nums xl:block">
                     {formatCurrency(line.lineTotal)}
                   </p>
                 </div>

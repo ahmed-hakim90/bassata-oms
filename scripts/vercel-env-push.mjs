@@ -58,9 +58,7 @@ for (const key of KEYS) {
     "--yes",
     "--force",
   ];
-  if (key === "SUPABASE_SERVICE_ROLE_KEY" || key === "SweetFlow_COOKIE_SECRET") {
-    args.push("--sensitive");
-  }
+  // Do not pass --sensitive: it can hang waiting for interactive confirmation in some CLI versions.
   const r = spawnSync("npx", args, {
     cwd: root,
     stdio: "inherit",
