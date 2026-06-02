@@ -227,7 +227,7 @@ export function ProductFormDialog({
     try {
       const payload = {
         ...values,
-        cost_unit: values.unit,
+        cost_unit: values.base_unit,
         last_unit_cost: product?.last_unit_cost ?? 0,
         image_url: values.image_url,
       };

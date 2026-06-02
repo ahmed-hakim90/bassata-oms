@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { AccessDenied } from "@/components/SweetFlow/access-denied";
 import { getActiveStoreId, getCurrentUser } from "@/lib/auth/session";
 import { getPageAccessDenial } from "@/lib/auth/page-access";
-import { requireStoreAccess, setActiveStoreCookie } from "@/lib/auth/guards";
+import { requireStoreAccess } from "@/lib/auth/guards";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
 import { getFeatureFlags } from "@/modules/system/services/settings.service";
 import * as storeRepo from "@/lib/repositories/store.repository";
@@ -34,7 +34,6 @@ export default async function ShellLayout({
     const defaultStore = stores[0]!;
     try {
       await requireStoreAccess(defaultStore.id);
-      await setActiveStoreCookie(defaultStore.id);
       activeStoreId = defaultStore.id;
     } catch {
       activeStoreId = null;

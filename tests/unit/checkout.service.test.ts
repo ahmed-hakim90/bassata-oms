@@ -3,12 +3,16 @@ import { completeCheckout } from "@/modules/pos/services/checkout.service";
 import * as sessionRepo from "@/lib/repositories/session.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as orderRepo from "@/lib/repositories/order.repository";
+import * as inventoryRepo from "@/lib/repositories/inventory.repository";
+import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import * as settingsService from "@/modules/system/services/settings.service";
 import { assertPeriodOpen, PeriodClosedError } from "@/lib/services/period-lock.service";
 
 vi.mock("@/lib/repositories/session.repository");
 vi.mock("@/lib/repositories/catalog.repository");
 vi.mock("@/lib/repositories/order.repository");
+vi.mock("@/lib/repositories/inventory.repository");
+vi.mock("@/lib/repositories/warehouse.repository");
 vi.mock("@/modules/system/services/settings.service");
 vi.mock("@/modules/loyalty/services/loyalty.service", () => ({
   earnPoints: vi.fn(),
@@ -34,6 +38,25 @@ describe("completeCheckout session expiry", () => {
       manager_discount_override_amount: null,
     });
     vi.mocked(catalogRepo.listVariants).mockResolvedValue([]);
+    vi.mocked(warehouseRepo.getDefaultWarehouse).mockResolvedValue({
+      id: "warehouse-1",
+      org_id: "org-1",
+      store_id: "store1",
+      name: "Main",
+      is_default: true,
+      is_active: true,
+      created_at: new Date().toISOString(),
+    });
+    vi.mocked(inventoryRepo.listInventoryBatches).mockResolvedValue([]);
+    vi.mocked(settingsService.getInventoryPolicySettings).mockResolvedValue({
+      expiry_alerts_enabled: true,
+      alert_days: [7, 14, 30],
+      default_tracking_mode: "standard",
+      default_rotation_method: "FIFO",
+      default_expiry_policy: "block_sale",
+      block_sale_of_expired_items: true,
+      allow_manager_override: true,
+    });
   });
 
   it("rejects checkout when session is expired and blocking is enabled", async () => {
@@ -64,7 +87,7 @@ describe("completeCheckout session expiry", () => {
         customer: null,
         paymentMethod: "cash",
       })
-    ).rejects.toThrow("Session expired — close shift to continue");
+    ).rejects.toThrow("انتهت الجلسة - أغلق الوردية للمتابعة");
 
     expect(orderRepo.completeCheckoutRpc).not.toHaveBeenCalled();
   });
@@ -362,6 +385,6 @@ describe("completeCheckout session expiry", () => {
         customer: null,
         paymentMethod: "cash",
       })
-    ).rejects.toThrow("Session does not match this device");
+    ).rejects.toThrow("الجلسة لا تتطابق مع هذا الجهاز");
   });
 });

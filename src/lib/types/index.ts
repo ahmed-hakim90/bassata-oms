@@ -66,6 +66,7 @@ export interface Organization {
   timezone: string;
   logo_url: string | null;
   country: string;
+  status: "active" | "suspended";
   settings: Record<string, unknown>;
   created_at: string;
 }
@@ -140,6 +141,7 @@ export interface Product {
   is_popular: boolean;
   track_inventory: boolean;
   product_type: ProductType;
+  inventory_product_type?: ProductType;
   inventory_tracking_mode?: InventoryTrackingMode;
   inventory_rotation_method?: InventoryRotationMethod;
   expiry_policy?: ExpiryPolicy;

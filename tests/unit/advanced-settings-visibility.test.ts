@@ -48,6 +48,26 @@ describe("advanced settings visibility", () => {
     expect(visible.has("fefo")).toBe(false);
   });
 
+  it("uses activity-specific controls for fresh food and electronics", () => {
+    const freshFood = getVisibleAdvancedSettingsForProduct(
+      "dairy_meat",
+      "finished_product",
+      "weight"
+    );
+    expect(freshFood.has("price_by_amount")).toBe(true);
+    expect(freshFood.has("expiry_tracking")).toBe(true);
+    expect(freshFood.has("fefo")).toBe(true);
+
+    const electronics = getVisibleAdvancedSettingsForProduct(
+      "electronics",
+      "finished_product",
+      "piece"
+    );
+    expect(electronics.has("serial_number")).toBe(true);
+    expect(electronics.has("warranty")).toBe(true);
+    expect(electronics.has("expiry_tracking")).toBe(false);
+  });
+
   it("hides inventory settings for service", () => {
     const visible = getVisibleAdvancedSettingsForProduct("restaurant", "service", "piece");
     expect(visible.size).toBe(0);

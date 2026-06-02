@@ -58,8 +58,29 @@ const ACTIVITY_VISIBILITY_OVERRIDES: Partial<
   restaurant: {
     retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo"] },
   },
+  bakery: {
+    retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo"] },
+  },
+  juice_bar: {
+    retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo"] },
+  },
   ice_cream: {
     retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo"] },
+  },
+  dairy_meat: {
+    retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo", "fractional_quantity"] },
+  },
+  apparel: {
+    retail_product: { remove: ["batch_tracking", "expiry_tracking", "fefo", "warranty"] },
+  },
+  electronics: {
+    retail_product: { add: ["serial_number", "warranty"], remove: ["batch_tracking", "expiry_tracking", "fefo"] },
+  },
+  cosmetics: {
+    retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo"], remove: ["warranty"] },
+  },
+  bookstore: {
+    retail_product: { remove: ["batch_tracking", "expiry_tracking", "fefo", "warranty"] },
   },
   wholesale: {
     retail_product: { add: ["wholesale"], remove: ["price_by_amount"] },

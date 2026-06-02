@@ -96,6 +96,7 @@ export function mapOrganization(row: OrganizationRow): Organization {
     timezone: row.timezone,
     logo_url: row.logo_url ?? null,
     country: row.country ?? "",
+    status: (row.status ?? "active") as Organization["status"],
     settings: (row.settings ?? {}) as Record<string, unknown>,
     created_at: row.created_at,
   };
@@ -168,6 +169,7 @@ export function mapProduct(row: ProductRow): Product {
     is_popular: row.is_popular,
     track_inventory: row.track_inventory,
     product_type: (row.product_type ?? "finished_product") as ProductType,
+    inventory_product_type: (row.inventory_product_type ?? row.product_type ?? "finished_product") as ProductType,
     inventory_tracking_mode: (row.inventory_tracking_mode ?? "standard") as Product["inventory_tracking_mode"],
     inventory_rotation_method:
       (row.inventory_rotation_method ?? "FIFO") as Product["inventory_rotation_method"],

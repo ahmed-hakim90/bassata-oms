@@ -111,5 +111,10 @@ describe("onboarding schema", () => {
     expect(activity.activity_type).toBe("wholesale");
     expect(activity.default_sales_mode).toBe("wholesale");
     expect(activity.enable_wholesale_sales).toBe(true);
+
+    const freshFood = mapBusinessTypeToActivity("dairy_meat");
+    expect(freshFood.enable_weight_sales).toBe(true);
+    expect(freshFood.enable_price_by_amount).toBe(true);
+    expect(freshFood.enable_wholesale_sales).toBe(false);
   });
 });

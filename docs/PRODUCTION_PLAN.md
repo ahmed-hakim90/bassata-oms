@@ -45,6 +45,12 @@ npm run smoke:check
 | **030** | `souqna_integration.sql` | إذا تستخدم Souqna |
 | **031** | `souqna_provider_completion.sql` | إذا تستخدم Souqna |
 | **032** | `fix_pairing_anon_grants.sql` | إلزامي — إصلاح أمان pairing |
+| **033** | `business_activity.sql` | إلزامي — الأنشطة، الجملة، المنتجات الوزنية |
+| **034** | `multi_org_onboarding.sql` | إلزامي — multi-org onboarding وتشديد tenant mutations |
+| **035** | `harden_security_definer_search_path.sql` | إلزامي — hardening |
+| **036** | `generalized_inventory_architecture.sql` | إلزامي — batch/expiry/serial foundations |
+| **037** | `p0_rls_and_audit_append_only.sql` | إلزامي — RLS + audit append-only |
+| **038** | `simplify_shelf_life_model.sql` | إلزامي — shelf-life value/unit |
 
 > **010** متعمّد تخطّيه — لا فجوة وظيفية.
 

@@ -26,7 +26,7 @@ export function AppShell({
   permissions = new Set(),
 }: AppShellProps) {
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-full bg-background">
       <div className="hidden overflow-hidden h-full shrink-0 md:flex">
         <AppSidebar userRole={userRole} featureFlags={featureFlags} permissions={permissions} />
       </div>

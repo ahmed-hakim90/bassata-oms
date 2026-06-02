@@ -8,6 +8,7 @@ import type { FeatureFlag, PermissionKey } from "@/lib/constants";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
+import { isOrganizationSuspended } from "@/lib/platform/company-status";
 import {
   CASHIER_COOKIE,
   REGISTERED_DEVICE_COOKIE,
@@ -32,6 +33,9 @@ export async function requireAuth(): Promise<AppUser> {
   if (!authUser) throw new AuthError("Not authenticated", 401);
   const appUser = await userRepo.getUserByAuthId(authUser.id);
   if (!appUser || !appUser.is_active) throw new AuthError("User not found or inactive", 401);
+  if (await isOrganizationSuspended(appUser.org_id)) {
+    throw new AuthError("Company is suspended", 403);
+  }
   return appUser;
 }
 
@@ -137,8 +141,6 @@ export async function getValidatedActiveStoreId(): Promise<string> {
       : allStores.find((store) => user.store_ids.includes(store.id));
 
   if (!accessibleStore) throw new AuthError("No active store selected");
-
-  await setActiveStoreCookie(accessibleStore.id);
   return accessibleStore.id;
 }
 

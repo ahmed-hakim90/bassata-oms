@@ -7,11 +7,13 @@ Last updated: 2026-06-02
 | Item | Status |
 |------|--------|
 | Supabase project `pbpyxxplrlpcyljttnoa` | Linked |
-| Migrations through `032_fix_pairing_anon_grants` | Applied |
+| Local migration set through `038_simplify_shelf_life_model` | Present and required |
 | Vercel production | https://bassata-oms.vercel.app |
 | Vercel env (production) | All 5 vars from `.env.example` |
 | Automated verify scripts | Pass (owner@sweetflow.local) |
 | Security fix: pairing RPC revoked from `PUBLIC`/`anon` | Migration `032` |
+| P0 RLS/audit append-only hardening | Migration `037` required |
+| Simplified shelf-life product model | Migration `038` required |
 
 ## You must do manually
 
@@ -30,7 +32,7 @@ Configure SMTP or Supabase built-in mail in **Authentication → Email**.
 
 ### First login
 
-Org already exists on remote (demo users). For a clean production org, use `/onboarding` only on an empty DB — **do not** run `db:reset-demo` on this project.
+Before cutover, confirm the linked production database has migrations through `038` applied. Org already exists on remote (demo users). For a clean production org, use `/onboarding` only on an empty DB — **do not** run `db:reset-demo` on this project.
 
 Current owner: `owner@sweetflow.local` (password from your seed-auth setup).
 

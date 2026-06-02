@@ -28,6 +28,16 @@ function downloadBase64(base64: string, filename: string) {
   link.click();
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 interface ImportProductsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -48,9 +58,7 @@ export function ImportProductsDialog({
     if (!file) return;
     setFileName(file.name);
     const buffer = await file.arrayBuffer();
-    const base64 = btoa(
-      new Uint8Array(buffer).reduce((acc, byte) => acc + String.fromCharCode(byte), "")
-    );
+    const base64 = arrayBufferToBase64(buffer);
     startTransition(async () => {
       try {
         const parsed = await parseProductsFileAction(base64);
@@ -67,7 +75,9 @@ export function ImportProductsDialog({
     startTransition(async () => {
       try {
         const result = await importProductsAction(rows);
-        toast.success(`Imported ${result.imported.length} products (${result.skipped} skipped)`);
+        toast.success(
+          `Imported ${result.imported.length}, updated ${result.updated.length}, skipped ${result.skipped}`
+        );
         onOpenChange(false);
         setRows([]);
         setErrors([]);
@@ -97,7 +107,7 @@ export function ImportProductsDialog({
         <div className="grid gap-4">
           <Button variant="outline" type="button" onClick={handleTemplate}>
             <Download className="size-4" />
-            Download template
+            Download ready Excel template
           </Button>
 
           <GlassPanel className="flex flex-col items-center gap-3 p-6 text-center">

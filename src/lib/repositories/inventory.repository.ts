@@ -112,12 +112,12 @@ export async function adjustStock(input: {
         input.batch.shelfLifeUnit
       );
     batchNumber = input.batch.batchNumber.trim();
-    const { data: existingBatch, error: batchLookupError } = await (db as any)
+    const { data: existingBatch, error: batchLookupError } = await db
       .from("inventory_batches")
       .select("id, remaining_quantity")
       .eq("warehouse_id", input.warehouseId)
       .eq("product_id", input.productId)
-      .is("variant_id", variantId)
+      .filter("variant_id", variantId ? "eq" : "is", variantId ?? null)
       .eq("batch_number", batchNumber)
       .maybeSingle();
     if (batchLookupError) throwDbError(batchLookupError, "adjustStock.batchLookup");
@@ -128,7 +128,7 @@ export async function adjustStock(input: {
       if (preventNegativeStock && nextRemaining < 0) {
         throw new Error(`Insufficient batch stock for ${input.productName}`);
       }
-      const { error: batchUpdateError } = await (db as any)
+      const { error: batchUpdateError } = await db
         .from("inventory_batches")
         .update({
           remaining_quantity: nextRemaining,
@@ -144,7 +144,7 @@ export async function adjustStock(input: {
         .eq("id", existingBatch.id);
       if (batchUpdateError) throwDbError(batchUpdateError, "adjustStock.batchUpdate");
     } else if (input.quantityDelta > 0) {
-      const { data: newBatch, error: batchInsertError } = await (db as any)
+      const { data: newBatch, error: batchInsertError } = await db
         .from("inventory_batches")
         .insert({
           org_id: (await (await import("@/lib/repositories/organization.repository")).getOrgId()),
@@ -212,7 +212,7 @@ export async function listInventoryBatches(
   warehouseId?: string
 ): Promise<InventoryBatch[]> {
   const db = await getDb();
-  let q = (db as any).from("inventory_batches").select("*").order("expiry_date", { ascending: true });
+  let q = db.from("inventory_batches").select("*").order("expiry_date", { ascending: true });
   if (storeId) q = q.eq("store_id", storeId);
   if (warehouseId) q = q.eq("warehouse_id", warehouseId);
   const { data, error } = await q;

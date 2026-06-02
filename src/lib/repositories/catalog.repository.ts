@@ -155,7 +155,12 @@ export async function deleteCategory(id: string): Promise<boolean> {
 
 export async function listVariants(productId: string): Promise<ProductVariant[]> {
   const db = await getDb();
-  const { data, error } = await db.from("product_variants").select("*").eq("product_id", productId);
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("product_variants")
+    .select("*, products!inner(org_id)")
+    .eq("product_id", productId)
+    .eq("products.org_id", orgId);
   if (error) throwDbError(error, "listVariants");
   return (data ?? []).map(mapVariant).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -166,10 +171,12 @@ export async function listVariantsForProducts(
   const map = new Map<string, ProductVariant[]>();
   if (productIds.length === 0) return map;
   const db = await getDb();
+  const orgId = await getOrgId();
   const { data, error } = await db
     .from("product_variants")
-    .select("*")
-    .in("product_id", productIds);
+    .select("*, products!inner(org_id)")
+    .in("product_id", productIds)
+    .eq("products.org_id", orgId);
   if (error) throwDbError(error, "listVariantsForProducts");
   for (const row of data ?? []) {
     const variant = mapVariant(row);
@@ -199,6 +206,27 @@ export async function getVariant(id: string): Promise<ProductVariant | null> {
   return data ? mapVariant(data) : null;
 }
 
+export function buildVariantInsertPayload(
+  productId: string,
+  input: Omit<ProductVariant, "id" | "product_id">
+) {
+  return {
+    product_id: productId,
+    name: input.name,
+    sku: input.sku,
+    barcode: input.barcode,
+    price_delta: input.price_delta,
+    price: input.price,
+    image_url: input.image_url,
+    is_active: input.is_active,
+    variant_kind: input.variant_kind,
+    quantity_value: input.quantity_value,
+    quantity_unit: input.quantity_unit,
+    price_mode: input.price_mode,
+    fixed_price: input.fixed_price,
+  };
+}
+
 export async function createVariant(
   productId: string,
   input: Omit<ProductVariant, "id" | "product_id">,
@@ -207,16 +235,7 @@ export async function createVariant(
   const db = await getDb();
   const { data, error } = await db
     .from("product_variants")
-    .insert({
-      product_id: productId,
-      name: input.name,
-      sku: input.sku,
-      barcode: input.barcode,
-      price_delta: input.price_delta,
-      price: input.price,
-      image_url: input.image_url,
-      is_active: input.is_active,
-    })
+    .insert(buildVariantInsertPayload(productId, input))
     .select()
     .single();
   if (error || !data) throwDbError(error, "createVariant");

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { createSignedCookieValue, readSignedCookieValue } from "@/lib/auth/signed-cookie";
+import { isOrganizationSuspended } from "@/lib/platform/company-status";
 import type { AppUser } from "@/lib/types";
 
 export const STORE_COOKIE = "sf_active_store";
@@ -19,7 +20,9 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     data: { user: authUser },
   } = await db.auth.getUser();
   if (!authUser) return null;
-  return userRepo.getUserByAuthId(authUser.id);
+  const appUser = await userRepo.getUserByAuthId(authUser.id);
+  if (appUser && (await isOrganizationSuspended(appUser.org_id))) return null;
+  return appUser;
 }
 
 export async function getActiveStoreId(): Promise<string | null> {

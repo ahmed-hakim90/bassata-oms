@@ -9,6 +9,10 @@ import {
   OwnerEmailAlreadyUsedError,
 } from "@/modules/onboarding/services/bootstrap.service";
 import {
+  acceptCompanyInvite,
+  getPendingInviteByToken,
+} from "@/modules/platform/services/platform.service";
+import {
   onboardingPayloadSchema,
   type OnboardingPayload,
 } from "@/modules/onboarding/schemas/onboarding.schema";
@@ -19,8 +23,15 @@ export interface CompleteOnboardingResult {
 }
 
 export async function completeOnboardingAction(
-  payload: OnboardingPayload
+  payload: OnboardingPayload,
+  inviteToken: string
 ): Promise<CompleteOnboardingResult> {
+  if (!inviteToken) {
+    return {
+      success: false,
+      error: "A valid company invite is required.",
+    };
+  }
   const parsed = onboardingPayloadSchema.safeParse(payload);
   if (!parsed.success) {
     return {
@@ -30,7 +41,26 @@ export async function completeOnboardingAction(
   }
 
   try {
+    const invite = await getPendingInviteByToken(inviteToken);
+    if (!invite) {
+      return {
+        success: false,
+        error: "Company invite is invalid or expired.",
+      };
+    }
+    if (invite.ownerEmail !== parsed.data.owner.email.trim().toLowerCase()) {
+      return {
+        success: false,
+        error: "Owner email must match the company invite.",
+      };
+    }
+
     const result = await initializeOrganization(parsed.data);
+    await acceptCompanyInvite({
+      token: inviteToken,
+      orgId: result.orgId,
+      ownerEmail: result.ownerEmail,
+    });
     const supabase = await createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: result.ownerEmail,

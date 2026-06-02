@@ -17,7 +17,7 @@ Copy from `.env.example` and fill values in your host (Vercel, Docker, etc.).
 
 ## Database migrations
 
-Apply all files under `supabase/migrations/` in order through **036**:
+Apply all files under `supabase/migrations/` in order through **038**:
 
 - `018` — session management, checkout session enforcement
 - `021` — POS device pairing
@@ -34,6 +34,8 @@ Apply all files under `supabase/migrations/` in order through **036**:
 - `034` — multi-org onboarding and tenant mutation policy hardening
 - `035` — SECURITY DEFINER search_path hardening
 - `036` — generalized inventory architecture (batch/expiry/serial foundations)
+- `037` — P0 RLS coverage for generalized inventory tables and append-only audit logs
+- `038` — simplified shelf-life value/unit model for products
 
 ```bash
 supabase link --project-ref <your-ref>

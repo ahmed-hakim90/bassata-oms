@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  ACTIVITY_PRESETS,
   BUSINESS_ACTIVITY_TYPES,
   FEATURE_FLAGS,
   type BusinessActivityType,
@@ -124,19 +125,18 @@ export function mapOnboardingFeaturesToFlags(
 }
 
 export function mapBusinessTypeToActivity(type: BusinessActivityType) {
-  const wholesaleEnabled = type === "wholesale" || type === "supermarket" || type === "mixed";
-  const weightEnabled = type === "supermarket" || type === "wholesale" || type === "mixed";
+  const preset = ACTIVITY_PRESETS[type];
   return {
     activity_type: type,
-    enabled_sales_modes: wholesaleEnabled ? ["retail", "wholesale"] : ["retail"],
-    default_sales_mode: type === "wholesale" ? "wholesale" : "retail",
-    enable_weight_sales: weightEnabled,
-    enable_piece_sales: true,
-    enable_wholesale_sales: wholesaleEnabled,
-    enable_variants: true,
-    enable_price_by_amount: type === "supermarket" || type === "mixed",
-    allow_cashier_wholesale: wholesaleEnabled,
-    require_manager_for_wholesale: !wholesaleEnabled,
-    auto_apply_wholesale_by_quantity: wholesaleEnabled,
+    enabled_sales_modes: preset.enabled_sales_modes ?? ["retail"],
+    default_sales_mode: preset.default_sales_mode ?? "retail",
+    enable_weight_sales: preset.enable_weight_sales ?? false,
+    enable_piece_sales: preset.enable_piece_sales ?? true,
+    enable_wholesale_sales: preset.enable_wholesale_sales ?? false,
+    enable_variants: preset.enable_variants ?? true,
+    enable_price_by_amount: preset.enable_price_by_amount ?? false,
+    allow_cashier_wholesale: preset.allow_cashier_wholesale ?? false,
+    require_manager_for_wholesale: preset.require_manager_for_wholesale ?? true,
+    auto_apply_wholesale_by_quantity: preset.auto_apply_wholesale_by_quantity ?? false,
   };
 }

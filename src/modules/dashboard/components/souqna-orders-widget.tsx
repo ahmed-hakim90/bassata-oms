@@ -3,7 +3,7 @@ import { Bell, ShoppingBag } from "lucide-react";
 import { format } from "date-fns";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 
 export interface SouqnaDashboardOrder {

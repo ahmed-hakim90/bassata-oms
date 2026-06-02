@@ -5,6 +5,9 @@ import * as userRepo from "@/lib/repositories/user.repository";
 
 vi.mock("@/lib/repositories/permission.repository");
 vi.mock("@/lib/repositories/user.repository");
+vi.mock("@/lib/platform/company-status", () => ({
+  isOrganizationSuspended: vi.fn().mockResolvedValue(false),
+}));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     auth: {

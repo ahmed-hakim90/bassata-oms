@@ -26,6 +26,13 @@ export type Database = {
   public: {
     Tables: {
       organizations: TableDef<OrganizationRow>;
+      platform_admins: TableDef<PlatformAdminRow, Partial<PlatformAdminRow>, Partial<PlatformAdminRow>>;
+      platform_company_invites: TableDef<
+        PlatformCompanyInviteRow,
+        Partial<PlatformCompanyInviteRow>,
+        Partial<PlatformCompanyInviteRow>
+      >;
+      platform_audit_logs: TableDef<PlatformAuditLogRow, Partial<PlatformAuditLogRow>, never>;
       stores: TableDef<StoreRow>;
       warehouses: TableDef<WarehouseRow>;
       users: TableDef<UserRow>;
@@ -54,6 +61,7 @@ export type Database = {
       product_recipes: TableDef<RecipeRow>;
       product_recipe_lines: TableDef<RecipeLineRow>;
       stock_levels: TableDef<StockLevelRow>;
+      inventory_batches: TableDef<InventoryBatchRow, Partial<InventoryBatchRow>, Partial<InventoryBatchRow>>;
       inventory_movements: TableDef<MovementRow, Partial<MovementRow>, never>;
       suppliers: TableDef<SupplierRow>;
       supplier_payments: TableDef<SupplierPaymentRow, Partial<SupplierPaymentRow>, Partial<SupplierPaymentRow>>;
@@ -135,6 +143,7 @@ export type Database = {
       has_permission: FnDef<{ p_key: string }, boolean>;
       auth_user_id: FnDef<Record<string, never>, string>;
       deployment_has_organization: FnDef<Record<string, never>, boolean>;
+      platform_organization_data_size: FnDef<{ p_org_id: string }, Json>;
       initialize_organization: FnDef<
         {
           p_org_name: string;
@@ -177,7 +186,42 @@ export type OrganizationRow = {
   timezone: string;
   logo_url: string | null;
   country: string;
+  status: string;
   settings: Json;
+  created_at: string;
+};
+export type PlatformAdminRow = {
+  id: string;
+  auth_user_id: string | null;
+  email: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export type PlatformCompanyInviteRow = {
+  id: string;
+  token_hash: string;
+  org_name: string;
+  owner_name: string;
+  owner_email: string;
+  status: string;
+  expires_at: string;
+  accepted_org_id: string | null;
+  created_by: string | null;
+  revoked_by: string | null;
+  accepted_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type PlatformAuditLogRow = {
+  id: string;
+  platform_admin_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  metadata: Json;
   created_at: string;
 };
 export type StoreRow = {

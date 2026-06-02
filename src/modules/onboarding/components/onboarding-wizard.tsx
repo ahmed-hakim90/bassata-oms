@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, BUSINESS_ACTIVITY_TYPES, type BusinessActivityType } from "@/lib/constants";
 import { completeOnboardingAction } from "@/modules/onboarding/actions/onboarding.actions";
 import {
   type OnboardingPayload,
@@ -46,22 +46,39 @@ const FEATURE_LABELS: Record<OnboardingFeatureKey, string> = {
 const DEFAULT_FEATURES = Object.fromEntries(
   ONBOARDING_FEATURE_KEYS.map((key) => [key, key !== "credit_sales" && key !== "wholesale_sales"])
 ) as Record<OnboardingFeatureKey, boolean>;
-const BUSINESS_TYPES = [
-  "cafe",
-  "ice_cream",
-  "restaurant",
-  "supermarket",
-  "retail",
-  "wholesale",
-  "mixed",
-] as const;
+const BUSINESS_TYPE_LABELS: Record<BusinessActivityType, string> = {
+  cafe: "Cafe",
+  ice_cream: "Ice cream",
+  restaurant: "Restaurant",
+  bakery: "Bakery / patisserie",
+  juice_bar: "Juice bar",
+  supermarket: "Supermarket",
+  dairy_meat: "Dairy / meat / fresh food",
+  apparel: "Apparel / fashion",
+  electronics: "Electronics",
+  cosmetics: "Cosmetics",
+  bookstore: "Bookstore / stationery",
+  retail: "General retail",
+  wholesale: "Wholesale",
+  mixed: "Mixed activity",
+};
 
-export function OnboardingWizard() {
+export function OnboardingWizard({
+  inviteToken,
+  inviteOrgName,
+  inviteOwnerName,
+  inviteOwnerEmail,
+}: {
+  inviteToken: string;
+  inviteOrgName?: string;
+  inviteOwnerName?: string;
+  inviteOwnerEmail?: string;
+}) {
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
 
   const [organization, setOrganization] = useState({
-    name: "",
+    name: inviteOrgName ?? "",
     logoUrl: "",
     currency: "USD",
     timezone: "America/New_York",
@@ -76,8 +93,12 @@ export function OnboardingWizard() {
     phone: "",
     timezone: "America/New_York",
   });
-  const [owner, setOwner] = useState({ name: "", email: "", password: "" });
-  const [businessType, setBusinessType] = useState<(typeof BUSINESS_TYPES)[number]>("retail");
+  const [owner, setOwner] = useState({
+    name: inviteOwnerName ?? "",
+    email: inviteOwnerEmail ?? "",
+    password: "",
+  });
+  const [businessType, setBusinessType] = useState<BusinessActivityType>("retail");
   const [features, setFeatures] =
     useState<Record<OnboardingFeatureKey, boolean>>(DEFAULT_FEATURES);
   const [defaultSettings, setDefaultSettings] = useState({
@@ -169,7 +190,7 @@ export function OnboardingWizard() {
       toast.error(error);
       return;
     }
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    setStep(Math.min(step + 1, STEPS.length - 1));
   }
 
   function submit() {
@@ -184,7 +205,7 @@ export function OnboardingWizard() {
     };
 
     startTransition(async () => {
-      const result = await completeOnboardingAction(payload);
+      const result = await completeOnboardingAction(payload, inviteToken);
       if (result?.error) toast.error(result.error);
     });
   }
@@ -334,6 +355,7 @@ export function OnboardingWizard() {
               <Input
                 type="email"
                 value={owner.email}
+                readOnly={Boolean(inviteOwnerEmail)}
                 onChange={(e) => setOwner({ ...owner, email: e.target.value })}
               />
             </div>
@@ -352,7 +374,7 @@ export function OnboardingWizard() {
       {step === 3 && (
         <OperationalCard title="Business type">
           <div className="grid gap-3 sm:grid-cols-2">
-            {BUSINESS_TYPES.map((type) => (
+            {BUSINESS_ACTIVITY_TYPES.map((type) => (
               <label key={type} className="flex items-center gap-2 rounded-md border p-3 text-sm">
                 <Checkbox
                   checked={businessType === type}
@@ -360,7 +382,7 @@ export function OnboardingWizard() {
                     if (checked === true) setBusinessType(type);
                   }}
                 />
-                {type.replace("_", " ")}
+                {BUSINESS_TYPE_LABELS[type]}
               </label>
             ))}
           </div>
@@ -579,7 +601,7 @@ export function OnboardingWizard() {
       )}
 
       <div className="flex justify-between gap-3">
-        <Button type="button" variant="outline" disabled={step === 0 || pending} onClick={() => setStep((s) => s - 1)}>
+        <Button type="button" variant="outline" disabled={step === 0 || pending} onClick={() => setStep(Math.max(step - 1, 0))}>
           Back
         </Button>
         {step < STEPS.length - 1 ? (

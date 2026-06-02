@@ -6,6 +6,7 @@ import {
   ACTIVITY_PRESETS,
   BUSINESS_ACTIVITY_TYPES,
   DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
+  DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY,
   PRODUCT_TEMPLATE_IDS,
   PRODUCT_TYPES,
   MEASUREMENT_UNITS,
@@ -13,6 +14,7 @@ import {
   INVENTORY_TRACKING_MODES,
   INVENTORY_ROTATION_METHODS,
   EXPIRY_POLICIES,
+  SHELF_LIFE_UNITS,
   SALES_MODES,
   type BusinessActivitySettings,
   type BusinessActivityType,
@@ -68,11 +70,14 @@ export function BusinessActivitySettingsTab({ initialSettings, initialTemplates 
   function applyPreset(activity: BusinessActivityType) {
     const preset = ACTIVITY_PRESETS[activity];
     const next = { ...form, ...preset, activity_type: activity };
+    const nextTemplates = structuredClone(DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY[activity]);
     delete (next as { featureFlags?: unknown }).featureFlags;
     setForm(next as BusinessActivitySettings);
+    setTemplates(nextTemplates);
     startTransition(async () => {
       try {
         await applyBusinessActivityPresetAction(activity);
+        await updateProductTemplateSettingsAction(nextTemplates);
         toast.success("Business activity preset applied");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to apply preset");
@@ -248,6 +253,44 @@ export function BusinessActivitySettingsTab({ initialSettings, initialTemplates 
                       </select>
                     </div>
                     <div className="space-y-1">
+                      <Label>Base unit</Label>
+                      <select
+                        className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+                        value={template.base_unit}
+                        onChange={(e) =>
+                          setTemplates((prev) => ({
+                            ...prev,
+                            [templateId]: { ...prev[templateId], base_unit: e.target.value as never },
+                          }))
+                        }
+                      >
+                        {MEASUREMENT_UNITS.map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Sale unit</Label>
+                      <select
+                        className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+                        value={template.sale_unit}
+                        onChange={(e) =>
+                          setTemplates((prev) => ({
+                            ...prev,
+                            [templateId]: { ...prev[templateId], sale_unit: e.target.value as never },
+                          }))
+                        }
+                      >
+                        {MEASUREMENT_UNITS.map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
                       <Label>Tracking mode</Label>
                       <select
                         className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
@@ -310,6 +353,43 @@ export function BusinessActivitySettingsTab({ initialSettings, initialTemplates 
                         ))}
                       </select>
                     </div>
+                    <div className="space-y-1">
+                      <Label>Shelf life value</Label>
+                      <input
+                        className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+                        type="number"
+                        min={0}
+                        value={template.shelf_life_value}
+                        onChange={(e) =>
+                          setTemplates((prev) => ({
+                            ...prev,
+                            [templateId]: {
+                              ...prev[templateId],
+                              shelf_life_value: Number(e.target.value) || 0,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Shelf life unit</Label>
+                      <select
+                        className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+                        value={template.shelf_life_unit}
+                        onChange={(e) =>
+                          setTemplates((prev) => ({
+                            ...prev,
+                            [templateId]: { ...prev[templateId], shelf_life_unit: e.target.value as never },
+                          }))
+                        }
+                      >
+                        {SHELF_LIFE_UNITS.map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {(
@@ -318,6 +398,7 @@ export function BusinessActivitySettingsTab({ initialSettings, initialTemplates 
                         ["allow_fractional_quantity", "Fractional quantity"],
                         ["allow_price_input", "Allow price input"],
                         ["track_inventory", "Track inventory"],
+                        ["wholesale_enabled", "Wholesale"],
                       ] as const
                     ).map(([key, label]) => (
                       <label key={key} className="flex items-center gap-2 rounded-xl border p-2">

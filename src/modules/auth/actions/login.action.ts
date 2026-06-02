@@ -8,6 +8,9 @@ import { getRegisteredDeviceContext } from "@/lib/auth/session";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
+import { isPlatformAdminAuthUser } from "@/lib/platform/auth";
+import { isOrganizationSuspended } from "@/lib/platform/company-status";
+import { writePlatformAuditLog } from "@/modules/platform/services/platform.service";
 
 export interface LoginResult {
   success: boolean;
@@ -33,11 +36,26 @@ export async function loginAction(
     return { success: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة." };
   }
 
+  if (await isPlatformAdminAuthUser(data.user.id, data.user.email)) {
+    await writePlatformAuditLog({
+      action: "platform.auth.login",
+      entityType: "platform_admin",
+      entityId: data.user.id,
+      metadata: { email },
+    });
+    redirect("/platform");
+  }
+
   const appUser = await userRepo.getUserByAuthId(data.user.id);
   if (!appUser || !appUser.is_active) {
     await supabase.auth.signOut();
     await writeAuthFailureAudit(email, "inactive_or_unprovisioned");
     return { success: false, error: "الحساب غير نشط أو غير مُهيأ." };
+  }
+  if (await isOrganizationSuspended(appUser.org_id)) {
+    await supabase.auth.signOut();
+    await writeAuthFailureAudit(email, "company_suspended");
+    return { success: false, error: "تم تعليق الشركة. تواصل مع الدعم." };
   }
 
   const cookieStore = await cookies();

@@ -103,7 +103,11 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SweetFlow_COOKIE_SECRET=your-long-random-secret
+PLATFORM_BOOTSTRAP_EMAILS=admin@company.com
 ```
+
+`PLATFORM_BOOTSTRAP_EMAILS` is server-only. A signed-in Supabase Auth user whose email is listed
+there is auto-provisioned as a platform super admin and can access `/platform`.
 
 **Do not** run `supabase/seed.sql` on a real production database. Use seed + `npm run db:seed-auth` only on local/demo environments.
 

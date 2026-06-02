@@ -106,6 +106,8 @@ const migrations = [
   "034_multi_org_onboarding.sql",
   "035_harden_security_definer_search_path.sql",
   "036_generalized_inventory_architecture.sql",
+  "037_p0_rls_and_audit_append_only.sql",
+  "038_simplify_shelf_life_model.sql",
 ];
 for (const m of migrations) {
   const p = resolve(root, "supabase/migrations", m);

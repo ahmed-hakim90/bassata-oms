@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cairo, Geist_Mono } from "next/font/google";
 import { APP_NAME } from "@/lib/constants";
+import { AppFooter } from "@/components/layout/app-footer";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
@@ -36,7 +37,12 @@ export default function RootLayout({
       className={`${cairo.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          <div className="flex min-h-screen flex-col">
+            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+            <AppFooter />
+          </div>
+        </AppProviders>
       </body>
     </html>
   );

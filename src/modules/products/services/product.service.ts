@@ -7,6 +7,56 @@ import type { Category, Product } from "@/lib/types";
 export type ProductInput = Omit<Product, "id" | "org_id" | "updated_at">;
 export type CategoryInput = Omit<Category, "id" | "org_id">;
 
+export function deriveProductCapabilityFields(
+  input: Pick<
+    ProductInput,
+    | "product_type"
+    | "sales_unit_type"
+    | "allow_price_input"
+    | "inventory_tracking_mode"
+    | "track_inventory"
+  >
+): Pick<
+  ProductInput,
+  "inventory_product_type" | "supports_weight_sale" | "supports_amount_sale"
+> {
+  const salesUnitType = input.sales_unit_type ?? "piece";
+  const isWeightSale = salesUnitType === "weight" || salesUnitType === "mixed";
+  const isAmountSale = isWeightSale && input.allow_price_input === true;
+  const inventoryProductType =
+    input.product_type === "ingredient" ? "raw_material" : input.product_type;
+
+  return {
+    inventory_product_type: inventoryProductType,
+    supports_weight_sale: isWeightSale,
+    supports_amount_sale: isAmountSale,
+  };
+}
+
+function normalizeProductInput(input: ProductInput): ProductInput {
+  const unit = input.unit ?? "piece";
+  const baseUnit = input.base_unit ?? unit;
+  const saleUnit = input.sale_unit ?? unit;
+  return {
+    ...input,
+    unit,
+    base_unit: baseUnit,
+    sale_unit: saleUnit,
+    cost_unit: input.cost_unit ?? baseUnit,
+    inventory_tracking_mode:
+      input.track_inventory === false ? "none" : input.inventory_tracking_mode ?? "standard",
+    ...deriveProductCapabilityFields(input),
+  };
+}
+
+function productToInput(product: Product): ProductInput {
+  const { id, org_id, updated_at, ...input } = product;
+  void id;
+  void org_id;
+  void updated_at;
+  return input;
+}
+
 export async function listProducts(options?: {
   categoryId?: string;
   activeOnly?: boolean;
@@ -25,7 +75,7 @@ export async function createProduct(
 ): Promise<Product> {
   const stores = await storeRepo.listStores();
   const product = await catalogRepo.createProduct(
-    input,
+    normalizeProductInput(input),
     stores.map((s) => s.id)
   );
   const orgId = await getOrgId();
@@ -45,7 +95,12 @@ export async function updateProduct(
   input: Partial<ProductInput>,
   userId: string
 ): Promise<Product | null> {
-  const product = await catalogRepo.updateProduct(id, input);
+  const existing = await catalogRepo.getProduct(id);
+  if (!existing) return null;
+  const product = await catalogRepo.updateProduct(
+    id,
+    normalizeProductInput({ ...productToInput(existing), ...input })
+  );
   if (product) {
     const orgId = await getOrgId();
     await writeAuditLog({
