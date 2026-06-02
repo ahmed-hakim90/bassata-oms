@@ -24,17 +24,20 @@ export const POS_READINESS_COPY: Record<
   },
   no_device: {
     title: "Device not registered",
-    description: "Pair this terminal with a code from Settings or register this browser.",
+    description:
+      "This browser/domain is not paired as a POS device. Pair once from Settings → Devices, then keep using the same URL on this register.",
     href: "/device/pair",
     cta: "Pair device",
   },
   device_inactive: {
     title: "Device inactive",
-    description: "This register was disabled. Ask a manager to reactivate it in Settings.",
+    description:
+      "This register exists but is disabled or missing. Ask a manager to reactivate it in Settings → Devices.",
   },
   store_mismatch: {
     title: "Wrong store",
-    description: "This device is registered to another branch. Switch store or pair again.",
+    description:
+      "This browser is paired to a different branch than the active store. Select that branch or pair this browser again for the current branch.",
     href: "/pos/start",
     cta: "Select store",
   },
@@ -46,7 +49,8 @@ export const POS_READINESS_COPY: Record<
   },
   access_denied: {
     title: "Access denied",
-    description: "You are not allowed to use POS on this store or device.",
+    description:
+      "Your user is not allowed to use POS on this store or device. Ask a manager to review store and device access.",
   },
   cashier_required: {
     title: "Cashier PIN required",
@@ -54,7 +58,7 @@ export const POS_READINESS_COPY: Record<
   },
   role_denied: {
     title: "POS not available",
-    description: "Your role cannot use the register.",
+    description: "Your role cannot use the register. Sign in as owner, manager, or cashier.",
   },
   no_session: {
     title: "No active session",

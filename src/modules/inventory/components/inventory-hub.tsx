@@ -15,9 +15,11 @@ import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { StockCards, type StockCategoryGroup } from "./stock-cards";
 import { MovementTimeline } from "./movement-timeline";
 import { LowStockStrip } from "./low-stock-strip";
+import { ExpiryAlertStrip } from "./expiry-alert-strip";
 import { ReorderSuggestions } from "./reorder-suggestions";
 import type { MovementTimelineItem } from "../services/movement.service";
 import type { InventoryAlert } from "../services/alert.service";
+import type { ExpiryBatchAlert } from "../services/expiry.service";
 import type { ReorderSuggestion } from "../services/reorder.service";
 import type { Warehouse as WarehouseType, ProductType } from "@/lib/types";
 
@@ -51,6 +53,7 @@ interface InventoryHubProps {
   totalSkus: number;
   stockGroups: StockCategoryGroup[];
   alerts: InventoryAlert[];
+  expiryAlerts: ExpiryBatchAlert[];
   movements: MovementTimelineItem[];
   reorderSuggestions: ReorderSuggestion[];
   warehouses: WarehouseType[];
@@ -66,6 +69,7 @@ export function InventoryHub({
   totalSkus,
   stockGroups,
   alerts,
+  expiryAlerts,
   movements,
   reorderSuggestions,
   warehouses,
@@ -156,6 +160,8 @@ export function InventoryHub({
       </div>
 
       <LowStockStrip alerts={alerts} />
+
+      <ExpiryAlertStrip alerts={expiryAlerts} />
 
       <ReorderSuggestions suggestions={reorderSuggestions} />
 

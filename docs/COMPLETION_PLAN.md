@@ -2,18 +2,24 @@
 
 This plan tracks the remaining work to turn SweetFlow from a strong release candidate into a complete production operations platform.
 
+## Stabilization rule
+
+Broad brand renaming is frozen until the core product flows are stable. Keep internal names, env vars, cookie prefixes, package names, component import paths, seeds, and scripts unchanged. See [STABILIZATION_PLAN.md](./STABILIZATION_PLAN.md).
+
 ## Phase 1 — Release candidate hardening
 
 - [x] Add a CI quality gate for lint, typecheck, unit tests, build, env, and migration sanity.
 - [x] Include unit tests in `npm run smoke:check`.
 - [x] Migrate the deprecated Next.js `middleware.ts` convention to `proxy.ts`.
 - [x] Clean current lint warnings or mark intentional exceptions locally.
+- [ ] Keep broad brand rename frozen until POS/device/onboarding/security flows are stable.
 - [ ] Run the full manual smoke checklist on a reset local demo database.
 - [ ] Run the full manual smoke checklist on staging.
 - [ ] Record known staging gaps before production cutover.
 
 ## Phase 2 — POS day flow
 
+- [ ] Clarify device pairing and register state whenever POS blocks access.
 - [ ] Receipt view/print workflow with store branding, tax, cashier, payments, and refund references.
 - [x] Split payments across cash, card, wallet, and other.
 - [ ] Partial credit split with AR ledger support.

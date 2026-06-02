@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { pairDeviceWithCodeAction } from "@/modules/auth/actions/device.actions";
@@ -9,10 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function DevicePairForm() {
+export function DevicePairForm({ returnTo }: { returnTo?: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const from = searchParams.get("from") ?? "/pos";
+  const from = returnTo?.startsWith("/") ? returnTo : "/pos";
   const [code, setCode] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -35,6 +34,19 @@ export function DevicePairForm() {
         <p className="mt-2 text-sm text-muted-foreground">
           Enter the one-time code from Settings → Devices. Codes expire in 15 minutes.
         </p>
+      </div>
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900">
+        <p className="font-medium">Why am I seeing this?</p>
+        <p className="mt-1 text-amber-800/90">
+          This browser is not registered as a POS device for the active branch. Pairing is saved
+          per browser and domain, so a different URL, cleared cookies, inactive device, or branch
+          mismatch can ask for a new code.
+        </p>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-800/90">
+          <li>Use the same URL every day, for example do not switch between localhost, IP, and production domain.</li>
+          <li>Hard refresh should not remove pairing unless browser cookies are cleared or blocked.</li>
+          <li>If this register changed branch, pair it again from Settings → Devices for that branch.</li>
+        </ul>
       </div>
       <div className="space-y-2">
         <Label htmlFor="pair-code">Pairing code</Label>

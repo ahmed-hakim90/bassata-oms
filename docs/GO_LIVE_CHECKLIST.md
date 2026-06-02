@@ -4,6 +4,7 @@ Use this checklist before pointing production traffic at a new deployment.
 
 ## Infrastructure
 
+- [ ] No broad brand rename in this release; keep internal env vars, cookies, imports, package names, and seeds stable
 - [ ] Supabase production project created (Postgres 17+)
 - [ ] All migrations applied through `038` (`supabase db push` or CI migration step)
 - [ ] `033`/`034`/`035`/`036`/`037`/`038` applied in production

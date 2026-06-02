@@ -7,6 +7,7 @@ import { getAlerts } from "@/modules/inventory/services/alert.service";
 import { getMovementTimeline } from "@/modules/inventory/services/movement.service";
 import { getReorderSuggestions } from "@/modules/inventory/services/reorder.service";
 import { groupStockByCategory } from "@/modules/inventory/services/stock.service";
+import { getExpiryBatchAlerts } from "@/modules/inventory/services/expiry.service";
 
 function parseProductType(value?: string): ProductType | undefined {
   if (value === "finished" || value === "ingredient") return value;
@@ -27,9 +28,10 @@ export default async function InventoryPage({
   const selectedWarehouseId = warehouses.some((w) => w.id === requestedWarehouseId)
     ? requestedWarehouseId
     : undefined;
-  const [stockGroups, alerts, movements, reorderSuggestions] = await Promise.all([
+  const [stockGroups, alerts, expiryAlerts, movements, reorderSuggestions] = await Promise.all([
     groupStockByCategory(storeId, selectedWarehouseId, productType),
     getAlerts(storeId, selectedWarehouseId),
+    getExpiryBatchAlerts(storeId, selectedWarehouseId),
     getMovementTimeline(storeId, selectedWarehouseId),
     getReorderSuggestions(storeId, selectedWarehouseId),
   ]);
@@ -50,6 +52,7 @@ export default async function InventoryPage({
       totalSkus={totalSkus}
       stockGroups={stockGroups}
       alerts={alerts}
+      expiryAlerts={expiryAlerts}
       movements={movements}
       reorderSuggestions={reorderSuggestions}
       warehouses={warehouses}
