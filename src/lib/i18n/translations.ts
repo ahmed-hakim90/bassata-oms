@@ -680,95 +680,144 @@ export const arTranslations: Record<string, string> = {
   "Close shift": "إغلاق الوردية",
   "Go to POS": "الذهاب لنقطة البيع",
   "this page": "هذه الصفحة",
+  "Held orders": "الطلبات المعلّقة",
+  Pay: "دفع",
+  "Expand sidebar": "توسيع الشريط الجانبي",
+  "Collapse sidebar": "طي الشريط الجانبي",
+  "Sign in with your owner, manager, or cashier account":
+    "سجّل الدخول بحساب المالك أو المدير أو الكاشير",
+  "Forgot password?": "نسيت كلمة المرور؟",
+  "Signing in…": "جاري تسجيل الدخول…",
+  "Order #": "طلب رقم",
+  "Unnamed product": "منتج بدون اسم",
+  Hold: "تعليق",
+  each: "للوحدة",
+  piece: "قطعة",
+  "Wholesale price applied": "تم تطبيق سعر الجملة",
 };
 
-export function translateText(text: string, language: AppLanguage) {
-  if (language === "en") return text;
+const enTranslations = Object.entries(arTranslations).reduce<Record<string, string>>(
+  (acc, [en, ar]) => {
+    if (!acc[ar]) acc[ar] = en;
+    return acc;
+  },
+  {}
+);
 
+export function translateText(text: string, language: AppLanguage) {
   const leading = text.match(/^\s*/)?.[0] ?? "";
   const trailing = text.match(/\s*$/)?.[0] ?? "";
   const normalized = text.trim().replace(/\s+/g, " ");
-  const translated = arTranslations[normalized];
+  const translated =
+    language === "ar"
+      ? arTranslations[normalized] ?? translateDynamicText(normalized, "ar")
+      : enTranslations[normalized] ?? translateDynamicText(normalized, "en");
 
-  if (translated) return `${leading}${translated}${trailing}`;
+  if (!translated || translated === normalized) return text;
 
-  return `${leading}${translateDynamicText(normalized)}${trailing}`;
+  return `${leading}${translated}${trailing}`;
 }
 
-function translateDynamicText(text: string): string {
-  const lineMatch = text.match(/^(\d+)\s+lines?$/);
-  if (lineMatch) return `${lineMatch[1]} بند`;
+function translateDynamicText(text: string, targetLanguage: AppLanguage): string {
+  if (targetLanguage === "ar") {
+    const lineMatch = text.match(/^(\d+)\s+lines?$/);
+    if (lineMatch) return `${lineMatch[1]} بند`;
 
-  const addedMatch = text.match(/^Added\s+(.+)$/);
-  if (addedMatch) return `تمت إضافة ${addedMatch[1]}`;
+    const addedMatch = text.match(/^Added\s+(.+)$/);
+    if (addedMatch) return `تمت إضافة ${addedMatch[1]}`;
 
-  const normalizedEnum = text.replaceAll("_", " ").toLowerCase();
-  const enumTranslations: Record<string, string> = {
-    approved: "معتمد",
-    cancelled: "ملغي",
-    card: "كارت",
-    cash: "نقدي",
-    cashier: "كاشير",
-    closed: "مغلقة",
-    completed: "مكتمل",
-    damaged: "تالف",
-    draft: "مسودة",
-    expired: "منتهي الصلاحية",
-    finished: "منتج نهائي",
-    ingredient: "مكوّن",
-    inventory: "مخزون",
-    invoiced: "تمت فوترته",
-    manager: "مدير",
-    open: "مفتوح",
-    other: "أخرى",
-    owner: "مالك",
-    paid: "مدفوع",
-    pending: "قيد الانتظار",
-    preparing: "جاري التحضير",
-    received: "مستلم",
-    refunded: "مسترد",
-    reopened: "أعيد فتحه",
-    sent: "مرسل",
-    spillage: "انسكاب",
-    submitted: "مرسل",
-    transfer_in: "تحويل وارد",
-    transfer_out: "تحويل صادر",
-    viewer: "مشاهد",
-    voided: "ملغي",
-  };
-  if (enumTranslations[normalizedEnum]) return enumTranslations[normalizedEnum];
+    const normalizedEnum = text.replaceAll("_", " ").toLowerCase();
+    const enumTranslations: Record<string, string> = {
+      approved: "معتمد",
+      cancelled: "ملغي",
+      card: "كارت",
+      cash: "نقدي",
+      cashier: "كاشير",
+      closed: "مغلقة",
+      completed: "مكتمل",
+      damaged: "تالف",
+      draft: "مسودة",
+      expired: "منتهي الصلاحية",
+      finished: "منتج نهائي",
+      ingredient: "مكوّن",
+      inventory: "مخزون",
+      invoiced: "تمت فوترته",
+      manager: "مدير",
+      open: "مفتوح",
+      other: "أخرى",
+      owner: "مالك",
+      paid: "مدفوع",
+      pending: "قيد الانتظار",
+      preparing: "جاري التحضير",
+      received: "مستلم",
+      refunded: "مسترد",
+      reopened: "أعيد فتحه",
+      sent: "مرسل",
+      spillage: "انسكاب",
+      submitted: "مرسل",
+      transfer_in: "تحويل وارد",
+      transfer_out: "تحويل صادر",
+      viewer: "مشاهد",
+      voided: "ملغي",
+    };
+    if (enumTranslations[normalizedEnum]) return enumTranslations[normalizedEnum];
 
-  const sessionMatch = text.match(/^Session: (.+)$/);
-  if (sessionMatch) return `الجلسة: ${sessionMatch[1]}`;
+    const sessionMatch = text.match(/^Session: (.+)$/);
+    if (sessionMatch) return `الجلسة: ${sessionMatch[1]}`;
 
-  const cashierMatch = text.match(/^Cashier: (.+)$/);
-  if (cashierMatch) return `الكاشير: ${cashierMatch[1]}`;
+    const cashierMatch = text.match(/^Cashier: (.+)$/);
+    if (cashierMatch) return `الكاشير: ${cashierMatch[1]}`;
 
-  const cannotOpenMatch = text.match(/^(.+) cannot open (.+)\\.$/);
-  if (cannotOpenMatch) return `${cannotOpenMatch[1]} لا يمكنه فتح ${cannotOpenMatch[2]}.`;
+    const cannotOpenMatch = text.match(/^(.+) cannot open (.+)\\.$/);
+    if (cannotOpenMatch) return `${cannotOpenMatch[1]} لا يمكنه فتح ${cannotOpenMatch[2]}.`;
 
-  const cashierDeniedMatch = text.match(
-    /^Your cashier account cannot open (.+)\\. Ask a manager if you need help\\.$/
-  );
-  if (cashierDeniedMatch) {
-    return `حساب الكاشير لا يمكنه فتح ${translateDynamicText(cashierDeniedMatch[1] ?? "")}. اطلب مساعدة المدير لو محتاج.`;
-  }
+    const cashierDeniedMatch = text.match(
+      /^Your cashier account cannot open (.+)\\. Ask a manager if you need help\\.$/
+    );
+    if (cashierDeniedMatch) {
+      return `حساب الكاشير لا يمكنه فتح ${translateDynamicText(
+        cashierDeniedMatch[1] ?? "",
+        "ar"
+      )}. اطلب مساعدة المدير لو محتاج.`;
+    }
 
-  const viewerDeniedMatch = text.match(/^Your viewer account cannot open (.+)\\.$/);
-  if (viewerDeniedMatch) {
-    return `حساب المشاهدة لا يمكنه فتح ${translateDynamicText(viewerDeniedMatch[1] ?? "")}.`;
-  }
+    const viewerDeniedMatch = text.match(/^Your viewer account cannot open (.+)\\.$/);
+    if (viewerDeniedMatch) {
+      return `حساب المشاهدة لا يمكنه فتح ${translateDynamicText(
+        viewerDeniedMatch[1] ?? "",
+        "ar"
+      )}.`;
+    }
 
-  const inventoryDeniedMatch = text.match(
-    /^Inventory staff cannot open (.+)\\. Use Products and Inventory from the menu\\.$/
-  );
-  if (inventoryDeniedMatch) {
-    return `فريق المخزون لا يمكنه فتح ${translateDynamicText(inventoryDeniedMatch[1] ?? "")}. استخدم المنتجات والمخزون من المنيو.`;
-  }
+    const inventoryDeniedMatch = text.match(
+      /^Inventory staff cannot open (.+)\\. Use Products and Inventory from the menu\\.$/
+    );
+    if (inventoryDeniedMatch) {
+      return `فريق المخزون لا يمكنه فتح ${translateDynamicText(
+        inventoryDeniedMatch[1] ?? "",
+        "ar"
+      )}. استخدم المنتجات والمخزون من المنيو.`;
+    }
 
-  const permissionDeniedMatch = text.match(/^You do not have permission to open (.+)\\.$/);
-  if (permissionDeniedMatch) {
-    return `ليس لديك صلاحية لفتح ${translateDynamicText(permissionDeniedMatch[1] ?? "")}.`;
+    const permissionDeniedMatch = text.match(/^You do not have permission to open (.+)\\.$/);
+    if (permissionDeniedMatch) {
+      return `ليس لديك صلاحية لفتح ${translateDynamicText(
+        permissionDeniedMatch[1] ?? "",
+        "ar"
+      )}.`;
+    }
+  } else {
+    const arabicLineMatch = text.match(/^(\d+)\s+بند$/);
+    if (arabicLineMatch) return `${arabicLineMatch[1]} lines`;
+
+    const arabicAddedMatch = text.match(/^تمت إضافة\s+(.+)$/);
+    if (arabicAddedMatch) return `Added ${arabicAddedMatch[1]}`;
+
+    const sessionMatch = text.match(/^الجلسة:\s+(.+)$/);
+    if (sessionMatch) return `Session: ${sessionMatch[1]}`;
+
+    const cashierMatch = text.match(/^الكاشير:\s+(.+)$/);
+    if (cashierMatch) return `Cashier: ${cashierMatch[1]}`;
   }
 
   return text;

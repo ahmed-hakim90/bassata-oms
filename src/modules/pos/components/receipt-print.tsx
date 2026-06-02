@@ -2,6 +2,7 @@
 
 import { formatCurrency } from "@/lib/format";
 import type { CartLine, PaymentMethod, PaymentSplit } from "@/lib/types";
+import { useTranslation } from "@/lib/i18n/use-translation";
 
 interface ReceiptPrintProps {
   orderNumber: string;
@@ -20,12 +21,13 @@ export function ReceiptPrint({
   discount,
   total,
 }: ReceiptPrintProps) {
+  const { t } = useTranslation();
   const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   return (
     <div id="SweetFlow-receipt" className="hidden print:block print:p-6">
       <div className="mx-auto max-w-xs font-mono text-sm">
         <p className="text-center font-bold">SweetFlow POS</p>
-        <p className="text-center text-xs">طلب رقم {orderNumber}</p>
+        <p className="text-center text-xs">{t("Order #")} {orderNumber}</p>
         <hr className="my-3 border-dashed" />
         <ul className="space-y-2">
           {lines.map((line) => (
@@ -34,7 +36,7 @@ export function ReceiptPrint({
                 <span>
                   {line.name}
                   <br />
-                  {line.quantity} {line.saleUnit ?? "قطعة"} × {formatCurrency(line.unitPrice)}
+                  {line.quantity} {line.saleUnit ?? t("piece")} × {formatCurrency(line.unitPrice)}
                   {line.saleUnit ? `/${line.saleUnit}` : ""}
                 </span>
                 <span>{formatCurrency(line.lineTotal)}</span>
@@ -44,17 +46,17 @@ export function ReceiptPrint({
         </ul>
         <hr className="my-3 border-dashed" />
         <div className="flex justify-between">
-          <span>الإجمالي الفرعي</span>
+          <span>{t("Subtotal")}</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
         {discount > 0 ? (
           <div className="flex justify-between">
-            <span>الخصم</span>
+            <span>{t("Discount")}</span>
             <span>-{formatCurrency(discount)}</span>
           </div>
         ) : null}
         <div className="flex justify-between font-bold">
-          <span>الإجمالي ({paymentMethod})</span>
+          <span>{t("Total")} ({t(paymentMethod)})</span>
           <span>{formatCurrency(total)}</span>
         </div>
         {payments.length > 1 ? (
@@ -67,7 +69,7 @@ export function ReceiptPrint({
             ))}
           </div>
         ) : null}
-        <p className="mt-6 text-center text-xs">شكرًا لك!</p>
+        <p className="mt-6 text-center text-xs">{t("Thank you!")}</p>
       </div>
     </div>
   );

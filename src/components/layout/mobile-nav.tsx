@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { filterNavByAccess } from "@/lib/auth/nav";
 import type { FeatureFlag, PermissionKey, UserRole } from "@/lib/constants";
+import { useTranslation } from "@/lib/i18n/use-translation";
 
 const iconMap = {
   ArrowLeftRight,
@@ -63,6 +64,7 @@ export function MobileNav({
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   permissions?: Set<PermissionKey>;
 }) {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const allItems = filterNavByAccess(userRole, permissions, featureFlags).flatMap(
     (group) => group.items
@@ -78,11 +80,11 @@ export function MobileNav({
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/85 backdrop-blur-xl md:hidden">
       <ul className="mx-auto flex max-w-lg items-stretch justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-2">
-        {mobileItems.map((item) => {
+        {mobileItems.map((item, index) => {
           const active = isActivePath(pathname, item.href);
           const Icon = iconMap[item.icon as keyof typeof iconMap] ?? LayoutDashboard;
           return (
-            <li key={item.href} className="flex-1">
+            <li key={`${item.href}-${index}`} className="flex-1">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
@@ -101,7 +103,7 @@ export function MobileNav({
                 >
                   <Icon className="size-4" />
                 </span>
-                {item.label}
+                {t(item.label)}
               </Link>
             </li>
           );

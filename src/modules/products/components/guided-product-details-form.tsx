@@ -29,6 +29,7 @@ import { formatUnit } from "@/lib/units";
 import { selectLabelById } from "@/lib/select-label";
 import type { Category } from "@/lib/types";
 import { DialogFooter } from "@/components/ui/dialog";
+import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { getVisibleAdvancedSettingsForProduct } from "@/modules/products/lib/advanced-settings-visibility";
 import type { ProductFormValues } from "@/modules/products/components/product-form-dialog";
 
@@ -73,6 +74,11 @@ export function GuidedProductDetailsForm({
 }: Props) {
   const [step, setStep] = useState(1);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [reapplyDialogOpen, setReapplyDialogOpen] = useState(false);
+  const [pendingTemplateReapply, setPendingTemplateReapply] = useState<{
+    productType: ProductFormValues["product_type"];
+    salesUnitType?: ProductFormValues["sales_unit_type"];
+  } | null>(null);
   const values = form.watch();
   const [errorText, setErrorText] = useState<string | null>(null);
   const visibleAdvancedSettings = getVisibleAdvancedSettingsForProduct(
@@ -88,6 +94,28 @@ export function GuidedProductDetailsForm({
   const showPriceByAmount = visibleAdvancedSettings.has("price_by_amount");
   const showWholesale = visibleAdvancedSettings.has("wholesale");
   const showSerialNumber = visibleAdvancedSettings.has("serial_number");
+
+  const shouldConfirmTemplateReapply = () => {
+    if (!onApplyActivityTemplate) return false;
+    const dirty = form.formState.dirtyFields as Partial<Record<keyof ProductFormValues, boolean>>;
+    return Object.entries(dirty).some(([field, isDirty]) => {
+      if (!isDirty) return false;
+      return field !== "product_type" && field !== "sales_unit_type";
+    });
+  };
+
+  const requestTemplateReapply = (
+    productType: ProductFormValues["product_type"],
+    salesUnitType?: ProductFormValues["sales_unit_type"]
+  ) => {
+    if (!onApplyActivityTemplate) return;
+    if (shouldConfirmTemplateReapply()) {
+      setPendingTemplateReapply({ productType, salesUnitType });
+      setReapplyDialogOpen(true);
+      return;
+    }
+    onApplyActivityTemplate(productType, salesUnitType);
+  };
 
   const trackingModes = INVENTORY_TRACKING_MODES.filter((mode) => {
     if (mode === "batch" && !showBatchTracking) return false;
@@ -199,7 +227,7 @@ export function GuidedProductDetailsForm({
                   className={`rounded-xl border p-3 text-left ${values.product_type === item.id ? "border-primary bg-primary/10" : "border-border/60"}`}
                   onClick={() => {
                     form.setValue("product_type", item.id, { shouldValidate: true });
-                    onApplyActivityTemplate?.(item.id, values.sales_unit_type);
+                    requestTemplateReapply(item.id, values.sales_unit_type);
                   }}
                 >
                   <div className="text-sm font-medium">{item.label}</div>
@@ -214,7 +242,7 @@ export function GuidedProductDetailsForm({
               <Select value={values.sales_unit_type} onValueChange={(v) => {
                 const nextSales = (v ?? "piece") as ProductFormValues["sales_unit_type"];
                 form.setValue("sales_unit_type", nextSales, { shouldValidate: true });
-                onApplyActivityTemplate?.(values.product_type, nextSales);
+                requestTemplateReapply(values.product_type, nextSales);
               }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -430,7 +458,7 @@ export function GuidedProductDetailsForm({
               <Select value={values.product_type} onValueChange={(v) => {
                 const nextType = (v ?? "finished_product") as ProductFormValues["product_type"];
                 form.setValue("product_type", nextType, { shouldValidate: true });
-                onApplyActivityTemplate?.(nextType, values.sales_unit_type);
+                requestTemplateReapply(nextType, values.sales_unit_type);
               }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -470,6 +498,21 @@ export function GuidedProductDetailsForm({
           {isEdit ? "حفظ التعديلات" : "إنشاء المنتج"}
         </Button>
       </DialogFooter>
+      <ConfirmActionDialog
+        open={reapplyDialogOpen}
+        onOpenChange={setReapplyDialogOpen}
+        title="Reapply template defaults?"
+        description="This will overwrite current product setup values with activity template defaults."
+        confirmLabel="Reapply defaults"
+        onConfirm={() => {
+          if (!pendingTemplateReapply) return;
+          onApplyActivityTemplate?.(
+            pendingTemplateReapply.productType,
+            pendingTemplateReapply.salesUnitType
+          );
+          setPendingTemplateReapply(null);
+        }}
+      />
     </form>
   );
 }

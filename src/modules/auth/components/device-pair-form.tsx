@@ -22,7 +22,6 @@ export function DevicePairForm() {
       if (result.success) {
         toast.success("Device paired");
         router.push(from.startsWith("/") ? from : "/pos");
-        router.refresh();
       } else {
         toast.error(result.error ?? "Pairing failed");
       }

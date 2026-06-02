@@ -28,21 +28,23 @@ export default async function CustomerDetailPage({
   return (
     <>
       <PageHeader title={data.profile.name} description={data.profile.phone} />
-      <CustomerCreditSettings
-        customerId={data.profile.id}
-        creditLimit={data.profile.credit_limit}
-        paymentTerms={data.profile.payment_terms}
-        canEdit={canEditCustomer}
-      />
-      <CustomerAccountPanel
-        customerId={data.profile.id}
-        accountBalance={data.profile.account_balance}
-        creditLimit={data.profile.credit_limit}
-        paymentTerms={data.profile.payment_terms}
-        statement={data.statement}
-        canCollect={canCollect}
-      />
-      <CustomerProfileView profile={data.profile} ledger={data.ledger} />
+      <div className="space-y-6">
+        <CustomerCreditSettings
+          customerId={data.profile.id}
+          creditLimit={data.profile.credit_limit}
+          paymentTerms={data.profile.payment_terms}
+          canEdit={canEditCustomer}
+        />
+        <CustomerAccountPanel
+          customerId={data.profile.id}
+          accountBalance={data.profile.account_balance}
+          creditLimit={data.profile.credit_limit}
+          paymentTerms={data.profile.payment_terms}
+          statement={data.statement}
+          canCollect={canCollect}
+        />
+        <CustomerProfileView profile={data.profile} ledger={data.ledger} />
+      </div>
     </>
   );
 }

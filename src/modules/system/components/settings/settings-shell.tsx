@@ -31,7 +31,6 @@ import { AuditSettingsTab } from "@/modules/system/components/settings/audit-set
 import { SouqnaSettingsTab } from "@/modules/system/components/settings/souqna-settings-tab";
 import { BusinessActivitySettingsTab } from "@/modules/system/components/settings/business-activity-settings-tab";
 import {
-  groupSettingsTabs,
   type SettingsGroup,
   type SettingsTabId,
 } from "@/modules/system/components/settings/settings-tabs";
@@ -188,15 +187,13 @@ export function SettingsShell({
       return haystack.includes(query);
     });
   }, [settingsQuery, visibleTabs]);
-  const groupedTabs = useMemo(() => groupSettingsTabs(filteredTabs), [filteredTabs]);
-
   return (
     <>
       <PageHeader
         title="Settings"
         description="Organization, branches, POS, expenses, users, and system configuration"
       />
-      <Tabs value={activeTab} onValueChange={setTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setTab} className="flex-col space-y-6">
         <div className="space-y-3 rounded-xl border border-border/60 p-4">
           <Input
             aria-label="Search settings"
@@ -204,26 +201,24 @@ export function SettingsShell({
             value={settingsQuery}
             onChange={(event) => setSettingsQuery(event.target.value)}
           />
-          <div className="space-y-3">
-            {groupedTabs.map((group) => (
-              <div key={group.group}>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.group}
-                </p>
-                <TabsList className="h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
-                  {group.tabs.map((tab) => (
-                    <TabsTrigger key={tab.id} value={tab.id}>
-                      {tab.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </div>
-            ))}
-            {groupedTabs.length === 0 ? (
+          <div className="space-y-3 px-2">
+            {filteredTabs.length > 0 ? (
+              <TabsList className="h-auto w-full flex-nowrap justify-start gap-1 py-4 px-2 rounded-xl bg-muted/60 p-1">
+                {filteredTabs.map((tab) => (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="h-9 flex-none rounded-lg px-3 text-sm font-medium data-active:bg-background data-active:text-foreground data-active:shadow-sm"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            ) : (
               <p className="text-sm text-muted-foreground">
                 No settings match your search.
               </p>
-            ) : null}
+            )}
           </div>
         </div>
 

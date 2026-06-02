@@ -7,6 +7,7 @@ import type { UserRole } from "@/lib/constants";
 import type { FeatureFlag, PermissionKey } from "@/lib/constants";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
+import * as storeRepo from "@/lib/repositories/store.repository";
 import {
   CASHIER_COOKIE,
   REGISTERED_DEVICE_COOKIE,
@@ -102,6 +103,10 @@ export async function requirePermissionOrRole(
 
 export async function requireStoreAccess(storeId: string): Promise<AppUser> {
   const user = await requireAuth();
+  const store = await storeRepo.getStore(storeId);
+  if (!store) {
+    throw new AuthError("Store access denied");
+  }
   if (user.role === "owner" || user.role === "manager") return user;
   if (!user.store_ids.includes(storeId)) {
     throw new AuthError("Store access denied");
@@ -116,12 +121,25 @@ export async function requireActiveSession(storeId: string) {
 }
 
 export async function getValidatedActiveStoreId(): Promise<string> {
-  await requireAuth();
+  const user = await requireAuth();
   const cookieStore = await cookies();
-  const storeId = cookieStore.get(STORE_COOKIE)?.value;
-  if (!storeId) throw new AuthError("No active store selected");
-  await requireStoreAccess(storeId);
-  return storeId;
+  const cookieStoreId = cookieStore.get(STORE_COOKIE)?.value;
+
+  if (cookieStoreId) {
+    await requireStoreAccess(cookieStoreId);
+    return cookieStoreId;
+  }
+
+  const allStores = await storeRepo.listStores();
+  const accessibleStore =
+    user.role === "owner" || user.role === "manager"
+      ? allStores[0]
+      : allStores.find((store) => user.store_ids.includes(store.id));
+
+  if (!accessibleStore) throw new AuthError("No active store selected");
+
+  await setActiveStoreCookie(accessibleStore.id);
+  return accessibleStore.id;
 }
 
 export async function setActiveStoreCookie(storeId: string) {

@@ -364,128 +364,135 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                 <div className="border-t border-border/60 pt-4">
                   <p className="mb-3 text-sm font-medium">POS devices</p>
                   <div className="grid gap-3 md:grid-cols-2">
-                    {storeDevices.map((device) => (
-                      <div
-                        key={device.id}
-                        className="grid gap-2 rounded-lg border border-border/60 p-3"
-                      >
-                        <Input
-                          placeholder="Device name"
-                          value={deviceEdits[device.id]?.name ?? device.name}
-                          onChange={(e) =>
-                            setDeviceEdits({
-                              ...deviceEdits,
-                              [device.id]: {
-                                ...(deviceEdits[device.id] ?? {
-                                  name: device.name,
-                                  storeId: device.store_id,
-                                }),
-                                name: e.target.value,
-                              },
-                            })
-                          }
-                        />
-                        <label className="flex items-center gap-2 text-xs">
-                          <Checkbox
-                            checked={device.is_active}
-                            onCheckedChange={(v) => {
-                              startTransition(async () => {
-                                try {
-                                  await updateDeviceAction(device.id, {
-                                    isActive: v === true,
-                                  });
-                                  toast.success("Device updated");
-                                } catch {
-                                  toast.error("Failed to update device");
-                                }
-                              });
-                            }}
+                    {storeDevices.length === 0 ? (
+                      <p className="rounded-lg border border-dashed border-border/60 p-3 text-sm text-muted-foreground md:col-span-2">
+                        No devices registered for this branch yet. Add one below to generate a
+                        pairing code.
+                      </p>
+                    ) : (
+                      storeDevices.map((device) => (
+                        <div
+                          key={device.id}
+                          className="grid gap-2 rounded-lg border border-border/60 p-3"
+                        >
+                          <Input
+                            placeholder="Device name"
+                            value={deviceEdits[device.id]?.name ?? device.name}
+                            onChange={(e) =>
+                              setDeviceEdits({
+                                ...deviceEdits,
+                                [device.id]: {
+                                  ...(deviceEdits[device.id] ?? {
+                                    name: device.name,
+                                    storeId: device.store_id,
+                                  }),
+                                  name: e.target.value,
+                                },
+                              })
+                            }
                           />
-                          Active
-                        </label>
-                        {device.last_seen_at ? (
-                          <p className="text-xs text-muted-foreground">
-                            Last seen: {new Date(device.last_seen_at).toLocaleString()}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Not paired yet</p>
-                        )}
-                        {pairingCodes[device.id] ? (
-                          <p className="rounded-md bg-muted px-2 py-1 font-mono text-sm tracking-widest">
-                            Code: {pairingCodes[device.id]} (15 min)
-                          </p>
-                        ) : null}
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={pending}
-                            onClick={() => {
-                              startTransition(async () => {
-                                try {
-                                  await updateDeviceAction(device.id, {
-                                    name: deviceEdits[device.id]?.name,
-                                    storeId: store.id,
-                                  });
-                                  toast.success("Device updated");
-                                } catch {
-                                  toast.error("Failed to update device");
-                                }
-                              });
-                            }}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={pending}
-                            onClick={() => {
-                              startTransition(async () => {
-                                try {
-                                  const { code } = await generateDevicePairingCodeAction(
-                                    device.id
-                                  );
-                                  setPairingCodes({ ...pairingCodes, [device.id]: code });
-                                  await navigator.clipboard.writeText(code);
-                                  toast.success("Pairing code copied");
-                                } catch {
-                                  toast.error("Failed to generate code");
-                                }
-                              });
-                            }}
-                          >
-                            Pairing code
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={pending}
-                            onClick={() => {
-                              startTransition(async () => {
-                                const result = await registerBrowserDeviceAction(device.id);
-                                if (result.success) toast.success("This browser is registered");
-                                else toast.error(result.error ?? "Registration failed");
-                              });
-                            }}
-                          >
-                            Register this browser
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={pending}
-                            onClick={() => setDeviceToDelete(device.id)}
-                          >
-                            Delete
-                          </Button>
+                          <label className="flex items-center gap-2 text-xs">
+                            <Checkbox
+                              checked={device.is_active}
+                              onCheckedChange={(v) => {
+                                startTransition(async () => {
+                                  try {
+                                    await updateDeviceAction(device.id, {
+                                      isActive: v === true,
+                                    });
+                                    toast.success("Device updated");
+                                  } catch {
+                                    toast.error("Failed to update device");
+                                  }
+                                });
+                              }}
+                            />
+                            Active
+                          </label>
+                          {device.last_seen_at ? (
+                            <p className="text-xs text-muted-foreground">
+                              Last seen: {new Date(device.last_seen_at).toLocaleString()}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Not paired yet</p>
+                          )}
+                          {pairingCodes[device.id] ? (
+                            <p className="rounded-md bg-muted px-2 py-1 font-mono text-sm tracking-widest">
+                              Code: {pairingCodes[device.id]} (15 min)
+                            </p>
+                          ) : null}
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={pending}
+                              onClick={() => {
+                                startTransition(async () => {
+                                  try {
+                                    await updateDeviceAction(device.id, {
+                                      name: deviceEdits[device.id]?.name,
+                                      storeId: store.id,
+                                    });
+                                    toast.success("Device updated");
+                                  } catch {
+                                    toast.error("Failed to update device");
+                                  }
+                                });
+                              }}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={pending}
+                              onClick={() => {
+                                startTransition(async () => {
+                                  try {
+                                    const { code } = await generateDevicePairingCodeAction(
+                                      device.id
+                                    );
+                                    setPairingCodes({ ...pairingCodes, [device.id]: code });
+                                    await navigator.clipboard.writeText(code);
+                                    toast.success("Pairing code copied");
+                                  } catch {
+                                    toast.error("Failed to generate code");
+                                  }
+                                });
+                              }}
+                            >
+                              Pairing code
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={pending}
+                              onClick={() => {
+                                startTransition(async () => {
+                                  const result = await registerBrowserDeviceAction(device.id);
+                                  if (result.success) toast.success("This browser is registered");
+                                  else toast.error(result.error ?? "Registration failed");
+                                });
+                              }}
+                            >
+                              Register this browser
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={pending}
+                              onClick={() => setDeviceToDelete(device.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                   <div className="mt-3 flex max-w-md gap-2">
                     <Input

@@ -230,62 +230,60 @@ export function canViewCosts(role: UserRole, permissions?: Set<PermissionKey>): 
 
 export const NAV_GROUPS = [
   {
-    label: "لوحة التحكم",
+    label: "Dashboard",
     items: [
-      { label: "لوحة التحكم", href: "/", icon: "LayoutDashboard" },
+      { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
     ],
   },
   {
-    label: "المبيعات",
+    label: "Sales",
     items: [
-      { label: "نقطة البيع", href: "/pos", icon: "ShoppingCart" },
-      { label: "الطلبات", href: "/orders", icon: "Receipt" },
-      { label: "الجلسات", href: "/sessions", icon: "Clock" },
+      { label: "POS", href: "/pos", icon: "ShoppingCart" },
+      { label: "Orders", href: "/orders", icon: "Receipt" },
+      { label: "Sessions", href: "/sessions", icon: "Clock" },
     ],
   },
   {
-    label: "المخزون",
+    label: "Inventory",
     items: [
-      { label: "المنتجات", href: "/products", icon: "Package" },
-      { label: "المخزون", href: "/inventory", icon: "Warehouse" },
-      { label: "المشتريات", href: "/inventory/purchases", icon: "Truck" },
-      { label: "التحويلات", href: "/inventory/transfers", icon: "ArrowLeftRight" },
-      { label: "الهالك", href: "/inventory/waste", icon: "Trash2" },
-      { label: "جرد المخزون", href: "/inventory/stock-count", icon: "ClipboardList" },
+      { label: "Products", href: "/products", icon: "Package" },
+      { label: "Stock", href: "/inventory", icon: "Warehouse" },
+      { label: "Purchases", href: "/inventory/purchases", icon: "Truck" },
+      { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
+      { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
+      { label: "Stock Count", href: "/inventory/stock-count", icon: "ClipboardList" },
     ],
   },
   {
-    label: "العملاء",
+    label: "Customers",
     items: [
-      { label: "العملاء", href: "/customers", icon: "Users" },
-      { label: "الولاء", href: "/customers/loyalty", icon: "Heart" },
-      { label: "الكشوفات", href: "/customers", icon: "ScrollText" },
+      { label: "Customers", href: "/customers", icon: "Users" },
+      { label: "Loyalty", href: "/customers/loyalty", icon: "Heart" },
     ],
   },
   {
-    label: "الحسابات",
+    label: "Accounting",
     items: [
-      { label: "المصروفات", href: "/expenses", icon: "Wallet" },
-      { label: "مراكز التكلفة", href: "/settings/cost-centers", icon: "Landmark" },
-      { label: "الموردون", href: "/inventory/suppliers", icon: "Building2" },
+      { label: "Expenses", href: "/expenses", icon: "Wallet" },
+      { label: "Cost Centers", href: "/settings/cost-centers", icon: "Landmark" },
+      { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
     ],
   },
   {
-    label: "التقارير",
+    label: "Reports",
     items: [
-      { label: "المبيعات", href: "/reports", icon: "BarChart3" },
-      { label: "المخزون", href: "/inventory/movements", icon: "Warehouse" },
-      { label: "العملاء", href: "/customers", icon: "Users" },
-      { label: "الحسابات", href: "/expenses", icon: "Wallet" },
+      { label: "Sales", href: "/reports", icon: "BarChart3" },
+      { label: "Inventory", href: "/inventory/movements", icon: "Warehouse" },
+      { label: "Customers", href: "/customers", icon: "Users" },
+      { label: "Accounting", href: "/expenses", icon: "Wallet" },
     ],
   },
   {
-    label: "الإدارة",
+    label: "Administration",
     items: [
-      { label: "المستخدمون", href: "/users", icon: "Shield" },
-      { label: "الأجهزة", href: "/settings", icon: "CalendarCheck" },
-      { label: "الإعدادات", href: "/settings", icon: "Settings" },
-      { label: "سجل المراجعة", href: "/audit", icon: "ScrollText" },
+      { label: "Users", href: "/users", icon: "Shield" },
+      { label: "Settings", href: "/settings", icon: "Settings" },
+      { label: "Audit Logs", href: "/audit", icon: "ScrollText" },
     ],
   },
 ] as const;

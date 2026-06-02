@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Delete, CircleDot } from "lucide-react";
 import { verifyPinAction } from "@/modules/auth/actions/verify-pin.action";
 import { cn } from "@/lib/utils";
@@ -15,7 +14,6 @@ interface PinPadProps {
 }
 
 export function PinPad({ onSuccess, className }: PinPadProps) {
-  const router = useRouter();
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -44,14 +42,13 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
           setPin("");
           setError(null);
           onSuccess?.(result.cashierId);
-          router.refresh();
         } else {
           setError(result.error ?? "Incorrect PIN.");
           setPin("");
         }
       });
     },
-    [onSuccess, router]
+    [onSuccess]
   );
 
   const handleDigit = (digit: string) => {

@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTranslation } from "@/lib/i18n/use-translation";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -70,6 +71,7 @@ export function AppSidebar({
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   permissions?: Set<PermissionKey>;
 }) {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar, collapsedGroups, toggleGroup } =
     useUiStore();
@@ -89,7 +91,7 @@ export function AppSidebar({
         {!sidebarCollapsed && (
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{APP_NAME}</p>
-            <p className="text-xs text-muted-foreground">العمليات</p>
+            <p className="text-xs text-muted-foreground">{t("Operations")}</p>
           </div>
         )}
         <Button
@@ -97,7 +99,7 @@ export function AppSidebar({
           size="icon-sm"
           className={cn("ml-auto", sidebarCollapsed && "mx-auto")}
           onClick={toggleSidebar}
-          aria-label={sidebarCollapsed ? "توسيع الشريط الجانبي" : "طي الشريط الجانبي"}
+          aria-label={sidebarCollapsed ? t("Expand sidebar") : t("Collapse sidebar")}
         >
           {sidebarCollapsed ? (
             <ChevronRight className="size-4" />
@@ -120,19 +122,19 @@ export function AppSidebar({
                     aria-expanded={!collapsed}
                     className="mb-2 flex w-full items-center px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
                   >
-                    {group.label}
+                    {t(group.label)}
                   </button>
                 )}
                 {(!collapsed || sidebarCollapsed) && (
                   <ul className="space-y-1">
-                    {group.items.map((item) => {
+                    {group.items.map((item, index) => {
                       const Icon = iconMap[item.icon] ?? LayoutDashboard;
                       const active =
                         pathname === item.href ||
                         (item.href !== "/" &&
                           pathname.startsWith(item.href));
                       return (
-                        <li key={item.href}>
+                        <li key={`${group.label}-${item.href}-${index}`}>
                           <Link
                             href={item.href}
                             className={cn(
@@ -142,10 +144,10 @@ export function AppSidebar({
                                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                               sidebarCollapsed && "justify-center px-2"
                             )}
-                            title={sidebarCollapsed ? item.label : undefined}
+                            title={sidebarCollapsed ? t(item.label) : undefined}
                           >
                             <Icon className="size-4 shrink-0" />
-                            {!sidebarCollapsed && item.label}
+                            {!sidebarCollapsed && t(item.label)}
                           </Link>
                         </li>
                       );

@@ -57,6 +57,16 @@ export function resolveProductTemplateId(
   if (productType === "service") return "service";
   if (productType === "packaging_material") return "packaging_material";
 
+  if (activityType === "mixed") {
+    if (productType === "raw_material" || productType === "ingredient") {
+      return "restaurant_ingredient";
+    }
+    if (salesUnitType === "weight") {
+      return "supermarket_weight_product";
+    }
+    return "retail_product";
+  }
+
   if (productType === "raw_material" || productType === "ingredient") {
     return activityType === "ice_cream" ? "ice_cream_ingredient" : "restaurant_ingredient";
   }
@@ -64,8 +74,7 @@ export function resolveProductTemplateId(
   if (salesUnitType === "weight") {
     if (
       activityType === "supermarket" ||
-      activityType === "wholesale" ||
-      activityType === "mixed"
+      activityType === "wholesale"
     ) {
       return "supermarket_weight_product";
     }
