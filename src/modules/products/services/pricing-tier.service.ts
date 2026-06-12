@@ -71,6 +71,6 @@ export function resolveUnitPrice(params: {
   return {
     unitPrice: tier.price,
     tierId: tier.id,
-    wholesaleApplied: tier.sale_mode === "wholesale",
+    wholesaleApplied: false,
   };
 }

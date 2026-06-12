@@ -8,9 +8,7 @@ import { getRegisteredDeviceContext } from "@/lib/auth/session";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
-import { isPlatformAdminAuthUser } from "@/lib/platform/auth";
-import { isOrganizationSuspended } from "@/lib/platform/company-status";
-import { writePlatformAuditLog } from "@/modules/platform/services/platform.service";
+import { isOrganizationSuspended } from "@/lib/org-status";
 
 export interface LoginResult {
   success: boolean;
@@ -36,16 +34,6 @@ export async function loginAction(
     return { success: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة." };
   }
 
-  if (await isPlatformAdminAuthUser(data.user.id, data.user.email)) {
-    await writePlatformAuditLog({
-      action: "platform.auth.login",
-      entityType: "platform_admin",
-      entityId: data.user.id,
-      metadata: { email },
-    });
-    redirect("/platform");
-  }
-
   const appUser = await userRepo.getUserByAuthId(data.user.id);
   if (!appUser || !appUser.is_active) {
     await supabase.auth.signOut();
@@ -62,7 +50,7 @@ export async function loginAction(
   cookieStore.delete(CASHIER_COOKIE);
 
   const defaultStoreId = appUser.store_ids[0] ?? null;
-  if (defaultStoreId && appUser.role !== "inventory" && appUser.role !== "viewer") {
+  if (defaultStoreId && appUser.role !== "inventory") {
     cookieStore.set(STORE_COOKIE, defaultStoreId, {
       httpOnly: true,
       sameSite: "lax",

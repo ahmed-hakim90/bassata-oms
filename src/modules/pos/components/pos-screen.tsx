@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/format";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
 import { WeightAmountModal } from "@/modules/pos/components/weight-amount-modal";
 import { PosCashierPinGate } from "@/modules/pos/components/pos-cashier-pin-gate";
@@ -52,6 +53,7 @@ interface PosScreenProps {
   canManagerOverride?: boolean;
   managerDiscountOverrideAmount?: number | null;
   currentUserName?: string | null;
+  loyaltyRedemptionRate?: number | null;
 }
 
 export function PosScreen({
@@ -72,6 +74,7 @@ export function PosScreen({
   canManagerOverride = false,
   managerDiscountOverrideAmount = null,
   currentUserName = null,
+  loyaltyRedemptionRate = null,
 }: PosScreenProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -93,10 +96,12 @@ export function PosScreen({
   const customer = usePosStore((s) => s.customer);
   const paymentMethod = usePosStore((s) => s.paymentMethod);
   const discountAmount = usePosStore((s) => s.discountAmount);
+  const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
   const salesMode = usePosStore((s) => s.salesMode);
   const setSalesMode = usePosStore((s) => s.setSalesMode);
   const [weightProduct, setWeightProduct] = useState<POSProduct | null>(null);
   const router = useRouter();
+  const { t } = useTranslation();
 
   const barcodeEnabled = featureFlags.barcode_scanner !== false;
   const receiptEnabled = featureFlags.receipt_printing !== false;
@@ -106,6 +111,7 @@ export function PosScreen({
     !(readinessState === "session_expired" && canManagerOverride);
   const cashDrawerEnabled = featureFlags.cash_drawer === true;
   const discountsEnabled = featureFlags.customer_discounts === true;
+  const loyaltyEnabled = featureFlags.loyalty !== false;
   const cartTotal = getCartTotal(cart, discountAmount);
   const cartItemCount = cart.reduce((total, line) => total + line.quantity, 0);
 
@@ -154,13 +160,6 @@ export function PosScreen({
   }
 
   function handleAdd(product: POSProduct) {
-    if (
-      featureFlags.weight_sales === true &&
-      (product.sales_unit_type === "weight" || product.sales_unit_type === "mixed")
-    ) {
-      setWeightProduct(product);
-      return;
-    }
     if (product.hasVariants && product.variants.length > 0) {
       setPickerProduct(product);
       return;
@@ -211,8 +210,9 @@ export function PosScreen({
     if ((needsDiscountOverride || needsExpiredSessionOverride) && !overrideReason) return;
     startTransition(async () => {
       const receiptCart = [...cart];
-      const receiptDiscount = discountAmount;
-      const receiptTotal = getCartTotal(cart, discountAmount);
+      const redemptionAmount = loyaltyRedemption?.amount ?? 0;
+      const receiptDiscount = discountAmount + redemptionAmount;
+      const receiptTotal = Math.max(0, getCartTotal(cart, discountAmount) - redemptionAmount);
       try {
         const result = await checkoutAction({
           cart,
@@ -221,6 +221,7 @@ export function PosScreen({
           payments,
           salesMode,
           discount: discountAmount,
+          loyaltyPoints: loyaltyRedemption?.points,
           override: needsDiscountOverride
             ? { discount: true, reason: overrideReason }
             : needsExpiredSessionOverride
@@ -284,24 +285,6 @@ export function PosScreen({
             </span>
           ) : null}
         </div>
-        {featureFlags.wholesale_sales === true ? (
-          <div className="inline-flex rounded-xl border p-1">
-            <Button
-              size="sm"
-              variant={salesMode === "retail" ? "default" : "ghost"}
-              onClick={() => setSalesMode("retail")}
-            >
-              Retail
-            </Button>
-            <Button
-              size="sm"
-              variant={salesMode === "wholesale" ? "default" : "ghost"}
-              onClick={() => setSalesMode("wholesale")}
-            >
-              Wholesale
-            </Button>
-          </div>
-        ) : null}
         {readinessState !== "login_required" ? (
           <PosPinSwitch />
         ) : null}
@@ -392,6 +375,7 @@ export function PosScreen({
             onCheckout={() => setPaymentOpen(true)}
             checkoutDisabled={checkoutBlocked || cart.length === 0}
             discountsEnabled={discountsEnabled}
+            loyaltyEnabled={loyaltyEnabled}
           />
           {(readinessState === "ready" || readinessState === "session_warning") &&
             !hasActiveSession && (
@@ -419,6 +403,7 @@ export function PosScreen({
                 }}
                 checkoutDisabled={checkoutBlocked || cart.length === 0}
                 discountsEnabled={discountsEnabled}
+                loyaltyEnabled={loyaltyEnabled}
               />
               {(readinessState === "ready" || readinessState === "session_warning") &&
                 !hasActiveSession && (
@@ -443,6 +428,7 @@ export function PosScreen({
           customerName={customer?.name ?? null}
           loading={pending}
           disabled={readinessState === "session_expired" && !canManagerOverride}
+          loyaltyRedemptionRate={loyaltyEnabled ? loyaltyRedemptionRate : null}
         />
 
         <VariantPickerDialog

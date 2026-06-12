@@ -100,7 +100,7 @@ export function ImportProductsDialog({
         <DialogHeader>
           <DialogTitle>Import products</DialogTitle>
           <DialogDescription>
-            Upload an XLSX file using the SweetFlow template columns.
+            Upload an XLSX file using the CafeFlow template columns.
           </DialogDescription>
         </DialogHeader>
 

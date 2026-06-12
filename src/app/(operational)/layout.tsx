@@ -25,11 +25,7 @@ export default async function OperationalLayout({
     permissions.has("pos_access") ||
     (!rbacSeeded && (user.role === "manager" || user.role === "cashier"));
 
-  if (
-    user.role === "inventory" ||
-    user.role === "viewer" ||
-    !canUsePos
-  ) {
+  if (user.role === "inventory" || !canUsePos) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
         <AccessDenied

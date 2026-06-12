@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { CircleDollarSign, Printer } from "lucide-react";
+import { Printer } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,6 @@ import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/format";
 import type { OrderWithDetails } from "@/modules/orders/services/order.service";
 import { refundOrderAction, voidOrderAction } from "@/modules/orders/actions/order.actions";
-import { markOrderPaidAction } from "@/modules/online-orders/actions/online-order.actions";
 
 interface OrderDetailProps {
   order: OrderWithDetails;
@@ -21,7 +20,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
   const [pending, startTransition] = useTransition();
 
   function handlePrint() {
-    window.print();
+    window.open(`/print/orders/${order.id}`, "_blank", "noopener,noreferrer");
   }
 
   function handleVoid() {
@@ -50,18 +49,6 @@ export function OrderDetail({ order }: OrderDetailProps) {
     });
   }
 
-  function handleMarkPaid() {
-    startTransition(async () => {
-      try {
-        await markOrderPaidAction(order.id);
-        toast.success("Order marked paid");
-        window.location.reload();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not mark order paid");
-      }
-    });
-  }
-
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div className="flex items-start justify-between gap-4 print:hidden">
@@ -70,8 +57,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
             {order.order_number}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {order.storeName} ·{" "}
-            {format(new Date(order.created_at), "PPpp")}
+            {order.storeName} · {format(new Date(order.created_at), "PPpp")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -79,17 +65,6 @@ export function OrderDetail({ order }: OrderDetailProps) {
             <Printer className="size-4" />
             Print
           </Button>
-          {order.payment_status !== "paid" && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={handleMarkPaid}
-            >
-              <CircleDollarSign className="size-4" />
-              Mark paid
-            </Button>
-          )}
           {order.status === "completed" && (
             <>
               <Button
@@ -115,7 +90,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
 
       <Card className="rounded-2xl shadow-sm print:shadow-none print:ring-0">
         <CardHeader className="text-center">
-          <CardTitle className="text-lg">SweetFlow</CardTitle>
+          <CardTitle className="text-lg">CafeFlow</CardTitle>
           <p className="text-xs text-muted-foreground">{order.storeName}</p>
           <Badge className="mx-auto w-fit" variant="outline">
             {order.status}
@@ -133,10 +108,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
           )}
           <ul className="space-y-2">
             {order.items.map((item) => (
-              <li
-                key={item.id}
-                className="flex justify-between gap-4 text-sm"
-              >
+              <li key={item.id} className="flex justify-between gap-4 text-sm">
                 <span>
                   {item.quantity}× {item.productName}
                 </span>
@@ -172,17 +144,14 @@ export function OrderDetail({ order }: OrderDetailProps) {
           <Separator />
           <div className="space-y-1">
             {order.payments.map((p) => (
-              <div
-                key={p.id}
-                className="flex justify-between text-sm capitalize"
-              >
+              <div key={p.id} className="flex justify-between text-sm capitalize">
                 <span>{p.method}</span>
                 <span className="tabular-nums">{formatCurrency(p.amount)}</span>
               </div>
             ))}
           </div>
           <p className="text-center text-xs text-muted-foreground print:mt-8">
-            Thank you for visiting SweetFlow!
+            Thank you for visiting CafeFlow!
           </p>
         </CardContent>
       </Card>

@@ -3,6 +3,7 @@ import * as storeRepo from "@/lib/repositories/store.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import type { Category, Product } from "@/lib/types";
+import { nextSequentialProductSku } from "@/modules/products/lib/generate-product-sku";
 
 export type ProductInput = Omit<Product, "id" | "org_id" | "updated_at">;
 export type CategoryInput = Omit<Category, "id" | "org_id">;
@@ -37,8 +38,12 @@ function normalizeProductInput(input: ProductInput): ProductInput {
   const unit = input.unit ?? "piece";
   const baseUnit = input.base_unit ?? unit;
   const saleUnit = input.sale_unit ?? unit;
+  const sku = input.sku?.trim() ?? "";
+  const barcode = input.barcode?.trim() || sku;
   return {
     ...input,
+    sku,
+    barcode,
     unit,
     base_unit: baseUnit,
     sale_unit: saleUnit,
@@ -74,8 +79,20 @@ export async function createProduct(
   userId: string
 ): Promise<Product> {
   const stores = await storeRepo.listStores();
+  let resolved = input;
+  if (!input.sku?.trim()) {
+    const products = await catalogRepo.listProducts();
+    const sku = nextSequentialProductSku(products.map((product) => product.sku));
+    resolved = {
+      ...input,
+      sku,
+      barcode: input.barcode?.trim() || sku,
+    };
+  } else if (!input.barcode?.trim()) {
+    resolved = { ...input, barcode: input.sku.trim() };
+  }
   const product = await catalogRepo.createProduct(
-    normalizeProductInput(input),
+    normalizeProductInput(resolved),
     stores.map((s) => s.id)
   );
   const orgId = await getOrgId();

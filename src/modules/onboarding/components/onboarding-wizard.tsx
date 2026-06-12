@@ -29,8 +29,6 @@ const STEPS = [
 const FEATURE_LABELS: Record<OnboardingFeatureKey, string> = {
   recipes: "Recipes & costing",
   variants: "Variants",
-  weight_sales: "Weight sales",
-  wholesale_sales: "Wholesale sales",
   purchases: "Purchases",
   transfers: "Transfers",
   waste: "Waste tracking",
@@ -38,47 +36,25 @@ const FEATURE_LABELS: Record<OnboardingFeatureKey, string> = {
   loyalty: "Loyalty program",
   customer_accounts: "Customer accounts",
   credit_sales: "Credit sales",
-  monthly_closing: "Monthly closing",
   imports_exports: "Imports/exports",
   barcode_scanner: "Barcode scanner",
 };
 
 const DEFAULT_FEATURES = Object.fromEntries(
-  ONBOARDING_FEATURE_KEYS.map((key) => [key, key !== "credit_sales" && key !== "wholesale_sales"])
+  ONBOARDING_FEATURE_KEYS.map((key) => [key, key !== "credit_sales"])
 ) as Record<OnboardingFeatureKey, boolean>;
 const BUSINESS_TYPE_LABELS: Record<BusinessActivityType, string> = {
-  cafe: "Cafe",
+  cafe: "Cafe / takeaway",
   ice_cream: "Ice cream",
-  restaurant: "Restaurant",
-  bakery: "Bakery / patisserie",
   juice_bar: "Juice bar",
-  supermarket: "Supermarket",
-  dairy_meat: "Dairy / meat / fresh food",
-  apparel: "Apparel / fashion",
-  electronics: "Electronics",
-  cosmetics: "Cosmetics",
-  bookstore: "Bookstore / stationery",
-  retail: "General retail",
-  wholesale: "Wholesale",
-  mixed: "Mixed activity",
 };
 
-export function OnboardingWizard({
-  inviteToken,
-  inviteOrgName,
-  inviteOwnerName,
-  inviteOwnerEmail,
-}: {
-  inviteToken: string;
-  inviteOrgName?: string;
-  inviteOwnerName?: string;
-  inviteOwnerEmail?: string;
-}) {
+export function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
 
   const [organization, setOrganization] = useState({
-    name: inviteOrgName ?? "",
+    name: "",
     logoUrl: "",
     currency: "USD",
     timezone: "America/New_York",
@@ -94,11 +70,11 @@ export function OnboardingWizard({
     timezone: "America/New_York",
   });
   const [owner, setOwner] = useState({
-    name: inviteOwnerName ?? "",
-    email: inviteOwnerEmail ?? "",
+    name: "",
+    email: "",
     password: "",
   });
-  const [businessType, setBusinessType] = useState<BusinessActivityType>("retail");
+  const [businessType, setBusinessType] = useState<BusinessActivityType>("cafe");
   const [features, setFeatures] =
     useState<Record<OnboardingFeatureKey, boolean>>(DEFAULT_FEATURES);
   const [defaultSettings, setDefaultSettings] = useState({
@@ -205,7 +181,7 @@ export function OnboardingWizard({
     };
 
     startTransition(async () => {
-      const result = await completeOnboardingAction(payload, inviteToken);
+      const result = await completeOnboardingAction(payload);
       if (result?.error) toast.error(result.error);
     });
   }
@@ -355,7 +331,7 @@ export function OnboardingWizard({
               <Input
                 type="email"
                 value={owner.email}
-                readOnly={Boolean(inviteOwnerEmail)}
+                readOnly={false}
                 onChange={(e) => setOwner({ ...owner, email: e.target.value })}
               />
             </div>

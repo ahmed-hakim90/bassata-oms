@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,9 +21,7 @@ import {
   updateDeviceAction,
 } from "@/modules/system/actions/system.actions";
 import { registerBrowserDeviceAction } from "@/modules/auth/actions/device.actions";
-import { getStoreMenuSlug } from "@/lib/online-menu-path";
 import type { Store, Warehouse } from "@/lib/types";
-import { QrMenuTools } from "@/modules/system/components/settings/qr-menu-tools";
 import { PosSetupGuide } from "@/modules/system/components/settings/pos-setup-guide";
 
 function storeEditDefaults(store: Store) {
@@ -35,7 +32,6 @@ function storeEditDefaults(store: Store) {
     phone: store.phone,
     timezone: store.timezone ?? "",
     isActive: store.is_active,
-    menuSlug: getStoreMenuSlug(store),
   };
 }
 
@@ -54,9 +50,6 @@ interface BranchSettingsTabProps {
 export function BranchSettingsTab({ stores, warehouses, devices }: BranchSettingsTabProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [origin] = useState(() =>
-    typeof window === "undefined" ? "" : window.location.origin
-  );
   const [storeForm, setStoreForm] = useState({
     name: "",
     code: "",
@@ -111,33 +104,8 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-base font-semibold">{store.name}</p>
-                    <p className="text-xs text-muted-foreground">Branch · menu QR · warehouses · POS</p>
+                    <p className="text-xs text-muted-foreground">Branch · warehouses · POS devices</p>
                   </div>
-                  <QrCode className="size-5 shrink-0 text-muted-foreground" />
-                </div>
-
-                <QrMenuTools
-                  store={store}
-                  origin={origin}
-                  menuSlug={storeEdits[store.id]?.menuSlug ?? getStoreMenuSlug(store)}
-                />
-
-                <div className="grid gap-1">
-                  <Label className="text-xs text-muted-foreground">Menu link name</Label>
-                  <Input
-                    value={storeEdits[store.id]?.menuSlug ?? getStoreMenuSlug(store)}
-                    onChange={(e) =>
-                      setStoreEdits({
-                        ...storeEdits,
-                        [store.id]: {
-                          ...(storeEdits[store.id] ?? storeEditDefaults(store)),
-                          menuSlug: e.target.value,
-                        },
-                      })
-                    }
-                    placeholder="e.g. downtown or maadi"
-                    className="text-xs"
-                  />
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">

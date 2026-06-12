@@ -2,23 +2,20 @@ import type { PermissionKey } from "@/lib/constants";
 
 export const SETTINGS_TAB_IDS = [
   "business",
-  "business-activity",
   "branches",
   "pos",
   "expenses",
   "users",
   "features",
-  "souqna",
   "audit",
 ] as const;
 
 export type SettingsTabId = (typeof SETTINGS_TAB_IDS)[number];
 
 export const SETTINGS_GROUPS = [
-  "Organization",
+  "Store",
   "POS",
   "Inventory",
-  "Customers",
   "Security",
   "Advanced",
 ] as const;
@@ -33,23 +30,16 @@ export const SETTINGS_TABS: {
 }[] = [
   {
     id: "business",
-    label: "Company",
+    label: "Store",
     permissions: ["settings_manage"],
-    group: "Organization",
-    searchTerms: ["organization", "company", "branding"],
-  },
-  {
-    id: "business-activity",
-    label: "Branding & Activity",
-    permissions: ["manage_business_activity", "settings_manage"],
-    group: "Organization",
-    searchTerms: ["business activity", "templates", "branding"],
+    group: "Store",
+    searchTerms: ["store", "company", "branding", "logo", "currency"],
   },
   {
     id: "branches",
     label: "Branches & Devices",
     permissions: ["settings_manage"],
-    group: "Organization",
+    group: "Store",
     searchTerms: ["branches", "stores", "devices", "terminals"],
   },
   {
@@ -64,7 +54,7 @@ export const SETTINGS_TABS: {
     label: "Units, Transfers & Expenses",
     permissions: ["settings_manage", "cost_center_manage"],
     group: "Inventory",
-    searchTerms: ["units", "transfers", "expenses", "cost centers"],
+    searchTerms: ["units", "transfers", "expenses", "categories"],
   },
   {
     id: "users",
@@ -79,13 +69,6 @@ export const SETTINGS_TABS: {
     permissions: ["settings_manage"],
     group: "Advanced",
     searchTerms: ["feature flags", "flags", "toggles"],
-  },
-  {
-    id: "souqna",
-    label: "Integrations",
-    permissions: ["settings_manage"],
-    group: "Advanced",
-    searchTerms: ["integration", "souqna", "api", "webhook"],
   },
   {
     id: "audit",

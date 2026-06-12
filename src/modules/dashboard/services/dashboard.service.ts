@@ -55,29 +55,6 @@ export interface LowStockItem {
   reorderPoint: number;
 }
 
-export async function getSouqnaDashboardData(storeId: string) {
-  const { countPendingSouqnaOrders, listRecentSouqnaOrders } = await import(
-    "@/lib/repositories/souqna.repository"
-  );
-  const { getFeatureFlags, getSouqnaIntegrationSettings } = await import(
-    "@/modules/system/services/settings.service"
-  );
-  const [flags, settings] = await Promise.all([
-    getFeatureFlags(),
-    getSouqnaIntegrationSettings(),
-  ]);
-  if (flags.souqna_integration === false || !settings.enable_souqna_channel) {
-    return { pendingCount: 0, recentOrders: [] as Awaited<ReturnType<typeof listRecentSouqnaOrders>> };
-  }
-  if (settings.allowed_store_id && settings.allowed_store_id !== storeId) {
-    return { pendingCount: 0, recentOrders: [] };
-  }
-  const [pendingCount, recentOrders] = await Promise.all([
-    countPendingSouqnaOrders(storeId),
-    listRecentSouqnaOrders(storeId, 5),
-  ]);
-  return { pendingCount, recentOrders };
-}
 
 export async function getLowStock(storeId: string): Promise<LowStockItem[]> {
   const rawLevels = await inventoryRepo.listStockLevels(storeId);

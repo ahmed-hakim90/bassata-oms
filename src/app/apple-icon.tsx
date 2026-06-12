@@ -8,7 +8,7 @@ export default function AppleIcon() {
     (
       <div
         style={{
-          background: "#2563EB",
+          background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
           width: "100%",
           height: "100%",
           display: "flex",
@@ -18,18 +18,20 @@ export default function AppleIcon() {
         }}
       >
         <svg
-          width="112"
-          height="112"
+          width="108"
+          height="108"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="#FFFFFF"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
         >
-          <path d="m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11" />
-          <path d="M17 7A5 5 0 0 0 7 7" />
-          <path d="M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4" />
+          <path d="M17 7A5 5 0 0 0 7 7" fill="#FFFFFF" />
+          <path d="M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4" fill="#FFFFFF" />
+          <path
+            d="m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11"
+            stroke="#FFFFFF"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </div>
     ),

@@ -62,12 +62,11 @@ const admin = createClient(url, serviceKey, {
 });
 
 const USERS = [
-  { appId: "00000000-0000-4000-8000-000000000201", email: "owner@SweetFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000202", email: "manager@SweetFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000203", email: "cashier1@SweetFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000204", email: "cashier2@SweetFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000205", email: "inventory@SweetFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000206", email: "viewer@SweetFlow.local", password: "demo1234" },
+  { appId: "00000000-0000-4000-8000-000000000201", email: "owner@CafeFlow.local", password: "demo1234" },
+  { appId: "00000000-0000-4000-8000-000000000202", email: "manager@CafeFlow.local", password: "demo1234" },
+  { appId: "00000000-0000-4000-8000-000000000203", email: "cashier1@CafeFlow.local", password: "demo1234" },
+  { appId: "00000000-0000-4000-8000-000000000204", email: "cashier2@CafeFlow.local", password: "demo1234" },
+  { appId: "00000000-0000-4000-8000-000000000205", email: "inventory@CafeFlow.local", password: "demo1234" },
 ];
 
 async function main() {

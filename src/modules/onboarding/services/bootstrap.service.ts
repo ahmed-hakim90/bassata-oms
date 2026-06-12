@@ -1,4 +1,4 @@
-import { slugifyBranchName } from "@/lib/online-menu-path";
+import { slugifyBranchName } from "@/lib/slugify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   mapBusinessTypeToActivity,

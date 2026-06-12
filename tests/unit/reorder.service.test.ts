@@ -21,7 +21,6 @@ const baseLevel: StockLevelView = {
     base_price: 0,
     description: "",
     sale_price: null,
-    publish_to_souqna: false,
     updated_at: new Date().toISOString(),
     image_url: null,
     is_active: true,

@@ -9,8 +9,6 @@ import {
 export const ONBOARDING_FEATURE_KEYS = [
   "recipes",
   "variants",
-  "weight_sales",
-  "wholesale_sales",
   "purchases",
   "transfers",
   "waste",
@@ -18,7 +16,6 @@ export const ONBOARDING_FEATURE_KEYS = [
   "loyalty",
   "customer_accounts",
   "credit_sales",
-  "monthly_closing",
   "imports_exports",
   "barcode_scanner",
 ] as const;
@@ -78,8 +75,6 @@ export const onboardingPayloadSchema = z.object({
   features: z.object({
     recipes: z.boolean(),
     variants: z.boolean(),
-    weight_sales: z.boolean(),
-    wholesale_sales: z.boolean(),
     purchases: z.boolean(),
     transfers: z.boolean(),
     waste: z.boolean(),
@@ -87,7 +82,6 @@ export const onboardingPayloadSchema = z.object({
     loyalty: z.boolean(),
     customer_accounts: z.boolean(),
     credit_sales: z.boolean(),
-    monthly_closing: z.boolean(),
     imports_exports: z.boolean(),
     barcode_scanner: z.boolean(),
   }),
@@ -108,9 +102,6 @@ export function mapOnboardingFeaturesToFlags(
 ): Partial<Record<(typeof FEATURE_FLAGS)[number], boolean>> {
   return {
     recipes: features.recipes,
-    fixed_weight_variants: features.variants,
-    weight_sales: features.weight_sales,
-    wholesale_sales: features.wholesale_sales,
     purchases: features.purchases,
     transfers: features.transfers,
     waste: features.waste,
@@ -118,7 +109,6 @@ export function mapOnboardingFeaturesToFlags(
     loyalty: features.loyalty,
     customer_discounts: features.customer_accounts,
     credit_sales: features.credit_sales,
-    monthly_closing: features.monthly_closing,
     imports_exports: features.imports_exports,
     barcode_scanner: features.barcode_scanner,
   };

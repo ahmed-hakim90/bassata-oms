@@ -91,10 +91,10 @@ export function ReportsDashboard({
 
   return (
     <>
-      <PageHeader
-        title="Reports"
-        description={`Executive insights across ${days} days`}
-      />
+      <div className="mb-2">
+        <h2 className="text-lg font-semibold">Executive overview</h2>
+        <p className="text-sm text-muted-foreground">{`KPIs across ${days} days`}</p>
+      </div>
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <div className="flex gap-2">
           {[7, 30, 90].map((value) => (

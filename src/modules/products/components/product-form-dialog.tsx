@@ -31,6 +31,7 @@ import {
 import { RecipeEditor } from "./recipe-editor";
 import { VariantEditor } from "./variant-editor";
 import { GuidedProductDetailsForm } from "@/modules/products/components/guided-product-details-form";
+import { nextSequentialProductSku } from "@/modules/products/lib/generate-product-sku";
 import { toast } from "sonner";
 
 const productSchema = z.object({
@@ -42,7 +43,6 @@ const productSchema = z.object({
   base_price: z.number().min(0),
   description: z.string(),
   sale_price: z.number().min(0).nullable(),
-  publish_to_souqna: z.boolean(),
   is_active: z.boolean(),
   is_popular: z.boolean(),
   track_inventory: z.boolean(),
@@ -70,12 +70,11 @@ interface ProductFormDialogProps {
   categories: Category[];
   product?: Product | null;
   recipesEnabled?: boolean;
-  souqnaEnabled?: boolean;
-  defaultPublishToSouqna?: boolean;
   productTemplates: ProductTemplateSettings;
   businessActivitySettings: BusinessActivitySettings;
   onSaved?: () => void;
   currency?: string;
+  existingSkus?: string[];
 }
 
 export function ProductFormDialog({
@@ -84,12 +83,11 @@ export function ProductFormDialog({
   categories,
   product,
   recipesEnabled = false,
-  souqnaEnabled = false,
-  defaultPublishToSouqna = false,
   productTemplates,
   businessActivitySettings,
   onSaved,
   currency = "USD",
+  existingSkus = [],
 }: ProductFormDialogProps) {
   const isEdit = Boolean(product);
 
@@ -104,7 +102,6 @@ export function ProductFormDialog({
       base_price: 0,
       description: "",
       sale_price: null,
-      publish_to_souqna: defaultPublishToSouqna,
       is_active: true,
       is_popular: false,
       track_inventory: true,
@@ -153,7 +150,6 @@ export function ProductFormDialog({
         base_price: product.base_price,
         description: product.description,
         sale_price: product.sale_price,
-        publish_to_souqna: product.publish_to_souqna,
         is_active: product.is_active,
         is_popular: product.is_popular,
         track_inventory: product.track_inventory,
@@ -182,7 +178,6 @@ export function ProductFormDialog({
         base_price: 0,
         description: "",
         sale_price: null,
-        publish_to_souqna: defaultPublishToSouqna,
         is_active: true,
         is_popular: false,
         track_inventory: true,
@@ -208,13 +203,20 @@ export function ProductFormDialog({
     product,
     categories,
     form,
-    defaultPublishToSouqna,
     productTemplates,
     businessActivitySettings.activity_type,
     applyActivityTemplate,
   ]);
 
   const productType = useWatch({ control: form.control, name: "product_type" });
+
+  useEffect(() => {
+    if (!open || isEdit) return;
+    const sku = nextSequentialProductSku(existingSkus);
+    form.setValue("sku", sku, { shouldValidate: false });
+    form.setValue("barcode", sku, { shouldValidate: false });
+  }, [open, isEdit, existingSkus, form]);
+
   const showRecipeTab =
     recipesEnabled &&
     isEdit &&
@@ -274,12 +276,11 @@ export function ProductFormDialog({
             <GuidedProductDetailsForm
               form={form}
               categories={categories}
-              souqnaEnabled={souqnaEnabled}
               isEdit={isEdit}
               currency={currency}
               activityType={businessActivitySettings.activity_type}
               onCancel={() => onOpenChange(false)}
-              onSubmit={form.handleSubmit(onSubmit)}
+              onSubmit={onSubmit}
               onApplyActivityTemplate={!isEdit ? applyActivityTemplate : undefined}
             />
           </TabsContent>

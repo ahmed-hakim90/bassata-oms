@@ -1,18 +1,17 @@
-export const APP_NAME = "SweetFlow POS";
+export const APP_NAME = "CafeFlow ERP & POS";
 
-export const ROLES = ["owner", "manager", "cashier", "inventory", "viewer"] as const;
+export const ROLES = ["owner", "manager", "cashier", "inventory"] as const;
 export type UserRole = (typeof ROLES)[number];
 
 export const ORDER_STATUSES = ["open", "completed", "voided", "refunded"] as const;
-export const ONLINE_ORDER_STATUSES = [
-  "pending",
-  "accepted",
-  "preparing",
-  "ready",
-  "cancelled",
-  "invoiced",
-] as const;
 export const PAYMENT_METHODS = ["cash", "card", "wallet", "other", "credit"] as const;
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  owner: "Owner",
+  manager: "Manager",
+  cashier: "Cashier",
+  inventory: "Store Keeper",
+};
 export const SESSION_STATUSES = ["open", "closed"] as const;
 export const SESSION_LIFECYCLE_STATES = ["open", "warning", "expired_locked"] as const;
 export type SessionLifecycleState = (typeof SESSION_LIFECYCLE_STATES)[number];
@@ -68,7 +67,6 @@ export const PERMISSIONS = [
   "order_view",
   "order_void",
   "order_refund",
-  "online_order_manage",
   // Products
   "product_manage",
   "recipe_manage",
@@ -94,40 +92,26 @@ export const PERMISSIONS = [
   // Reports
   "reports_view",
   "costs_view",
+  "reports_print",
+  "reports_export_excel",
+  "reports_export_pdf",
+  "financial_reports_view",
+  "profit_reports_view",
+  "customer_statement_view",
+  "supplier_statement_view",
+  "barcode_label_print",
   // System
   "settings_manage",
   "user_manage",
   "audit_view",
   "imports_exports",
-  "monthly_closing_manage",
-  "monthly_closing_reopen",
-  "wholesale_sale",
-  "price_by_amount_sale",
-  "weight_sale",
-  "manage_business_activity",
-  "manage_price_tiers",
 ] as const;
 export type PermissionKey = (typeof PERMISSIONS)[number];
 
-export const BUSINESS_ACTIVITY_TYPES = [
-  "cafe",
-  "ice_cream",
-  "restaurant",
-  "bakery",
-  "juice_bar",
-  "supermarket",
-  "dairy_meat",
-  "apparel",
-  "electronics",
-  "cosmetics",
-  "bookstore",
-  "retail",
-  "wholesale",
-  "mixed",
-] as const;
+export const BUSINESS_ACTIVITY_TYPES = ["cafe", "ice_cream", "juice_bar"] as const;
 export type BusinessActivityType = (typeof BUSINESS_ACTIVITY_TYPES)[number];
 
-export const SALES_MODES = ["retail", "wholesale"] as const;
+export const SALES_MODES = ["retail"] as const;
 export type SalesMode = (typeof SALES_MODES)[number];
 
 export const PRODUCT_SALES_UNIT_TYPES = [
@@ -153,7 +137,8 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/": "order_view",
   "/pos": "pos_access",
   "/orders": "order_view",
-  "/orders/online": "online_order_manage",
+  "/devices": "settings_manage",
+  "/inventory/warehouses": "settings_manage",
   "/products": "product_manage",
   "/inventory": "inventory_view",
   "/inventory/purchases": "purchase_manage",
@@ -167,8 +152,12 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/customers": "customer_manage",
   "/customers/loyalty": "loyalty_manage",
   "/reports": "reports_view",
-  "/monthly-closing": "monthly_closing_manage",
-  "/imports-exports": "imports_exports",
+  "/reports/sales": "reports_view",
+  "/reports/sessions": "reports_view",
+  "/reports/profit": "profit_reports_view",
+  "/reports/inventory": "inventory_view",
+  "/reports/expenses": "financial_reports_view",
+  "/labels": "barcode_label_print",
   "/settings": [
     "settings_manage",
     "session_settings_manage",
@@ -176,10 +165,8 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
     "cost_center_manage",
     "audit_view",
   ],
-  "/settings/cost-centers": "cost_center_manage",
   "/users": "user_manage",
   "/audit": "audit_view",
-  "/organization": "settings_manage",
 };
 
 export const PRODUCT_TYPES = [
@@ -231,7 +218,52 @@ export const SHELF_LIFE_UNITS = ["days", "months", "years"] as const;
 export type ShelfLifeUnit = (typeof SHELF_LIFE_UNITS)[number];
 
 export function canViewCosts(role: UserRole, permissions?: Set<PermissionKey>): boolean {
-  if (permissions?.has("costs_view")) return true;
+  return canViewProfitReports(role, permissions);
+}
+
+export function canViewProfitReports(
+  role: UserRole,
+  permissions?: Set<PermissionKey>
+): boolean {
+  if (permissions?.has("profit_reports_view") || permissions?.has("costs_view")) return true;
+  return role === "owner" || role === "manager";
+}
+
+export function canViewFinancialReports(
+  role: UserRole,
+  permissions?: Set<PermissionKey>
+): boolean {
+  if (
+    permissions?.has("financial_reports_view") ||
+    permissions?.has("profit_reports_view") ||
+    permissions?.has("costs_view")
+  ) {
+    return true;
+  }
+  return role === "owner" || role === "manager";
+}
+
+export function canPrintReports(
+  role: UserRole,
+  permissions?: Set<PermissionKey>
+): boolean {
+  if (permissions?.has("reports_print")) return true;
+  return role === "owner" || role === "manager";
+}
+
+export function canExportExcel(
+  role: UserRole,
+  permissions?: Set<PermissionKey>
+): boolean {
+  if (permissions?.has("reports_export_excel")) return true;
+  return role === "owner" || role === "manager";
+}
+
+export function canExportPdf(
+  role: UserRole,
+  permissions?: Set<PermissionKey>
+): boolean {
+  if (permissions?.has("reports_export_pdf")) return true;
   return role === "owner" || role === "manager";
 }
 
@@ -240,12 +272,14 @@ export const NAV_GROUPS = [
     label: "Dashboard",
     items: [
       { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
+      { label: "User Guide", href: "/guide", icon: "BookOpen" },
     ],
   },
   {
     label: "Sales",
     items: [
       { label: "POS", href: "/pos/start", icon: "ShoppingCart" },
+      { label: "POS Devices", href: "/devices", icon: "MonitorSmartphone" },
       { label: "Orders", href: "/orders", icon: "Receipt" },
       { label: "Sessions", href: "/sessions", icon: "Clock" },
     ],
@@ -255,6 +289,7 @@ export const NAV_GROUPS = [
     items: [
       { label: "Products", href: "/products", icon: "Package" },
       { label: "Stock", href: "/inventory", icon: "Warehouse" },
+      { label: "Warehouses", href: "/inventory/warehouses", icon: "Warehouse" },
       { label: "Purchases", href: "/inventory/purchases", icon: "Truck" },
       { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
       { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
@@ -272,17 +307,19 @@ export const NAV_GROUPS = [
     label: "Accounting",
     items: [
       { label: "Expenses", href: "/expenses", icon: "Wallet" },
-      { label: "Cost Centers", href: "/settings/cost-centers", icon: "Landmark" },
       { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
     ],
   },
   {
     label: "Reports",
     items: [
-      { label: "Sales", href: "/reports", icon: "BarChart3" },
-      { label: "Inventory", href: "/inventory/movements", icon: "Warehouse" },
-      { label: "Customers", href: "/customers", icon: "Users" },
-      { label: "Accounting", href: "/expenses", icon: "Wallet" },
+      { label: "Overview", href: "/reports", icon: "BarChart3" },
+      { label: "Sales", href: "/reports/sales", icon: "TrendingUp" },
+      { label: "Sessions", href: "/reports/sessions", icon: "Clock" },
+      { label: "Profit", href: "/reports/profit", icon: "CircleDollarSign" },
+      { label: "Inventory", href: "/reports/inventory", icon: "Warehouse" },
+      { label: "Expenses", href: "/reports/expenses", icon: "Wallet" },
+      { label: "Barcode Labels", href: "/labels", icon: "Barcode" },
     ],
   },
   {
@@ -306,7 +343,6 @@ export const FEATURE_FLAGS = [
   "customer_discounts",
   "reports",
   "imports_exports",
-  "monthly_closing",
   "cash_drawer",
   "dark_mode",
   "tax",
@@ -323,15 +359,6 @@ export const FEATURE_FLAGS = [
   "waste",
   "recipes",
   "credit_sales",
-  "online_menu",
-  "online_orders",
-  "souqna_integration",
-  "supermarket_mode",
-  "weight_sales",
-  "price_by_amount",
-  "wholesale_sales",
-  "product_price_tiers",
-  "fixed_weight_variants",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -361,7 +388,6 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   customer_discounts: false,
   reports: true,
   imports_exports: true,
-  monthly_closing: true,
   cash_drawer: false,
   dark_mode: true,
   tax: true,
@@ -376,21 +402,12 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   transfers: true,
   purchases: true,
   waste: true,
-  recipes: false,
+  recipes: true,
   credit_sales: false,
-  online_menu: true,
-  online_orders: true,
-  souqna_integration: false,
-  supermarket_mode: false,
-  weight_sales: false,
-  price_by_amount: false,
-  wholesale_sales: false,
-  product_price_tiers: false,
-  fixed_weight_variants: false,
 };
 
 export const DEFAULT_BUSINESS_ACTIVITY_SETTINGS = {
-  activity_type: "retail" as BusinessActivityType,
+  activity_type: "cafe" as BusinessActivityType,
   enabled_sales_modes: ["retail"] as SalesMode[],
   default_sales_mode: "retail" as SalesMode,
   enable_weight_sales: false,
@@ -403,9 +420,9 @@ export const DEFAULT_BUSINESS_ACTIVITY_SETTINGS = {
   auto_apply_wholesale_by_quantity: false,
   default_inventory_tracking_mode: "standard" as InventoryTrackingMode,
   default_inventory_rotation_method: "FIFO" as InventoryRotationMethod,
-  default_expiry_policy: "block_sale" as ExpiryPolicy,
-  enable_batch_tracking: false,
-  enable_expiry_tracking: false,
+  default_expiry_policy: "warn_only" as ExpiryPolicy,
+  enable_batch_tracking: true,
+  enable_expiry_tracking: true,
   enable_serial_tracking: false,
   expiry_alert_days: [7, 14, 30] as number[],
 };
@@ -558,7 +575,6 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
   },
   ice_cream: {
     activity_type: "ice_cream",
@@ -575,41 +591,7 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
-  },
-  restaurant: {
-    activity_type: "restaurant",
-    enabled_sales_modes: ["retail"],
-    default_sales_mode: "retail",
-    enable_weight_sales: false,
-    enable_piece_sales: true,
-    enable_wholesale_sales: false,
-    enable_variants: true,
-    enable_price_by_amount: false,
-    default_inventory_tracking_mode: "batch_and_expiry",
-    default_inventory_rotation_method: "FEFO",
-    default_expiry_policy: "block_sale",
-    enable_batch_tracking: true,
-    enable_expiry_tracking: true,
-    enable_serial_tracking: false,
-    featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false },
-  },
-  bakery: {
-    activity_type: "bakery",
-    enabled_sales_modes: ["retail"],
-    default_sales_mode: "retail",
-    enable_weight_sales: false,
-    enable_piece_sales: true,
-    enable_wholesale_sales: false,
-    enable_variants: true,
-    enable_price_by_amount: false,
-    default_inventory_tracking_mode: "batch_and_expiry",
-    default_inventory_rotation_method: "FEFO",
-    default_expiry_policy: "warn_only",
-    enable_batch_tracking: true,
-    enable_expiry_tracking: true,
-    enable_serial_tracking: false,
-    featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false, recipes: true },
+    featureFlags: { recipes: true },
   },
   juice_bar: {
     activity_type: "juice_bar",
@@ -626,192 +608,7 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { weight_sales: false, wholesale_sales: false, supermarket_mode: false, recipes: true },
-  },
-  supermarket: {
-    activity_type: "supermarket",
-    enabled_sales_modes: ["retail", "wholesale"],
-    default_sales_mode: "retail",
-    enable_weight_sales: true,
-    enable_piece_sales: true,
-    enable_wholesale_sales: true,
-    enable_variants: true,
-    enable_price_by_amount: true,
-    allow_cashier_wholesale: true,
-    require_manager_for_wholesale: false,
-    auto_apply_wholesale_by_quantity: true,
-    default_inventory_tracking_mode: "batch_and_expiry",
-    default_inventory_rotation_method: "FEFO",
-    default_expiry_policy: "block_sale",
-    enable_batch_tracking: true,
-    enable_expiry_tracking: true,
-    enable_serial_tracking: false,
-    featureFlags: {
-      supermarket_mode: true,
-      weight_sales: true,
-      price_by_amount: true,
-      wholesale_sales: true,
-      product_price_tiers: true,
-      fixed_weight_variants: true,
-      barcode_scanner: true,
-    },
-  },
-  dairy_meat: {
-    activity_type: "dairy_meat",
-    enabled_sales_modes: ["retail"],
-    default_sales_mode: "retail",
-    enable_weight_sales: true,
-    enable_piece_sales: true,
-    enable_wholesale_sales: false,
-    enable_variants: true,
-    enable_price_by_amount: true,
-    default_inventory_tracking_mode: "batch_and_expiry",
-    default_inventory_rotation_method: "FEFO",
-    default_expiry_policy: "block_sale",
-    enable_batch_tracking: true,
-    enable_expiry_tracking: true,
-    enable_serial_tracking: false,
-    featureFlags: {
-      weight_sales: true,
-      price_by_amount: true,
-      fixed_weight_variants: true,
-      supermarket_mode: false,
-    },
-  },
-  apparel: {
-    activity_type: "apparel",
-    enabled_sales_modes: ["retail"],
-    default_sales_mode: "retail",
-    enable_weight_sales: false,
-    enable_piece_sales: true,
-    enable_wholesale_sales: false,
-    enable_variants: true,
-    enable_price_by_amount: false,
-    default_inventory_tracking_mode: "standard",
-    default_inventory_rotation_method: "FIFO",
-    default_expiry_policy: "warn_only",
-    enable_batch_tracking: false,
-    enable_expiry_tracking: false,
-    enable_serial_tracking: false,
-    featureFlags: { supermarket_mode: false, fixed_weight_variants: false },
-  },
-  electronics: {
-    activity_type: "electronics",
-    enabled_sales_modes: ["retail"],
-    default_sales_mode: "retail",
-    enable_weight_sales: false,
-    enable_piece_sales: true,
-    enable_wholesale_sales: false,
-    enable_variants: true,
-    enable_price_by_amount: false,
-    default_inventory_tracking_mode: "serial_number",
-    default_inventory_rotation_method: "FIFO",
-    default_expiry_policy: "warn_only",
-    enable_batch_tracking: false,
-    enable_expiry_tracking: false,
-    enable_serial_tracking: true,
-    featureFlags: { supermarket_mode: false },
-  },
-  cosmetics: {
-    activity_type: "cosmetics",
-    enabled_sales_modes: ["retail"],
-    default_sales_mode: "retail",
-    enable_weight_sales: false,
-    enable_piece_sales: true,
-    enable_wholesale_sales: false,
-    enable_variants: true,
-    enable_price_by_amount: false,
-    default_inventory_tracking_mode: "batch_and_expiry",
-    default_inventory_rotation_method: "FEFO",
-    default_expiry_policy: "warn_only",
-    enable_batch_tracking: true,
-    enable_expiry_tracking: true,
-    enable_serial_tracking: false,
-    featureFlags: { supermarket_mode: false },
-  },
-  bookstore: {
-    activity_type: "bookstore",
-    enabled_sales_modes: ["retail"],
-    default_sales_mode: "retail",
-    enable_weight_sales: false,
-    enable_piece_sales: true,
-    enable_wholesale_sales: false,
-    enable_variants: true,
-    enable_price_by_amount: false,
-    default_inventory_tracking_mode: "standard",
-    default_inventory_rotation_method: "FIFO",
-    default_expiry_policy: "warn_only",
-    enable_batch_tracking: false,
-    enable_expiry_tracking: false,
-    enable_serial_tracking: false,
-    featureFlags: { supermarket_mode: false },
-  },
-  retail: {
-    activity_type: "retail",
-    enabled_sales_modes: ["retail"],
-    default_sales_mode: "retail",
-    enable_weight_sales: false,
-    enable_piece_sales: true,
-    enable_wholesale_sales: false,
-    enable_variants: true,
-    enable_price_by_amount: false,
-    default_inventory_tracking_mode: "standard",
-    default_inventory_rotation_method: "FIFO",
-    default_expiry_policy: "warn_only",
-    enable_batch_tracking: false,
-    enable_expiry_tracking: false,
-    enable_serial_tracking: true,
-    featureFlags: { supermarket_mode: false },
-  },
-  wholesale: {
-    activity_type: "wholesale",
-    enabled_sales_modes: ["retail", "wholesale"],
-    default_sales_mode: "wholesale",
-    enable_weight_sales: true,
-    enable_piece_sales: true,
-    enable_wholesale_sales: true,
-    enable_variants: true,
-    enable_price_by_amount: false,
-    allow_cashier_wholesale: true,
-    require_manager_for_wholesale: false,
-    auto_apply_wholesale_by_quantity: true,
-    default_inventory_tracking_mode: "batch",
-    default_inventory_rotation_method: "FIFO",
-    default_expiry_policy: "warn_only",
-    enable_batch_tracking: true,
-    enable_expiry_tracking: false,
-    enable_serial_tracking: true,
-    featureFlags: {
-      wholesale_sales: true,
-      product_price_tiers: true,
-      weight_sales: true,
-    },
-  },
-  mixed: {
-    activity_type: "mixed",
-    enabled_sales_modes: ["retail", "wholesale"],
-    default_sales_mode: "retail",
-    enable_weight_sales: true,
-    enable_piece_sales: true,
-    enable_wholesale_sales: true,
-    enable_variants: true,
-    enable_price_by_amount: true,
-    allow_cashier_wholesale: true,
-    require_manager_for_wholesale: false,
-    auto_apply_wholesale_by_quantity: true,
-    default_inventory_tracking_mode: "standard",
-    default_inventory_rotation_method: "FIFO",
-    default_expiry_policy: "warn_only",
-    enable_batch_tracking: true,
-    enable_expiry_tracking: true,
-    enable_serial_tracking: true,
-    featureFlags: {
-      weight_sales: true,
-      price_by_amount: true,
-      wholesale_sales: true,
-      product_price_tiers: true,
-      fixed_weight_variants: true,
-    },
+    featureFlags: { recipes: true },
   },
 };
 
@@ -856,44 +653,6 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       inventory_tracking_mode: "standard",
     },
   }),
-  restaurant: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "batch_and_expiry",
-      inventory_rotation_method: "FEFO",
-      expiry_policy: "block_sale",
-      expiry_tracking_enabled: true,
-      shelf_life_value: 1,
-    },
-    supermarket_weight_product: {
-      shelf_life_value: 2,
-      allow_price_input: false,
-    },
-    restaurant_ingredient: {
-      shelf_life_value: 7,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "standard",
-    },
-  }),
-  bakery: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "batch_and_expiry",
-      inventory_rotation_method: "FEFO",
-      expiry_policy: "warn_only",
-      expiry_tracking_enabled: true,
-      shelf_life_value: 2,
-    },
-    supermarket_weight_product: {
-      shelf_life_value: 1,
-      allow_price_input: false,
-    },
-    restaurant_ingredient: {
-      shelf_life_value: 14,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "standard",
-    },
-  }),
   juice_bar: productTemplateSet({
     retail_product: {
       inventory_tracking_mode: "batch_and_expiry",
@@ -913,197 +672,4 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       inventory_tracking_mode: "standard",
     },
   }),
-  supermarket: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "batch_and_expiry",
-      inventory_rotation_method: "FEFO",
-      expiry_policy: "block_sale",
-      expiry_tracking_enabled: true,
-      shelf_life_value: 30,
-    },
-    supermarket_weight_product: {
-      allow_price_input: true,
-      wholesale_enabled: true,
-      shelf_life_value: 7,
-    },
-    restaurant_ingredient: {
-      shelf_life_value: 14,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "batch",
-      wholesale_enabled: true,
-    },
-  }),
-  dairy_meat: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "batch_and_expiry",
-      inventory_rotation_method: "FEFO",
-      expiry_policy: "block_sale",
-      expiry_tracking_enabled: true,
-      shelf_life_value: 5,
-      allow_fractional_quantity: true,
-    },
-    supermarket_weight_product: {
-      inventory_tracking_mode: "batch_and_expiry",
-      inventory_rotation_method: "FEFO",
-      expiry_policy: "block_sale",
-      expiry_tracking_enabled: true,
-      allow_price_input: true,
-      shelf_life_value: 3,
-    },
-    restaurant_ingredient: {
-      shelf_life_value: 3,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "standard",
-    },
-  }),
-  apparel: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "standard",
-      inventory_rotation_method: "FIFO",
-      expiry_policy: "warn_only",
-      expiry_tracking_enabled: false,
-      shelf_life_value: 0,
-    },
-    supermarket_weight_product: {
-      inventory_tracking_mode: "standard",
-      inventory_rotation_method: "FIFO",
-      expiry_tracking_enabled: false,
-      shelf_life_value: 0,
-      allow_price_input: false,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "standard",
-    },
-  }),
-  electronics: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "serial_number",
-      inventory_rotation_method: "FIFO",
-      expiry_policy: "warn_only",
-      expiry_tracking_enabled: false,
-      shelf_life_value: 0,
-    },
-    supermarket_weight_product: {
-      inventory_tracking_mode: "serial_number",
-      inventory_rotation_method: "FIFO",
-      expiry_tracking_enabled: false,
-      shelf_life_value: 0,
-      allow_price_input: false,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "standard",
-    },
-  }),
-  cosmetics: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "batch_and_expiry",
-      inventory_rotation_method: "FEFO",
-      expiry_policy: "warn_only",
-      expiry_tracking_enabled: true,
-      shelf_life_value: 365,
-    },
-    supermarket_weight_product: {
-      inventory_tracking_mode: "batch_and_expiry",
-      inventory_rotation_method: "FEFO",
-      expiry_policy: "warn_only",
-      expiry_tracking_enabled: true,
-      shelf_life_value: 365,
-      allow_price_input: false,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "standard",
-    },
-  }),
-  bookstore: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "standard",
-      inventory_rotation_method: "FIFO",
-      expiry_policy: "warn_only",
-      expiry_tracking_enabled: false,
-      shelf_life_value: 0,
-    },
-    supermarket_weight_product: {
-      inventory_tracking_mode: "standard",
-      inventory_rotation_method: "FIFO",
-      expiry_tracking_enabled: false,
-      shelf_life_value: 0,
-      allow_price_input: false,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "standard",
-    },
-  }),
-  retail: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "standard",
-      inventory_rotation_method: "FIFO",
-      expiry_policy: "warn_only",
-      expiry_tracking_enabled: false,
-      shelf_life_value: 0,
-    },
-    supermarket_weight_product: {
-      inventory_tracking_mode: "standard",
-      inventory_rotation_method: "FIFO",
-      expiry_tracking_enabled: false,
-      shelf_life_value: 0,
-      allow_price_input: false,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "standard",
-    },
-  }),
-  wholesale: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "batch",
-      inventory_rotation_method: "FIFO",
-      expiry_policy: "warn_only",
-      wholesale_enabled: true,
-    },
-    supermarket_weight_product: {
-      inventory_tracking_mode: "batch",
-      inventory_rotation_method: "FIFO",
-      expiry_tracking_enabled: false,
-      expiry_policy: "warn_only",
-      allow_price_input: false,
-      wholesale_enabled: true,
-      shelf_life_value: 0,
-    },
-    restaurant_ingredient: {
-      inventory_tracking_mode: "batch",
-      inventory_rotation_method: "FIFO",
-      expiry_tracking_enabled: false,
-      expiry_policy: "warn_only",
-      wholesale_enabled: true,
-      shelf_life_value: 0,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "batch",
-      wholesale_enabled: true,
-    },
-  }),
-  mixed: productTemplateSet({
-    retail_product: {
-      inventory_tracking_mode: "standard",
-      expiry_policy: "warn_only",
-    },
-    supermarket_weight_product: {
-      allow_price_input: true,
-      wholesale_enabled: true,
-      shelf_life_value: 7,
-    },
-    restaurant_ingredient: {
-      shelf_life_value: 7,
-    },
-    ice_cream_ingredient: {
-      shelf_life_value: 30,
-    },
-    packaging_material: {
-      inventory_tracking_mode: "batch",
-    },
-  }),
 };
-
-export const ONLINE_ORDER_SOURCES = ["qr_menu", "souqna"] as const;
-export type OnlineOrderSource = (typeof ONLINE_ORDER_SOURCES)[number];

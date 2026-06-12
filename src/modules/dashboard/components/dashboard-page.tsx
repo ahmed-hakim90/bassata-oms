@@ -7,7 +7,6 @@ import {
   getLiveStats,
   getLowStock,
   getRecentOrders,
-  getSouqnaDashboardData,
   getTopProducts,
 } from "@/modules/dashboard/services/dashboard.service";
 import { LiveSalesPulse } from "@/modules/dashboard/components/live-sales-pulse";
@@ -15,7 +14,6 @@ import { QuickActionsBar } from "@/modules/dashboard/components/quick-actions-ba
 import { ActiveSessionsWidget } from "@/modules/dashboard/components/active-sessions-widget";
 import { RecentOrdersFeed } from "@/modules/dashboard/components/recent-orders-feed";
 import { TopProductsRanking } from "@/modules/dashboard/components/top-products-ranking";
-import { SouqnaOrdersWidget } from "@/modules/dashboard/components/souqna-orders-widget";
 import { formatCurrency } from "@/lib/format";
 import { listStockLevels, listInventoryBatches } from "@/lib/repositories/inventory.repository";
 import { listProducts } from "@/lib/repositories/catalog.repository";
@@ -24,14 +22,13 @@ export async function DashboardPage() {
   const storeId = await getValidatedActiveStoreId();
   const org = await orgRepo.getOrganization();
 
-  const [stats, lowStock, recentOrders, topProducts, activeSessions, souqnaData, stockLevels, batches, products] =
+  const [stats, lowStock, recentOrders, topProducts, activeSessions, stockLevels, batches, products] =
     await Promise.all([
       getLiveStats(storeId),
       getLowStock(storeId),
       getRecentOrders(storeId),
       getTopProducts(storeId),
       getActiveSessions(storeId),
-      getSouqnaDashboardData(storeId),
       listStockLevels(storeId),
       listInventoryBatches(storeId),
       listProducts(),
@@ -51,7 +48,7 @@ export async function DashboardPage() {
     <div className="space-y-8">
       <PageHeader
         title="Dashboard"
-        description={`${org.name} — executive overview and live store pulse`}
+        description={`${org.name} — today&apos;s sales, inventory, and cashier pulse`}
       />
       <div className="grid gap-4 rounded-2xl border border-border/60 bg-gradient-to-br from-primary/5 via-transparent to-sky-500/5 p-6 md:grid-cols-3">
         <div>
@@ -86,7 +83,7 @@ export async function DashboardPage() {
           value={formatCurrency(stats.todaySales, org.currency)}
         />
         <KpiCard
-          label="Gross profit"
+          label="Net profit estimate"
           value={formatCurrency(grossProfit, org.currency)}
         />
         <KpiCard label="Inventory value" value={formatCurrency(inventoryValue, org.currency)} />
@@ -104,11 +101,6 @@ export async function DashboardPage() {
         <RecentOrdersFeed orders={recentOrders} />
         <TopProductsRanking products={topProducts} currency={org.currency} />
       </div>
-      <SouqnaOrdersWidget
-        pendingCount={souqnaData.pendingCount}
-        recentOrders={souqnaData.recentOrders}
-        currency={org.currency}
-      />
     </div>
   );
 }

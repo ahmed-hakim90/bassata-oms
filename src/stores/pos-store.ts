@@ -14,10 +14,17 @@ export interface HeldCart {
   createdAt: string;
 }
 
+export interface LoyaltyRedemption {
+  points: number;
+  amount: number;
+}
+
 interface PosState {
   cart: CartLine[];
   heldCarts: HeldCart[];
   customer: Customer | null;
+  customerLoyaltyBalance: number | null;
+  loyaltyRedemption: LoyaltyRedemption | null;
   paymentMethod: PaymentMethod;
   paymentSplits: PaymentSplit[];
   discountAmount: number;
@@ -28,6 +35,8 @@ interface PosState {
   clearCart: () => void;
   setDiscountAmount: (amount: number) => void;
   setCustomer: (customer: Customer | null) => void;
+  setCustomerLoyaltyBalance: (balance: number | null) => void;
+  setLoyaltyRedemption: (redemption: LoyaltyRedemption | null) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   setPaymentSplits: (payments: PaymentSplit[]) => void;
   setSalesMode: (mode: SalesMode) => void;
@@ -49,6 +58,8 @@ export const usePosStore = create<PosState>((set, get) => ({
   cart: [],
   heldCarts: [],
   customer: null,
+  customerLoyaltyBalance: null,
+  loyaltyRedemption: null,
   paymentMethod: "cash",
   paymentSplits: [],
   discountAmount: 0,
@@ -120,6 +131,8 @@ export const usePosStore = create<PosState>((set, get) => ({
     set({
       cart: [],
       customer: null,
+      customerLoyaltyBalance: null,
+      loyaltyRedemption: null,
       paymentMethod: "cash",
       paymentSplits: [],
       discountAmount: 0,
@@ -132,7 +145,12 @@ export const usePosStore = create<PosState>((set, get) => ({
     set({ discountAmount: Math.min(safeAmount, subtotal) });
   },
 
-  setCustomer: (customer) => set({ customer }),
+  setCustomer: (customer) =>
+    set({ customer, customerLoyaltyBalance: null, loyaltyRedemption: null }),
+
+  setCustomerLoyaltyBalance: (balance) => set({ customerLoyaltyBalance: balance }),
+
+  setLoyaltyRedemption: (redemption) => set({ loyaltyRedemption: redemption }),
 
   setPaymentMethod: (method) => set({ paymentMethod: method, paymentSplits: [] }),
 
@@ -155,6 +173,8 @@ export const usePosStore = create<PosState>((set, get) => ({
       heldCarts: [heldCart, ...state.heldCarts],
       cart: [],
       customer: null,
+      customerLoyaltyBalance: null,
+      loyaltyRedemption: null,
       paymentMethod: "cash",
       paymentSplits: [],
       discountAmount: 0,
@@ -186,6 +206,8 @@ export const usePosStore = create<PosState>((set, get) => ({
       ],
       cart: heldCart.cart,
       customer: heldCart.customer,
+      customerLoyaltyBalance: null,
+      loyaltyRedemption: null,
       discountAmount: heldCart.discountAmount,
       salesMode: heldCart.salesMode,
       paymentMethod: "cash",

@@ -3,9 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
-import { isPlatformAdminAuthUser } from "@/lib/platform/auth";
-import { isOrganizationSuspended } from "@/lib/platform/company-status";
-import { writePlatformAuditLog } from "@/modules/platform/services/platform.service";
+import { isOrganizationSuspended } from "@/lib/org-status";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -20,16 +18,6 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error || !data.user) {
     return NextResponse.redirect(`${origin}/login?error=auth`);
-  }
-
-  if (await isPlatformAdminAuthUser(data.user.id, data.user.email)) {
-    await writePlatformAuditLog({
-      action: "platform.auth.login",
-      entityType: "platform_admin",
-      entityId: data.user.id,
-      metadata: { email: data.user.email, via: "oauth_callback" },
-    });
-    return NextResponse.redirect(`${origin}/platform`);
   }
 
   const appUser = await userRepo.getUserByAuthId(data.user.id);

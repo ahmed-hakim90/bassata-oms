@@ -34,7 +34,7 @@ loadEnvFile(".env.local");
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const orgId = "00000000-0000-4000-8000-000000000001";
-const ownerEmail = process.env.VERIFY_OWNER_EMAIL ?? "owner@SweetFlow.local";
+const ownerEmail = process.env.VERIFY_OWNER_EMAIL ?? "owner@CafeFlow.local";
 const ownerPassword = process.env.VERIFY_OWNER_PASSWORD ?? "demo1234";
 const ownerUserId = "00000000-0000-4000-8000-000000000201";
 const storeId = "00000000-0000-4000-8000-000000000101";

@@ -11,10 +11,6 @@ import { ProductGrid, type ProductGridItem } from "./product-grid";
 import { CategoryList } from "./category-list";
 import { ProductFormDialog } from "./product-form-dialog";
 import { ImportProductsDialog } from "@/modules/imports-exports/components/import-products-dialog";
-import {
-  publishAllProductsToSouqnaAction,
-  unpublishAllProductsFromSouqnaAction,
-} from "@/modules/souqna/actions/souqna.actions";
 import { deleteProductAction } from "../actions/product.actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -25,8 +21,6 @@ interface ProductsPageProps {
   categories: ProductGridItem["category"][];
   currency: string;
   recipesEnabled?: boolean;
-  souqnaEnabled?: boolean;
-  defaultPublishToSouqna?: boolean;
   productTemplates: ProductTemplateSettings;
   businessActivitySettings: BusinessActivitySettings;
 }
@@ -36,8 +30,6 @@ export function ProductsPage({
   categories,
   currency,
   recipesEnabled = false,
-  souqnaEnabled = false,
-  defaultPublishToSouqna = false,
   productTemplates,
   businessActivitySettings,
 }: ProductsPageProps) {
@@ -50,6 +42,11 @@ export function ProductsPage({
   const [pending, startTransition] = useTransition();
 
   const categoryList = categories.filter((c): c is NonNullable<typeof c> => c !== null);
+
+  const existingSkus = useMemo(
+    () => initialProducts.map(({ product }) => product.sku),
+    [initialProducts]
+  );
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -85,24 +82,6 @@ export function ProductsPage({
     setDialogOpen(true);
   }
 
-  function handleSouqnaBulk(publish: boolean) {
-    const label = publish ? "publish all to Souqna" : "unpublish all from Souqna";
-    if (!confirm(`Are you sure you want to ${label}?`)) return;
-    startTransition(async () => {
-      try {
-        if (publish) {
-          await publishAllProductsToSouqnaAction();
-        } else {
-          await unpublishAllProductsFromSouqnaAction();
-        }
-        toast.success(publish ? "All products published to Souqna" : "All products unpublished");
-        router.refresh();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Bulk action failed");
-      }
-    });
-  }
-
   function handleDelete(product: Product) {
     if (!confirm(`Remove ${product.name}?`)) return;
     startTransition(async () => {
@@ -126,16 +105,6 @@ export function ProductsPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {souqnaEnabled ? (
-            <>
-              <Button variant="outline" onClick={() => handleSouqnaBulk(true)} disabled={pending}>
-                Publish all to Souqna
-              </Button>
-              <Button variant="outline" onClick={() => handleSouqnaBulk(false)} disabled={pending}>
-                Unpublish all from Souqna
-              </Button>
-            </>
-          ) : null}
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <FileSpreadsheet className="size-4" />
             Import
@@ -205,11 +174,10 @@ export function ProductsPage({
         categories={categoryList}
         product={editing}
         recipesEnabled={recipesEnabled}
-        souqnaEnabled={souqnaEnabled}
-        defaultPublishToSouqna={defaultPublishToSouqna}
         productTemplates={productTemplates}
         businessActivitySettings={businessActivitySettings}
         currency={currency}
+        existingSkus={existingSkus}
         onSaved={() => router.refresh()}
       />
 

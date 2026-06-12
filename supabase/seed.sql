@@ -1,4 +1,4 @@
--- SweetFlow seed data (run after migrations; link auth via npm run db:seed-auth)
+-- CafeFlow seed data (run after migrations; link auth via npm run db:seed-auth)
 -- Accounting (011+): cost centers, expense categories, permissions, expense_settings
 -- are seeded automatically by migration 011_accounting_centers_expenses.sql per org.
 -- Full RBAC permissions: migration 015_full_rbac_permissions.sql
@@ -9,23 +9,22 @@
 INSERT INTO organizations (id, name, currency, timezone, settings)
 VALUES (
   '00000000-0000-4000-8000-000000000001',
-  'SweetFlow Demo',
+  'CafeFlow Demo',
   'USD',
   'America/New_York',
   '{"tax_rate": 0, "tax_inclusive": true}'::jsonb
 );
 
 INSERT INTO stores (id, org_id, name, address, is_active, settings) VALUES
-  ('00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001', 'Downtown', '123 Main St', true, '{"online_menu_slug": "downtown", "online_menu_token": "00000000000040008000000000000101"}'::jsonb),
-  ('00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000001', 'Mall Location', '456 Mall Blvd', true, '{"online_menu_slug": "mall-location", "online_menu_token": "00000000000040008000000000000102"}'::jsonb);
+  ('00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001', 'Downtown', '123 Main St', true, '{}'::jsonb),
+  ('00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000001', 'Mall Location', '456 Mall Blvd', true, '{}'::jsonb);
 
 INSERT INTO users (id, org_id, auth_user_id, name, email, role, is_active) VALUES
-  ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000001', NULL, 'Alex Owner', 'owner@SweetFlow.local', 'owner', true),
-  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000001', NULL, 'Maya Manager', 'manager@SweetFlow.local', 'manager', true),
-  ('00000000-0000-4000-8000-000000000203', '00000000-0000-4000-8000-000000000001', NULL, 'Sam Cashier', 'cashier1@SweetFlow.local', 'cashier', true),
-  ('00000000-0000-4000-8000-000000000204', '00000000-0000-4000-8000-000000000001', NULL, 'Jordan Cashier', 'cashier2@SweetFlow.local', 'cashier', true),
-  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000001', NULL, 'Riley Inventory', 'inventory@SweetFlow.local', 'inventory', true),
-  ('00000000-0000-4000-8000-000000000206', '00000000-0000-4000-8000-000000000001', NULL, 'Pat Viewer', 'viewer@SweetFlow.local', 'viewer', true);
+  ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000001', NULL, 'Alex Owner', 'owner@CafeFlow.local', 'owner', true),
+  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000001', NULL, 'Maya Manager', 'manager@CafeFlow.local', 'manager', true),
+  ('00000000-0000-4000-8000-000000000203', '00000000-0000-4000-8000-000000000001', NULL, 'Sam Cashier', 'cashier1@CafeFlow.local', 'cashier', true),
+  ('00000000-0000-4000-8000-000000000204', '00000000-0000-4000-8000-000000000001', NULL, 'Jordan Cashier', 'cashier2@CafeFlow.local', 'cashier', true),
+  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000001', NULL, 'Riley Store Keeper', 'inventory@CafeFlow.local', 'inventory', true);
 
 INSERT INTO user_store_access (user_id, store_id) VALUES
   ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000101'),
@@ -34,9 +33,7 @@ INSERT INTO user_store_access (user_id, store_id) VALUES
   ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000102'),
   ('00000000-0000-4000-8000-000000000203', '00000000-0000-4000-8000-000000000101'),
   ('00000000-0000-4000-8000-000000000204', '00000000-0000-4000-8000-000000000102'),
-  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000101'),
-  ('00000000-0000-4000-8000-000000000206', '00000000-0000-4000-8000-000000000101'),
-  ('00000000-0000-4000-8000-000000000206', '00000000-0000-4000-8000-000000000102');
+  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000101');
 
 INSERT INTO pin_codes (user_id, pin_hash, is_active) VALUES
   ('00000000-0000-4000-8000-000000000203', crypt('1234', gen_salt('bf')), true),
@@ -101,7 +98,7 @@ INSERT INTO loyalty_ledger (customer_id, points_delta, balance_after, reason)
 VALUES ('00000000-0000-4000-8000-000000000701', 50, 50, 'Welcome bonus');
 
 INSERT INTO app_settings (org_id, key, value)
-VALUES ('00000000-0000-4000-8000-000000000001', 'receipt_footer', '{"text": "Thank you for visiting SweetFlow!"}'::jsonb);
+VALUES ('00000000-0000-4000-8000-000000000001', 'receipt_footer', '{"text": "Thank you for visiting CafeFlow!"}'::jsonb);
 
 INSERT INTO app_settings (org_id, key, value)
 VALUES ('00000000-0000-4000-8000-000000000001', 'tax_rate', '{"rate": 0}'::jsonb);

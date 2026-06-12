@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download, Landmark, Pencil, Plus } from "lucide-react";
+import { Landmark, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,9 @@ import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { exportAndDownload } from "@/lib/services/export.service";
+import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
+import { exportSupplierStatementExcel } from "@/modules/reports/actions/statement-report.actions";
+import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
 import type { SupplierStatement, SupplierStatementTransactionType } from "@/lib/types";
 import {
   getSupplierStatementAction,
@@ -46,6 +48,7 @@ interface SupplierDetailPageProps {
   currency: string;
   canManagePayments: boolean;
   canEditSupplier: boolean;
+  storeId: string;
 }
 
 export function SupplierDetailPage({
@@ -53,6 +56,7 @@ export function SupplierDetailPage({
   currency,
   canManagePayments,
   canEditSupplier,
+  storeId,
 }: SupplierDetailPageProps) {
   const router = useRouter();
   const [statement, setStatement] = useState(initialStatement);
@@ -115,50 +119,12 @@ export function SupplierDetailPage({
     });
   };
 
-  const exportStatement = () => {
-    const rows = [
-      {
-        at: "",
-        type: "Opening balance",
-        reference: "",
-        description: "",
-        debit: "" as const,
-        credit: "" as const,
-        balance: statement.openingBalance,
-      },
-      ...statement.transactions.map((t) => ({
-        at: t.at,
-        type: TYPE_LABELS[t.type],
-        reference: t.reference,
-        description: t.description,
-        debit: t.debit || ("" as const),
-        credit: t.credit || ("" as const),
-        balance: t.balance,
-      })),
-    ];
-    exportAndDownload(
-      rows,
-      [
-        { header: "Date", accessor: (r) => (r.at ? formatDateTime(r.at) : "") },
-        { header: "Type", accessor: (r) => r.type },
-        { header: "Reference", accessor: (r) => r.reference },
-        { header: "Description", accessor: (r) => r.description },
-        {
-          header: "Debit/Purchase",
-          accessor: (r) => (typeof r.debit === "number" ? r.debit : r.debit),
-        },
-        {
-          header: "Credit/Payment",
-          accessor: (r) => (typeof r.credit === "number" ? r.credit : r.credit),
-        },
-        { header: "Running Balance", accessor: (r) => r.balance },
-      ],
-      {
-        fileName: `supplier-statement-${statement.supplier.name.replace(/\s+/g, "-").toLowerCase()}`,
-        sheetName: "Statement",
-      }
-    );
-  };
+  const printQs = new URLSearchParams();
+  if (from) printQs.set("from", from);
+  if (to) printQs.set("to", to);
+  const printHref = `/print/statements/suppliers/${statement.supplier.id}${
+    printQs.toString() ? `?${printQs}` : ""
+  }`;
 
   const { supplier } = statement;
 
@@ -179,9 +145,24 @@ export function SupplierDetailPage({
                 <Plus className="size-4" /> Record Payment
               </Button>
             ) : null}
-            <Button variant="outline" onClick={exportStatement}>
-              <Download className="size-4" /> Export
-            </Button>
+            <ExportButtonGroup
+              printHref={printHref}
+              onExportExcel={() => {
+                startTransition(async () => {
+                  try {
+                    const result = await exportSupplierStatementExcel(
+                      statement.supplier.id,
+                      storeId,
+                      statementRange(from, to)
+                    );
+                    downloadBase64Excel(result.base64, result.filename);
+                    toast.success("Excel exported");
+                  } catch {
+                    toast.error("Export failed");
+                  }
+                });
+              }}
+            />
           </div>
         }
       />

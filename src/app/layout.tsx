@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     default: APP_NAME,
     template: `%s · ${APP_NAME}`,
   },
-  description: "Modern point of sale for SweetFlow stores",
+  description: "CafeFlow ERP & POS — café and takeaway management",
   applicationName: APP_NAME,
 };
 

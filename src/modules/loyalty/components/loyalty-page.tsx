@@ -18,6 +18,7 @@ import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { formatRelativeTime } from "@/lib/format";
 import { selectLabelById } from "@/lib/select-label";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Customer, LoyaltyLedgerEntry, LoyaltyRule } from "@/lib/types";
 import { redeemPointsAction } from "@/modules/loyalty/actions/loyalty.actions";
 import { LoyaltyRulesForm } from "./loyalty-rules-form";
@@ -30,6 +31,7 @@ interface LoyaltyPageProps {
 }
 
 export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps) {
+  const { t } = useTranslation();
   const [pending, startTransition] = useTransition();
   const [redeem, setRedeem] = useState({ customerId: "", points: 0, reason: "" });
 
@@ -37,10 +39,10 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
     startTransition(async () => {
       try {
         await redeemPointsAction(redeem);
-        toast.success("Points redeemed");
+        toast.success(t("Points redeemed"));
         setRedeem({ customerId: "", points: 0, reason: "" });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed");
+        toast.error(e instanceof Error ? e.message : t("Failed"));
       }
     });
   };
@@ -48,27 +50,30 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
   return (
     <>
       <PageHeader
-        title="Loyalty"
-        description="Points program and redemption"
+        title={t("Loyalty")}
+        description={t("Customers earn points on every sale and redeem them as a discount at the POS")}
       />
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <KpiCard
-          label="Active Members"
+          label={t("Active Members")}
           value={String(stats.activeCustomers)}
           icon={<Heart className="size-5" />}
         />
-        <KpiCard label="Points Issued" value={String(stats.totalIssued)} />
-        <KpiCard label="Points Redeemed" value={String(stats.totalRedeemed)} />
+        <KpiCard label={t("Points Issued")} value={String(stats.totalIssued)} />
+        <KpiCard label={t("Points Redeemed")} value={String(stats.totalRedeemed)} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <LoyaltyRulesForm rule={rule} />
 
-        <OperationalCard title="Redeem Points">
+        <OperationalCard
+          title={t("Redeem Points")}
+          description={t("Manual redemption — at the POS the cashier can redeem directly during payment")}
+        >
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label>Customer</Label>
+              <Label>{t("Customer")}</Label>
               <Select
                 value={redeem.customerId}
                 onValueChange={(v) =>
@@ -76,7 +81,7 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select customer">
+                  <SelectValue placeholder={t("Select customer")}>
                     {(value) => selectLabelById(customers, value, (c) => c.name)}
                   </SelectValue>
                 </SelectTrigger>
@@ -90,7 +95,7 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Points</Label>
+              <Label>{t("Points")}</Label>
               <Input
                 type="number"
                 min={1}
@@ -104,37 +109,43 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
               />
             </div>
             <div className="space-y-2">
-              <Label>Reason</Label>
+              <Label>{t("Reason")}</Label>
               <Input
                 value={redeem.reason}
                 onChange={(e) =>
                   setRedeem({ ...redeem, reason: e.target.value })
                 }
-                placeholder="Manual redemption"
+                placeholder={t("Manual redemption")}
               />
             </div>
             <Button onClick={redeemSubmit} disabled={pending}>
-              Redeem
+              {t("Redeem")}
             </Button>
           </div>
         </OperationalCard>
       </div>
 
-      <OperationalCard title="Recent Activity" className="mt-6">
-        <ul className="divide-y">
-          {ledger.map((e) => (
-            <li key={e.id} className="flex justify-between py-2">
-              <span className="text-sm">
-                {customers.find((c) => c.id === e.customer_id)?.name ?? e.customer_id}{" "}
-                · {e.reason}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {e.points_delta >= 0 ? "+" : ""}
-                {e.points_delta} · {formatRelativeTime(e.created_at)}
-              </span>
-            </li>
-          ))}
-        </ul>
+      <OperationalCard title={t("Recent Activity")} className="mt-6">
+        {ledger.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {t("No loyalty activity yet. Attach a customer to a sale and points are earned automatically")}
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {ledger.map((e) => (
+              <li key={e.id} className="flex justify-between py-2">
+                <span className="text-sm">
+                  {customers.find((c) => c.id === e.customer_id)?.name ?? e.customer_id}{" "}
+                  · {e.reason === "Purchase" ? t("Purchase") : e.reason}
+                </span>
+                <span className="text-sm text-muted-foreground" dir="ltr">
+                  {e.points_delta >= 0 ? "+" : ""}
+                  {e.points_delta} · {formatRelativeTime(e.created_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </OperationalCard>
     </>
   );

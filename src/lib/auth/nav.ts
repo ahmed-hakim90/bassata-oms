@@ -3,8 +3,11 @@ import type { FeatureFlag, PermissionKey, UserRole } from "@/lib/constants";
 
 const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/reports": "reports",
-  "/imports-exports": "imports_exports",
-  "/monthly-closing": "monthly_closing",
+  "/reports/sales": "reports",
+  "/reports/sessions": "reports",
+  "/reports/profit": "reports",
+  "/reports/inventory": "reports",
+  "/reports/expenses": "reports",
   "/inventory/purchases": "purchases",
   "/inventory/suppliers": "purchases",
   "/inventory/transfers": "transfers",
@@ -26,19 +29,21 @@ function filterNavByRoleLegacy(role: UserRole) {
   const PRIVILEGED_ONLY = new Set([
     "/users",
     "/settings",
-    "/settings/cost-centers",
     "/audit",
-    "/imports-exports",
-    "/monthly-closing",
+    "/devices",
+    "/inventory/warehouses",
   ]);
   const CASHIER_HIDDEN = new Set([
     "/users",
     "/settings",
-    "/settings/cost-centers",
     "/audit",
-    "/imports-exports",
-    "/monthly-closing",
     "/reports",
+    "/reports/sales",
+    "/reports/sessions",
+    "/reports/profit",
+    "/reports/inventory",
+    "/reports/expenses",
+    "/labels",
     "/products",
     "/inventory",
     "/inventory/purchases",
@@ -46,12 +51,14 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/inventory/transfers",
     "/inventory/waste",
     "/inventory/stock-count",
+    "/inventory/warehouses",
+    "/devices",
     "/customers",
     "/customers/loyalty",
+    "/expenses",
   ]);
   return (href: string) => {
     if (role === "owner" || role === "manager") return true;
-    if (role === "viewer") return href === "/" || href === "/reports" || href === "/orders";
     if (role === "cashier") return !CASHIER_HIDDEN.has(href);
     if (role === "inventory") {
       return (

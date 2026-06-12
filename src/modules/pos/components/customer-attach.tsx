@@ -1,24 +1,47 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Search, UserPlus, X } from "lucide-react";
+import { Search, Star, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   quickCreateCustomerAction,
   searchCustomersAction,
 } from "@/modules/pos/actions/customer-attach.action";
+import { getCustomerLoyaltyBalanceAction } from "@/modules/pos/actions/loyalty-balance.action";
 import { usePosStore } from "@/stores/pos-store";
+import { useTranslation } from "@/lib/i18n/use-translation";
+import type { Customer } from "@/lib/types";
 
-export function CustomerAttach() {
+export function CustomerAttach({ loyaltyEnabled = false }: { loyaltyEnabled?: boolean }) {
+  const { t } = useTranslation();
   const customer = usePosStore((s) => s.customer);
+  const loyaltyBalance = usePosStore((s) => s.customerLoyaltyBalance);
   const setCustomer = usePosStore((s) => s.setCustomer);
+  const setCustomerLoyaltyBalance = usePosStore((s) => s.setCustomerLoyaltyBalance);
   const [phone, setPhone] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [results, setResults] = useState<
     Awaited<ReturnType<typeof searchCustomersAction>>
   >([]);
   const [, startTransition] = useTransition();
+
+  function attachCustomer(c: Customer) {
+    setCustomer(c);
+    setExpanded(false);
+    setPhone("");
+    setResults([]);
+    if (loyaltyEnabled) {
+      startTransition(async () => {
+        try {
+          const balance = await getCustomerLoyaltyBalanceAction(c.id);
+          setCustomerLoyaltyBalance(balance);
+        } catch {
+          setCustomerLoyaltyBalance(null);
+        }
+      });
+    }
+  }
 
   function handlePhoneChange(value: string) {
     setPhone(value);
@@ -38,10 +61,7 @@ export function CustomerAttach() {
         name: "Guest",
         phone: phone || "+10000000000",
       });
-      setCustomer(created);
-      setExpanded(false);
-      setPhone("");
-      setResults([]);
+      attachCustomer(created);
     });
   }
 
@@ -54,6 +74,12 @@ export function CustomerAttach() {
             <p className="truncate text-xs text-muted-foreground">
               {customer.phone}
             </p>
+            {loyaltyEnabled && loyaltyBalance !== null ? (
+              <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-amber-600">
+                <Star className="size-3" />
+                {t("Points")}: {loyaltyBalance}
+              </p>
+            ) : null}
           </div>
           <Button
             variant="ghost"
@@ -69,7 +95,7 @@ export function CustomerAttach() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Phone number"
+              placeholder={t("Phone number")}
               value={phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
               className="h-11 rounded-xl pl-8"
@@ -82,12 +108,8 @@ export function CustomerAttach() {
                 <li key={c.id}>
                   <button
                     type="button"
-                    className="min-h-10 w-full rounded-lg px-2 text-left text-sm hover:bg-muted"
-                    onClick={() => {
-                      setCustomer(c);
-                      setExpanded(false);
-                      setPhone("");
-                    }}
+                    className="min-h-10 w-full rounded-lg px-2 text-start text-sm hover:bg-muted"
+                    onClick={() => attachCustomer(c)}
                   >
                     {c.name} · {c.phone}
                   </button>
@@ -102,7 +124,7 @@ export function CustomerAttach() {
               className="h-11 flex-1 rounded-xl"
               onClick={() => setExpanded(false)}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               size="sm"
@@ -110,7 +132,7 @@ export function CustomerAttach() {
               onClick={handleQuickCreate}
             >
               <UserPlus className="size-3.5" />
-              New guest
+              {t("New guest")}
             </Button>
           </div>
         </div>
@@ -122,7 +144,7 @@ export function CustomerAttach() {
           onClick={() => setExpanded(true)}
         >
           <Search className="size-3.5" />
-          Attach customer
+          {t("Attach customer")}
         </Button>
       )}
     </div>

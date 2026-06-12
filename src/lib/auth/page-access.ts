@@ -9,12 +9,9 @@ export interface PageAccessDenial {
 
 const PATH_LABELS: Record<string, string> = {
   "/settings": "Settings",
-  "/settings/cost-centers": "Settings",
   "/users": "Settings",
   "/audit": "Settings",
   "/reports": "Reports",
-  "/imports-exports": "Imports & Exports",
-  "/monthly-closing": "Monthly Closing",
   "/expenses": "Expenses",
 };
 
@@ -57,17 +54,10 @@ export function getPageAccessDenial(
     };
   }
 
-  if (role === "viewer") {
-    return {
-      title: "Read-only access",
-      description: `Your viewer account cannot open ${label}.`,
-    };
-  }
-
   if (role === "inventory") {
     return {
       title: "Access denied",
-      description: `Inventory staff cannot open ${label}. Use Products and Inventory from the menu.`,
+      description: `Store keeper accounts cannot open ${label}. Use Products and Inventory from the menu.`,
     };
   }
 

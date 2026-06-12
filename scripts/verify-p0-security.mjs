@@ -34,10 +34,10 @@ loadEnvFile(".env.local");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const ownerEmail = process.env.VERIFY_OWNER_EMAIL ?? "owner@SweetFlow.local";
+const ownerEmail = process.env.VERIFY_OWNER_EMAIL ?? "owner@CafeFlow.local";
 const ownerPassword = process.env.VERIFY_OWNER_PASSWORD ?? "demo1234";
-const viewerEmail = process.env.VERIFY_VIEWER_EMAIL ?? "viewer@SweetFlow.local";
-const viewerPassword = process.env.VERIFY_VIEWER_PASSWORD ?? "demo1234";
+const cashierEmail = process.env.VERIFY_CASHIER_EMAIL ?? "cashier1@CafeFlow.local";
+const cashierPassword = process.env.VERIFY_CASHIER_PASSWORD ?? "demo1234";
 const storeId = "00000000-0000-4000-8000-000000000101";
 
 if (!url || !anonKey) {
@@ -77,9 +77,9 @@ console.log("→ Owner: pin_codes direct access denied");
   await supabase.auth.signOut();
 }
 
-console.log("→ Viewer: cannot insert orders");
+console.log("→ Cashier: cannot insert orders");
 {
-  const supabase = await signIn(viewerEmail, viewerPassword);
+  const supabase = await signIn(cashierEmail, cashierPassword);
   const { error } = await supabase.from("orders").insert({
     store_id: storeId,
     order_number: "TEST-P0",
@@ -91,8 +91,8 @@ console.log("→ Viewer: cannot insert orders");
     payment_status: "paid",
     created_by: "00000000-0000-4000-8000-000000000204",
   });
-  if (!error) fail("viewer order insert", new Error("expected RLS denial"));
-  console.log("✓ viewer cannot insert orders");
+  if (!error) fail("cashier order insert", new Error("expected RLS denial"));
+  console.log("✓ cashier cannot insert orders");
   await supabase.auth.signOut();
 }
 

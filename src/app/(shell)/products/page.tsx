@@ -10,8 +10,6 @@ export default async function ProductsRoutePage() {
       categories={data.categories}
       currency={data.organization.currency}
       recipesEnabled={data.recipesEnabled}
-      souqnaEnabled={data.souqnaEnabled}
-      defaultPublishToSouqna={data.defaultPublishToSouqna}
       productTemplates={data.productTemplates}
       businessActivitySettings={data.businessActivitySettings}
     />

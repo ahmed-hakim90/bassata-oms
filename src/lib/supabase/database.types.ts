@@ -26,13 +26,6 @@ export type Database = {
   public: {
     Tables: {
       organizations: TableDef<OrganizationRow>;
-      platform_admins: TableDef<PlatformAdminRow, Partial<PlatformAdminRow>, Partial<PlatformAdminRow>>;
-      platform_company_invites: TableDef<
-        PlatformCompanyInviteRow,
-        Partial<PlatformCompanyInviteRow>,
-        Partial<PlatformCompanyInviteRow>
-      >;
-      platform_audit_logs: TableDef<PlatformAuditLogRow, Partial<PlatformAuditLogRow>, never>;
       stores: TableDef<StoreRow>;
       warehouses: TableDef<WarehouseRow>;
       users: TableDef<UserRow>;
@@ -74,10 +67,6 @@ export type Database = {
       stock_count_lines: TableDef<StockCountLineRow>;
       cashier_sessions: TableDef<SessionRow>;
       customers: TableDef<CustomerRow>;
-      online_orders: TableDef<OnlineOrderRow, Partial<OnlineOrderRow>, Partial<OnlineOrderRow>>;
-      online_order_items: TableDef<OnlineOrderItemRow, Partial<OnlineOrderItemRow>, Partial<OnlineOrderItemRow>>;
-      souqna_integration_logs: TableDef<SouqnaIntegrationLogRow, Partial<SouqnaIntegrationLogRow>, never>;
-      souqna_api_requests: TableDef<SouqnaApiRequestRow, Partial<SouqnaApiRequestRow>, never>;
       orders: TableDef<OrderRow>;
       order_items: TableDef<OrderItemRow, Partial<OrderItemRow>, never>;
       order_item_deductions: TableDef<OrderItemDeductionRow, never, never>;
@@ -98,7 +87,6 @@ export type Database = {
       >;
       loyalty_rules: TableDef<LoyaltyRuleRow>;
       loyalty_ledger: TableDef<LoyaltyLedgerRow, Partial<LoyaltyLedgerRow>, never>;
-      monthly_closes: TableDef<MonthlyCloseRow>;
       import_jobs: TableDef<ImportJobRow>;
       audit_logs: TableDef<AuditLogRow, never, never>;
       app_settings: TableDef<AppSettingRow>;
@@ -139,11 +127,9 @@ export type Database = {
       is_feature_enabled: FnDef<{ p_flag: string }, boolean>;
       require_feature: FnDef<{ p_flag: string }, void>;
       set_default_warehouse: FnDef<{ p_store_id: string; p_warehouse_id: string }, void>;
-      assert_souqna_rate_limit: FnDef<{ p_prefix: string }, void>;
       has_permission: FnDef<{ p_key: string }, boolean>;
       auth_user_id: FnDef<Record<string, never>, string>;
       deployment_has_organization: FnDef<Record<string, never>, boolean>;
-      platform_organization_data_size: FnDef<{ p_org_id: string }, Json>;
       initialize_organization: FnDef<
         {
           p_org_name: string;
@@ -188,40 +174,6 @@ export type OrganizationRow = {
   country: string;
   status: string;
   settings: Json;
-  created_at: string;
-};
-export type PlatformAdminRow = {
-  id: string;
-  auth_user_id: string | null;
-  email: string;
-  name: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-};
-export type PlatformCompanyInviteRow = {
-  id: string;
-  token_hash: string;
-  org_name: string;
-  owner_name: string;
-  owner_email: string;
-  status: string;
-  expires_at: string;
-  accepted_org_id: string | null;
-  created_by: string | null;
-  revoked_by: string | null;
-  accepted_at: string | null;
-  revoked_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-export type PlatformAuditLogRow = {
-  id: string;
-  platform_admin_id: string | null;
-  action: string;
-  entity_type: string;
-  entity_id: string;
-  metadata: Json;
   created_at: string;
 };
 export type StoreRow = {
@@ -323,7 +275,6 @@ export type ProductRow = {
   cost_unit: string;
   description: string;
   sale_price: number | null;
-  publish_to_souqna: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -565,58 +516,6 @@ export type CustomerRow = {
   notes: string;
   created_at: string;
 };
-export type OnlineOrderRow = {
-  id: string;
-  store_id: string;
-  customer_id: string | null;
-  order_id: string | null;
-  customer_name: string;
-  customer_phone: string;
-  status: string;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
-  notes: string;
-  source: string;
-  external_order_id: string | null;
-  checkout_session_id: string | null;
-  fulfillment_type: string | null;
-  delivery_area: string | null;
-  delivery_address: string | null;
-  delivery_fee: number;
-  payment_method: string | null;
-  raw_payload: Json | null;
-  created_at: string;
-  updated_at: string;
-};
-export type SouqnaIntegrationLogRow = {
-  id: string;
-  org_id: string;
-  store_id: string | null;
-  direction: string;
-  endpoint: string;
-  request_type: string;
-  request_payload: Json | null;
-  response_payload: Json | null;
-  status: string;
-  error: string | null;
-  created_at: string;
-};
-export type SouqnaApiRequestRow = {
-  id: string;
-  api_key_hash_prefix: string;
-  requested_at: string;
-};
-export type OnlineOrderItemRow = {
-  id: string;
-  online_order_id: string;
-  product_id: string;
-  variant_id: string | null;
-  quantity: number;
-  unit_price: number;
-  line_total: number;
-};
 export type OrderRow = {
   id: string;
   store_id: string;
@@ -742,17 +641,6 @@ export type LoyaltyLedgerRow = {
   balance_after: number;
   reason: string;
   created_at: string;
-};
-export type MonthlyCloseRow = {
-  id: string;
-  org_id: string;
-  store_id: string | null;
-  period_start: string;
-  period_end: string;
-  status: string;
-  summary: Json;
-  closed_by: string | null;
-  closed_at: string | null;
 };
 export type ImportJobRow = {
   id: string;

@@ -17,6 +17,7 @@ export default async function SupplierDetailRoute({
       currency={data.currency}
       canManagePayments={data.canManagePayments}
       canEditSupplier={data.canEditSupplier}
+      storeId={data.storeId}
     />
   );
 }

@@ -9,10 +9,6 @@ import {
   OwnerEmailAlreadyUsedError,
 } from "@/modules/onboarding/services/bootstrap.service";
 import {
-  acceptCompanyInvite,
-  getPendingInviteByToken,
-} from "@/modules/platform/services/platform.service";
-import {
   onboardingPayloadSchema,
   type OnboardingPayload,
 } from "@/modules/onboarding/schemas/onboarding.schema";
@@ -23,15 +19,8 @@ export interface CompleteOnboardingResult {
 }
 
 export async function completeOnboardingAction(
-  payload: OnboardingPayload,
-  inviteToken: string
+  payload: OnboardingPayload
 ): Promise<CompleteOnboardingResult> {
-  if (!inviteToken) {
-    return {
-      success: false,
-      error: "A valid company invite is required.",
-    };
-  }
   const parsed = onboardingPayloadSchema.safeParse(payload);
   if (!parsed.success) {
     return {
@@ -41,26 +30,7 @@ export async function completeOnboardingAction(
   }
 
   try {
-    const invite = await getPendingInviteByToken(inviteToken);
-    if (!invite) {
-      return {
-        success: false,
-        error: "Company invite is invalid or expired.",
-      };
-    }
-    if (invite.ownerEmail !== parsed.data.owner.email.trim().toLowerCase()) {
-      return {
-        success: false,
-        error: "Owner email must match the company invite.",
-      };
-    }
-
     const result = await initializeOrganization(parsed.data);
-    await acceptCompanyInvite({
-      token: inviteToken,
-      orgId: result.orgId,
-      ownerEmail: result.ownerEmail,
-    });
     const supabase = await createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: result.ownerEmail,
@@ -69,7 +39,7 @@ export async function completeOnboardingAction(
     if (signInError) {
       return {
         success: false,
-        error: "Organization created but sign-in failed. Please log in manually.",
+        error: "Store created but sign-in failed. Please log in manually.",
       };
     }
 
@@ -80,18 +50,15 @@ export async function completeOnboardingAction(
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
     });
-  } catch (err) {
-    if (err instanceof OwnerEmailAlreadyUsedError) {
-      return {
-        success: false,
-        error: "Owner email is already used by another company.",
-      };
+
+    redirect("/");
+  } catch (error) {
+    if (error instanceof OwnerEmailAlreadyUsedError) {
+      return { success: false, error: error.message };
     }
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Onboarding failed.",
+      error: error instanceof Error ? error.message : "Onboarding failed.",
     };
   }
-
-  redirect("/");
 }

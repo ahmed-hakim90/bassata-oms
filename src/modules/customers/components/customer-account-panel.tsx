@@ -13,10 +13,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { formatCurrency, formatDateTime } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import type { CustomerStatement, PaymentMethod } from "@/lib/types";
 import { recordCustomerPaymentAction } from "@/modules/customers/actions/customer.actions";
+import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
+import { StatementTable } from "@/modules/reports/components/statement-table";
+import { exportCustomerStatementExcel } from "@/modules/reports/actions/statement-report.actions";
+import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
 
 interface CustomerAccountPanelProps {
   customerId: string;
@@ -25,6 +29,7 @@ interface CustomerAccountPanelProps {
   paymentTerms: string;
   statement: CustomerStatement | null;
   canCollect: boolean;
+  currency?: string;
 }
 
 export function CustomerAccountPanel({
@@ -34,6 +39,7 @@ export function CustomerAccountPanel({
   paymentTerms,
   statement,
   canCollect,
+  currency = "SAR",
 }: CustomerAccountPanelProps) {
   const [pending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
@@ -119,47 +125,39 @@ export function CustomerAccountPanel({
       ) : null}
 
       {statement ? (
-        <OperationalCard title="Account statement">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Type</th>
-                  <th className="py-2 pr-4">Reference</th>
-                  <th className="py-2 pr-4 text-right">Debit</th>
-                  <th className="py-2 pr-4 text-right">Credit</th>
-                  <th className="py-2 text-right">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {statement.transactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-4 text-muted-foreground">
-                      No account activity yet
-                    </td>
-                  </tr>
-                ) : (
-                  statement.transactions.map((t) => (
-                    <tr key={t.id} className="border-b border-border/40">
-                      <td className="py-2 pr-4">{formatDateTime(t.at)}</td>
-                      <td className="py-2 pr-4">{t.type}</td>
-                      <td className="py-2 pr-4">{t.reference}</td>
-                      <td className="py-2 pr-4 text-right tabular-nums">
-                        {t.debit > 0 ? formatCurrency(t.debit) : "—"}
-                      </td>
-                      <td className="py-2 pr-4 text-right tabular-nums">
-                        {t.credit > 0 ? formatCurrency(t.credit) : "—"}
-                      </td>
-                      <td className="py-2 text-right tabular-nums font-medium">
-                        {formatCurrency(t.balance)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <OperationalCard
+          title="Account statement"
+          action={
+            <ExportButtonGroup
+              printHref={`/print/statements/customers/${customerId}`}
+              onExportExcel={() => {
+                startTransition(async () => {
+                  try {
+                    const result = await exportCustomerStatementExcel(customerId);
+                    downloadBase64Excel(result.base64, result.filename);
+                    toast.success("Excel exported");
+                  } catch {
+                    toast.error("Export failed");
+                  }
+                });
+              }}
+            />
+          }
+        >
+          <StatementTable
+            currency={currency}
+            openingBalance={statement.openingBalance}
+            closingBalance={statement.closingBalance}
+            rows={statement.transactions.map((t) => ({
+              id: t.id,
+              date: t.at,
+              type: t.type,
+              reference: t.reference || t.description,
+              debit: t.debit,
+              credit: t.credit,
+              balance: t.balance,
+            }))}
+          />
         </OperationalCard>
       ) : null}
     </div>

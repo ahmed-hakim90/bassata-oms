@@ -62,12 +62,8 @@ export async function getSalesReport(options?: {
   );
 
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
-  const wholesaleRevenue = orders
-    .filter((o) => o.sales_mode === "wholesale")
-    .reduce((s, o) => s + o.total, 0);
-  const retailRevenue = orders
-    .filter((o) => o.sales_mode !== "wholesale")
-    .reduce((s, o) => s + o.total, 0);
+  const retailRevenue = totalRevenue;
+  const wholesaleRevenue = 0;
   const orderCount = orders.length;
   const avgOrderValue = orderCount > 0 ? totalRevenue / orderCount : 0;
 

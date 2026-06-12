@@ -168,3 +168,36 @@
       0 20px 60px -24px rgba(0, 0, 0, 0.45);
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  [data-print-root] {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+}
+
+@media print {
+  @page receipt {
+    size: 80mm auto;
+    margin: 4mm;
+  }
+
+  [data-print-layout="receipt"] {
+    page: receipt;
+    max-width: 80mm !important;
+  }
+}

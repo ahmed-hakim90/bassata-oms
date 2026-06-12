@@ -45,7 +45,6 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "wholesale_enabled",
   "supports_weight_sale",
   "supports_amount_sale",
-  "publish_to_souqna",
 ] as const;
 
 export type ProductImportRow = Record<(typeof PRODUCT_IMPORT_COLUMNS)[number], string>;
@@ -157,7 +156,6 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
       wholesale_enabled: valueOrDefault(normalized.wholesale_enabled, "false"),
       supports_weight_sale: normalized.supports_weight_sale ?? "",
       supports_amount_sale: normalized.supports_amount_sale ?? "",
-      publish_to_souqna: valueOrDefault(normalized.publish_to_souqna, "false"),
     };
   });
 
@@ -273,7 +271,6 @@ function rowToProductInput(row: ProductImportPayload): productService.ProductInp
     base_price: Number(row.base_price) || 0,
     description: row.description,
     sale_price: row.sale_price ? Number(row.sale_price) : null,
-    publish_to_souqna: parseBool(row.publish_to_souqna, false),
     image_url: row.image_url || null,
     is_active: parseBool(row.is_active, true),
     is_popular: parseBool(row.is_popular, false),

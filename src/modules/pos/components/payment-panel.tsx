@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Banknote, CreditCard, Plus, Trash2, UserCircle, Wallet, X } from "lucide-react";
+import { Banknote, CreditCard, Plus, Star, Trash2, UserCircle, Wallet, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/format";
 import type { PaymentMethod, PaymentSplit } from "@/lib/types";
 import { getCartSubtotal, getCartTotal, usePosStore } from "@/stores/pos-store";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
 
 interface PaymentPanelProps {
@@ -17,6 +18,7 @@ interface PaymentPanelProps {
   customerName?: string | null;
   loading?: boolean;
   disabled?: boolean;
+  loyaltyRedemptionRate?: number | null;
 }
 
 export function PaymentPanel({
@@ -27,8 +29,14 @@ export function PaymentPanel({
   customerName,
   loading,
   disabled,
+  loyaltyRedemptionRate = null,
 }: PaymentPanelProps) {
+  const { t } = useTranslation();
   const cart = usePosStore((s) => s.cart);
+  const customer = usePosStore((s) => s.customer);
+  const loyaltyBalance = usePosStore((s) => s.customerLoyaltyBalance);
+  const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
+  const setLoyaltyRedemption = usePosStore((s) => s.setLoyaltyRedemption);
   const paymentMethod = usePosStore((s) => s.paymentMethod);
   const discountAmount = usePosStore((s) => s.discountAmount);
   const setPaymentMethod = usePosStore((s) => s.setPaymentMethod);
@@ -36,7 +44,32 @@ export function PaymentPanel({
   const [splitMode, setSplitMode] = useState(false);
   const [splits, setSplits] = useState<PaymentSplit[]>([]);
   const subtotal = getCartSubtotal(cart);
-  const total = getCartTotal(cart, discountAmount);
+  const totalBeforeRedemption = getCartTotal(cart, discountAmount);
+  const redemptionAmount = loyaltyRedemption?.amount ?? 0;
+  const total = Math.max(0, totalBeforeRedemption - redemptionAmount);
+
+  const loyaltyAvailable =
+    Boolean(customer) &&
+    loyaltyRedemptionRate !== null &&
+    loyaltyRedemptionRate > 0 &&
+    (loyaltyBalance ?? 0) > 0;
+  const maxRedeemablePoints = loyaltyAvailable
+    ? Math.min(
+        loyaltyBalance ?? 0,
+        Math.floor(totalBeforeRedemption / (loyaltyRedemptionRate as number))
+      )
+    : 0;
+
+  function applyRedemption(points: number) {
+    const safePoints = Math.max(0, Math.min(Math.floor(points), maxRedeemablePoints));
+    if (safePoints <= 0 || loyaltyRedemptionRate === null) {
+      setLoyaltyRedemption(null);
+      return;
+    }
+    const amount =
+      Math.round(safePoints * loyaltyRedemptionRate * 100) / 100;
+    setLoyaltyRedemption({ points: safePoints, amount });
+  }
 
   const methods = useMemo(
     () =>
@@ -96,7 +129,7 @@ export function PaymentPanel({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
       <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="font-heading text-xl font-semibold">Payment</h2>
+          <h2 className="font-heading text-xl font-semibold">{t("Payment")}</h2>
           <Button variant="ghost" size="icon" className="size-11 rounded-xl" onClick={onClose}>
             <X className="size-5" />
           </Button>
@@ -105,9 +138,15 @@ export function PaymentPanel({
         <p className="mb-2 text-center text-4xl font-bold tabular-nums tracking-tight">
           {formatCurrency(total)}
         </p>
-        {discountAmount > 0 ? (
+        {discountAmount > 0 || redemptionAmount > 0 ? (
           <p className="mb-4 text-center text-sm text-muted-foreground">
-            {formatCurrency(subtotal)} subtotal · {formatCurrency(discountAmount)} discount
+            {formatCurrency(subtotal)} {t("subtotal")}
+            {discountAmount > 0
+              ? ` · ${formatCurrency(discountAmount)} ${t("discount")}`
+              : ""}
+            {redemptionAmount > 0
+              ? ` · ${formatCurrency(redemptionAmount)} ${t("points")}`
+              : ""}
           </p>
         ) : (
           <div className="mb-4" />
@@ -115,11 +154,67 @@ export function PaymentPanel({
 
         {customerName ? (
           <p className="mb-4 text-center text-sm text-muted-foreground">
-            Customer: <span className="font-medium text-foreground">{customerName}</span>
+            {t("Customer")}: <span className="font-medium text-foreground">{customerName}</span>
           </p>
         ) : null}
+
+        {loyaltyAvailable ? (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800">
+                <Star className="size-4" />
+                {t("Loyalty points")}: {loyaltyBalance}
+              </p>
+              {loyaltyRedemption ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 rounded-lg text-amber-800"
+                  onClick={() => setLoyaltyRedemption(null)}
+                >
+                  {t("Remove")}
+                </Button>
+              ) : null}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={maxRedeemablePoints}
+                value={loyaltyRedemption?.points ?? ""}
+                placeholder={t("Points to redeem")}
+                onChange={(e) => applyRedemption(Number(e.target.value))}
+                className="h-10 rounded-xl bg-white"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 shrink-0 rounded-xl"
+                onClick={() => applyRedemption(maxRedeemablePoints)}
+              >
+                {t("Use max")}
+              </Button>
+            </div>
+            {loyaltyRedemption ? (
+              <p className="mt-2 text-xs text-amber-800">
+                {loyaltyRedemption.points} {t("points")} = -
+                {formatCurrency(loyaltyRedemption.amount)}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-amber-700">
+                {t("Max")} {maxRedeemablePoints} {t("points")} (
+                {formatCurrency(
+                  Math.round(maxRedeemablePoints * (loyaltyRedemptionRate ?? 0) * 100) / 100
+                )}
+                )
+              </p>
+            )}
+          </div>
+        ) : null}
+
         <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-sm font-medium text-muted-foreground">Method</p>
+          <p className="text-sm font-medium text-muted-foreground">{t("Method")}</p>
           <Button
             type="button"
             variant="outline"
@@ -132,7 +227,7 @@ export function PaymentPanel({
               setSplits(next ? [{ method: methods.find((m) => m.id !== "credit")?.id ?? "cash", amount: total }] : []);
             }}
           >
-            {splitMode ? "Single payment" : "Split"}
+            {splitMode ? t("Single payment") : t("Split")}
           </Button>
         </div>
         {!splitMode ? (
@@ -157,7 +252,7 @@ export function PaymentPanel({
                     : "text-muted-foreground"
                 )}
               />
-              <span className="font-medium">{label}</span>
+              <span className="font-medium">{t(label)}</span>
             </button>
           ))}
         </div>
@@ -174,7 +269,7 @@ export function PaymentPanel({
                     .filter((method) => method.id !== "credit")
                     .map((method) => (
                       <option key={method.id} value={method.id}>
-                        {method.label}
+                        {t(method.label)}
                       </option>
                     ))}
                 </select>
@@ -199,7 +294,7 @@ export function PaymentPanel({
             ))}
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className={remaining === 0 ? "text-muted-foreground" : "text-amber-700"}>
-                Remaining {formatCurrency(remaining)}
+                {t("Remaining")} {formatCurrency(remaining)}
               </span>
               <Button
                 type="button"
@@ -209,7 +304,7 @@ export function PaymentPanel({
                 onClick={() => addSplit()}
               >
                 <Plus className="size-4" />
-                Add payment
+                {t("Add payment")}
               </Button>
             </div>
           </div>
@@ -220,7 +315,7 @@ export function PaymentPanel({
           disabled={!canComplete}
           onClick={complete}
         >
-          {loading ? "Processing…" : `Complete · ${formatCurrency(total)}`}
+          {loading ? t("Processing…") : `${t("Complete")} · ${formatCurrency(total)}`}
         </Button>
       </div>
     </div>

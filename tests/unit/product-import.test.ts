@@ -61,7 +61,6 @@ describe("product import schema", () => {
           wholesale_enabled: true,
           supports_weight_sale: true,
           supports_amount_sale: true,
-          publish_to_souqna: false,
         },
       ])
     );
@@ -135,7 +134,6 @@ describe("product import schema", () => {
         wholesale_enabled: "false",
         supports_weight_sale: "",
         supports_amount_sale: "",
-        publish_to_souqna: "false",
       },
     ]);
 
@@ -248,7 +246,6 @@ function importRow(overrides: Partial<Record<(typeof PRODUCT_IMPORT_COLUMNS)[num
     wholesale_enabled: "false",
     supports_weight_sale: "",
     supports_amount_sale: "",
-    publish_to_souqna: "false",
     ...overrides,
   };
 }
@@ -264,7 +261,6 @@ function product(id: string, sku: string, name: string): Product {
     base_price: 1,
     description: "",
     sale_price: null,
-    publish_to_souqna: false,
     image_url: null,
     is_active: true,
     is_popular: false,

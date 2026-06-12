@@ -8,7 +8,7 @@ import type { FeatureFlag, PermissionKey } from "@/lib/constants";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
-import { isOrganizationSuspended } from "@/lib/platform/company-status";
+import { isOrganizationSuspended } from "@/lib/org-status";
 import {
   CASHIER_COOKIE,
   REGISTERED_DEVICE_COOKIE,

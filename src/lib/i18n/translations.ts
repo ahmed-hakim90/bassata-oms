@@ -30,7 +30,7 @@ export const arTranslations: Record<string, string> = {
   "Amount in drawer": "المبلغ في الدرج",
   "Amount:": "المبلغ:",
   "App language": "لغة النظام",
-  "After seeding: owner@SweetFlow.local / demo1234": "بعد التجهيز: owner@SweetFlow.local / demo1234",
+  "After seeding: owner@CafeFlow.local / demo1234": "بعد التجهيز: owner@CafeFlow.local / demo1234",
   "Avg ticket": "متوسط الفاتورة",
   Back: "رجوع",
   Balance: "الرصيد",
@@ -136,6 +136,7 @@ export const arTranslations: Record<string, string> = {
   "Manage cost centers": "إدارة مراكز التكلفة",
   Method: "طريقة الدفع",
   "Monthly Closing": "الإقفال الشهري",
+  "Store Keeper": "أمين مخزن",
   Movements: "الحركات",
   Name: "الاسم",
   "New Customer": "عميل جديد",
@@ -177,7 +178,7 @@ export const arTranslations: Record<string, string> = {
   PIN: "PIN",
   "PIN reset": "إعادة ضبط PIN",
   POS: "نقطة البيع",
-  "POS Devices": "أجهزة نقطة البيع",
+  "POS Devices": "أجهزة الكاشير",
   "POS not available": "نقطة البيع غير متاحة",
   Paid: "مدفوع",
   "Paid at": "تم الدفع في",
@@ -462,7 +463,7 @@ export const arTranslations: Record<string, string> = {
   "Max open hours": "أقصى ساعات فتح",
   "Menu catalog, pricing, and category organization.": "كتالوج المنيو والأسعار وتنظيم التصنيفات.",
   "Menu items, ingredients, pricing, and recipes.": "أصناف المنيو والمكونات والأسعار والوصفات.",
-  "Modern point of sale for SweetFlow stores": "نظام نقطة بيع حديث لفروع SweetFlow",
+  "Modern point of sale for CafeFlow stores": "نظام نقطة بيع حديث لفروع CafeFlow",
   "Name and SKU are required": "الاسم وكود المنتج مطلوبين",
   "Name is required": "الاسم مطلوب",
   "Needs attention": "يحتاج متابعة",
@@ -520,7 +521,7 @@ export const arTranslations: Record<string, string> = {
   "PIN required": "PIN مطلوب",
   "Points Issued": "النقاط المصدرة",
   "Points program and redemption": "برنامج النقاط والاستبدال",
-  "Points redeemed": "النقاط المستبدلة",
+  "Points redeemed": "تم استبدال النقاط",
   "Points Redeemed": "النقاط المستبدلة",
   Popular: "شائع",
   "Popular picks": "اختيارات شائعة",
@@ -617,11 +618,11 @@ export const arTranslations: Record<string, string> = {
   "Stores updated": "تم تحديث الفروع",
   "Supplier created": "تم إنشاء المورد",
   "Supplier updated": "تم تحديث المورد",
-  "Supported: products (use the SweetFlow template columns)": "المدعوم: المنتجات (استخدم أعمدة قالب SweetFlow)",
+  "Supported: products (use the CafeFlow template columns)": "المدعوم: المنتجات (استخدم أعمدة قالب CafeFlow)",
   "Switch cashier after the device is unlocked": "تبديل الكاشير بعد فتح الجهاز",
   "Tap products to add items": "اضغط على المنتجات لإضافة أصناف",
   Templates: "القوالب",
-  "Thank you for visiting SweetFlow!": "شكرًا لزيارتك SweetFlow!",
+  "Thank you for visiting CafeFlow!": "شكرًا لزيارتك CafeFlow!",
   "This action cannot be undone.": "لا يمكن التراجع عن هذا الإجراء.",
   "This permanently removes the transfer and all lines. No stock has been moved yet.": "سيتم حذف التحويل وكل البنود نهائيًا. لم يتم تحريك أي مخزون بعد.",
   "This session is approaching the maximum open duration. Close the shift soon.": "الجلسة قربت من أقصى مدة فتح. اقفل الوردية قريبًا.",
@@ -649,7 +650,7 @@ export const arTranslations: Record<string, string> = {
   "Transfer received": "تم استلام التحويل",
   "Transfer sent": "تم إرسال التحويل",
   "Units (30d)": "الوحدات (30 يوم)",
-  "Upload an XLSX file using the SweetFlow template columns.": "ارفع ملف XLSX باستخدام أعمدة قالب SweetFlow.",
+  "Upload an XLSX file using the CafeFlow template columns.": "ارفع ملف XLSX باستخدام أعمدة قالب CafeFlow.",
   "Upload XLSX to bulk update catalog": "ارفع XLSX لتحديث الكتالوج دفعة واحدة",
   "Use close stepper": "استخدم خطوات الإغلاق",
   "Unlock device": "فتح الجهاز",
@@ -694,6 +695,89 @@ export const arTranslations: Record<string, string> = {
   each: "للوحدة",
   piece: "قطعة",
   "Wholesale price applied": "تم تطبيق سعر الجملة",
+
+  // POS devices page
+  "Register each cashier device once, then pair it with a one-time code":
+    "سجّل كل جهاز كاشير مرة واحدة، واربطه بكود اقتران يُستخدم مرة واحدة",
+  "How do I connect a new device?": "إزاي أوصّل جهاز جديد؟",
+  "Add the device": "أضف الجهاز",
+  'Give it a clear name like "Front register" and it gets a pairing code instantly':
+    "سمّيه اسم واضح زي «كاشير الاستقبال» وهيتولّد له كود اقتران فورًا",
+  "Open the pairing page": "افتح صفحة الاقتران",
+  "On the cashier device, sign in and open": "على جهاز الكاشير سجّل الدخول وافتح",
+  "Enter the code": "أدخل الكود",
+  "Type the code on the device. It is valid for 15 minutes":
+    "اكتب الكود على الجهاز — صالح لمدة ١٥ دقيقة",
+  "No devices for this branch yet. Add the first one below":
+    "لا توجد أجهزة لهذا الفرع بعد. أضف أول جهاز من الأسفل",
+  Paired: "متصل",
+  "Not paired yet": "لم يُقترن بعد",
+  Disabled: "معطّل",
+  "Last seen": "آخر ظهور",
+  "Waiting for first pairing": "في انتظار أول اقتران",
+  "Pairing code": "كود الاقتران",
+  "Use this browser": "استخدم هذا المتصفح",
+  Disable: "تعطيل",
+  Enable: "تفعيل",
+  "Device name, e.g. Front register": "اسم الجهاز، مثل: كاشير الاستقبال",
+  "Add device": "إضافة جهاز",
+  "Enter this code on the cashier device. Valid for 15 minutes":
+    "أدخل هذا الكود على جهاز الكاشير — صالح لمدة ١٥ دقيقة",
+  "Copy code": "نسخ الكود",
+  Done: "تم",
+  "The device opens the POS screen automatically after pairing":
+    "الجهاز هيفتح شاشة الكاشير تلقائيًا بعد الاقتران",
+  "The device will no longer be able to open the POS. This action cannot be undone.":
+    "لن يتمكن الجهاز من فتح شاشة الكاشير بعد الحذف. لا يمكن التراجع عن هذا الإجراء.",
+  "Delete device": "حذف الجهاز",
+  "Failed to generate code": "فشل إنشاء الكود",
+  "Pairing code copied": "تم نسخ كود الاقتران",
+  "Copy failed": "فشل النسخ",
+  "This browser is registered": "تم تسجيل هذا المتصفح",
+  "Registration failed": "فشل التسجيل",
+
+  // Warehouses page
+  "Each branch has a default warehouse that POS sales deduct from. Add more warehouses for storage or production":
+    "كل فرع له مخزن افتراضي بيتخصم منه البيع تلقائيًا. أضف مخازن إضافية للتخزين أو الإنتاج",
+  Rename: "إعادة تسمية",
+  "Make default": "اجعله الافتراضي",
+  "Warehouse name, e.g. Cold storage": "اسم المخزن، مثل: ثلاجة التخزين",
+  "Add warehouse": "إضافة مخزن",
+
+  // POS loyalty
+  "Loyalty points": "نقاط الولاء",
+  "Points to redeem": "عدد النقاط للاستبدال",
+  "Use max": "استخدم الكل",
+  Max: "الحد الأقصى",
+  points: "نقاط",
+  subtotal: "قبل الخصم",
+  discount: "خصم",
+  "Single payment": "دفعة واحدة",
+  Split: "تقسيم الدفع",
+  Remaining: "المتبقي",
+  "Add payment": "إضافة دفعة",
+  "Processing…": "جاري التنفيذ…",
+  Complete: "إتمام",
+  Wallet: "محفظة إلكترونية",
+
+  // Loyalty page
+  "Customers earn points on every sale and redeem them as a discount at the POS":
+    "العملاء بيكسبوا نقاط مع كل عملية بيع ويستبدلوها بخصم مباشر من شاشة الكاشير",
+  "Manual redemption — at the POS the cashier can redeem directly during payment":
+    "استبدال يدوي — ومن شاشة الكاشير يقدر الكاشير يستبدل مباشرة أثناء الدفع",
+  "No loyalty activity yet. Attach a customer to a sale and points are earned automatically":
+    "لا توجد حركات ولاء بعد. اربط عميلاً بفاتورة وهيكسب النقاط تلقائيًا",
+  Purchase: "شراء",
+  Failed: "فشل",
+  "Points earned per 1 currency spent": "عدد النقاط المكتسبة لكل 1 جنيه/وحدة عملة",
+  "Value of 1 point when redeemed": "قيمة النقطة الواحدة عند الاستبدال",
+  Example: "مثال",
+  "a customer paying": "عميل يدفع",
+  earns: "يكسب",
+  "discount at checkout": "خصم عند الدفع",
+
+  // Navigation
+  "User Guide": "دليل الاستخدام",
 };
 
 const enTranslations = Object.entries(arTranslations).reduce<Record<string, string>>(
@@ -740,7 +824,7 @@ function translateDynamicText(text: string, targetLanguage: AppLanguage): string
       expired: "منتهي الصلاحية",
       finished: "منتج نهائي",
       ingredient: "مكوّن",
-      inventory: "مخزون",
+      inventory: "أمين مخزن",
       invoiced: "تمت فوترته",
       manager: "مدير",
       open: "مفتوح",
@@ -757,7 +841,6 @@ function translateDynamicText(text: string, targetLanguage: AppLanguage): string
       submitted: "مرسل",
       transfer_in: "تحويل وارد",
       transfer_out: "تحويل صادر",
-      viewer: "مشاهد",
       voided: "ملغي",
     };
     if (enumTranslations[normalizedEnum]) return enumTranslations[normalizedEnum];
@@ -779,14 +862,6 @@ function translateDynamicText(text: string, targetLanguage: AppLanguage): string
         cashierDeniedMatch[1] ?? "",
         "ar"
       )}. اطلب مساعدة المدير لو محتاج.`;
-    }
-
-    const viewerDeniedMatch = text.match(/^Your viewer account cannot open (.+)\\.$/);
-    if (viewerDeniedMatch) {
-      return `حساب المشاهدة لا يمكنه فتح ${translateDynamicText(
-        viewerDeniedMatch[1] ?? "",
-        "ar"
-      )}.`;
     }
 
     const inventoryDeniedMatch = text.match(

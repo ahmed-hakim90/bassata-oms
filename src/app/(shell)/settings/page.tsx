@@ -55,7 +55,6 @@ export default async function SettingsRoute({
       usersBundle={data.usersBundle}
       costCentersBundle={data.costCentersBundle}
       auditBundle={data.auditBundle}
-      souqnaBundle={data.souqnaBundle}
     />
   );
 }

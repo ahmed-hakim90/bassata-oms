@@ -1,0 +1,54 @@
+import { notFound } from "next/navigation";
+import { requireAuth } from "@/lib/auth/guards";
+import { getStockCount } from "@/modules/stock-count/services/count.service";
+import { getReportBranding } from "@/modules/reports/services/report-branding.service";
+import { PrintableDocument } from "@/modules/reports/components/printable-document";
+import * as catalogRepo from "@/lib/repositories/catalog.repository";
+
+export default async function PrintStockCountPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const user = await requireAuth();
+  const { id } = await params;
+  const count = await getStockCount(id);
+  if (!count) notFound();
+  const [branding, products] = await Promise.all([
+    getReportBranding(count.store_id),
+    catalogRepo.listProducts(),
+  ]);
+  const productMap = new Map(products.map((p) => [p.id, p.name]));
+
+  return (
+    <PrintableDocument
+      branding={branding}
+      title="Stock Count Report"
+      subtitle={`Count ${count.id.slice(0, 8)}`}
+      dateRange={count.started_at}
+      generatedBy={user.name}
+      generatedAt={new Date().toISOString()}
+    >
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="border-b">
+            <th className="py-2 text-start">Product</th>
+            <th className="py-2 text-end">System</th>
+            <th className="py-2 text-end">Counted</th>
+            <th className="py-2 text-end">Variance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {count.lines.map((line) => (
+            <tr key={line.id} className="border-b">
+              <td className="py-2">{productMap.get(line.product_id) ?? line.product_id}</td>
+              <td className="py-2 text-end">{line.expected_qty}</td>
+              <td className="py-2 text-end">{line.counted_qty}</td>
+              <td className="py-2 text-end">{line.variance}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </PrintableDocument>
+  );
+}

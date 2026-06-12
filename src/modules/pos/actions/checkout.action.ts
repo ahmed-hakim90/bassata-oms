@@ -26,6 +26,7 @@ export async function checkoutAction(input: {
   payments?: PaymentSplit[];
   salesMode?: SalesMode;
   discount?: number;
+  loyaltyPoints?: number;
   override?: CheckoutOverride;
 }) {
   const user = await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
@@ -50,17 +51,11 @@ export async function checkoutAction(input: {
   if ((input.discount ?? 0) > 0) {
     await requireFeature("customer_discounts");
   }
-  if ((input.salesMode ?? "retail") === "wholesale") {
-    await requireFeature("wholesale_sales");
-    await requirePermissionOrRole("wholesale_sale", ["owner", "manager", "cashier"]);
-  }
-  if (input.cart.some((line) => line.saleInputMode === "by_weight")) {
-    await requireFeature("weight_sales");
-    await requirePermissionOrRole("weight_sale", ["owner", "manager", "cashier"]);
-  }
-  if (input.cart.some((line) => line.saleInputMode === "by_amount")) {
-    await requireFeature("price_by_amount");
-    await requirePermissionOrRole("price_by_amount_sale", ["owner", "manager", "cashier"]);
+  if ((input.loyaltyPoints ?? 0) > 0) {
+    await requireFeature("loyalty");
+    if (!input.customer) {
+      throw new Error("اختر عميلاً لاستبدال نقاط الولاء");
+    }
   }
 
   const session = await getActiveSessionForPos(ctx);
@@ -130,6 +125,7 @@ export async function checkoutAction(input: {
     payments: input.payments,
     salesMode: input.salesMode ?? "retail",
     discount: input.discount ?? 0,
+    loyaltyPoints: input.loyaltyPoints,
     override: {
       expiredSession: input.override?.expiredSession,
     },

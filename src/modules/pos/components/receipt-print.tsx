@@ -24,9 +24,9 @@ export function ReceiptPrint({
   const { t } = useTranslation();
   const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   return (
-    <div id="SweetFlow-receipt" className="hidden print:block print:p-6">
+    <div id="CafeFlow-receipt" className="hidden print:block print:p-6">
       <div className="mx-auto max-w-xs font-mono text-sm">
-        <p className="text-center font-bold">SweetFlow POS</p>
+        <p className="text-center font-bold">CafeFlow POS</p>
         <p className="text-center text-xs">{t("Order #")} {orderNumber}</p>
         <hr className="my-3 border-dashed" />
         <ul className="space-y-2">
@@ -81,5 +81,5 @@ export function triggerReceiptPrint() {
 
 export function openCashDrawerHook() {
   // Hardware integration point — wire to ESC/POS or WebUSB in production.
-  console.info("[SweetFlow] cash_drawer: open signal sent");
+  console.info("[CafeFlow] cash_drawer: open signal sent");
 }

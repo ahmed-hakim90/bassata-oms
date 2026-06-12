@@ -68,7 +68,6 @@ import {
   getBusinessActivitySettings,
   getFeatureFlags,
   getProductTemplateSettings,
-  getSouqnaIntegrationSettings,
 } from "@/modules/system/services/settings.service";
 import * as recipeService from "@/modules/products/services/recipe.service";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
@@ -78,20 +77,12 @@ export async function getProductsPageDataAction() {
   const org = await import("@/lib/repositories/organization.repository").then(
     (m) => m.getOrganization()
   );
-  const [
-    rows,
-    categories,
-    featureFlags,
-    recipeProductIds,
-    souqnaSettings,
-    productTemplates,
-    businessActivitySettings,
-  ] = await Promise.all([
+  const [rows, categories, featureFlags, recipeProductIds, productTemplates, businessActivitySettings] =
+    await Promise.all([
     productService.getProductsWithCategories(),
     productService.listCategories(),
     getFeatureFlags(),
     recipeService.listProductIdsWithRecipes(),
-    getSouqnaIntegrationSettings(),
     getProductTemplateSettings(),
     getBusinessActivitySettings(),
   ]);
@@ -103,8 +94,6 @@ export async function getProductsPageDataAction() {
     organization: org,
     categories,
     recipesEnabled: featureFlags.recipes === true,
-    souqnaEnabled: featureFlags.souqna_integration !== false,
-    defaultPublishToSouqna: souqnaSettings.publish_products_to_souqna,
     productTemplates,
     businessActivitySettings,
     products: rows.map(({ product, category }) => ({

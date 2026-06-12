@@ -12,7 +12,6 @@ import type {
   CostCenter,
   ExpenseCategory,
   ExpenseSettings,
-  OnlineMenuSettings,
   Organization,
   Permission,
   PermissionKey,
@@ -28,13 +27,10 @@ import { ExpenseSettingsTab } from "@/modules/system/components/settings/expense
 import { UsersSettingsTab } from "@/modules/system/components/settings/users-settings-tab";
 import { SystemFeaturesTab } from "@/modules/system/components/settings/system-features-tab";
 import { AuditSettingsTab } from "@/modules/system/components/settings/audit-settings-tab";
-import { SouqnaSettingsTab } from "@/modules/system/components/settings/souqna-settings-tab";
-import { BusinessActivitySettingsTab } from "@/modules/system/components/settings/business-activity-settings-tab";
 import {
   type SettingsGroup,
   type SettingsTabId,
 } from "@/modules/system/components/settings/settings-tabs";
-import type { SouqnaIntegrationLog, SouqnaPublicApiConfig } from "@/lib/types";
 
 export interface SettingsShellProps {
   activeTab: SettingsTabId;
@@ -58,9 +54,6 @@ export interface SettingsShellProps {
     featureFlags: Record<FeatureFlag, boolean>;
     expenseSettings: ExpenseSettings;
     sessionSettings: SessionSettings;
-    onlineMenuSettings: OnlineMenuSettings;
-    businessActivitySettings: import("@/lib/constants").BusinessActivitySettings;
-    productTemplateSettings: import("@/lib/constants").ProductTemplateSettings;
     costCenters: CostCenter[];
     stores: Store[];
     warehouses: Warehouse[];
@@ -106,34 +99,6 @@ export interface SettingsShellProps {
       page?: string;
     };
   } | null;
-  souqnaBundle: {
-    settings: {
-      enable_souqna_channel: boolean;
-      api_base_url: string;
-      api_key_prefix: string;
-      allowed_store_id: string | null;
-      allow_order_import: boolean;
-      reserve_stock_on_online_order: boolean;
-      publish_products_to_souqna: boolean;
-      enable_souqna_webhook: boolean;
-      souqna_webhook_url: string;
-      has_webhook_secret: boolean;
-      has_api_key: boolean;
-      api: SouqnaPublicApiConfig;
-    };
-    stats: {
-      published_products_count: number;
-      imported_orders_count: number;
-      last_products_sync_at: string | null;
-      last_order_import_at: string | null;
-      last_error_at: string | null;
-      last_error_message: string | null;
-    };
-    logs: SouqnaIntegrationLog[];
-    logsPage: number;
-    logsHasMore: boolean;
-    migrationRequired?: boolean;
-  } | null;
 }
 
 export function SettingsShell({
@@ -150,7 +115,6 @@ export function SettingsShell({
   usersBundle,
   costCentersBundle,
   auditBundle,
-  souqnaBundle,
 }: SettingsShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -191,7 +155,7 @@ export function SettingsShell({
     <>
       <PageHeader
         title="Settings"
-        description="Organization, branches, POS, expenses, users, and system configuration"
+        description="Store profile, POS, expenses, users, and system configuration"
       />
       <Tabs value={activeTab} onValueChange={setTab} className="flex-col space-y-6">
         <div className="space-y-3 rounded-xl border border-border/60 p-4">
@@ -225,16 +189,7 @@ export function SettingsShell({
         {canManageSettings && bundle ? (
           <>
             <TabsContent value="business">
-              <BusinessSettingsTab
-                org={bundle.org}
-                onlineMenuSettings={bundle.onlineMenuSettings}
-              />
-            </TabsContent>
-            <TabsContent value="business-activity">
-              <BusinessActivitySettingsTab
-                initialSettings={bundle.businessActivitySettings}
-                initialTemplates={bundle.productTemplateSettings}
-              />
+              <BusinessSettingsTab org={bundle.org} />
             </TabsContent>
             <TabsContent value="branches">
               <BranchSettingsTab
@@ -283,20 +238,6 @@ export function SettingsShell({
         {auditBundle ? (
           <TabsContent value="audit">
             <AuditSettingsTab {...auditBundle} />
-          </TabsContent>
-        ) : null}
-
-        {souqnaBundle && bundle ? (
-          <TabsContent value="souqna">
-            <SouqnaSettingsTab
-              souqnaSettings={souqnaBundle.settings}
-              souqnaStats={souqnaBundle.stats}
-              stores={bundle.stores}
-              initialLogs={souqnaBundle.logs}
-              initialLogsPage={souqnaBundle.logsPage}
-              initialLogsHasMore={souqnaBundle.logsHasMore}
-              migrationRequired={souqnaBundle.migrationRequired}
-            />
           </TabsContent>
         ) : null}
       </Tabs>

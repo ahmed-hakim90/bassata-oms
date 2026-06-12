@@ -20,6 +20,7 @@ import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import type { AppUser, Store, Permission, PermissionKey } from "@/lib/types";
 import type { UserRole } from "@/lib/constants";
+import { ROLE_LABELS } from "@/lib/constants";
 import { PermissionsMatrix } from "@/modules/accounting/components/permissions-matrix";
 import { UserPermissionOverrides } from "@/modules/accounting/components/user-permission-overrides";
 import {
@@ -29,6 +30,10 @@ import {
   resetUserPasswordAction,
   updateUserAction,
 } from "@/modules/system/actions/system.actions";
+
+function roleLabel(role: UserRole): string {
+  return ROLE_LABELS[role];
+}
 
 interface UsersPageProps {
   users: AppUser[];
@@ -146,7 +151,7 @@ export function UsersPage({
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <StatusPill label={u.role} variant="info" />
+                  <StatusPill label={roleLabel(u.role as UserRole)} variant="info" />
                   <StatusPill
                     label={u.is_active ? "active" : "inactive"}
                     variant={u.is_active ? "success" : "draft"}
@@ -196,10 +201,10 @@ export function UsersPage({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(["owner", "manager", "cashier", "inventory", "viewer"] as const).map(
+                    {(["owner", "manager", "cashier", "inventory"] as const).map(
                       (r) => (
                         <SelectItem key={r} value={r}>
-                          {r}
+                          {ROLE_LABELS[r]}
                         </SelectItem>
                       )
                     )}
@@ -464,10 +469,10 @@ export function UsersPage({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(["owner", "manager", "cashier", "inventory", "viewer"] as const).map(
+                      {(["owner", "manager", "cashier", "inventory"] as const).map(
                         (role) => (
                           <SelectItem key={role} value={role}>
-                            {role}
+                            {ROLE_LABELS[role]}
                           </SelectItem>
                         )
                       )}

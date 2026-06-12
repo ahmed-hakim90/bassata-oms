@@ -21,7 +21,7 @@ export async function createExpenseCategoryAction(input: {
 }) {
   const user = await requirePermission("expense_category_manage");
   const category = await createExpenseCategory(input, user.id);
-  revalidatePath("/settings/cost-centers");
+  revalidatePath("/settings");
   revalidatePath("/settings");
   return category;
 }
@@ -36,7 +36,7 @@ export async function updateExpenseCategoryAction(
 ) {
   const user = await requirePermission("expense_category_manage");
   const category = await updateExpenseCategory(id, patch, user.id);
-  revalidatePath("/settings/cost-centers");
+  revalidatePath("/settings");
   revalidatePath("/settings");
   return category;
 }

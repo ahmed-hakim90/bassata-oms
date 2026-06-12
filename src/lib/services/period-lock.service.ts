@@ -1,6 +1,3 @@
-import * as closingRepo from "@/lib/repositories/closing.repository";
-import * as inventoryRepo from "@/lib/repositories/inventory.repository";
-
 export class PeriodClosedError extends Error {
   constructor(
     message: string,
@@ -12,15 +9,10 @@ export class PeriodClosedError extends Error {
   }
 }
 
-export async function assertPeriodOpen(storeId: string, occurredAt?: string): Promise<void> {
-  const at = occurredAt ?? new Date().toISOString();
-  const closed = await inventoryRepo.isPeriodClosed(storeId, at);
-  if (closed) {
-    const period = await closingRepo.findClosedPeriod(storeId, at);
-    throw new PeriodClosedError(
-      `Operations are blocked: period ${period?.period_start ?? ""} – ${period?.period_end ?? ""} is closed.`,
-      period?.period_start,
-      period?.period_end
-    );
-  }
+/** Monthly period locking was removed with CafeFlow legacy cleanup. */
+export async function assertPeriodOpen(
+  _storeId: string,
+  _occurredAt?: string
+): Promise<void> {
+  return;
 }

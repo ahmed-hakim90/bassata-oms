@@ -8,16 +8,11 @@ import { getOrgId } from "@/lib/repositories/organization.repository";
 import {
   getOrganizationSettings,
   getFeatureFlags,
-  getSouqnaIntegrationSettings,
   getSettings,
   getExpenseSettings,
   getSessionSettings,
-  getOnlineMenuSettings,
-  getBusinessActivitySettings,
-  getProductTemplateSettings,
   updateExpenseSettings,
   updateSessionSettings,
-  updateOnlineMenuSettings,
   updateOrganizationSettings,
   updateFeatureFlags,
   applyActivityPreset,
@@ -41,7 +36,7 @@ import {
   updateUser,
 } from "@/modules/system/services/users.service";
 import type { FeatureFlag, PermissionKey } from "@/lib/constants";
-import type { ExpenseSettings, OnlineMenuSettings, SessionSettings } from "@/lib/types";
+import type { ExpenseSettings, SessionSettings } from "@/lib/types";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import { getValidatedActiveStoreId } from "@/lib/auth/guards";
@@ -59,11 +54,12 @@ export async function updateOrgSettingsAction(input: {
   country?: string;
   taxRate?: number;
   taxInclusive?: boolean;
+  phone?: string;
+  address?: string;
 }) {
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   await updateOrganizationSettings(input, user.id);
   revalidatePath("/settings");
-  revalidatePath("/organization");
 }
 
 export async function uploadOrganizationLogoAction(formData: FormData) {
@@ -94,7 +90,6 @@ export async function uploadOrganizationLogoAction(formData: FormData) {
 
   await updateOrganizationSettings({ logoUrl: publicUrl }, user.id);
   revalidatePath("/settings");
-  revalidatePath("/organization");
   return publicUrl;
 }
 
@@ -120,7 +115,7 @@ export async function updateFeatureFlagsAction(flags: Partial<Record<FeatureFlag
 export async function updateBusinessActivitySettingsAction(
   input: Partial<import("@/lib/constants").BusinessActivitySettings>
 ) {
-  const user = await requirePermissionOrRole("manage_business_activity", ["owner", "manager"]);
+  const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   await updateBusinessActivitySettings(input, user.id);
   revalidatePath("/settings");
   revalidatePath("/pos");
@@ -129,7 +124,7 @@ export async function updateBusinessActivitySettingsAction(
 export async function applyBusinessActivityPresetAction(
   activityType: import("@/lib/constants").BusinessActivityType
 ) {
-  const user = await requirePermissionOrRole("manage_business_activity", ["owner", "manager"]);
+  const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   await applyActivityPreset(activityType, user.id);
   revalidatePath("/settings");
   revalidatePath("/pos");
@@ -147,7 +142,7 @@ export async function updateProductTemplateSettingsAction(
 export async function createUserAction(input: {
   name: string;
   email: string;
-  role: "owner" | "manager" | "cashier" | "inventory" | "viewer";
+  role: "owner" | "manager" | "cashier" | "inventory";
   storeIds: string[];
   deviceIds?: string[];
   pin?: string;
@@ -164,7 +159,7 @@ export async function updateUserAction(
   input: {
     name?: string;
     email?: string;
-    role?: "owner" | "manager" | "cashier" | "inventory" | "viewer";
+    role?: "owner" | "manager" | "cashier" | "inventory";
     storeIds?: string[];
     deviceIds?: string[];
     isActive?: boolean;
@@ -218,7 +213,6 @@ export async function createStoreAction(input: {
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   const store = await createStore(input, user.id);
   revalidatePath("/settings");
-  revalidatePath("/organization");
   revalidatePath("/", "layout");
   return store;
 }
@@ -232,13 +226,11 @@ export async function updateStoreAction(
     phone?: string;
     timezone?: string;
     isActive?: boolean;
-    menuSlug?: string;
   }
 ) {
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   const store = await updateStore(id, input, user.id);
   revalidatePath("/settings");
-  revalidatePath("/organization");
   revalidatePath("/", "layout");
   return store;
 }
@@ -334,13 +326,6 @@ export async function updateSessionSettingsAction(
   revalidatePath("/pos");
 }
 
-export async function updateOnlineMenuSettingsAction(input: Partial<OnlineMenuSettings>) {
-  const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
-  await updateOnlineMenuSettings(input, user.id);
-  revalidatePath("/settings");
-  revalidatePath("/menu/[token]", "page");
-}
-
 export async function getSettingsData() {
   await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   return {
@@ -349,9 +334,6 @@ export async function getSettingsData() {
     featureFlags: await getFeatureFlags(),
     expenseSettings: await getExpenseSettings(),
     sessionSettings: await getSessionSettings(),
-    onlineMenuSettings: await getOnlineMenuSettings(),
-    businessActivitySettings: await getBusinessActivitySettings(),
-    productTemplateSettings: await getProductTemplateSettings(),
     costCenters: await listCostCenters(),
     stores: await listStores(),
     warehouses: await warehouseRepo.listWarehouses(),
@@ -414,17 +396,14 @@ export async function getAuditData(filters?: {
 async function loadSettingsBundle() {
   return {
     org: await getOrganizationSettings(),
-    settings: await getSettings(),
     featureFlags: await getFeatureFlags(),
     expenseSettings: await getExpenseSettings(),
     sessionSettings: await getSessionSettings(),
-    onlineMenuSettings: await getOnlineMenuSettings(),
-    businessActivitySettings: await getBusinessActivitySettings(),
-    productTemplateSettings: await getProductTemplateSettings(),
     costCenters: await listCostCenters(),
     stores: await listStores(),
     warehouses: await warehouseRepo.listWarehouses(),
     devices: await listDevices(),
+    settings: await getSettings(),
   };
 }
 
@@ -500,22 +479,17 @@ export async function getUnifiedSettingsData(
 
   let sessionSettings = settingsBundle?.sessionSettings ?? null;
   let featureFlags = settingsBundle?.featureFlags ?? null;
-  let receiptFooter = "Thank you for visiting SweetFlow!";
+  let receiptFooter = "Thank you for visiting CafeFlow!";
 
   if (sessionOnly) {
     sessionSettings = await getSessionSettings();
     featureFlags = await getFeatureFlags();
   }
 
-  const filteredVisibleTabs =
-    featureFlags?.souqna_integration === false
-      ? visibleTabs.filter((tab) => tab.id !== "souqna")
-      : visibleTabs;
-
   if (settingsBundle) {
     const receipt = settingsBundle.settings.find((s) => s.key === "receipt_footer");
     receiptFooter =
-      (receipt?.value.text as string) ?? "Thank you for visiting SweetFlow!";
+      (receipt?.value.text as string) ?? "Thank you for visiting CafeFlow!";
   }
 
   const usersBundle = has("user_manage") ? await loadUsersBundle() : null;
@@ -560,50 +534,11 @@ export async function getUnifiedSettingsData(
       })()
     : null;
 
-  const souqnaBundle =
-    has("settings_manage") && featureFlags?.souqna_integration !== false
-      ? await (async () => {
-          const { publicSouqnaSettings } = await import(
-            "@/modules/souqna/services/souqna-settings.service"
-          );
-          const { resolveSouqnaApiBaseUrlFromRequest } = await import("@/lib/souqna-api-url");
-          const { getSouqnaIntegrationStats, listSouqnaIntegrationLogs, souqnaSchemaReady } =
-            await import("@/lib/repositories/souqna.repository");
-          const orgId = await getOrgId();
-          const suggestedBaseUrl = await resolveSouqnaApiBaseUrlFromRequest();
-          const settings = publicSouqnaSettings(await getSouqnaIntegrationSettings(), {
-            suggestedBaseUrl,
-          });
-          const schemaReady = await souqnaSchemaReady();
-          const [logs, stats] = schemaReady
-            ? await Promise.all([
-                listSouqnaIntegrationLogs({ orgId, limit: 25, offset: 0 }),
-                getSouqnaIntegrationStats(orgId),
-              ])
-            : [[], {
-                published_products_count: 0,
-                imported_orders_count: 0,
-                last_products_sync_at: null,
-                last_order_import_at: null,
-                last_error_at: null,
-                last_error_message: null,
-              }];
-          return {
-            settings,
-            stats,
-            logs,
-            logsPage: 1,
-            logsHasMore: schemaReady && logs.length === 25,
-            migrationRequired: !schemaReady,
-          };
-        })()
-      : null;
-
   return {
-    visibleTabs: filteredVisibleTabs,
-    activeTab: (filteredVisibleTabs.some((t) => t.id === activeTab)
+    visibleTabs,
+    activeTab: (visibleTabs.some((t) => t.id === activeTab)
       ? activeTab
-      : filteredVisibleTabs[0]?.id ?? "business") as SettingsTabId,
+      : visibleTabs[0]?.id ?? "business") as SettingsTabId,
     receiptFooter,
     settingsBundle,
     sessionSettings,
@@ -611,6 +546,5 @@ export async function getUnifiedSettingsData(
     usersBundle,
     costCentersBundle,
     auditBundle,
-    souqnaBundle,
   };
 }

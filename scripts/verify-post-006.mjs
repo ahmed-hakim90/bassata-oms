@@ -1,6 +1,6 @@
 /**
  * Verifies migration 006 fixes against remote Supabase as owner (RLS + feature flags).
- * Requires: .env.local with Supabase URL/keys; owner@SweetFlow.local linked via db:seed-auth.
+ * Requires: .env.local with Supabase URL/keys; owner@CafeFlow.local linked via db:seed-auth.
  */
 import { readFileSync, existsSync } from "fs";
 import { dirname, resolve } from "path";
@@ -35,7 +35,7 @@ loadEnvFile(".env.local");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const ownerEmail = process.env.VERIFY_OWNER_EMAIL ?? "owner@SweetFlow.local";
+const ownerEmail = process.env.VERIFY_OWNER_EMAIL ?? "owner@CafeFlow.local";
 const ownerPassword = process.env.VERIFY_OWNER_PASSWORD ?? "demo1234";
 const orgId = "00000000-0000-4000-8000-000000000001";
 const ownerUserId = "00000000-0000-4000-8000-000000000201";

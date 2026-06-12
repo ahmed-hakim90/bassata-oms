@@ -13,16 +13,8 @@ import {
   type ProductTemplate,
   type ProductTemplateSettings,
 } from "@/lib/constants";
-import type { AppSetting, OnlineMenuSettings } from "@/lib/types";
-const BUSINESS_ACTIVITY_MANAGED_FLAGS: FeatureFlag[] = [
-  "supermarket_mode",
-  "weight_sales",
-  "price_by_amount",
-  "wholesale_sales",
-  "product_price_tiers",
-  "fixed_weight_variants",
-  "barcode_scanner",
-];
+import type { AppSetting } from "@/lib/types";
+const BUSINESS_ACTIVITY_MANAGED_FLAGS: FeatureFlag[] = ["barcode_scanner", "recipes"];
 
 export async function getSettings(): Promise<AppSetting[]> {
   return orgRepo.listSettings();
@@ -205,17 +197,9 @@ function buildBusinessActivityFeatureFlags(
   const derived: Partial<Record<FeatureFlag, boolean>> = {
     ...base,
     ...presetFlags,
-    supermarket_mode: settings.activity_type === "supermarket",
-    weight_sales: settings.enable_weight_sales,
-    price_by_amount: settings.enable_price_by_amount,
-    wholesale_sales: settings.enable_wholesale_sales,
-    product_price_tiers: settings.enable_wholesale_sales,
-    fixed_weight_variants: settings.enable_variants && settings.enable_weight_sales,
+    barcode_scanner: true,
+    recipes: presetFlags.recipes ?? settings.activity_type !== "cafe",
   };
-
-  if (settings.activity_type === "supermarket") {
-    derived.barcode_scanner = true;
-  }
 
   return derived;
 }
@@ -240,6 +224,8 @@ export async function updateOrganizationSettings(
     logoUrl?: string | null;
     taxRate?: number;
     taxInclusive?: boolean;
+    phone?: string;
+    address?: string;
   },
   userId: string
 ) {
@@ -247,6 +233,8 @@ export async function updateOrganizationSettings(
   const settings = { ...org.settings };
   if (input.taxRate !== undefined) settings.tax_rate = input.taxRate;
   if (input.taxInclusive !== undefined) settings.tax_inclusive = input.taxInclusive;
+  if (input.phone !== undefined) settings.phone = input.phone;
+  if (input.address !== undefined) settings.address = input.address;
 
   const updated = await orgRepo.updateOrganization({
     name: input.name ?? org.name,
@@ -302,74 +290,6 @@ const DEFAULT_INVENTORY_POLICY_SETTINGS = {
   allow_manager_override: true,
 };
 
-export const DEFAULT_ONLINE_MENU_SETTINGS: OnlineMenuSettings = {
-  logoUrl: "",
-  whatsappNumber: "",
-  whatsappMessage: "Hello, I would like to ask about the menu.",
-  footerText: "Thank you for visiting us.",
-  showSearch: true,
-  showCategories: true,
-  showCart: true,
-  showPrices: true,
-  showImages: true,
-  showPopular: true,
-  showVariants: true,
-  heroTitle: "",
-  heroSubtitle: "",
-  primaryColor: "#2563EB",
-  accentColor: "#16A34A",
-  productCardStyle: "visual",
-};
-
-function isHexColor(value: unknown): value is string {
-  return typeof value === "string" && /^#[0-9A-Fa-f]{6}$/.test(value);
-}
-
-export function normalizeOnlineMenuSettings(
-  value?: Partial<OnlineMenuSettings> | Record<string, unknown> | null
-): OnlineMenuSettings {
-  const input = (value ?? {}) as Record<string, unknown>;
-  const merged = {
-    ...DEFAULT_ONLINE_MENU_SETTINGS,
-    ...input,
-  } as OnlineMenuSettings;
-
-  return {
-    ...merged,
-    logoUrl: typeof input.logoUrl === "string" ? input.logoUrl : DEFAULT_ONLINE_MENU_SETTINGS.logoUrl,
-    whatsappNumber:
-      typeof input.whatsappNumber === "string"
-        ? input.whatsappNumber
-        : DEFAULT_ONLINE_MENU_SETTINGS.whatsappNumber,
-    whatsappMessage:
-      typeof input.whatsappMessage === "string"
-        ? input.whatsappMessage
-        : DEFAULT_ONLINE_MENU_SETTINGS.whatsappMessage,
-    footerText:
-      typeof input.footerText === "string" ? input.footerText : DEFAULT_ONLINE_MENU_SETTINGS.footerText,
-    heroTitle:
-      typeof input.heroTitle === "string" ? input.heroTitle : DEFAULT_ONLINE_MENU_SETTINGS.heroTitle,
-    heroSubtitle:
-      typeof input.heroSubtitle === "string"
-        ? input.heroSubtitle
-        : DEFAULT_ONLINE_MENU_SETTINGS.heroSubtitle,
-    primaryColor: isHexColor(input.primaryColor)
-      ? input.primaryColor
-      : DEFAULT_ONLINE_MENU_SETTINGS.primaryColor,
-    accentColor: isHexColor(input.accentColor)
-      ? input.accentColor
-      : DEFAULT_ONLINE_MENU_SETTINGS.accentColor,
-    productCardStyle: input.productCardStyle === "compact" ? "compact" : "visual",
-    showSearch: input.showSearch !== false,
-    showCategories: input.showCategories !== false,
-    showCart: input.showCart !== false,
-    showPrices: input.showPrices !== false,
-    showImages: input.showImages !== false,
-    showPopular: input.showPopular !== false,
-    showVariants: input.showVariants !== false,
-  };
-}
-
 export async function getExpenseSettings() {
   const setting = await getSetting("expense_settings");
   return {
@@ -420,41 +340,4 @@ export async function updateSessionSettings(
     merged.warn_after_hours = merged.max_open_hours;
   }
   return upsertSetting("session_settings", merged, userId);
-}
-
-export async function getOnlineMenuSettings(): Promise<OnlineMenuSettings> {
-  const setting = await getSetting("online_menu_settings");
-  return normalizeOnlineMenuSettings(setting?.value ?? null);
-}
-
-export async function updateOnlineMenuSettings(
-  input: Partial<OnlineMenuSettings>,
-  userId: string
-) {
-  const current = await getOnlineMenuSettings();
-  return upsertSetting(
-    "online_menu_settings",
-    normalizeOnlineMenuSettings({ ...current, ...input }) as unknown as Record<string, unknown>,
-    userId
-  );
-}
-
-export async function getSouqnaIntegrationSettings() {
-  const { normalizeSouqnaIntegrationSettings } = await import(
-    "@/modules/souqna/services/souqna-settings.service"
-  );
-  const setting = await getSetting("souqna_integration");
-  return normalizeSouqnaIntegrationSettings(setting?.value ?? null);
-}
-
-export async function updateSouqnaIntegrationSettings(
-  input: Partial<import("@/lib/types").SouqnaIntegrationSettings>,
-  userId: string
-) {
-  const { normalizeSouqnaIntegrationSettings } = await import(
-    "@/modules/souqna/services/souqna-settings.service"
-  );
-  const current = await getSouqnaIntegrationSettings();
-  const merged = normalizeSouqnaIntegrationSettings({ ...current, ...input });
-  return upsertSetting("souqna_integration", merged as unknown as Record<string, unknown>, userId);
 }

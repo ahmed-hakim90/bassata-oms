@@ -1,4 +1,4 @@
-import { normalizeMenuSlug, slugifyBranchName, validateMenuSlug } from "@/lib/online-menu-path";
+import { slugifyBranchName } from "@/lib/slugify";
 import * as userRepo from "@/lib/repositories/user.repository";
 import * as deviceRepo from "@/lib/repositories/device.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
@@ -241,7 +241,6 @@ export async function createStore(
   userId: string
 ) {
   const orgId = await getOrgId();
-  const menuSlug = await storeRepo.allocateMenuSlug(orgId, input.name);
   const store = await storeRepo.createStore({
     name: input.name,
     address: input.address,
@@ -249,10 +248,6 @@ export async function createStore(
     phone: input.phone ?? "",
     timezone: input.timezone ?? null,
     is_active: true,
-    settings: {
-      online_menu_token: crypto.randomUUID().replaceAll("-", ""),
-      online_menu_slug: menuSlug,
-    },
   });
   await writeAuditLog({
     orgId,
@@ -279,7 +274,6 @@ export async function updateStore(
     phone?: string;
     timezone?: string;
     isActive?: boolean;
-    menuSlug?: string;
   },
   userId: string
 ) {
@@ -296,18 +290,6 @@ export async function updateStore(
     timezone: input.timezone ?? undefined,
     is_active: input.isActive,
   };
-
-  if (input.menuSlug !== undefined) {
-    const normalized = normalizeMenuSlug(input.menuSlug);
-    const validationError = validateMenuSlug(normalized);
-    if (validationError) throw new Error(validationError);
-    const taken = await storeRepo.isMenuSlugTaken(existing.org_id, normalized, id);
-    if (taken) throw new Error("This menu link name is already used by another branch");
-    patch.settings = {
-      ...existing.settings,
-      online_menu_slug: normalized,
-    };
-  }
 
   const store = await storeRepo.updateStore(id, patch);
   if (store) {

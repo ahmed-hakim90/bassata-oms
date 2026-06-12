@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type React from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,17 +29,21 @@ import { selectLabelById } from "@/lib/select-label";
 import type { Category } from "@/lib/types";
 import { DialogFooter } from "@/components/ui/dialog";
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { SweetFormField } from "@/components/SweetFlow/form-field";
 import { getVisibleAdvancedSettingsForProduct } from "@/modules/products/lib/advanced-settings-visibility";
+import {
+  getFirstProductFormErrorStep,
+  getProductFormFieldsForStep,
+} from "@/modules/products/lib/product-form-steps";
 import type { ProductFormValues } from "@/modules/products/components/product-form-dialog";
 
 type Props = {
   form: UseFormReturn<ProductFormValues>;
   categories: Category[];
   isEdit: boolean;
-  souqnaEnabled: boolean;
   currency: string;
   activityType: BusinessActivityType;
-  onSubmit: (e?: React.BaseSyntheticEvent) => void;
+  onSubmit: (values: ProductFormValues) => void | Promise<void>;
   onCancel: () => void;
   onApplyActivityTemplate?: (
     productType: ProductFormValues["product_type"],
@@ -65,7 +68,6 @@ export function GuidedProductDetailsForm({
   form,
   categories,
   isEdit,
-  souqnaEnabled,
   currency,
   activityType,
   onSubmit,
@@ -80,7 +82,7 @@ export function GuidedProductDetailsForm({
     salesUnitType?: ProductFormValues["sales_unit_type"];
   } | null>(null);
   const values = form.watch();
-  const [errorText, setErrorText] = useState<string | null>(null);
+  const errors = form.formState.errors;
   const visibleAdvancedSettings = getVisibleAdvancedSettingsForProduct(
     activityType,
     values.product_type,
@@ -91,9 +93,9 @@ export function GuidedProductDetailsForm({
   const showExpiryTracking = visibleAdvancedSettings.has("expiry_tracking");
   const showFefo = visibleAdvancedSettings.has("fefo");
   const showFractionalQuantity = visibleAdvancedSettings.has("fractional_quantity");
-  const showPriceByAmount = visibleAdvancedSettings.has("price_by_amount");
-  const showWholesale = visibleAdvancedSettings.has("wholesale");
-  const showSerialNumber = visibleAdvancedSettings.has("serial_number");
+  const showPriceByAmount = false;
+  const showWholesale = false;
+  const showSerialNumber = false;
 
   const shouldConfirmTemplateReapply = () => {
     if (!onApplyActivityTemplate) return false;
@@ -130,34 +132,30 @@ export function GuidedProductDetailsForm({
   });
 
   const validateStep = async (targetStep: number) => {
-    const fieldsByStep: Record<number, Array<keyof ProductFormValues>> = {
-      1: ["name", "category_id", "sku", "barcode", "image_url"],
-      2: ["product_type", "sales_unit_type"],
-      3: ["base_price", "sale_price"],
-      4: ["track_inventory", "expiry_tracking_enabled"],
-    };
-    const fields = fieldsByStep[targetStep] ?? [];
+    const fields = getProductFormFieldsForStep(targetStep);
     if (fields.length === 0) return true;
     return form.trigger(fields);
   };
 
   const goToStep = async (target: number) => {
     if (target <= step) {
-      setErrorText(null);
       setStep(target);
       return;
     }
     const isValid = await validateStep(step);
-    if (!isValid) {
-      setErrorText("يرجى إكمال الحقول المطلوبة قبل المتابعة.");
-      return;
-    }
-    setErrorText(null);
+    if (!isValid) return;
     setStep(target);
   };
 
+  const handleFormSubmit = form.handleSubmit(onSubmit, (fieldErrors) => {
+    const errorStep = getFirstProductFormErrorStep(fieldErrors);
+    if (errorStep !== undefined) setStep(errorStep);
+    const firstField = Object.keys(fieldErrors)[0] as keyof ProductFormValues | undefined;
+    if (firstField) void form.setFocus(firstField);
+  });
+
   return (
-    <form onSubmit={onSubmit} className="grid gap-4 pt-2">
+    <form onSubmit={handleFormSubmit} className="grid gap-4 pt-2">
       <div className="grid grid-cols-4 gap-2 rounded-xl border border-border/60 p-2 text-xs">
         {STEP_TITLES.map((title, idx) => (
           <button
@@ -173,19 +171,25 @@ export function GuidedProductDetailsForm({
           </button>
         ))}
       </div>
-      {errorText ? <p className="text-xs text-destructive">{errorText}</p> : null}
 
       {step === 1 ? (
         <div className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="name">اسم المنتج</Label>
-            <Input id="name" {...form.register("name")} />
-          </div>
+          <SweetFormField id="name" label="اسم المنتج" error={errors.name?.message}>
+            <Input
+              id="name"
+              aria-invalid={!!errors.name}
+              {...form.register("name")}
+            />
+          </SweetFormField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label>التصنيف</Label>
-              <Select value={values.category_id} onValueChange={(v) => form.setValue("category_id", v ?? "", { shouldValidate: true })}>
-                <SelectTrigger>
+            <SweetFormField id="category_id" label="التصنيف" error={errors.category_id?.message}>
+              <Select
+                value={values.category_id}
+                onValueChange={(v) =>
+                  form.setValue("category_id", v ?? "", { shouldValidate: true })
+                }
+              >
+                <SelectTrigger aria-invalid={!!errors.category_id}>
                   <SelectValue placeholder="اختر التصنيف">
                     {(value) => selectLabelById(categories, value, (c) => c.name)}
                   </SelectValue>
@@ -198,33 +202,46 @@ export function GuidedProductDetailsForm({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="sku">SKU</Label>
-              <Input id="sku" {...form.register("sku")} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="barcode">الباركود</Label>
-              <Input id="barcode" {...form.register("barcode")} />
-            </div>
+            </SweetFormField>
+            <SweetFormField
+              id="product_code"
+              label="كود المنتج / الباركود"
+              hint={isEdit ? undefined : "يُنشأ تلقائياً بالترقيم التسلسلي"}
+            >
+              <Input
+                id="product_code"
+                readOnly
+                value={values.sku || "—"}
+                className="bg-muted/50"
+              />
+            </SweetFormField>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="image_url">رابط صورة المنتج</Label>
-            <Input id="image_url" value={values.image_url ?? ""} onChange={(e) => form.setValue("image_url", e.target.value || null)} placeholder="https://example.com/image.jpg" />
-          </div>
+          <SweetFormField id="image_url" label="رابط صورة المنتج" error={errors.image_url?.message}>
+            <Input
+              id="image_url"
+              aria-invalid={!!errors.image_url}
+              value={values.image_url ?? ""}
+              onChange={(e) => form.setValue("image_url", e.target.value || null)}
+              placeholder="https://example.com/image.jpg"
+            />
+          </SweetFormField>
         </div>
       ) : null}
 
       {step === 2 ? (
         <div className="space-y-4">
-          <div className="grid gap-2">
-            <Label>نوع المنتج</Label>
+          <SweetFormField
+            id="product_type"
+            label="نوع المنتج"
+            error={errors.product_type?.message}
+          >
             <div className="grid gap-2 sm:grid-cols-2">
               {PRODUCT_TYPE_CHOICES.map((item) => (
                 <button
                   key={item.id}
                   type="button"
-                  className={`rounded-xl border p-3 text-left ${values.product_type === item.id ? "border-primary bg-primary/10" : "border-border/60"}`}
+                  aria-invalid={!!errors.product_type}
+                  className={`rounded-xl border p-3 text-left ${values.product_type === item.id ? "border-primary bg-primary/10" : "border-border/60"} ${errors.product_type ? "border-destructive ring-3 ring-destructive/20" : ""}`}
                   onClick={() => {
                     form.setValue("product_type", item.id, { shouldValidate: true });
                     requestTemplateReapply(item.id, values.sales_unit_type);
@@ -235,16 +252,24 @@ export function GuidedProductDetailsForm({
                 </button>
               ))}
             </div>
-          </div>
+          </SweetFormField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label>طريقة البيع</Label>
-              <Select value={values.sales_unit_type} onValueChange={(v) => {
-                const nextSales = (v ?? "piece") as ProductFormValues["sales_unit_type"];
-                form.setValue("sales_unit_type", nextSales, { shouldValidate: true });
-                requestTemplateReapply(values.product_type, nextSales);
-              }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+            <SweetFormField
+              id="sales_unit_type"
+              label="طريقة البيع"
+              error={errors.sales_unit_type?.message}
+            >
+              <Select
+                value={values.sales_unit_type}
+                onValueChange={(v) => {
+                  const nextSales = (v ?? "piece") as ProductFormValues["sales_unit_type"];
+                  form.setValue("sales_unit_type", nextSales, { shouldValidate: true });
+                  requestTemplateReapply(values.product_type, nextSales);
+                }}
+              >
+                <SelectTrigger aria-invalid={!!errors.sales_unit_type}>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {[
                     { id: "piece", label: "منتج بيع مباشر" },
@@ -252,22 +277,36 @@ export function GuidedProductDetailsForm({
                     { id: "volume", label: "مكوّن" },
                     { id: "pack", label: "مواد تعبئة" },
                   ].map((u) => (
-                    <SelectItem key={u.id} value={u.id} label={u.label}>{u.label}</SelectItem>
+                    <SelectItem key={u.id} value={u.id} label={u.label}>
+                      {u.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>وحدة المخزون</Label>
-              <Select value={values.sale_unit} onValueChange={(v) => form.setValue("sale_unit", (v ?? "piece") as ProductFormValues["sale_unit"], { shouldValidate: true })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+            </SweetFormField>
+            <SweetFormField id="sale_unit" label="وحدة المخزون">
+              <Select
+                value={values.sale_unit}
+                onValueChange={(v) =>
+                  form.setValue(
+                    "sale_unit",
+                    (v ?? "piece") as ProductFormValues["sale_unit"],
+                    { shouldValidate: true }
+                  )
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {MEASUREMENT_UNITS.map((u) => (
-                    <SelectItem key={u} value={u} label={u}>{formatUnit(u)}</SelectItem>
+                    <SelectItem key={u} value={u} label={u}>
+                      {formatUnit(u)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </SweetFormField>
           </div>
         </div>
       ) : null}
@@ -275,20 +314,39 @@ export function GuidedProductDetailsForm({
       {step === 3 ? (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="base_price">سعر التكلفة</Label>
-              <Input id="base_price" type="number" step="0.01" {...form.register("base_price", { valueAsNumber: true })} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="sale_price">سعر البيع</Label>
+            <SweetFormField
+              id="base_price"
+              label="سعر التكلفة"
+              error={errors.base_price?.message}
+            >
+              <Input
+                id="base_price"
+                type="number"
+                step="0.01"
+                aria-invalid={!!errors.base_price}
+                {...form.register("base_price", { valueAsNumber: true })}
+              />
+            </SweetFormField>
+            <SweetFormField
+              id="sale_price"
+              label="سعر البيع"
+              error={errors.sale_price?.message}
+            >
               <Input
                 id="sale_price"
                 type="number"
                 step="0.01"
+                aria-invalid={!!errors.sale_price}
                 value={values.sale_price ?? ""}
-                onChange={(e) => form.setValue("sale_price", e.target.value === "" ? null : Number(e.target.value))}
+                onChange={(e) =>
+                  form.setValue(
+                    "sale_price",
+                    e.target.value === "" ? null : Number(e.target.value),
+                    { shouldValidate: true }
+                  )
+                }
               />
-            </div>
+            </SweetFormField>
           </div>
         </div>
       ) : null}
@@ -301,10 +359,9 @@ export function GuidedProductDetailsForm({
               النوع {values.product_type} | التكلفة {values.base_price} {currency}
             </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="description">الوصف</Label>
+          <SweetFormField id="description" label="الوصف">
             <Textarea id="description" rows={3} {...form.register("description")} />
-          </div>
+          </SweetFormField>
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={values.is_active} onCheckedChange={(v) => form.setValue("is_active", Boolean(v))} />
@@ -323,12 +380,6 @@ export function GuidedProductDetailsForm({
                   </label>
                 ) : null}
               </>
-            ) : null}
-            {souqnaEnabled && (values.product_type === "finished_product" || values.product_type === "finished") ? (
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={values.publish_to_souqna} onCheckedChange={(v) => form.setValue("publish_to_souqna", Boolean(v))} />
-                نشر في سوقنا
-              </label>
             ) : null}
           </div>
         </div>

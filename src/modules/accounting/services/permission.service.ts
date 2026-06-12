@@ -17,7 +17,6 @@ export async function getRolePermissionMatrix(): Promise<
     manager: [],
     cashier: [],
     inventory: [],
-    viewer: [],
   };
   for (const row of rows) {
     matrix[row.role].push(row.permission_key as PermissionKey);

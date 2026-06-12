@@ -13,7 +13,6 @@ function mockProduct(overrides: Partial<POSProduct> = {}): POSProduct {
     base_price: 4.5,
     description: "",
     sale_price: null,
-    publish_to_souqna: false,
     updated_at: new Date().toISOString(),
     is_active: true,
     is_popular: false,

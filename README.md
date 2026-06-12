@@ -54,16 +54,15 @@ Quick login: any seeded email below with password **`demo1234`** (from `scripts/
 
 | Email | Role |
 |-------|------|
-| `owner@SweetFlow.local` | owner |
-| `manager@SweetFlow.local` | manager |
-| `cashier1@SweetFlow.local` | cashier (POS PIN `1234`) |
-| `cashier2@SweetFlow.local` | cashier (POS PIN `1234`) |
-| `inventory@SweetFlow.local` | inventory |
-| `viewer@SweetFlow.local` | viewer |
+| `owner@CafeFlow.local` | owner |
+| `manager@CafeFlow.local` | manager |
+| `cashier1@CafeFlow.local` | cashier (POS PIN `1234`) |
+| `cashier2@CafeFlow.local` | cashier (POS PIN `1234`) |
+| `inventory@CafeFlow.local` | store keeper |
 
 One-liner demo DB: `npm run db:reset-demo`
 
-> **Note:** The git repository folder is named `SweetFlow-oms`; the npm package and product name is `SweetFlow-pos`.
+> **Note:** Product name is **CafeFlow ERP & POS** (`cafeflow-erp-pos`).
 
 ## Supabase Setup (Production)
 

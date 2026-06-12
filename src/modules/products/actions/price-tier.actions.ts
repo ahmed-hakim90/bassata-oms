@@ -10,14 +10,14 @@ import {
 } from "@/modules/products/services/pricing-tier.service";
 
 export async function listPriceTiersAction(productId: string) {
-  await requirePermissionOrRole("manage_price_tiers", ["owner", "manager"]);
+  await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   return listPriceTiers(productId);
 }
 
 export async function upsertPriceTierAction(
   input: Omit<ProductPriceTier, "id" | "org_id" | "created_at" | "updated_at"> & { id?: string }
 ) {
-  await requirePermissionOrRole("manage_price_tiers", ["owner", "manager"]);
+  await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   const row = await upsertPriceTier(input);
   revalidatePath("/products");
   revalidatePath("/pos");
@@ -25,7 +25,7 @@ export async function upsertPriceTierAction(
 }
 
 export async function deletePriceTierAction(id: string) {
-  await requirePermissionOrRole("manage_price_tiers", ["owner", "manager"]);
+  await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   await deletePriceTier(id);
   revalidatePath("/products");
   revalidatePath("/pos");

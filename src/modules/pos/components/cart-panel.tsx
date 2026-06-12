@@ -13,9 +13,15 @@ interface CartPanelProps {
   onCheckout: () => void;
   checkoutDisabled?: boolean;
   discountsEnabled?: boolean;
+  loyaltyEnabled?: boolean;
 }
 
-export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = false }: CartPanelProps) {
+export function CartPanel({
+  onCheckout,
+  checkoutDisabled,
+  discountsEnabled = false,
+  loyaltyEnabled = false,
+}: CartPanelProps) {
   const { t } = useTranslation();
   const cart = usePosStore((s) => s.cart);
   const heldCarts = usePosStore((s) => s.heldCarts);
@@ -53,7 +59,7 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
         )}
       </div>
 
-      <CustomerAttach />
+      <CustomerAttach loyaltyEnabled={loyaltyEnabled} />
 
       {heldCarts.length > 0 ? (
         <div className="border-b px-4 py-3">
@@ -112,9 +118,6 @@ export function CartPanel({ onCheckout, checkoutDisabled, discountsEnabled = fal
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {formatCurrency(line.unitPrice)} {line.saleUnit ? `/${line.saleUnit}` : t("each")}
                   </p>
-                  {line.wholesaleApplied ? (
-                    <p className="mt-1 text-xs font-medium text-emerald-700">{t("Wholesale price applied")}</p>
-                  ) : null}
                 </div>
                 <div className="mt-2.5 flex items-center justify-between gap-2 xl:mt-0 xl:flex-col xl:items-end xl:gap-1">
                   <div className="flex items-center gap-1 xl:gap-1.5">

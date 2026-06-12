@@ -3,7 +3,12 @@ import * as sessionRepo from "@/lib/repositories/session.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
-import { earnPoints } from "@/modules/loyalty/services/loyalty.service";
+import {
+  earnPoints,
+  getCustomerLoyaltyBalance,
+  getLoyaltyRule,
+  redeemPoints,
+} from "@/modules/loyalty/services/loyalty.service";
 import {
   getInventoryPolicySettings,
   getSessionSettings,
@@ -25,6 +30,7 @@ export interface CheckoutInput {
   payments?: PaymentSplit[];
   salesMode?: SalesMode;
   discount?: number;
+  loyaltyPoints?: number;
   override?: {
     expiredSession?: boolean;
   };
@@ -110,6 +116,29 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     }
   }
 
+  // Loyalty redemption: validate before the order exists, deduct points after.
+  const requestedPoints = Math.floor(input.loyaltyPoints ?? 0);
+  let loyaltyDiscount = 0;
+  if (requestedPoints > 0) {
+    if (!input.customer?.id) {
+      throw new Error("اختر عميلاً لاستبدال نقاط الولاء");
+    }
+    const rule = await getLoyaltyRule();
+    if (!rule?.is_active || rule.redemption_rate <= 0) {
+      throw new Error("برنامج الولاء غير مفعل");
+    }
+    const balance = await getCustomerLoyaltyBalance(input.customer.id);
+    if (requestedPoints > balance) {
+      throw new Error("رصيد نقاط العميل غير كافٍ");
+    }
+    loyaltyDiscount = Math.round(requestedPoints * rule.redemption_rate * 100) / 100;
+    const subtotal = input.cart.reduce((sum, line) => sum + line.lineTotal, 0);
+    const maxDiscount = Math.max(0, subtotal - (input.discount ?? 0));
+    if (loyaltyDiscount > maxDiscount + 0.01) {
+      throw new Error("قيمة النقاط المستبدلة أكبر من إجمالي الفاتورة");
+    }
+  }
+
   const payments = input.payments?.filter((payment) => payment.amount > 0) ?? [];
   const checkoutPayload = {
     storeId: input.storeId,
@@ -119,7 +148,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     customerId: input.customer?.id ?? null,
     paymentMethod: input.paymentMethod,
     salesMode: input.salesMode ?? "retail",
-    discount: input.discount ?? 0,
+    discount: (input.discount ?? 0) + loyaltyDiscount,
     lines,
   };
   const result = input.override?.expiredSession
@@ -132,6 +161,16 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
 
   const order = await orderRepo.getOrder(result.order_id);
   if (!order) throw new Error("لم يتم العثور على الطلب بعد إتمام البيع");
+
+  if (input.customer?.id && requestedPoints > 0) {
+    await redeemPoints({
+      customerId: input.customer.id,
+      points: requestedPoints,
+      reason: `استبدال نقاط - طلب ${result.order_number}`,
+      userId: input.cashierId,
+      storeId: input.storeId,
+    });
+  }
 
   if (input.customer?.id && (await isFeatureEnabled("loyalty"))) {
     await earnPoints({

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { createSignedCookieValue, readSignedCookieValue } from "@/lib/auth/signed-cookie";
-import { isOrganizationSuspended } from "@/lib/platform/company-status";
+import { isOrganizationSuspended } from "@/lib/org-status";
 import type { AppUser } from "@/lib/types";
 
 export const STORE_COOKIE = "sf_active_store";

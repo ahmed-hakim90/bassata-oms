@@ -29,7 +29,7 @@ export async function importProductsAction(rows: ProductImportRow[]) {
   const result = await bulkImportProducts(rows, user.id, storeId);
   revalidatePath("/products");
   revalidatePath("/inventory");
-  revalidatePath("/imports-exports");
+  revalidatePath("/products");
   return result;
 }
 
@@ -38,7 +38,7 @@ export async function exportProductsTemplateAction() {
   await requirePermissionOrRole("imports_exports", ["owner", "manager"]);
   const buffer = buildProductsTemplateWorkbook();
   return {
-    filename: "SweetFlow-products-template.xlsx",
+    filename: "CafeFlow-products-template.xlsx",
     base64: workbookToBase64(buffer),
   };
 }
@@ -48,7 +48,7 @@ export async function exportProductsDataAction() {
   await requirePermissionOrRole("imports_exports", ["owner", "manager"]);
   const buffer = await buildProductsExportWorkbook();
   return {
-    filename: `SweetFlow-products-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    filename: `CafeFlow-products-${new Date().toISOString().slice(0, 10)}.xlsx`,
     base64: workbookToBase64(buffer),
   };
 }

@@ -29,7 +29,7 @@ export async function createCostCenterAction(input: {
     await requireStoreAccess(input.store_id);
   }
   const center = await createCostCenter(input, user.id);
-  revalidatePath("/settings/cost-centers");
+  revalidatePath("/settings");
   revalidatePath("/settings");
   return center;
 }
@@ -49,7 +49,7 @@ export async function updateCostCenterAction(
     await requireStoreAccess(patch.store_id);
   }
   const center = await updateCostCenter(id, patch, user.id);
-  revalidatePath("/settings/cost-centers");
+  revalidatePath("/settings");
   revalidatePath("/settings");
   return center;
 }

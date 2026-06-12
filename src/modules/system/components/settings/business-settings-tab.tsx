@@ -6,16 +6,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import {
   updateOrgSettingsAction,
-  updateOnlineMenuSettingsAction,
   uploadOrganizationLogoAction,
 } from "@/modules/system/actions/system.actions";
 import { languageOptions } from "@/lib/i18n/translations";
-import type { OnlineMenuSettings, Organization } from "@/lib/types";
+import type { Organization } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 
 interface BusinessSettingsTabProps {
@@ -24,28 +21,28 @@ interface BusinessSettingsTabProps {
     taxRate: number;
     taxInclusive: boolean;
   };
-  onlineMenuSettings: OnlineMenuSettings;
 }
 
-export function BusinessSettingsTab({ org, onlineMenuSettings }: BusinessSettingsTabProps) {
+export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
   const [pending, startTransition] = useTransition();
   const language = useUiStore((s) => s.language);
   const setLanguage = useUiStore((s) => s.setLanguage);
-  const [onlineMenuForm, setOnlineMenuForm] = useState(onlineMenuSettings);
   const [logoUrl, setLogoUrl] = useState(org.organization.logo_url ?? "");
   const [form, setForm] = useState({
     name: org.organization.name,
     currency: org.organization.currency,
     timezone: org.organization.timezone,
     country: org.organization.country,
+    phone: (org.organization.settings.phone as string | undefined) ?? "",
+    address: (org.organization.settings.address as string | undefined) ?? "",
   });
 
   return (
     <div className="space-y-6">
-      <OperationalCard title="Organization">
+      <OperationalCard title="Store profile">
         <div className="grid max-w-lg gap-4">
           <div className="space-y-2">
-            <Label>Business Name</Label>
+            <Label>Store name</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -55,7 +52,7 @@ export function BusinessSettingsTab({ org, onlineMenuSettings }: BusinessSetting
             <Label>Logo</Label>
             {logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="Organization logo" className="mb-2 h-16 w-16 rounded-lg object-cover" />
+              <img src={logoUrl} alt="Store logo" className="mb-2 h-16 w-16 rounded-lg object-cover" />
             )}
             <Input
               type="file"
@@ -75,6 +72,20 @@ export function BusinessSettingsTab({ org, onlineMenuSettings }: BusinessSetting
                   }
                 });
               }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Phone</Label>
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Address</Label>
+            <Input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
           </div>
           <div className="space-y-2">
@@ -130,167 +141,17 @@ export function BusinessSettingsTab({ org, onlineMenuSettings }: BusinessSetting
                     currency: form.currency,
                     timezone: form.timezone,
                     country: form.country,
+                    phone: form.phone,
+                    address: form.address,
                   });
-                  toast.success("Organization saved");
+                  toast.success("Store settings saved");
                 } catch {
                   toast.error("Failed to save");
                 }
               })
             }
           >
-            Save organization
-          </Button>
-        </div>
-      </OperationalCard>
-
-      <OperationalCard title="Online menu storefront">
-        <div className="grid gap-5">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Logo URL</Label>
-              <Input
-                value={onlineMenuForm.logoUrl}
-                onChange={(e) =>
-                  setOnlineMenuForm({ ...onlineMenuForm, logoUrl: e.target.value })
-                }
-                placeholder="https://..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>WhatsApp number</Label>
-              <Input
-                value={onlineMenuForm.whatsappNumber}
-                onChange={(e) =>
-                  setOnlineMenuForm({ ...onlineMenuForm, whatsappNumber: e.target.value })
-                }
-                placeholder="201000000000"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Hero title</Label>
-              <Input
-                value={onlineMenuForm.heroTitle}
-                onChange={(e) =>
-                  setOnlineMenuForm({ ...onlineMenuForm, heroTitle: e.target.value })
-                }
-                placeholder="Leave empty to use business name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Hero subtitle</Label>
-              <Input
-                value={onlineMenuForm.heroSubtitle}
-                onChange={(e) =>
-                  setOnlineMenuForm({ ...onlineMenuForm, heroSubtitle: e.target.value })
-                }
-                placeholder="Fresh picks, daily specials..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>WhatsApp message</Label>
-              <Textarea
-                value={onlineMenuForm.whatsappMessage}
-                onChange={(e) =>
-                  setOnlineMenuForm({ ...onlineMenuForm, whatsappMessage: e.target.value })
-                }
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Footer text</Label>
-              <Textarea
-                value={onlineMenuForm.footerText}
-                onChange={(e) =>
-                  setOnlineMenuForm({ ...onlineMenuForm, footerText: e.target.value })
-                }
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr]">
-            <div className="space-y-2">
-              <Label>Primary color</Label>
-              <Input
-                value={onlineMenuForm.primaryColor}
-                onChange={(e) =>
-                  setOnlineMenuForm({ ...onlineMenuForm, primaryColor: e.target.value })
-                }
-                placeholder="#2563EB"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Accent color</Label>
-              <Input
-                value={onlineMenuForm.accentColor}
-                onChange={(e) =>
-                  setOnlineMenuForm({ ...onlineMenuForm, accentColor: e.target.value })
-                }
-                placeholder="#16A34A"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Product card style</Label>
-              <select
-                className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
-                value={onlineMenuForm.productCardStyle}
-                onChange={(e) =>
-                  setOnlineMenuForm({
-                    ...onlineMenuForm,
-                    productCardStyle: e.target.value === "compact" ? "compact" : "visual",
-                  })
-                }
-              >
-                <option value="visual">Visual</option>
-                <option value="compact">Compact</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {(
-              [
-                ["showSearch", "Search"],
-                ["showCategories", "Categories"],
-                ["showCart", "Cart and orders"],
-                ["showPrices", "Prices"],
-                ["showImages", "Images"],
-                ["showPopular", "Popular badges"],
-                ["showVariants", "Variants"],
-              ] as const
-            ).map(([key, label]) => (
-              <label
-                key={key}
-                className="flex items-center gap-2 rounded-xl border border-border/60 p-3"
-              >
-                <Checkbox
-                  checked={onlineMenuForm[key]}
-                  onCheckedChange={(v) =>
-                    setOnlineMenuForm({ ...onlineMenuForm, [key]: v === true })
-                  }
-                />
-                <span className="text-sm">{label}</span>
-              </label>
-            ))}
-          </div>
-
-          <Button
-            className="w-fit"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                try {
-                  await updateOnlineMenuSettingsAction(onlineMenuForm);
-                  toast.success("Online menu settings saved");
-                } catch (error) {
-                  toast.error(
-                    error instanceof Error ? error.message : "Failed to save online menu"
-                  );
-                }
-              })
-            }
-          >
-            Save online menu
+            Save store settings
           </Button>
         </div>
       </OperationalCard>

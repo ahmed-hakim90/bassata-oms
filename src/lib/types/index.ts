@@ -5,7 +5,6 @@ import type {
   EXPENSE_STATUSES,
   MOVEMENT_TYPES,
   MEASUREMENT_UNITS,
-  ONLINE_ORDER_STATUSES,
   ORDER_STATUSES,
   PAYMENT_METHODS,
   PERMISSIONS,
@@ -45,7 +44,6 @@ export type MovementType = (typeof MOVEMENT_TYPES)[number];
 export type ProductType = (typeof PRODUCT_TYPES)[number];
 export type MeasurementUnit = (typeof MEASUREMENT_UNITS)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
-export type OnlineOrderStatus = (typeof ONLINE_ORDER_STATUSES)[number];
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export interface PaymentSplit {
   method: PaymentMethod;
@@ -135,7 +133,6 @@ export interface Product {
   base_price: number;
   description: string;
   sale_price: number | null;
-  publish_to_souqna: boolean;
   image_url: string | null;
   is_active: boolean;
   is_popular: boolean;
@@ -424,25 +421,6 @@ export interface SessionSettings {
   manager_discount_override_amount: number | null;
 }
 
-export interface OnlineMenuSettings {
-  logoUrl: string;
-  whatsappNumber: string;
-  whatsappMessage: string;
-  footerText: string;
-  showSearch: boolean;
-  showCategories: boolean;
-  showCart: boolean;
-  showPrices: boolean;
-  showImages: boolean;
-  showPopular: boolean;
-  showVariants: boolean;
-  heroTitle: string;
-  heroSubtitle: string;
-  primaryColor: string;
-  accentColor: string;
-  productCardStyle: "compact" | "visual";
-}
-
 export interface Order {
   id: string;
   store_id: string;
@@ -522,86 +500,6 @@ export interface OrderPayment {
   method: PaymentMethod;
   amount: number;
   reference: string | null;
-}
-
-export interface OnlineOrder {
-  id: string;
-  store_id: string;
-  customer_id: string | null;
-  order_id: string | null;
-  customer_name: string;
-  customer_phone: string;
-  status: OnlineOrderStatus;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
-  notes: string;
-  source: string;
-  external_order_id: string | null;
-  checkout_session_id: string | null;
-  fulfillment_type: string | null;
-  delivery_area: string | null;
-  delivery_address: string | null;
-  delivery_fee: number;
-  payment_method: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SouqnaIntegrationSettings {
-  enable_souqna_channel: boolean;
-  api_base_url: string;
-  api_key_hash: string;
-  api_key_prefix: string;
-  allowed_store_id: string | null;
-  allow_order_import: boolean;
-  reserve_stock_on_online_order: boolean;
-  publish_products_to_souqna: boolean;
-  enable_souqna_webhook: boolean;
-  souqna_webhook_url: string;
-  souqna_webhook_secret: string;
-}
-
-export interface SouqnaPublicApiConfig {
-  api_base_url: string;
-  products_url: string;
-  orders_url: string;
-  auth_header: string;
-}
-
-export interface SouqnaIntegrationLog {
-  id: string;
-  org_id: string;
-  store_id: string | null;
-  direction: "inbound" | "outbound";
-  endpoint: string;
-  request_type: string;
-  request_payload: Record<string, unknown> | null;
-  response_payload: Record<string, unknown> | null;
-  status: string;
-  error: string | null;
-  error_message: string | null;
-  created_at: string;
-}
-
-export interface SouqnaIntegrationStats {
-  published_products_count: number;
-  imported_orders_count: number;
-  last_products_sync_at: string | null;
-  last_order_import_at: string | null;
-  last_error_at: string | null;
-  last_error_message: string | null;
-}
-
-export interface OnlineOrderItem {
-  id: string;
-  online_order_id: string;
-  product_id: string;
-  variant_id: string | null;
-  quantity: number;
-  unit_price: number;
-  line_total: number;
 }
 
 export interface CostCenter {
@@ -763,18 +661,6 @@ export interface LoyaltyLedgerEntry {
   balance_after: number;
   reason: string;
   created_at: string;
-}
-
-export interface MonthlyClose {
-  id: string;
-  org_id: string;
-  store_id: string | null;
-  period_start: string;
-  period_end: string;
-  status: "draft" | "closed" | "reopened";
-  summary: Record<string, unknown>;
-  closed_by: string | null;
-  closed_at: string | null;
 }
 
 export interface AuditLog {

@@ -44,7 +44,7 @@ export async function getReportsData(
   range?: { from?: string; to?: string }
 ) {
   await requireFeature("reports");
-  const user = await requirePermissionOrRole("reports_view", ["owner", "manager", "viewer"]);
+  const user = await requirePermissionOrRole("reports_view", ["owner", "manager"]);
   const permissions = await getEffectivePermissions(user);
   const activeStoreId = await getValidatedActiveStoreId();
   const reportStoreId = resolveReportStoreId(activeStoreId, filterStoreId);
@@ -116,7 +116,7 @@ export async function exportReportsAction(
   range?: { from?: string; to?: string }
 ) {
   await requireFeature("reports");
-  await requirePermissionOrRole("reports_view", ["owner", "manager", "viewer"]);
+  await requirePermissionOrRole("reports_view", ["owner", "manager"]);
   const data = await getReportsData(days, filterStoreId, range);
   const rows: Record<string, string | number>[] = [
     { metric: "Total Revenue", value: data.sales.totalRevenue },
@@ -189,7 +189,7 @@ export async function exportReportsAction(
 
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
   return {
-    filename: `SweetFlow-reports-${days}d.xlsx`,
+    filename: `CafeFlow-reports-${days}d.xlsx`,
     base64: Buffer.from(buffer).toString("base64"),
   };
 }

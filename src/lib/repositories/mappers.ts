@@ -15,9 +15,6 @@ import type {
   LoyaltyLedgerEntry,
   LoyaltyRule,
   MeasurementUnit,
-  MonthlyClose,
-  OnlineOrder,
-  OnlineOrderItem,
   Order,
   OrderItem,
   OrderItemDeduction,
@@ -55,10 +52,7 @@ import type {
   ImportJobRow,
   LoyaltyLedgerRow,
   LoyaltyRuleRow,
-  MonthlyCloseRow,
   MovementRow,
-  OnlineOrderItemRow,
-  OnlineOrderRow,
   OrderItemDeductionRow,
   OrderItemRow,
   OrderPaymentRow,
@@ -163,7 +157,6 @@ export function mapProduct(row: ProductRow): Product {
     base_price: num(row.base_price),
     description: row.description ?? "",
     sale_price: row.sale_price != null ? num(row.sale_price) : null,
-    publish_to_souqna: row.publish_to_souqna ?? false,
     image_url: row.image_url,
     is_active: row.is_active,
     is_popular: row.is_popular,
@@ -436,45 +429,6 @@ export function mapOrderPayment(row: OrderPaymentRow): OrderPayment {
   };
 }
 
-export function mapOnlineOrder(row: OnlineOrderRow): OnlineOrder {
-  return {
-    id: row.id,
-    store_id: row.store_id,
-    customer_id: row.customer_id,
-    order_id: row.order_id,
-    customer_name: row.customer_name,
-    customer_phone: row.customer_phone,
-    status: row.status as OnlineOrder["status"],
-    subtotal: num(row.subtotal),
-    discount: num(row.discount),
-    tax: num(row.tax),
-    total: num(row.total),
-    notes: row.notes,
-    source: row.source ?? "qr_menu",
-    external_order_id: row.external_order_id ?? null,
-    checkout_session_id: row.checkout_session_id ?? null,
-    fulfillment_type: row.fulfillment_type ?? null,
-    delivery_area: row.delivery_area ?? null,
-    delivery_address: row.delivery_address ?? null,
-    delivery_fee: num(row.delivery_fee ?? 0),
-    payment_method: row.payment_method ?? null,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
-export function mapOnlineOrderItem(row: OnlineOrderItemRow): OnlineOrderItem {
-  return {
-    id: row.id,
-    online_order_id: row.online_order_id,
-    product_id: row.product_id,
-    variant_id: row.variant_id,
-    quantity: row.quantity,
-    unit_price: num(row.unit_price),
-    line_total: num(row.line_total),
-  };
-}
-
 export function mapExpense(row: ExpenseRow): Expense {
   return {
     ...row,
@@ -511,20 +465,6 @@ export function mapLoyaltyRule(row: LoyaltyRuleRow): LoyaltyRule {
 
 export function mapLoyaltyLedger(row: LoyaltyLedgerRow): LoyaltyLedgerEntry {
   return row;
-}
-
-export function mapMonthlyClose(row: MonthlyCloseRow): MonthlyClose {
-  return {
-    id: row.id,
-    org_id: row.org_id,
-    store_id: row.store_id,
-    period_start: row.period_start,
-    period_end: row.period_end,
-    status: row.status as MonthlyClose["status"],
-    summary: (row.summary ?? {}) as MonthlyClose["summary"],
-    closed_by: row.closed_by,
-    closed_at: row.closed_at,
-  };
 }
 
 export function mapImportJob(row: ImportJobRow): ImportJob {

@@ -1,4 +1,3 @@
-import { slugifyBranchName } from "@/lib/online-menu-path";
 import { asJson, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapStore } from "@/lib/repositories/mappers";
 import type { Store } from "@/lib/types";
@@ -89,46 +88,6 @@ export async function getUserStoreIds(userId: string): Promise<string[]> {
     .eq("users.org_id", orgId);
   if (error) throwDbError(error, "getUserStoreIds");
   return (data ?? []).map((r) => r.store_id);
-}
-
-export async function isMenuSlugTaken(
-  orgId: string,
-  slug: string,
-  excludeStoreId?: string
-): Promise<boolean> {
-  const db = await getDb();
-  let query = db
-    .from("stores")
-    .select("id")
-    .eq("org_id", orgId)
-    .eq("settings->>online_menu_slug", slug);
-  if (excludeStoreId) query = query.neq("id", excludeStoreId);
-  const { data, error } = await query.limit(1);
-  if (error) throwDbError(error, "isMenuSlugTaken");
-  return (data?.length ?? 0) > 0;
-}
-
-export async function ensureUniqueMenuSlug(
-  orgId: string,
-  baseSlug: string,
-  excludeStoreId?: string
-): Promise<string> {
-  let slug = baseSlug;
-  let suffix = 1;
-  while (await isMenuSlugTaken(orgId, slug, excludeStoreId)) {
-    slug = `${baseSlug}-${suffix}`;
-    suffix += 1;
-  }
-  return slug;
-}
-
-export async function allocateMenuSlug(
-  orgId: string,
-  name: string,
-  storeId?: string
-): Promise<string> {
-  const baseSlug = slugifyBranchName(name, storeId);
-  return ensureUniqueMenuSlug(orgId, baseSlug);
 }
 
 export async function setUserStoreAccess(userId: string, storeIds: string[]): Promise<void> {

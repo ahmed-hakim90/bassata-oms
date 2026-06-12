@@ -49,7 +49,6 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
       wholesale_enabled: false,
       supports_weight_sale: false,
       supports_amount_sale: false,
-      publish_to_souqna: false,
     },
     {
       name: "Beef by KG",
@@ -81,7 +80,6 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
       wholesale_enabled: true,
       supports_weight_sale: true,
       supports_amount_sale: true,
-      publish_to_souqna: false,
     },
     {
       name: "Delivery Service",
@@ -113,7 +111,6 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
       wholesale_enabled: false,
       supports_weight_sale: false,
       supports_amount_sale: false,
-      publish_to_souqna: false,
     },
   ];
   const sheet = XLSX.utils.json_to_sheet(sample, { header });
@@ -127,7 +124,7 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
 
 function buildReadmeSheet(): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet([
-    ["SweetFlow product import template"],
+    ["CafeFlow product import template"],
     ["Use the Products sheet for upload. Keep the header row unchanged."],
     ["Required columns", "name, sku, category, base_price"],
     ["import_action", "upsert updates an existing SKU or creates it. create skips existing SKUs. update skips missing SKUs."],
@@ -187,7 +184,6 @@ export async function buildProductsExportWorkbook(): Promise<ArrayBuffer> {
       wholesale_enabled: p.wholesale_enabled ?? false,
       supports_weight_sale: p.supports_weight_sale ?? false,
       supports_amount_sale: p.supports_amount_sale ?? false,
-      publish_to_souqna: p.publish_to_souqna,
     }))
   );
   const sheet = XLSX.utils.json_to_sheet(rows, { header: [...PRODUCT_IMPORT_COLUMNS] });

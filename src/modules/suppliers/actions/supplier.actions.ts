@@ -63,6 +63,7 @@ export async function getSupplierDetailDataAction(
   currency: string;
   canManagePayments: boolean;
   canEditSupplier: boolean;
+  storeId: string;
 } | null> {
   await requireFeature("purchases");
   const user = await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
@@ -84,6 +85,7 @@ export async function getSupplierDetailDataAction(
     currency: org.currency,
     canManagePayments,
     canEditSupplier,
+    storeId,
   };
 }
 

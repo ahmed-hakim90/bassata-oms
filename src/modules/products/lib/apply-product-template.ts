@@ -42,18 +42,7 @@ export const DEFAULT_PRODUCT_TEMPLATE_ID_BY_ACTIVITY: Record<
 > = {
   cafe: "retail_product",
   ice_cream: "ice_cream_ingredient",
-  restaurant: "restaurant_ingredient",
-  bakery: "restaurant_ingredient",
   juice_bar: "restaurant_ingredient",
-  supermarket: "supermarket_weight_product",
-  dairy_meat: "supermarket_weight_product",
-  apparel: "retail_product",
-  electronics: "retail_product",
-  cosmetics: "retail_product",
-  bookstore: "retail_product",
-  retail: "retail_product",
-  wholesale: "supermarket_weight_product",
-  mixed: "retail_product",
 };
 
 export function resolveProductTemplateId(
@@ -64,28 +53,12 @@ export function resolveProductTemplateId(
   if (productType === "service") return "service";
   if (productType === "packaging_material") return "packaging_material";
 
-  if (activityType === "mixed") {
-    if (productType === "raw_material" || productType === "ingredient") {
-      return "restaurant_ingredient";
-    }
-    if (salesUnitType === "weight") {
-      return "supermarket_weight_product";
-    }
-    return "retail_product";
-  }
-
   if (productType === "raw_material" || productType === "ingredient") {
     return activityType === "ice_cream" ? "ice_cream_ingredient" : "restaurant_ingredient";
   }
 
   if (salesUnitType === "weight") {
-    if (
-      activityType === "supermarket" ||
-      activityType === "wholesale" ||
-      activityType === "dairy_meat"
-    ) {
-      return "supermarket_weight_product";
-    }
+    return "retail_product";
   }
 
   return DEFAULT_PRODUCT_TEMPLATE_ID_BY_ACTIVITY[activityType];

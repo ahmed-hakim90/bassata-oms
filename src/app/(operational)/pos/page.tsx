@@ -14,6 +14,7 @@ import {
   getSessionSettings,
 } from "@/modules/system/services/settings.service";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getLoyaltyRule } from "@/modules/loyalty/services/loyalty.service";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
@@ -56,6 +57,12 @@ export default async function PosPage() {
   ]);
   const inventoryProducts = allProducts.filter((p) => p.track_inventory);
 
+  const loyaltyRule = flags.loyalty ? await getLoyaltyRule() : null;
+  const loyaltyRedemptionRate =
+    loyaltyRule?.is_active && loyaltyRule.redemption_rate > 0
+      ? loyaltyRule.redemption_rate
+      : null;
+
   const canAddSessionExpense =
     flags.session_expenses &&
     expenseSettings.cashier_can_add_session_expense &&
@@ -81,6 +88,7 @@ export default async function PosPage() {
       canManagerOverride={user?.role === "owner" || user?.role === "manager"}
       managerDiscountOverrideAmount={sessionSettings.manager_discount_override_amount}
       currentUserName={user?.name ?? null}
+      loyaltyRedemptionRate={loyaltyRedemptionRate}
     />
   );
 }
