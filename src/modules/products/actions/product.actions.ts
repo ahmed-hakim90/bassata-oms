@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireCatalogRead, requirePermissionOrRole } from "@/lib/auth/guards";
+import { requireCatalogRead, requireFeature, requirePermissionOrRole } from "@/lib/auth/guards";
+import type { MeasurementUnit } from "@/lib/types";
 import type { CategoryInput, ProductInput } from "../services/product.service";
 import * as productService from "../services/product.service";
 
@@ -64,11 +65,150 @@ export async function deleteCategoryAction(id: string) {
   return ok;
 }
 
-import {
-  getBusinessActivitySettings,
-  getFeatureFlags,
-  getProductTemplateSettings,
-} from "@/modules/system/services/settings.service";
+export type CafeMenuItemInput = {
+  productId?: string;
+  name: string;
+  category_id: string;
+  sale_price: number;
+  sku?: string;
+  barcode?: string;
+  description?: string;
+  is_active?: boolean;
+  is_popular?: boolean;
+  ingredients: {
+    ingredient_product_id: string;
+    quantity: number;
+    unit: MeasurementUnit;
+  }[];
+};
+
+export type CafeIngredientInput = {
+  name: string;
+  category_id: string;
+  unit: MeasurementUnit;
+  unit_cost: number;
+};
+
+function buildCafeMenuProductInput(input: CafeMenuItemInput): ProductInput {
+  const sku = input.sku?.trim() ?? "";
+  const barcode = input.barcode?.trim() || sku;
+  return {
+    name: input.name.trim(),
+    sku,
+    barcode,
+    image_url: null,
+    category_id: input.category_id,
+    base_price: input.sale_price,
+    description: input.description?.trim() ?? "",
+    sale_price: null,
+    is_active: input.is_active ?? true,
+    is_popular: input.is_popular ?? false,
+    track_inventory: false,
+    product_type: "finished",
+    inventory_tracking_mode: "none",
+    inventory_rotation_method: "FIFO",
+    expiry_policy: "warn_only",
+    expiry_tracking_enabled: false,
+    shelf_life_value: 0,
+    shelf_life_unit: "days",
+    unit: "piece",
+    sale_unit: "piece",
+    base_unit: "piece",
+    sales_unit_type: "piece",
+    allow_fractional_quantity: false,
+    allow_price_input: false,
+    wholesale_enabled: false,
+    last_unit_cost: 0,
+    cost_unit: "piece",
+  };
+}
+
+function salesUnitTypeForUnit(unit: MeasurementUnit): ProductInput["sales_unit_type"] {
+  if (unit === "kg" || unit === "gram") return "weight";
+  if (unit === "liter" || unit === "ml") return "volume";
+  return "piece";
+}
+
+function buildCafeIngredientProductInput(input: CafeIngredientInput): ProductInput {
+  const unitCost = Math.max(0, Number(input.unit_cost) || 0);
+  return {
+    name: input.name.trim(),
+    sku: "",
+    barcode: "",
+    image_url: null,
+    category_id: input.category_id,
+    base_price: 0,
+    description: "",
+    sale_price: null,
+    is_active: true,
+    is_popular: false,
+    track_inventory: true,
+    product_type: "ingredient",
+    inventory_tracking_mode: "standard",
+    inventory_rotation_method: "FIFO",
+    expiry_policy: "warn_only",
+    expiry_tracking_enabled: false,
+    shelf_life_value: 0,
+    shelf_life_unit: "days",
+    unit: input.unit,
+    sale_unit: input.unit,
+    base_unit: input.unit,
+    sales_unit_type: salesUnitTypeForUnit(input.unit),
+    allow_fractional_quantity: input.unit !== "piece",
+    allow_price_input: false,
+    wholesale_enabled: false,
+    last_unit_cost: unitCost,
+    cost_unit: input.unit,
+  };
+}
+
+export async function createCafeIngredientAction(input: CafeIngredientInput) {
+  const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
+  if (!input.name.trim()) {
+    throw new Error("Ingredient name is required");
+  }
+  if (!input.category_id) {
+    throw new Error("Ingredient category is required");
+  }
+
+  const ingredient = await productService.createProduct(
+    buildCafeIngredientProductInput(input),
+    user.id
+  );
+  revalidatePath("/products");
+  revalidatePath("/inventory");
+  return ingredient;
+}
+
+export async function saveCafeMenuItemAction(input: CafeMenuItemInput) {
+  await requireFeature("recipes");
+  const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
+  await requirePermissionOrRole("recipe_manage", ["owner", "manager"]);
+
+  const ingredients = input.ingredients.filter(
+    (line) => line.ingredient_product_id && line.quantity > 0
+  );
+  if (!input.name.trim() || !input.category_id || input.sale_price < 0) {
+    throw new Error("Menu item name, category, and sale price are required");
+  }
+  if (ingredients.length === 0) {
+    throw new Error("Add at least one ingredient");
+  }
+
+  const productInput = buildCafeMenuProductInput(input);
+  const product = input.productId
+    ? await productService.updateProduct(input.productId, productInput, user.id)
+    : await productService.createProduct(productInput, user.id);
+  if (!product) throw new Error("Could not save menu item");
+
+  await recipeService.saveRecipe(product.id, ingredients, user.id, null);
+  revalidatePath("/products");
+  revalidatePath("/pos");
+  revalidatePath("/inventory");
+  return product;
+}
+
+import { getFeatureFlags } from "@/modules/system/services/settings.service";
 import * as recipeService from "@/modules/products/services/recipe.service";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 
@@ -77,14 +217,19 @@ export async function getProductsPageDataAction() {
   const org = await import("@/lib/repositories/organization.repository").then(
     (m) => m.getOrganization()
   );
-  const [rows, categories, featureFlags, recipeProductIds, productTemplates, businessActivitySettings] =
+  const [
+    rows,
+    categories,
+    featureFlags,
+    recipeProductIds,
+    ingredients,
+  ] =
     await Promise.all([
     productService.getProductsWithCategories(),
     productService.listCategories(),
     getFeatureFlags(),
     recipeService.listProductIdsWithRecipes(),
-    getProductTemplateSettings(),
-    getBusinessActivitySettings(),
+    recipeService.listIngredients(),
   ]);
   const variantMap = await catalogRepo.listVariantsForProducts(
     rows.map(({ product }) => product.id)
@@ -93,9 +238,8 @@ export async function getProductsPageDataAction() {
   return {
     organization: org,
     categories,
+    ingredients,
     recipesEnabled: featureFlags.recipes === true,
-    productTemplates,
-    businessActivitySettings,
     products: rows.map(({ product, category }) => ({
       product,
       category,

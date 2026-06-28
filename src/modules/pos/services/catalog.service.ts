@@ -4,6 +4,10 @@ import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import * as recipeRepo from "@/lib/repositories/recipe.repository";
 import { convertUnit } from "@/lib/units";
 import { resolveVariantPrice } from "@/modules/products/services/variant.service";
+import {
+  canProductBeRecipeIngredient,
+  canProductHaveRecipe,
+} from "@/modules/products/services/recipe.service";
 import { getFeatureFlags } from "@/modules/system/services/settings.service";
 import type { Category, Product } from "@/lib/types";
 
@@ -93,11 +97,12 @@ export async function getProductsForPOS(
     levels.filter((l) => l.variant_id).map((l) => [`${l.product_id}:${l.variant_id}`, l])
   );
 
-  const products = await catalogRepo.listProducts({
+  const products = (
+    await catalogRepo.listProducts({
     categoryId,
     activeOnly: true,
-    productType: "finished",
-  });
+    })
+  ).filter(canProductHaveRecipe);
 
   const variantMap = await catalogRepo.listVariantsForProducts(products.map((p) => p.id));
 
@@ -115,7 +120,7 @@ export async function getProductsForPOS(
     }
   }
 
-  const ingredientProducts = await catalogRepo.listProducts({ productType: "ingredient" });
+  const ingredientProducts = (await catalogRepo.listProducts()).filter(canProductBeRecipeIngredient);
   const ingredientUnitMap = new Map(ingredientProducts.map((p) => [p.id, p.unit]));
   const ingredientLevelMap = baseLevelMap;
 

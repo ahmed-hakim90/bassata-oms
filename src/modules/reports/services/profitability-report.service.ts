@@ -12,6 +12,16 @@ export interface ProductProfitRow {
   margin: number;
 }
 
+function getNetLineRevenue(
+  item: { order_id: string; line_total: number | string | null },
+  revenueFactors: Map<string, number>
+) {
+  const grossLineTotal = Number(item.line_total ?? 0);
+  const factor = revenueFactors.get(item.order_id);
+  if (!factor || factor <= 0) return grossLineTotal;
+  return grossLineTotal * factor;
+}
+
 export async function getProductProfitabilityReport(options?: {
   storeId?: string;
   days?: number;
@@ -33,6 +43,7 @@ export async function getProductProfitabilityReport(options?: {
   const orders = (await orderRepo.listOrders(options?.storeId)).filter(
     (o) =>
       o.status === "completed" &&
+      o.payment_status !== "unpaid" &&
       new Date(o.created_at) >= rangeStart &&
       new Date(o.created_at) <= rangeEnd
   );
@@ -46,6 +57,12 @@ export async function getProductProfitabilityReport(options?: {
 
   const products = await catalogRepo.listProducts({ productType: "finished" });
   const productMap = new Map(products.map((p) => [p.id, p.name]));
+  const revenueFactorByOrder = new Map(
+    orders.map((order) => [
+      order.id,
+      order.subtotal > 0 ? order.total / order.subtotal : 0,
+    ])
+  );
 
   const stats = new Map<
     string,
@@ -59,7 +76,7 @@ export async function getProductProfitabilityReport(options?: {
       cost: 0,
     };
     existing.quantitySold += item.quantity;
-    existing.revenue += Number(item.line_total);
+    existing.revenue += getNetLineRevenue(item, revenueFactorByOrder);
     existing.cost += Number(item.line_cost ?? 0);
     stats.set(item.product_id, existing);
   }

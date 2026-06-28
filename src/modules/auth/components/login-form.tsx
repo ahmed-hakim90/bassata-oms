@@ -29,7 +29,6 @@ export function LoginForm() {
             type="email"
             required
             autoComplete="email"
-            defaultValue="owner@CafeFlow.local"
           />
         </SweetFormField>
         <SweetFormField id="password" label={t("Password")}>
@@ -56,10 +55,6 @@ export function LoginForm() {
           </a>
         </p>
       </form>
-
-      <p className="text-center text-xs text-muted-foreground">
-        After seeding: owner@CafeFlow.local / demo1234
-      </p>
     </div>
   );
 }

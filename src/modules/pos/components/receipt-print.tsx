@@ -1,33 +1,46 @@
 "use client";
 
 import { formatCurrency } from "@/lib/format";
-import type { CartLine, PaymentMethod, PaymentSplit } from "@/lib/types";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import {
+  getReceiptSubtotal,
+  type ReceiptPayload,
+} from "@/modules/pos/services/receipt-format.service";
 
 interface ReceiptPrintProps {
-  orderNumber: string;
-  lines: CartLine[];
-  paymentMethod: PaymentMethod;
-  payments: PaymentSplit[];
-  discount: number;
-  total: number;
+  receipt: ReceiptPayload;
 }
 
-export function ReceiptPrint({
-  orderNumber,
-  lines,
-  paymentMethod,
-  payments,
-  discount,
-  total,
-}: ReceiptPrintProps) {
+export function ReceiptPrint({ receipt }: ReceiptPrintProps) {
   const { t } = useTranslation();
-  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const subtotal = getReceiptSubtotal(receipt);
+  const { branding, customer, discount, lines, orderNumber, paymentMethod, payments, total } =
+    receipt;
   return (
-    <div id="CafeFlow-receipt" className="hidden print:block print:p-6">
-      <div className="mx-auto max-w-xs font-mono text-sm">
-        <p className="text-center font-bold">CafeFlow POS</p>
-        <p className="text-center text-xs">{t("Order #")} {orderNumber}</p>
+    <div
+      id="CafeFlow-receipt"
+      data-print-layout="receipt"
+      className="hidden print:block print:bg-white print:p-0"
+    >
+      <div className="mx-auto w-[72mm] max-w-[72mm] font-mono text-[11px] leading-snug text-black">
+        <p className="text-center font-bold">{branding.orgName || "CafeFlow POS"}</p>
+        {branding.storeName ? (
+          <p className="text-center text-xs">{branding.storeName}</p>
+        ) : null}
+        {branding.storePhone ? (
+          <p className="text-center text-xs">{branding.storePhone}</p>
+        ) : null}
+        {branding.receiptHeader ? (
+          <p className="mt-2 whitespace-pre-wrap text-center text-xs">{branding.receiptHeader}</p>
+        ) : null}
+        <p className="mt-2 text-center text-xs">
+          {t("Order #")} {orderNumber}
+        </p>
+        {customer ? (
+          <p className="text-center text-xs">
+            {t("Customer")}: {customer.name}
+          </p>
+        ) : null}
         <hr className="my-3 border-dashed" />
         <ul className="space-y-2">
           {lines.map((line) => (
@@ -36,10 +49,11 @@ export function ReceiptPrint({
                 <span>
                   {line.name}
                   <br />
-                  {line.quantity} {line.saleUnit ?? t("piece")} × {formatCurrency(line.unitPrice)}
+                  {line.quantity} {line.saleUnit ?? t("piece")} ×{" "}
+                  {formatCurrency(line.unitPrice, branding.currency)}
                   {line.saleUnit ? `/${line.saleUnit}` : ""}
                 </span>
-                <span>{formatCurrency(line.lineTotal)}</span>
+                <span>{formatCurrency(line.lineTotal, branding.currency)}</span>
               </div>
             </li>
           ))}
@@ -47,29 +61,31 @@ export function ReceiptPrint({
         <hr className="my-3 border-dashed" />
         <div className="flex justify-between">
           <span>{t("Subtotal")}</span>
-          <span>{formatCurrency(subtotal)}</span>
+          <span>{formatCurrency(subtotal, branding.currency)}</span>
         </div>
         {discount > 0 ? (
           <div className="flex justify-between">
             <span>{t("Discount")}</span>
-            <span>-{formatCurrency(discount)}</span>
+            <span>-{formatCurrency(discount, branding.currency)}</span>
           </div>
         ) : null}
         <div className="flex justify-between font-bold">
           <span>{t("Total")} ({t(paymentMethod)})</span>
-          <span>{formatCurrency(total)}</span>
+          <span>{formatCurrency(total, branding.currency)}</span>
         </div>
         {payments.length > 1 ? (
           <div className="mt-2 space-y-1 text-xs">
             {payments.map((payment, index) => (
               <div key={`${payment.method}-${index}`} className="flex justify-between">
                 <span>{payment.method}</span>
-                <span>{formatCurrency(payment.amount)}</span>
+                <span>{formatCurrency(payment.amount, branding.currency)}</span>
               </div>
             ))}
           </div>
         ) : null}
-        <p className="mt-6 text-center text-xs">{t("Thank you!")}</p>
+        <p className="mt-6 whitespace-pre-wrap text-center text-xs">
+          {branding.receiptFooter || t("Thank you!")}
+        </p>
       </div>
     </div>
   );

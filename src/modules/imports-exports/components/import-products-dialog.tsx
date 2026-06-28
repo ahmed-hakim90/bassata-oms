@@ -100,14 +100,15 @@ export function ImportProductsDialog({
         <DialogHeader>
           <DialogTitle>Import products</DialogTitle>
           <DialogDescription>
-            Upload an XLSX file using the CafeFlow template columns.
+            Upload an XLSX file with the simple product definition: name, category, definition,
+            price, and optional SKU/barcode.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
           <Button variant="outline" type="button" onClick={handleTemplate}>
             <Download className="size-4" />
-            Download ready Excel template
+            Download simple Excel template
           </Button>
 
           <GlassPanel className="flex flex-col items-center gap-3 p-6 text-center">
@@ -122,6 +123,10 @@ export function ImportProductsDialog({
               />
             </label>
             {fileName ? <p className="text-xs text-muted-foreground">{fileName}</p> : null}
+            <p className="max-w-sm text-xs text-muted-foreground">
+              Use definition values like menu_item, ingredient, service, or their Arabic labels.
+              SKU can be blank and will be generated automatically.
+            </p>
           </GlassPanel>
 
           {rows.length > 0 ? (

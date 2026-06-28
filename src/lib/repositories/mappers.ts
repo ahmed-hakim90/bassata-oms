@@ -19,6 +19,8 @@ import type {
   OrderItem,
   OrderItemDeduction,
   OrderPayment,
+  OnlineOrder,
+  OnlineOrderItem,
   Organization,
   Product,
   ProductRecipe,
@@ -56,6 +58,8 @@ import type {
   OrderItemDeductionRow,
   OrderItemRow,
   OrderPaymentRow,
+  OnlineOrderItemRow,
+  OnlineOrderRow,
   OrderRow,
   OrganizationRow,
   ProductRow,
@@ -429,6 +433,39 @@ export function mapOrderPayment(row: OrderPaymentRow): OrderPayment {
   };
 }
 
+export function mapOnlineOrder(row: OnlineOrderRow): OnlineOrder {
+  return {
+    id: row.id,
+    store_id: row.store_id,
+    order_id: row.order_id,
+    customer_name: row.customer_name,
+    customer_phone: row.customer_phone,
+    status: row.status as OnlineOrder["status"],
+    subtotal: num(row.subtotal),
+    discount: num(row.discount),
+    tax: num(row.tax),
+    total: num(row.total),
+    notes: row.notes,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export function mapOnlineOrderItem(row: OnlineOrderItemRow): OnlineOrderItem {
+  return {
+    id: row.id,
+    online_order_id: row.online_order_id,
+    product_id: row.product_id,
+    variant_id: row.variant_id,
+    product_name: row.product_name,
+    variant_name: row.variant_name,
+    quantity: row.quantity,
+    unit_price: num(row.unit_price),
+    line_total: num(row.line_total),
+    created_at: row.created_at,
+  };
+}
+
 export function mapExpense(row: ExpenseRow): Expense {
   return {
     ...row,
@@ -459,6 +496,7 @@ export function mapLoyaltyRule(row: LoyaltyRuleRow): LoyaltyRule {
     org_id: row.org_id,
     points_per_currency: num(row.points_per_currency),
     redemption_rate: num(row.redemption_rate),
+    minimum_redeem_points: row.minimum_redeem_points ?? 0,
     is_active: row.is_active,
   };
 }

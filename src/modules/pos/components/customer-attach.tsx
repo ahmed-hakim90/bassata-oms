@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Search, Star, UserPlus, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,6 +37,9 @@ export function CustomerAttach({ loyaltyEnabled = false }: { loyaltyEnabled?: bo
         try {
           const balance = await getCustomerLoyaltyBalanceAction(c.id);
           setCustomerLoyaltyBalance(balance);
+          if (balance > 0) {
+            toast.info(`${c.name}: ${balance} ${t("points")} - ${t("can be used at payment")}`);
+          }
         } catch {
           setCustomerLoyaltyBalance(null);
         }

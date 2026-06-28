@@ -37,7 +37,7 @@ export function ExpenseListItem({
   }
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 ring-1 ring-black/5">
+    <li className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-card px-4 py-3 text-card-foreground ring-1 ring-border">
       <div>
         <p className="font-medium">{expense.title}</p>
         <p className="text-xs text-muted-foreground">

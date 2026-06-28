@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PRODUCT_IMPORT_COLUMNS,
+  PRODUCT_IMPORT_SIMPLE_COLUMNS,
   bulkImportProducts,
   parseProductsXlsx,
   validateProductRows,
@@ -21,6 +22,13 @@ vi.mock("@/lib/services/period-lock.service");
 
 function workbookBuffer(rows: Record<string, unknown>[]): ArrayBuffer {
   const sheet = XLSX.utils.json_to_sheet(rows, { header: [...PRODUCT_IMPORT_COLUMNS] });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Products");
+  return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+}
+
+function simpleWorkbookBuffer(rows: Record<string, unknown>[]): ArrayBuffer {
+  const sheet = XLSX.utils.json_to_sheet(rows, { header: [...PRODUCT_IMPORT_SIMPLE_COLUMNS] });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Products");
   return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
@@ -102,6 +110,46 @@ describe("product import schema", () => {
     });
   });
 
+  it("parses the simple Arabic product definition", () => {
+    const parsed = parseProductsXlsx(
+      simpleWorkbookBuffer([
+        {
+          "اسم المنتج": "لاتيه",
+          "التصنيف": "مشروبات",
+          "التعريف": "عنصر قائمة",
+          "السعر": 65,
+          "الباركود": "LATTE",
+          "الوحدة": "piece",
+        },
+        {
+          "اسم المنتج": "لبن",
+          "التصنيف": "مكونات",
+          "التعريف": "مكون",
+          "السعر": 38,
+          "الوحدة": "kg",
+        },
+      ])
+    );
+
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.rows[0]).toMatchObject({
+      name: "لاتيه",
+      sku: "",
+      definition: "عنصر قائمة",
+      base_price: "65",
+      product_type: "finished_product",
+      track_inventory: "false",
+      inventory_tracking_mode: "none",
+    });
+    expect(parsed.rows[1]).toMatchObject({
+      name: "لبن",
+      product_type: "ingredient",
+      sales_unit_type: "weight",
+      allow_fractional_quantity: "true",
+      track_inventory: "true",
+    });
+  });
+
   it("validates enum-backed product fields", () => {
     const errors = validateProductRows([
       {
@@ -109,6 +157,7 @@ describe("product import schema", () => {
         sku: "BROKEN",
         barcode: "",
         category: "",
+        definition: "",
         base_price: "1",
         sale_price: "",
         description: "",
@@ -213,6 +262,59 @@ describe("product import schema", () => {
       "user-1"
     );
   });
+
+  it("creates rows without SKU so products can auto-generate codes", async () => {
+    const created = product("created-1", "PRD-001", "No SKU");
+
+    vi.mocked(assertPeriodOpen).mockResolvedValue(undefined);
+    vi.mocked(productService.listProducts).mockResolvedValue([]);
+    vi.mocked(productService.listCategories).mockResolvedValue([
+      {
+        id: "cat-1",
+        org_id: "org-1",
+        name: "General",
+        sort_order: 1,
+        color: "#fff",
+        icon: "package",
+      },
+    ]);
+    vi.mocked(productService.createProduct).mockResolvedValue(created);
+    vi.mocked(importRepo.createImportJob).mockResolvedValue({
+      id: "job-1",
+      org_id: "org-1",
+      type: "products",
+      status: "completed",
+      file_url: null,
+      result: {},
+      created_by: "user-1",
+      created_at: new Date().toISOString(),
+    });
+    vi.mocked(orgRepo.getOrgId).mockResolvedValue("org-1");
+    vi.mocked(writeAuditLog).mockResolvedValue({
+      id: "audit-1",
+      org_id: "org-1",
+      store_id: "store-1",
+      user_id: "user-1",
+      action: "import.completed",
+      entity_type: "import_job",
+      entity_id: "job-1",
+      metadata: {},
+      created_at: new Date().toISOString(),
+    });
+
+    const result = await bulkImportProducts(
+      [importRow({ sku: "", name: "No SKU", base_price: "12" })],
+      "user-1",
+      "store-1"
+    );
+
+    expect(result.imported).toHaveLength(1);
+    expect(result.skipped).toBe(0);
+    expect(productService.createProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "No SKU", sku: "", base_price: 12 }),
+      "user-1"
+    );
+  });
 });
 
 function importRow(overrides: Partial<Record<(typeof PRODUCT_IMPORT_COLUMNS)[number], string>>) {
@@ -221,6 +323,7 @@ function importRow(overrides: Partial<Record<(typeof PRODUCT_IMPORT_COLUMNS)[num
     sku: "SKU",
     barcode: "",
     category: "General",
+    definition: "",
     base_price: "1",
     sale_price: "",
     description: "",

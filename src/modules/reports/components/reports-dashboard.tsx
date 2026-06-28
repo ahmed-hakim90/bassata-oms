@@ -24,7 +24,6 @@ import {
   YAxis,
 } from "recharts";
 import { DollarSign, Package, TrendingUp, Users } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
 import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { formatCurrency } from "@/lib/format";
@@ -368,13 +367,13 @@ export function ReportsDashboard({
               <p className="text-xs text-muted-foreground">Total Units</p>
             </div>
             <div className="rounded-2xl bg-amber-500/10 p-4 text-center">
-              <p className="text-2xl font-semibold text-amber-700">
+              <p className="text-2xl font-semibold text-amber-700 dark:text-amber-300">
                 {inventory.lowStockCount}
               </p>
               <p className="text-xs text-muted-foreground">Low Stock</p>
             </div>
             <div className="rounded-2xl bg-red-500/10 p-4 text-center">
-              <p className="text-2xl font-semibold text-red-700">
+              <p className="text-2xl font-semibold text-red-700 dark:text-red-300">
                 {inventory.outOfStockCount}
               </p>
               <p className="text-xs text-muted-foreground">Out of Stock</p>

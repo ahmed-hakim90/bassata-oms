@@ -35,6 +35,11 @@ function storeEditDefaults(store: Store) {
   };
 }
 
+function getOnlineMenuSlug(store: Store): string {
+  const slug = store.settings.online_menu_slug;
+  return typeof slug === "string" ? slug : "";
+}
+
 interface BranchSettingsTabProps {
   stores: Store[];
   warehouses: Warehouse[];
@@ -95,18 +100,38 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
           {stores.map((store) => {
             const storeWarehouses = warehouses.filter((w) => w.store_id === store.id);
             const storeDevices = devices.filter((d) => d.store_id === store.id);
+            const onlineMenuSlug = getOnlineMenuSlug(store);
+            const onlineMenuHref = onlineMenuSlug ? `/menu/${onlineMenuSlug}` : "";
 
             return (
               <div
                 key={store.id}
                 className="grid gap-4 rounded-xl border border-border/60 p-4"
               >
-                <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="truncate text-base font-semibold">{store.name}</p>
                     <p className="text-xs text-muted-foreground">Branch · warehouses · POS devices</p>
                   </div>
+                  {onlineMenuHref ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      nativeButton={false}
+                      render={<a href={onlineMenuHref} target="_blank" rel="noopener noreferrer" />}
+                    >
+                      Open online menu
+                    </Button>
+                  ) : null}
                 </div>
+                {onlineMenuHref ? (
+                  <p className="break-words rounded-lg bg-muted/70 px-3 py-2 text-xs text-muted-foreground">
+                    Public menu URL:{" "}
+                    <span className="font-mono text-foreground break-all">{onlineMenuHref}</span>
+                  </p>
+                ) : null}
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">
@@ -204,6 +229,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                 <Button
                   type="button"
                   variant="outline"
+                  className="w-full sm:w-fit"
                   disabled={pending}
                   onClick={() => {
                     startTransition(async () => {
@@ -311,7 +337,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 flex max-w-md gap-2">
+                  <div className="mt-3 flex max-w-md flex-col gap-2 sm:flex-row">
                     <Input
                       placeholder="Warehouse name"
                       value={warehouseAdds[store.id] ?? ""}
@@ -322,6 +348,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                     <Button
                       type="button"
                       variant="outline"
+                      className="w-full sm:w-auto"
                       disabled={pending || !(warehouseAdds[store.id]?.trim())}
                       onClick={() => {
                         const name = warehouseAdds[store.id]?.trim();
@@ -404,7 +431,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                             <p className="text-xs text-muted-foreground">Not paired yet</p>
                           )}
                           {pairingCodes[device.id] ? (
-                            <p className="rounded-md bg-muted px-2 py-1 font-mono text-sm tracking-widest">
+                            <p className="break-words rounded-md bg-muted px-2 py-1 font-mono text-sm tracking-widest">
                               Code: {pairingCodes[device.id]} (15 min)
                             </p>
                           ) : null}
@@ -491,7 +518,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                       ))
                     )}
                   </div>
-                  <div className="mt-3 flex max-w-md gap-2">
+                  <div className="mt-3 flex max-w-md flex-col gap-2 sm:flex-row">
                     <Input
                       placeholder="Register name"
                       value={deviceAdds[store.id] ?? ""}
@@ -502,6 +529,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                     <Button
                       type="button"
                       variant="outline"
+                      className="w-full sm:w-auto"
                       disabled={pending || !(deviceAdds[store.id]?.trim())}
                       onClick={() => {
                         const name = deviceAdds[store.id]?.trim();

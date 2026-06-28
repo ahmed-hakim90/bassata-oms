@@ -1,6 +1,7 @@
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as customerRepo from "@/lib/repositories/customer.repository";
+import * as customerAccountRepo from "@/lib/repositories/customer-account.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -87,6 +88,33 @@ async function restoreOrderInventory(
   }
 }
 
+async function reverseCustomerCreditSale(
+  order: Order,
+  payments: OrderPayment[],
+  userId: string,
+  reason: "Order voided" | "Order refunded"
+) {
+  if (!order.customer_id || !payments.some((payment) => payment.method === "credit")) return;
+
+  const customer = await customerRepo.getCustomer(order.customer_id);
+  if (!customer) return;
+
+  await customerAccountRepo.recordCustomerLedgerEntry({
+    storeId: order.store_id,
+    customerId: order.customer_id,
+    entryType: "refund",
+    debit: 0,
+    credit: order.total,
+    orderId: order.id,
+    reference: order.order_number,
+    notes: reason,
+    createdBy: userId,
+  });
+  await customerRepo.updateCustomer(order.customer_id, {
+    account_balance: customer.account_balance - order.total,
+  });
+}
+
 export interface OrderItemWithName extends OrderItem {
   productName: string;
 }
@@ -135,7 +163,9 @@ export async function voidOrder(orderId: string, userId: string): Promise<Order 
 
   const items = await orderRepo.getOrderItems(orderId);
   const deductions = await orderRepo.getOrderDeductionsByOrderId(orderId);
+  const payments = await orderRepo.getOrderPayments(orderId);
   await restoreOrderInventory(order, items, deductions, userId, "order_void", "Order voided");
+  await reverseCustomerCreditSale(order, payments, userId, "Order voided");
 
   const updated = await orderRepo.updateOrderStatus(orderId, "voided");
   if (updated) {
@@ -159,7 +189,9 @@ export async function refundOrder(orderId: string, userId: string): Promise<Orde
 
   const items = await orderRepo.getOrderItems(orderId);
   const deductions = await orderRepo.getOrderDeductionsByOrderId(orderId);
+  const payments = await orderRepo.getOrderPayments(orderId);
   await restoreOrderInventory(order, items, deductions, userId, "order_refund", "Order refunded");
+  await reverseCustomerCreditSale(order, payments, userId, "Order refunded");
 
   const updated = await orderRepo.updateOrderStatus(orderId, "refunded");
   if (updated) {

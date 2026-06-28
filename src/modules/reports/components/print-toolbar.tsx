@@ -7,7 +7,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 export function PrintToolbar() {
   const { t } = useTranslation();
   return (
-    <div className="sticky top-0 z-50 flex items-center justify-between border-b bg-white px-4 py-2 print:hidden">
+    <div className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-card px-4 py-2 text-card-foreground print:hidden">
       <p className="text-sm text-muted-foreground">{t("Print preview")}</p>
       <Button size="sm" onClick={() => window.print()}>
         <Printer className="me-2 size-4" />

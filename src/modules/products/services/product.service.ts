@@ -1,4 +1,5 @@
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
+import * as recipeRepo from "@/lib/repositories/recipe.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -15,6 +16,7 @@ export function deriveProductCapabilityFields(
     | "sales_unit_type"
     | "allow_price_input"
     | "inventory_tracking_mode"
+    | "inventory_product_type"
     | "track_inventory"
   >
 ): Pick<
@@ -25,13 +27,25 @@ export function deriveProductCapabilityFields(
   const isWeightSale = salesUnitType === "weight" || salesUnitType === "mixed";
   const isAmountSale = isWeightSale && input.allow_price_input === true;
   const inventoryProductType =
-    input.product_type === "ingredient" ? "raw_material" : input.product_type;
+    input.inventory_product_type === "finished" || input.inventory_product_type === "ingredient"
+      ? undefined
+      : input.inventory_product_type;
 
   return {
-    inventory_product_type: inventoryProductType,
+    inventory_product_type:
+      inventoryProductType ??
+      (input.product_type === "ingredient" || input.product_type === "raw_material"
+        ? "raw_material"
+        : input.product_type === "finished"
+          ? "finished_product"
+          : input.product_type),
     supports_weight_sale: isWeightSale,
     supports_amount_sale: isAmountSale,
   };
+}
+
+function toLegacyProductType(productType: ProductInput["product_type"]): ProductInput["product_type"] {
+  return productType === "ingredient" || productType === "raw_material" ? "ingredient" : "finished";
 }
 
 function normalizeProductInput(input: ProductInput): ProductInput {
@@ -40,17 +54,19 @@ function normalizeProductInput(input: ProductInput): ProductInput {
   const saleUnit = input.sale_unit ?? unit;
   const sku = input.sku?.trim() ?? "";
   const barcode = input.barcode?.trim() || sku;
+  const capabilityFields = deriveProductCapabilityFields(input);
   return {
     ...input,
     sku,
     barcode,
+    product_type: toLegacyProductType(input.product_type),
     unit,
     base_unit: baseUnit,
     sale_unit: saleUnit,
     cost_unit: input.cost_unit ?? baseUnit,
     inventory_tracking_mode:
       input.track_inventory === false ? "none" : input.inventory_tracking_mode ?? "standard",
-    ...deriveProductCapabilityFields(input),
+    ...capabilityFields,
   };
 }
 
@@ -60,6 +76,55 @@ function productToInput(product: Product): ProductInput {
   void org_id;
   void updated_at;
   return input;
+}
+
+function isRecipeIngredientConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.includes("product_recipe_lines_ingredient_product_id_fkey")
+  );
+}
+
+async function getIngredientRecipeUsageNames(productId: string): Promise<string[]> {
+  const usages = await recipeRepo.listRecipeUsagesByIngredient(productId);
+  if (usages.length === 0) return [];
+
+  const products = await catalogRepo.listProducts();
+  const productMap = new Map(products.map((product) => [product.id, product.name]));
+  const variantRows = await Promise.all(
+    [...new Set(usages.map((usage) => usage.productId))].map(async (usedProductId) => ({
+      productId: usedProductId,
+      variants: await catalogRepo.listVariants(usedProductId),
+    }))
+  );
+  const variantMap = new Map<string, string>();
+  for (const row of variantRows) {
+    for (const variant of row.variants) {
+      variantMap.set(`${row.productId}:${variant.id}`, variant.name);
+    }
+  }
+
+  return [
+    ...new Set(
+      usages.map((usage) => {
+        const productName = productMap.get(usage.productId) ?? "Unknown product";
+        const variantName = usage.variantId
+          ? variantMap.get(`${usage.productId}:${usage.variantId}`)
+          : null;
+        return variantName ? `${productName} - ${variantName}` : productName;
+      })
+    ),
+  ];
+}
+
+function formatIngredientRecipeUsageError(names: string[]): string {
+  if (names.length === 0) {
+    return "لا يمكن حذف هذا المكون لأنه مستخدم في وصفة واحدة أو أكثر. أزله من الوصفات أولاً.";
+  }
+  const shown = names.slice(0, 5);
+  const extraCount = names.length - shown.length;
+  const suffix = extraCount > 0 ? ` و${extraCount} أصناف أخرى` : "";
+  return `لا يمكن حذف هذا المكون لأنه مستخدم في وصفات: ${shown.join("، ")}${suffix}. أزله من هذه الوصفات أولاً.`;
 }
 
 export async function listProducts(options?: {
@@ -132,7 +197,20 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(id: string, userId: string): Promise<boolean> {
-  const ok = await catalogRepo.deleteProduct(id);
+  const usageNames = await getIngredientRecipeUsageNames(id);
+  if (usageNames.length > 0) {
+    throw new Error(formatIngredientRecipeUsageError(usageNames));
+  }
+
+  let ok: boolean;
+  try {
+    ok = await catalogRepo.deleteProduct(id);
+  } catch (error) {
+    if (isRecipeIngredientConstraintError(error)) {
+      throw new Error(formatIngredientRecipeUsageError(await getIngredientRecipeUsageNames(id)));
+    }
+    throw error;
+  }
   if (ok) {
     const orgId = await getOrgId();
     await writeAuditLog({

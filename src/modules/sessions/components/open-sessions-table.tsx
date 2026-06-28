@@ -117,7 +117,7 @@ export function OpenSessionsTable({
                     key={summary.session.id}
                     className={cn(
                       summary.lifecycle === "expired_locked" && "bg-destructive/5",
-                      summary.lifecycle === "warning" && "bg-amber-50/70"
+                      summary.lifecycle === "warning" && "bg-amber-50/70 dark:bg-amber-500/10"
                     )}
                   >
                     {showStoreColumn ? (

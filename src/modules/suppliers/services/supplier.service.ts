@@ -251,6 +251,9 @@ export async function createSupplierPayment(input: {
   createdBy: string;
 }): Promise<SupplierPayment> {
   if (input.amount <= 0) throw new Error("Amount must be greater than zero");
+  if (input.paymentMethod === "credit") {
+    throw new Error("Cannot record a supplier payment as credit");
+  }
 
   const supplier = await purchaseRepo.getSupplier(input.supplierId);
   if (!supplier) throw new Error("Supplier not found");

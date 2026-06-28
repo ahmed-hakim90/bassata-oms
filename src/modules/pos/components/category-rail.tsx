@@ -23,7 +23,7 @@ export function CategoryRail({
           "min-h-11 shrink-0 rounded-full px-5 text-sm font-medium transition sm:text-base",
           selectedId === null
             ? "bg-primary text-primary-foreground shadow-sm"
-            : "bg-white text-muted-foreground ring-1 ring-black/5 hover:bg-muted"
+            : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground"
         )}
       >
         All
@@ -37,7 +37,7 @@ export function CategoryRail({
             "min-h-11 shrink-0 rounded-full px-5 text-sm font-medium transition sm:text-base",
             selectedId === cat.id
               ? "text-white shadow-sm"
-              : "bg-white text-muted-foreground ring-1 ring-black/5 hover:bg-muted"
+              : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground"
           )}
           style={
             selectedId === cat.id

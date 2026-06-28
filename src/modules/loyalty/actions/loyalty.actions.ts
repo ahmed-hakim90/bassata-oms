@@ -14,6 +14,7 @@ import { listCustomers } from "@/modules/customers/services/customer.service";
 export async function updateLoyaltyRuleAction(input: {
   pointsPerCurrency?: number;
   redemptionRate?: number;
+  minimumRedeemPoints?: number;
   isActive?: boolean;
 }) {
   await requireFeature("loyalty");
@@ -24,6 +25,7 @@ export async function updateLoyaltyRuleAction(input: {
     {
       points_per_currency: input.pointsPerCurrency,
       redemption_rate: input.redemptionRate,
+      minimum_redeem_points: input.minimumRedeemPoints,
       is_active: input.isActive,
     },
     user.id

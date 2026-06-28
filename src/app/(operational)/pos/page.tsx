@@ -15,6 +15,11 @@ import {
 } from "@/modules/system/services/settings.service";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getLoyaltyRule } from "@/modules/loyalty/services/loyalty.service";
+import { getReportBranding } from "@/modules/reports/services/report-branding.service";
+import {
+  listOnlineOrdersWithItems,
+  listStaffOnlineProductOptions,
+} from "@/modules/online-orders/services/online-order.service";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
@@ -50,10 +55,20 @@ export default async function PosPage() {
     flags.credit_sales ? "credit" : null,
   ].filter((method): method is PaymentMethod => Boolean(method));
 
-  const [costCenters, expenseCategories, allProducts] = await Promise.all([
+  const [
+    costCenters,
+    expenseCategories,
+    allProducts,
+    receiptBranding,
+    onlineOrders,
+    onlineOrderProducts,
+  ] = await Promise.all([
     listCostCenters(storeId),
     listExpenseCategories(),
     catalogRepo.listProducts(),
+    getReportBranding(storeId),
+    listOnlineOrdersWithItems(storeId),
+    listStaffOnlineProductOptions(),
   ]);
   const inventoryProducts = allProducts.filter((p) => p.track_inventory);
 
@@ -62,6 +77,8 @@ export default async function PosPage() {
     loyaltyRule?.is_active && loyaltyRule.redemption_rate > 0
       ? loyaltyRule.redemption_rate
       : null;
+  const minimumLoyaltyRedeemPoints =
+    loyaltyRule?.is_active ? loyaltyRule.minimum_redeem_points : 0;
 
   const canAddSessionExpense =
     flags.session_expenses &&
@@ -89,6 +106,10 @@ export default async function PosPage() {
       managerDiscountOverrideAmount={sessionSettings.manager_discount_override_amount}
       currentUserName={user?.name ?? null}
       loyaltyRedemptionRate={loyaltyRedemptionRate}
+      minimumLoyaltyRedeemPoints={minimumLoyaltyRedeemPoints}
+      receiptBranding={receiptBranding}
+      onlineOrders={onlineOrders}
+      onlineOrderProducts={onlineOrderProducts}
     />
   );
 }

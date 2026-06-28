@@ -146,13 +146,14 @@ export function AuditLogsPage({
               defaultValue={initialFilters.to?.slice(0, 10) ?? ""}
             />
           </div>
-          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-5">
-            <Button type="submit" disabled={pending}>
+          <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-5">
+            <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               Apply filters
             </Button>
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() =>
                 router.push(embedded ? "/settings?tab=audit" : "/audit")
               }
@@ -172,18 +173,18 @@ export function AuditLogsPage({
           <ul className="divide-y">
             {logs.map((log) => (
               <li key={log.id} className="py-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium">{log.action}</p>
-                    <p className="text-sm text-muted-foreground">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="break-words font-medium">{log.action}</p>
+                    <p className="break-words text-sm text-muted-foreground">
                       {log.entity_type} · {log.entity_id}
                       {log.store_id
                         ? ` · ${storeMap.get(log.store_id) ?? log.store_id}`
                         : ""}
                     </p>
                   </div>
-                  <div className="text-right text-sm text-muted-foreground">
-                    <p>{userMap.get(log.user_id) ?? log.user_id}</p>
+                  <div className="text-sm text-muted-foreground sm:text-right">
+                    <p className="break-words">{userMap.get(log.user_id) ?? log.user_id}</p>
                     <p>{formatDateTime(log.created_at)}</p>
                   </div>
                 </div>
@@ -191,15 +192,16 @@ export function AuditLogsPage({
             ))}
           </ul>
         )}
-        <div className="mt-4 flex items-center justify-between gap-2 border-t pt-4">
+        <div className="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             Showing up to {pageSize} entries per page
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 sm:justify-end">
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-none"
               disabled={page <= 1 || pending}
               onClick={() =>
                 startTransition(() =>
@@ -213,6 +215,7 @@ export function AuditLogsPage({
               type="button"
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-none"
               disabled={!hasMore || pending}
               onClick={() =>
                 startTransition(() =>

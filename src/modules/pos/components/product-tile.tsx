@@ -29,7 +29,7 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
       onClick={onAdd}
       disabled={disabled || outOfStock}
       className={cn(
-        "group relative flex min-h-[210px] flex-col overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5 transition hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[230px]"
+        "group relative flex min-h-[210px] flex-col overflow-hidden rounded-2xl bg-card text-left text-card-foreground shadow-sm ring-1 ring-border transition hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[230px]"
       )}
     >
       <div
@@ -56,7 +56,7 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
             className={cn(
               "absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full px-2.5 py-1 text-xs",
               product.stockBadge === "low" &&
-                "border-amber-200 bg-amber-50 text-amber-800"
+                "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200"
             )}
           >
             {badgeLabel}
@@ -68,11 +68,11 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3.5">
-        <p className="line-clamp-2 text-base font-semibold leading-snug text-foreground">
+        <p className="line-clamp-2 text-base font-semibold leading-snug text-card-foreground">
           {product.name}
         </p>
         <p className="text-sm text-muted-foreground">{product.categoryName}</p>
-        <p className="mt-auto text-lg font-semibold tabular-nums">
+        <p className="mt-auto text-lg font-semibold tabular-nums text-card-foreground">
           {formatCurrency(product.base_price)}
         </p>
       </div>

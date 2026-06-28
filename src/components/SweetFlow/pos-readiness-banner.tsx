@@ -49,7 +49,7 @@ export function PosReadinessBanner({ state }: PosReadinessBannerProps) {
           <Icon
             className={cn(
               "size-5 shrink-0",
-              isExpired ? "text-destructive" : "text-amber-700"
+              isExpired ? "text-destructive" : "text-amber-700 dark:text-amber-300"
             )}
           />
         ) : null}
@@ -57,7 +57,7 @@ export function PosReadinessBanner({ state }: PosReadinessBannerProps) {
           <p
             className={cn(
               "text-sm font-semibold",
-              isExpired ? "text-destructive" : "text-amber-900"
+              isExpired ? "text-destructive" : "text-amber-900 dark:text-amber-200"
             )}
           >
             {copy.title}
@@ -65,7 +65,7 @@ export function PosReadinessBanner({ state }: PosReadinessBannerProps) {
           <p
             className={cn(
               "text-xs",
-              isExpired ? "text-destructive/90" : "text-amber-800/90"
+              isExpired ? "text-destructive/90" : "text-amber-800/90 dark:text-amber-200/90"
             )}
           >
             {copy.description}

@@ -27,6 +27,7 @@ export function LoyaltyRulesForm({ rule: initial }: LoyaltyRulesFormProps) {
         await updateLoyaltyRuleAction({
           pointsPerCurrency: rule.points_per_currency,
           redemptionRate: rule.redemption_rate,
+          minimumRedeemPoints: rule.minimum_redeem_points,
           isActive: rule.is_active,
         });
         toast.success(t("Rules updated"));
@@ -76,6 +77,24 @@ export function LoyaltyRulesForm({ rule: initial }: LoyaltyRulesFormProps) {
             {t("Example")}: 100 {t("points")} ={" "}
             {formatCurrency(Math.round(100 * rule.redemption_rate * 100) / 100)}{" "}
             {t("discount at checkout")}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label>{t("Minimum points to redeem")}</Label>
+          <Input
+            type="number"
+            min={0}
+            step={1}
+            value={rule.minimum_redeem_points}
+            onChange={(e) =>
+              setRule({
+                ...rule,
+                minimum_redeem_points: Math.max(0, parseInt(e.target.value) || 0),
+              })
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            {t("Customers must have at least this many points before redeeming at POS")}
           </p>
         </div>
         <label className="flex items-center gap-2">

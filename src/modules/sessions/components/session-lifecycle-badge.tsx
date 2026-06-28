@@ -24,7 +24,8 @@ export function SessionLifecycleBadge({ lifecycle, className }: SessionLifecycle
             : "default"
       }
       className={cn(
-        lifecycle === "warning" && "bg-amber-100 text-amber-900 hover:bg-amber-100",
+        lifecycle === "warning" &&
+          "bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:hover:bg-amber-500/20",
         className
       )}
     >

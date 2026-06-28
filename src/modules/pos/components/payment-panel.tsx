@@ -19,6 +19,7 @@ interface PaymentPanelProps {
   loading?: boolean;
   disabled?: boolean;
   loyaltyRedemptionRate?: number | null;
+  minimumLoyaltyRedeemPoints?: number;
 }
 
 export function PaymentPanel({
@@ -30,6 +31,7 @@ export function PaymentPanel({
   loading,
   disabled,
   loyaltyRedemptionRate = null,
+  minimumLoyaltyRedeemPoints = 0,
 }: PaymentPanelProps) {
   const { t } = useTranslation();
   const cart = usePosStore((s) => s.cart);
@@ -59,10 +61,18 @@ export function PaymentPanel({
         Math.floor(totalBeforeRedemption / (loyaltyRedemptionRate as number))
       )
     : 0;
+  const canRedeemLoyalty =
+    loyaltyAvailable &&
+    maxRedeemablePoints > 0 &&
+    maxRedeemablePoints >= minimumLoyaltyRedeemPoints;
 
   function applyRedemption(points: number) {
     const safePoints = Math.max(0, Math.min(Math.floor(points), maxRedeemablePoints));
-    if (safePoints <= 0 || loyaltyRedemptionRate === null) {
+    if (
+      safePoints <= 0 ||
+      safePoints < minimumLoyaltyRedeemPoints ||
+      loyaltyRedemptionRate === null
+    ) {
       setLoyaltyRedemption(null);
       return;
     }
@@ -127,7 +137,7 @@ export function PaymentPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-3xl bg-card p-6 text-card-foreground shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-heading text-xl font-semibold">{t("Payment")}</h2>
           <Button variant="ghost" size="icon" className="size-11 rounded-xl" onClick={onClose}>
@@ -159,9 +169,9 @@ export function PaymentPanel({
         ) : null}
 
         {loyaltyAvailable ? (
-          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-400/30 dark:bg-amber-400/10">
             <div className="flex items-center justify-between gap-2">
-              <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
                 <Star className="size-4" />
                 {t("Loyalty points")}: {loyaltyBalance}
               </p>
@@ -169,40 +179,46 @@ export function PaymentPanel({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 rounded-lg text-amber-800"
+                  className="h-8 rounded-lg text-amber-800 dark:text-amber-200"
                   onClick={() => setLoyaltyRedemption(null)}
                 >
                   {t("Remove")}
                 </Button>
               ) : null}
             </div>
-            <div className="mt-2 flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={maxRedeemablePoints}
-                value={loyaltyRedemption?.points ?? ""}
-                placeholder={t("Points to redeem")}
-                onChange={(e) => applyRedemption(Number(e.target.value))}
-                className="h-10 rounded-xl bg-white"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 shrink-0 rounded-xl"
-                onClick={() => applyRedemption(maxRedeemablePoints)}
-              >
-                {t("Use max")}
-              </Button>
-            </div>
+            {canRedeemLoyalty ? (
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={minimumLoyaltyRedeemPoints}
+                  max={maxRedeemablePoints}
+                  value={loyaltyRedemption?.points ?? ""}
+                  placeholder={t("Points to redeem")}
+                  onChange={(e) => applyRedemption(Number(e.target.value))}
+                  className="h-10 rounded-xl bg-background"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 shrink-0 rounded-xl"
+                  onClick={() => applyRedemption(maxRedeemablePoints)}
+                >
+                  {t("Use max")}
+                </Button>
+              </div>
+            ) : null}
             {loyaltyRedemption ? (
-              <p className="mt-2 text-xs text-amber-800">
+              <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
                 {loyaltyRedemption.points} {t("points")} = -
                 {formatCurrency(loyaltyRedemption.amount)}
               </p>
+            ) : !canRedeemLoyalty ? (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                {t("Minimum redemption")} {minimumLoyaltyRedeemPoints} {t("points")}
+              </p>
             ) : (
-              <p className="mt-2 text-xs text-amber-700">
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
                 {t("Max")} {maxRedeemablePoints} {t("points")} (
                 {formatCurrency(
                   Math.round(maxRedeemablePoints * (loyaltyRedemptionRate ?? 0) * 100) / 100
@@ -293,7 +309,7 @@ export function PaymentPanel({
               </div>
             ))}
             <div className="flex items-center justify-between gap-3 text-sm">
-              <span className={remaining === 0 ? "text-muted-foreground" : "text-amber-700"}>
+              <span className={remaining === 0 ? "text-muted-foreground" : "text-amber-700 dark:text-amber-300"}>
                 {t("Remaining")} {formatCurrency(remaining)}
               </span>
               <Button

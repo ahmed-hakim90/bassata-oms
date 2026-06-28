@@ -9,34 +9,33 @@ import { GlassPanel } from "@/components/SweetFlow/glass-panel";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { ProductGrid, type ProductGridItem } from "./product-grid";
 import { CategoryList } from "./category-list";
-import { ProductFormDialog } from "./product-form-dialog";
+import { CafeMenuItemDialog } from "./cafe-menu-item-dialog";
+import { CafeIngredientDialog } from "./cafe-ingredient-dialog";
 import { ImportProductsDialog } from "@/modules/imports-exports/components/import-products-dialog";
 import { deleteProductAction } from "../actions/product.actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import type { BusinessActivitySettings, ProductTemplateSettings } from "@/lib/constants";
 
 interface ProductsPageProps {
   initialProducts: (ProductGridItem & { hasRecipe?: boolean })[];
   categories: ProductGridItem["category"][];
+  ingredients: Product[];
   currency: string;
   recipesEnabled?: boolean;
-  productTemplates: ProductTemplateSettings;
-  businessActivitySettings: BusinessActivitySettings;
 }
 
 export function ProductsPage({
   initialProducts,
   categories,
+  ingredients,
   currency,
   recipesEnabled = false,
-  productTemplates,
-  businessActivitySettings,
 }: ProductsPageProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [cafeDialogOpen, setCafeDialogOpen] = useState(false);
+  const [ingredientDialogOpen, setIngredientDialogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [pending, startTransition] = useTransition();
@@ -74,23 +73,27 @@ export function ProductsPage({
 
   function openCreate() {
     setEditing(null);
-    setDialogOpen(true);
+    setCafeDialogOpen(true);
   }
 
   function openEdit(product: Product) {
     setEditing(product);
-    setDialogOpen(true);
+    setCafeDialogOpen(true);
   }
 
   function handleDelete(product: Product) {
     if (!confirm(`Remove ${product.name}?`)) return;
     startTransition(async () => {
-      const ok = await deleteProductAction(product.id);
-      if (ok) {
-        toast.success("Product removed");
-        router.refresh();
-      } else {
-        toast.error("Could not remove product");
+      try {
+        const ok = await deleteProductAction(product.id);
+        if (ok) {
+          toast.success("Product removed");
+          router.refresh();
+        } else {
+          toast.error("Could not remove product");
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not remove product");
       }
     });
   }
@@ -109,9 +112,13 @@ export function ProductsPage({
             <FileSpreadsheet className="size-4" />
             Import
           </Button>
+          <Button variant="outline" onClick={() => setIngredientDialogOpen(true)}>
+            <Plus className="size-4" />
+            New ingredient
+          </Button>
           <Button onClick={openCreate}>
             <Plus className="size-4" />
-            New product
+            New menu item
           </Button>
         </div>
       </div>
@@ -168,16 +175,23 @@ export function ProductsPage({
         </div>
       </div>
 
-      <ProductFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
+      <CafeMenuItemDialog
+        open={cafeDialogOpen}
+        onOpenChange={setCafeDialogOpen}
         categories={categoryList}
+        ingredients={ingredients}
         product={editing}
         recipesEnabled={recipesEnabled}
-        productTemplates={productTemplates}
-        businessActivitySettings={businessActivitySettings}
         currency={currency}
         existingSkus={existingSkus}
+        onSaved={() => router.refresh()}
+      />
+
+      <CafeIngredientDialog
+        open={ingredientDialogOpen}
+        onOpenChange={setIngredientDialogOpen}
+        categories={categoryList}
+        ingredients={ingredients}
         onSaved={() => router.refresh()}
       />
 

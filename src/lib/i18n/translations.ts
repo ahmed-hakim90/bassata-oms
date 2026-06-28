@@ -30,7 +30,6 @@ export const arTranslations: Record<string, string> = {
   "Amount in drawer": "المبلغ في الدرج",
   "Amount:": "المبلغ:",
   "App language": "لغة النظام",
-  "After seeding: owner@CafeFlow.local / demo1234": "بعد التجهيز: owner@CafeFlow.local / demo1234",
   "Avg ticket": "متوسط الفاتورة",
   Back: "رجوع",
   Balance: "الرصيد",
@@ -746,10 +745,14 @@ export const arTranslations: Record<string, string> = {
 
   // POS loyalty
   "Loyalty points": "نقاط الولاء",
+  "Customer can redeem points": "العميل يقدر يستخدم نقاطه",
   "Points to redeem": "عدد النقاط للاستبدال",
   "Use max": "استخدم الكل",
   Max: "الحد الأقصى",
+  "Up to": "حتى",
+  "Minimum redemption": "الحد الأدنى للاستبدال",
   points: "نقاط",
+  "can be used at payment": "يمكن استخدامها عند الدفع",
   subtotal: "قبل الخصم",
   discount: "خصم",
   "Single payment": "دفعة واحدة",
@@ -771,6 +774,9 @@ export const arTranslations: Record<string, string> = {
   Failed: "فشل",
   "Points earned per 1 currency spent": "عدد النقاط المكتسبة لكل 1 جنيه/وحدة عملة",
   "Value of 1 point when redeemed": "قيمة النقطة الواحدة عند الاستبدال",
+  "Minimum points to redeem": "الحد الأدنى للنقاط عند الاستبدال",
+  "Customers must have at least this many points before redeeming at POS":
+    "يجب أن يمتلك العميل هذا العدد من النقاط على الأقل قبل الاستبدال من الكاشير",
   Example: "مثال",
   "a customer paying": "عميل يدفع",
   earns: "يكسب",

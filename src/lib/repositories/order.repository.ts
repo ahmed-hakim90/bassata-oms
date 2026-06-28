@@ -188,7 +188,6 @@ export async function completeCheckoutRpc(input: {
     p_discount: input.discount,
     p_lines: input.lines,
     p_device_id: input.deviceId ?? null,
-    p_sales_mode: input.salesMode ?? "retail",
   });
   if (error) throwDbError(error, "completeCheckout");
   const result = data as Record<string, unknown>;

@@ -35,14 +35,14 @@ export function DevicePairForm({ returnTo }: { returnTo?: string }) {
           Enter the one-time code from Settings → Devices. Codes expire in 15 minutes.
         </p>
       </div>
-      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900">
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200">
         <p className="font-medium">Why am I seeing this?</p>
-        <p className="mt-1 text-amber-800/90">
+        <p className="mt-1 text-amber-800/90 dark:text-amber-200/90">
           This browser is not registered as a POS device for the active branch. Pairing is saved
           per browser and domain, so a different URL, cleared cookies, inactive device, or branch
           mismatch can ask for a new code.
         </p>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-800/90">
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-800/90 dark:text-amber-200/90">
           <li>Use the same URL every day, for example do not switch between localhost, IP, and production domain.</li>
           <li>Hard refresh should not remove pairing unless browser cookies are cleared or blocked.</li>
           <li>If this register changed branch, pair it again from Settings → Devices for that branch.</li>

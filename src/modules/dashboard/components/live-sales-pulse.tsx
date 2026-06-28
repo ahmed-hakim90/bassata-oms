@@ -16,7 +16,7 @@ interface LiveSalesPulseProps {
 
 export function LiveSalesPulse({ data, todaySales }: LiveSalesPulseProps) {
   return (
-    <div className="rounded-2xl bg-white p-5 ring-1 ring-black/5">
+    <div className="rounded-2xl bg-card p-5 text-card-foreground ring-1 ring-border">
       <div className="mb-1 flex items-baseline justify-between">
         <p className="text-sm font-medium text-muted-foreground">Today&apos;s sales</p>
         <p className="text-2xl font-bold tabular-nums tracking-tight">

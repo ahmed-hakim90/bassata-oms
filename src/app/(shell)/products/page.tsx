@@ -8,10 +8,9 @@ export default async function ProductsRoutePage() {
     <ProductsPage
       initialProducts={data.products}
       categories={data.categories}
+      ingredients={data.ingredients}
       currency={data.organization.currency}
       recipesEnabled={data.recipesEnabled}
-      productTemplates={data.productTemplates}
-      businessActivitySettings={data.businessActivitySettings}
     />
   );
 }

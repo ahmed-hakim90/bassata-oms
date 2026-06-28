@@ -20,6 +20,7 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "sku",
   "barcode",
   "category",
+  "definition",
   "base_price",
   "sale_price",
   "description",
@@ -47,6 +48,17 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "supports_amount_sale",
 ] as const;
 
+export const PRODUCT_IMPORT_SIMPLE_COLUMNS = [
+  "name",
+  "sku",
+  "category",
+  "definition",
+  "base_price",
+  "barcode",
+  "unit",
+  "track_inventory",
+] as const;
+
 export type ProductImportRow = Record<(typeof PRODUCT_IMPORT_COLUMNS)[number], string>;
 
 export interface ImportValidationError {
@@ -72,23 +84,42 @@ const HEADER_ALIASES: Record<string, (typeof PRODUCT_IMPORT_COLUMNS)[number]> = 
   item_name: "name",
   "اسم_المنتج": "name",
   "المنتج": "name",
+  "اسم": "name",
+  name_ar: "name",
   code: "sku",
   product_code: "sku",
+  item_code: "sku",
   "كود": "sku",
   "كود_المنتج": "sku",
+  "كود_الصنف": "sku",
   "باركود": "barcode",
   "الباركود": "barcode",
   category_name: "category",
+  group: "category",
   "تصنيف": "category",
   "التصنيف": "category",
+  "القسم": "category",
+  definition: "definition",
+  type: "definition",
+  kind: "definition",
+  product_kind: "definition",
+  item_type: "definition",
+  "تعريف": "definition",
+  "التعريف": "definition",
+  "نوع": "definition",
+  "النوع": "definition",
+  "نوع_المنتج": "definition",
+  "نوع_الصنف": "definition",
   cost_price: "base_price",
   purchase_price: "base_price",
+  unit_cost: "base_price",
+  price: "base_price",
   "سعر_التكلفة": "base_price",
   "التكلفة": "base_price",
-  price: "sale_price",
+  "السعر": "base_price",
+  "سعر": "base_price",
   selling_price: "sale_price",
   "سعر_البيع": "sale_price",
-  "السعر": "sale_price",
   "الوصف": "description",
   image: "image_url",
   image_url: "image_url",
@@ -100,8 +131,80 @@ const HEADER_ALIASES: Record<string, (typeof PRODUCT_IMPORT_COLUMNS)[number]> = 
   "نشط": "is_active",
   popular: "is_popular",
   "مميز": "is_popular",
+  "الوحدة": "unit",
+  "وحدة": "unit",
+  "وحدة_البيع": "unit",
   track_stock: "track_inventory",
   "تتبع_المخزون": "track_inventory",
+};
+
+type DefinitionDefaults = Partial<
+  Pick<
+    ProductImportRow,
+    | "product_type"
+    | "sales_unit_type"
+    | "track_inventory"
+    | "inventory_tracking_mode"
+    | "allow_fractional_quantity"
+    | "allow_price_input"
+  >
+>;
+
+const PRODUCT_DEFINITION_DEFAULTS: Record<string, DefinitionDefaults> = {
+  menu_item: {
+    product_type: "finished_product",
+    sales_unit_type: "piece",
+    track_inventory: "false",
+    inventory_tracking_mode: "none",
+  },
+  retail_product: {
+    product_type: "finished_product",
+    track_inventory: "true",
+    inventory_tracking_mode: "standard",
+  },
+  ingredient: {
+    product_type: "ingredient",
+    track_inventory: "true",
+    inventory_tracking_mode: "standard",
+  },
+  service: {
+    product_type: "service",
+    sales_unit_type: "piece",
+    track_inventory: "false",
+    inventory_tracking_mode: "none",
+  },
+};
+
+const PRODUCT_DEFINITION_ALIASES: Record<string, keyof typeof PRODUCT_DEFINITION_DEFAULTS> = {
+  menu: "menu_item",
+  item: "menu_item",
+  menuitem: "menu_item",
+  menu_item: "menu_item",
+  finished: "menu_item",
+  finished_product: "menu_item",
+  "عنصر_قائمة": "menu_item",
+  "صنف_قائمة": "menu_item",
+  "منتج_للبيع": "menu_item",
+  "منتج": "menu_item",
+  "صنف": "menu_item",
+  "مشروب": "menu_item",
+  "وجبة": "menu_item",
+  retail: "retail_product",
+  retail_product: "retail_product",
+  stock: "retail_product",
+  stock_product: "retail_product",
+  inventory_product: "retail_product",
+  "منتج_مخزون": "retail_product",
+  "منتج_بتتبع_مخزون": "retail_product",
+  ingredient: "ingredient",
+  raw: "ingredient",
+  raw_material: "ingredient",
+  "مكون": "ingredient",
+  "مكوّن": "ingredient",
+  "مادة_خام": "ingredient",
+  "خام": "ingredient",
+  service: "service",
+  "خدمة": "service",
 };
 
 function normalizeHeader(value: string): string {
@@ -111,6 +214,27 @@ function normalizeHeader(value: string): string {
 
 function valueOrDefault(value: string | undefined, fallback: string): string {
   return value?.trim() ? value : fallback;
+}
+
+function normalizeToken(value: string): string {
+  return value.trim().toLowerCase().replace(/[ـ-]+/g, "_").replace(/\s+/g, "_");
+}
+
+function definitionKey(value: string): keyof typeof PRODUCT_DEFINITION_DEFAULTS | null {
+  if (!value.trim()) return null;
+  const normalized = normalizeToken(value);
+  return PRODUCT_DEFINITION_ALIASES[normalized] ?? null;
+}
+
+function definitionDefaults(value: string): DefinitionDefaults {
+  const key = definitionKey(value);
+  return key ? PRODUCT_DEFINITION_DEFAULTS[key] : {};
+}
+
+function salesUnitTypeForUnit(unit: string): ProductImportRow["sales_unit_type"] {
+  if (unit === "kg" || unit === "gram") return "weight";
+  if (unit === "liter" || unit === "ml") return "volume";
+  return "piece";
 }
 
 export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
@@ -123,36 +247,53 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
     for (const [key, value] of Object.entries(row)) {
       normalized[normalizeHeader(key)] = String(value ?? "").trim();
     }
+    const definition = normalized.definition ?? "";
+    const defaults = definitionDefaults(definition);
+    const unit = valueOrDefault(normalized.unit, "piece");
+    const basePrice = valueOrDefault(normalized.base_price, normalized.sale_price ?? "");
     return {
       name: normalized.name ?? "",
       sku: normalized.sku ?? "",
       barcode: normalized.barcode ?? "",
       category: normalized.category ?? "",
-      base_price: normalized.base_price ?? "",
+      definition,
+      base_price: basePrice,
       sale_price: normalized.sale_price ?? "",
       description: normalized.description ?? "",
       image_url: normalized.image_url ?? "",
       import_action: valueOrDefault(normalized.import_action, "upsert"),
-      product_type: valueOrDefault(normalized.product_type, "finished_product"),
-      sales_unit_type: valueOrDefault(normalized.sales_unit_type, "piece"),
-      unit: valueOrDefault(normalized.unit, "piece"),
-      base_unit: valueOrDefault(normalized.base_unit, valueOrDefault(normalized.unit, "piece")),
-      sale_unit: valueOrDefault(normalized.sale_unit, valueOrDefault(normalized.unit, "piece")),
+      product_type: valueOrDefault(normalized.product_type, defaults.product_type ?? "finished_product"),
+      sales_unit_type: valueOrDefault(
+        normalized.sales_unit_type,
+        defaults.sales_unit_type ?? salesUnitTypeForUnit(unit)
+      ),
+      unit,
+      base_unit: valueOrDefault(normalized.base_unit, unit),
+      sale_unit: valueOrDefault(normalized.sale_unit, unit),
       cost_unit: valueOrDefault(
         normalized.cost_unit,
-        valueOrDefault(normalized.base_unit, valueOrDefault(normalized.unit, "piece"))
+        valueOrDefault(normalized.base_unit, unit)
       ),
       is_active: valueOrDefault(normalized.is_active, "true"),
       is_popular: valueOrDefault(normalized.is_popular, "false"),
-      track_inventory: valueOrDefault(normalized.track_inventory, "true"),
-      inventory_tracking_mode: valueOrDefault(normalized.inventory_tracking_mode, "standard"),
+      track_inventory: valueOrDefault(normalized.track_inventory, defaults.track_inventory ?? "true"),
+      inventory_tracking_mode: valueOrDefault(
+        normalized.inventory_tracking_mode,
+        defaults.inventory_tracking_mode ?? "standard"
+      ),
       inventory_rotation_method: valueOrDefault(normalized.inventory_rotation_method, "FIFO"),
       expiry_tracking_enabled: valueOrDefault(normalized.expiry_tracking_enabled, "false"),
       expiry_policy: valueOrDefault(normalized.expiry_policy, "block_sale"),
       shelf_life_value: valueOrDefault(normalized.shelf_life_value, "0"),
       shelf_life_unit: valueOrDefault(normalized.shelf_life_unit, "days"),
-      allow_fractional_quantity: valueOrDefault(normalized.allow_fractional_quantity, "false"),
-      allow_price_input: valueOrDefault(normalized.allow_price_input, "false"),
+      allow_fractional_quantity: valueOrDefault(
+        normalized.allow_fractional_quantity,
+        defaults.allow_fractional_quantity ?? (unit === "piece" ? "false" : "true")
+      ),
+      allow_price_input: valueOrDefault(
+        normalized.allow_price_input,
+        defaults.allow_price_input ?? "false"
+      ),
       wholesale_enabled: valueOrDefault(normalized.wholesale_enabled, "false"),
       supports_weight_sale: normalized.supports_weight_sale ?? "",
       supports_amount_sale: normalized.supports_amount_sale ?? "",
@@ -169,12 +310,17 @@ export function validateProductRows(rows: ProductImportRow[]): ImportValidationE
   rows.forEach((row, index) => {
     const rowNum = index + 2;
     if (!row.name) errors.push({ row: rowNum, field: "name", message: "Name is required" });
-    if (!row.sku) {
-      errors.push({ row: rowNum, field: "sku", message: "SKU is required" });
-    } else if (skuSet.has(row.sku)) {
+    if (row.sku && skuSet.has(row.sku)) {
       errors.push({ row: rowNum, field: "sku", message: "Duplicate SKU in file" });
-    } else {
+    } else if (row.sku) {
       skuSet.add(row.sku);
+    }
+    if (row.definition && !definitionKey(row.definition)) {
+      errors.push({
+        row: rowNum,
+        field: "definition",
+        message: "Use menu_item, retail_product, ingredient, or service",
+      });
     }
     const price = Number(row.base_price);
     if (row.base_price && Number.isNaN(price)) {
@@ -257,25 +403,28 @@ export function validateProductRows(rows: ProductImportRow[]): ImportValidationE
 
 function parseBool(value: string, fallback: boolean): boolean {
   const v = value.trim().toLowerCase();
-  if (["true", "yes", "1", "y"].includes(v)) return true;
-  if (["false", "no", "0", "n"].includes(v)) return false;
+  if (["true", "yes", "1", "y", "نعم", "صح"].includes(v)) return true;
+  if (["false", "no", "0", "n", "لا", "خطأ"].includes(v)) return false;
   return fallback;
 }
 
 function rowToProductInput(row: ProductImportPayload): productService.ProductInput {
+  const productType = row.product_type as Product["product_type"];
+  const basePrice = Number(row.base_price) || 0;
+  const isIngredient = productType === "ingredient" || productType === "raw_material";
   return {
     name: row.name,
     sku: row.sku,
     barcode: row.barcode || row.sku,
     category_id: row.category_id,
-    base_price: Number(row.base_price) || 0,
+    base_price: isIngredient ? 0 : basePrice,
     description: row.description,
     sale_price: row.sale_price ? Number(row.sale_price) : null,
     image_url: row.image_url || null,
     is_active: parseBool(row.is_active, true),
     is_popular: parseBool(row.is_popular, false),
     track_inventory: parseBool(row.track_inventory, true),
-    product_type: (row.product_type as Product["product_type"]) ?? "finished_product",
+    product_type: productType ?? "finished_product",
     inventory_tracking_mode:
       (row.inventory_tracking_mode as Product["inventory_tracking_mode"]) ?? "standard",
     inventory_rotation_method:
@@ -297,7 +446,7 @@ function rowToProductInput(row: ProductImportPayload): productService.ProductInp
     supports_amount_sale: row.supports_amount_sale
       ? parseBool(row.supports_amount_sale, false)
       : undefined,
-    last_unit_cost: 0,
+    last_unit_cost: isIngredient ? basePrice : 0,
     cost_unit: (row.cost_unit as Product["cost_unit"]) ?? "piece",
   };
 }
@@ -342,7 +491,7 @@ export async function bulkImportProducts(
     (await resolveCategoryId("General", createdBy));
 
   for (const row of rows) {
-    if (!row.name || !row.sku) {
+    if (!row.name) {
       skipped += 1;
       continue;
     }
@@ -352,7 +501,7 @@ export async function bulkImportProducts(
       : defaultCategoryId;
 
     const action = row.import_action as ImportAction;
-    const existingProduct = existingBySku.get(row.sku.toLowerCase());
+    const existingProduct = row.sku ? existingBySku.get(row.sku.toLowerCase()) : undefined;
     const payload = rowToProductInput({ ...row, category_id: categoryId });
 
     if (existingProduct) {
@@ -371,7 +520,7 @@ export async function bulkImportProducts(
     }
 
     const product = await productService.createProduct(payload, createdBy);
-    existingBySku.set(product.sku.toLowerCase(), product);
+    if (product.sku) existingBySku.set(product.sku.toLowerCase(), product);
     imported.push(product);
   }
 

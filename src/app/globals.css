@@ -193,11 +193,19 @@
 @media print {
   @page receipt {
     size: 80mm auto;
-    margin: 4mm;
+    margin: 3mm;
   }
 
   [data-print-layout="receipt"] {
     page: receipt;
+    display: block !important;
     max-width: 80mm !important;
+    margin: 0 auto !important;
+  }
+
+  body:has([data-print-layout="receipt"]) {
+    width: 80mm !important;
+    min-width: 80mm !important;
+    margin: 0 auto !important;
   }
 }

@@ -1,295 +1,510 @@
--- CafeFlow seed data (run after migrations; link auth via npm run db:seed-auth)
--- Accounting (011+): cost centers, expense categories, permissions, expense_settings
--- are seeded automatically by migration 011_accounting_centers_expenses.sql per org.
--- Full RBAC permissions: migration 015_full_rbac_permissions.sql
--- Session settings + permissions: migration 018_session_management.sql
--- Device FK on delete: migration 019_device_delete_set_null.sql
--- POS device access: migration 021_pos_device_access.sql
+-- Bassata OMS production seed for a simple Egyptian cafe.
+-- Run after migrations, then link the admin auth user with:
+--   ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run db:seed-auth
+--
+-- This seed intentionally avoids demo orders, customers, cashier sessions,
+-- supplier payments, and historical movements so a new environment starts clean.
 
 INSERT INTO organizations (id, name, currency, timezone, settings)
 VALUES (
   '00000000-0000-4000-8000-000000000001',
-  'CafeFlow Demo',
-  'USD',
-  'America/New_York',
-  '{"tax_rate": 0, "tax_inclusive": true}'::jsonb
-);
+  'Bassata Cafe',
+  'EGP',
+  'Africa/Cairo',
+  '{"tax_rate": 0, "tax_inclusive": true, "locale": "ar-EG"}'::jsonb
+)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    currency = EXCLUDED.currency,
+    timezone = EXCLUDED.timezone,
+    settings = EXCLUDED.settings;
 
 INSERT INTO stores (id, org_id, name, address, is_active, settings) VALUES
-  ('00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001', 'Downtown', '123 Main St', true, '{}'::jsonb),
-  ('00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000001', 'Mall Location', '456 Mall Blvd', true, '{}'::jsonb);
-
-INSERT INTO users (id, org_id, auth_user_id, name, email, role, is_active) VALUES
-  ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000001', NULL, 'Alex Owner', 'owner@CafeFlow.local', 'owner', true),
-  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000001', NULL, 'Maya Manager', 'manager@CafeFlow.local', 'manager', true),
-  ('00000000-0000-4000-8000-000000000203', '00000000-0000-4000-8000-000000000001', NULL, 'Sam Cashier', 'cashier1@CafeFlow.local', 'cashier', true),
-  ('00000000-0000-4000-8000-000000000204', '00000000-0000-4000-8000-000000000001', NULL, 'Jordan Cashier', 'cashier2@CafeFlow.local', 'cashier', true),
-  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000001', NULL, 'Riley Store Keeper', 'inventory@CafeFlow.local', 'inventory', true);
-
-INSERT INTO user_store_access (user_id, store_id) VALUES
-  ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000101'),
-  ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000102'),
-  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000101'),
-  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000102'),
-  ('00000000-0000-4000-8000-000000000203', '00000000-0000-4000-8000-000000000101'),
-  ('00000000-0000-4000-8000-000000000204', '00000000-0000-4000-8000-000000000102'),
-  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000101');
-
-INSERT INTO pin_codes (user_id, pin_hash, is_active) VALUES
-  ('00000000-0000-4000-8000-000000000203', crypt('1234', gen_salt('bf')), true),
-  ('00000000-0000-4000-8000-000000000204', crypt('1234', gen_salt('bf')), true);
-
-INSERT INTO devices (id, store_id, name, device_key_hash, is_active) VALUES
   (
-    '00000000-0000-4000-8000-000000000301',
     '00000000-0000-4000-8000-000000000101',
-    'Register 1',
-    crypt('seed-device-key-downtown', gen_salt('bf')),
-    true
-  ),
-  (
-    '00000000-0000-4000-8000-000000000302',
-    '00000000-0000-4000-8000-000000000102',
-    'Register 1',
-    crypt('seed-device-key-mall', gen_salt('bf')),
-    true
-  );
-
-INSERT INTO categories (id, org_id, name, sort_order, color, icon) VALUES
-  ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000001', 'Ice Cream', 1, '#60A5FA', 'ice-cream'),
-  ('00000000-0000-4000-8000-000000000402', '00000000-0000-4000-8000-000000000001', 'Drinks', 2, '#34D399', 'cup-soda'),
-  ('00000000-0000-4000-8000-000000000403', '00000000-0000-4000-8000-000000000001', 'Desserts', 3, '#F472B6', 'cake'),
-  ('00000000-0000-4000-8000-000000000404', '00000000-0000-4000-8000-000000000001', 'Toppings', 4, '#FBBF24', 'sparkles');
-
-INSERT INTO products (id, org_id, name, sku, barcode, category_id, base_price, is_active, is_popular, track_inventory) VALUES
-  ('00000000-0000-4000-8000-000000000501', '00000000-0000-4000-8000-000000000001', 'Vanilla Scoop', 'ICE-001', '100001', '00000000-0000-4000-8000-000000000401', 4.50, true, true, true),
-  ('00000000-0000-4000-8000-000000000502', '00000000-0000-4000-8000-000000000001', 'Chocolate Scoop', 'ICE-002', '100002', '00000000-0000-4000-8000-000000000401', 4.50, true, true, true),
-  ('00000000-0000-4000-8000-000000000503', '00000000-0000-4000-8000-000000000001', 'Strawberry Scoop', 'ICE-003', '100003', '00000000-0000-4000-8000-000000000401', 4.75, true, false, true),
-  ('00000000-0000-4000-8000-000000000504', '00000000-0000-4000-8000-000000000001', 'Iced Latte', 'DRK-001', '200001', '00000000-0000-4000-8000-000000000402', 5.50, true, true, true),
-  ('00000000-0000-4000-8000-000000000505', '00000000-0000-4000-8000-000000000001', 'Berry Smoothie', 'DRK-002', '200002', '00000000-0000-4000-8000-000000000402', 6.25, true, false, true),
-  ('00000000-0000-4000-8000-000000000506', '00000000-0000-4000-8000-000000000001', 'Waffle Cone', 'DES-001', '300001', '00000000-0000-4000-8000-000000000403', 3.00, true, true, true),
-  ('00000000-0000-4000-8000-000000000507', '00000000-0000-4000-8000-000000000001', 'Brownie Sundae', 'DES-002', '300002', '00000000-0000-4000-8000-000000000403', 8.50, true, true, true),
-  ('00000000-0000-4000-8000-000000000508', '00000000-0000-4000-8000-000000000001', 'Extra Sprinkles', 'TOP-001', '400001', '00000000-0000-4000-8000-000000000404', 0.75, true, false, true);
-
-INSERT INTO stock_levels (store_id, product_id, variant_id, quantity, reorder_point)
-SELECT s.id, p.id, NULL,
-  CASE WHEN s.id = '00000000-0000-4000-8000-000000000101' THEN 45 ELSE 32 END,
-  10
-FROM stores s
-CROSS JOIN products p
-WHERE s.org_id = '00000000-0000-4000-8000-000000000001';
-
-UPDATE stock_levels SET quantity = 6
-WHERE store_id = '00000000-0000-4000-8000-000000000102'
-  AND product_id = '00000000-0000-4000-8000-000000000503';
-
-INSERT INTO suppliers (id, org_id, name, contact_info) VALUES
-  ('00000000-0000-4000-8000-000000000601', '00000000-0000-4000-8000-000000000001', 'Fresh Dairy Co.', 'orders@freshdairy.com'),
-  ('00000000-0000-4000-8000-000000000602', '00000000-0000-4000-8000-000000000001', 'Sweet Supplies', 'sales@sweetsupplies.com');
-
-INSERT INTO customers (id, org_id, name, phone, email, total_spent, visit_count, notes) VALUES
-  ('00000000-0000-4000-8000-000000000701', '00000000-0000-4000-8000-000000000001', 'Emma Wilson', '+15551234567', 'emma@email.com', 124.50, 18, 'Loves vanilla'),
-  ('00000000-0000-4000-8000-000000000702', '00000000-0000-4000-8000-000000000001', 'Liam Chen', '+15559876543', NULL, 67.25, 9, '');
-
-INSERT INTO loyalty_rules (id, org_id, points_per_currency, redemption_rate, is_active)
-VALUES ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000001', 1, 0.01, true);
-
-INSERT INTO loyalty_ledger (customer_id, points_delta, balance_after, reason)
-VALUES ('00000000-0000-4000-8000-000000000701', 50, 50, 'Welcome bonus');
-
-INSERT INTO app_settings (org_id, key, value)
-VALUES ('00000000-0000-4000-8000-000000000001', 'receipt_footer', '{"text": "Thank you for visiting CafeFlow!"}'::jsonb);
-
-INSERT INTO app_settings (org_id, key, value)
-VALUES ('00000000-0000-4000-8000-000000000001', 'tax_rate', '{"rate": 0}'::jsonb);
-
-INSERT INTO app_settings (org_id, key, value)
-VALUES (
-  '00000000-0000-4000-8000-000000000001',
-  'feature_flags',
-  '{"recipes": true}'::jsonb
-)
-ON CONFLICT (org_id, key) DO UPDATE
-SET value = app_settings.value || '{"recipes": true}'::jsonb;
-
-INSERT INTO app_settings (org_id, key, value)
-VALUES (
-  '00000000-0000-4000-8000-000000000001',
-  'session_settings',
-  jsonb_build_object(
-    'max_open_hours', 24,
-    'warn_after_hours', 20,
-    'block_sales_when_expired', true,
-    'require_manager_override_for_expired_sale', true,
-    'allow_manager_force_close', true
+    '00000000-0000-4000-8000-000000000001',
+    'الفرع الرئيسي',
+    'القاهرة، مصر',
+    true,
+    '{
+      "phone": "",
+      "receipt_name": "Bassata Cafe",
+      "online_menu_enabled": true,
+      "online_menu_ordering_enabled": true,
+      "online_menu_slug": "bassata-cafe",
+      "online_menu_token": "bassata-cafe-main-menu",
+      "online_menu_description": "منيو Bassata Cafe للطلبات والاستلام من الفرع الرئيسي"
+    }'::jsonb
   )
-)
-ON CONFLICT (org_id, key) DO NOTHING;
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    address = EXCLUDED.address,
+    is_active = EXCLUDED.is_active,
+    settings = EXCLUDED.settings;
 
--- Session RBAC (018 may run before demo org exists on fresh reset)
-INSERT INTO role_permissions (org_id, role, permission_key) VALUES
-  ('00000000-0000-4000-8000-000000000001', 'owner', 'session_view_all'),
-  ('00000000-0000-4000-8000-000000000001', 'owner', 'session_force_close'),
-  ('00000000-0000-4000-8000-000000000001', 'owner', 'session_settings_manage'),
-  ('00000000-0000-4000-8000-000000000001', 'manager', 'session_view_all'),
-  ('00000000-0000-4000-8000-000000000001', 'manager', 'session_force_close'),
-  ('00000000-0000-4000-8000-000000000001', 'manager', 'session_settings_manage')
+INSERT INTO warehouses (id, org_id, store_id, name, is_default, is_active)
+VALUES (
+  '00000000-0000-4000-8000-000000000111',
+  '00000000-0000-4000-8000-000000000001',
+  '00000000-0000-4000-8000-000000000101',
+  'مخزن الفرع الرئيسي',
+  true,
+  true
+)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    is_default = EXCLUDED.is_default,
+    is_active = EXCLUDED.is_active;
+
+INSERT INTO users (id, org_id, auth_user_id, name, email, role, is_active)
+VALUES (
+  '00000000-0000-4000-8000-000000000201',
+  '00000000-0000-4000-8000-000000000001',
+  NULL,
+  'مدير النظام',
+  'admin@bassata.local',
+  'owner',
+  true
+)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    is_active = EXCLUDED.is_active;
+
+INSERT INTO user_store_access (user_id, store_id)
+VALUES (
+  '00000000-0000-4000-8000-000000000201',
+  '00000000-0000-4000-8000-000000000101'
+)
 ON CONFLICT DO NOTHING;
 
--- Demo open sessions for lifecycle QA (normal / warning / expired)
-INSERT INTO cashier_sessions (
-  id, store_id, device_id, cashier_id, opened_at, opening_cash, status
-) VALUES
-  (
-    '00000000-0000-4000-8000-000000000801',
-    '00000000-0000-4000-8000-000000000101',
-    '00000000-0000-4000-8000-000000000301',
-    '00000000-0000-4000-8000-000000000203',
-    now() - interval '3 hours',
-    100,
-    'open'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000802',
-    '00000000-0000-4000-8000-000000000102',
-    '00000000-0000-4000-8000-000000000302',
-    '00000000-0000-4000-8000-000000000204',
-    now() - interval '21 hours',
-    75,
-    'open'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000803',
-    '00000000-0000-4000-8000-000000000101',
-    '00000000-0000-4000-8000-000000000301',
-    '00000000-0000-4000-8000-000000000202',
-    now() - interval '25 hours',
-    50,
-    'open'
-  )
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO devices (id, store_id, name, device_key_hash, is_active)
+VALUES (
+  '00000000-0000-4000-8000-000000000301',
+  '00000000-0000-4000-8000-000000000101',
+  'كاشير رئيسي',
+  crypt('change-this-device-key', gen_salt('bf')),
+  true
+)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    is_active = EXCLUDED.is_active;
 
--- Recipe demo: ingredients
+INSERT INTO suppliers (id, org_id, name, contact_info) VALUES
+  ('00000000-0000-4000-8000-000000000501', '00000000-0000-4000-8000-000000000001', 'مورد البن والشاي', 'بن، شاي، نسكافيه، كاكاو'),
+  ('00000000-0000-4000-8000-000000000502', '00000000-0000-4000-8000-000000000001', 'مورد الألبان والعصائر', 'لبن، فواكه، سحلب'),
+  ('00000000-0000-4000-8000-000000000503', '00000000-0000-4000-8000-000000000001', 'مورد التعبئة والتغليف', 'أكواب، شفاطات، ملاعق')
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    contact_info = EXCLUDED.contact_info;
+
+INSERT INTO categories (id, org_id, name, sort_order, color, icon) VALUES
+  ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000001', 'مشروبات ساخنة', 1, '#F97316', 'coffee'),
+  ('00000000-0000-4000-8000-000000000402', '00000000-0000-4000-8000-000000000001', 'مشروبات باردة', 2, '#38BDF8', 'cup-soda'),
+  ('00000000-0000-4000-8000-000000000403', '00000000-0000-4000-8000-000000000001', 'عصائر', 3, '#22C55E', 'glass-water'),
+  ('00000000-0000-4000-8000-000000000404', '00000000-0000-4000-8000-000000000001', 'حلويات', 4, '#EC4899', 'cake'),
+  ('00000000-0000-4000-8000-000000000405', '00000000-0000-4000-8000-000000000001', 'سندوتشات خفيفة', 5, '#EAB308', 'sandwich'),
+  ('00000000-0000-4000-8000-000000000406', '00000000-0000-4000-8000-000000000001', 'مكونات ومخزون', 99, '#64748B', 'package')
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    sort_order = EXCLUDED.sort_order,
+    color = EXCLUDED.color,
+    icon = EXCLUDED.icon;
+
 INSERT INTO products (
   id, org_id, name, sku, barcode, category_id, base_price,
-  is_active, is_popular, track_inventory, product_type, unit, last_unit_cost, cost_unit
+  is_active, is_popular, track_inventory, product_type, unit,
+  last_unit_cost, cost_unit, inventory_product_type, inventory_tracking_mode,
+  sales_unit_type, sale_unit
 ) VALUES
-  ('00000000-0000-4000-8000-000000000511', '00000000-0000-4000-8000-000000000001', 'Mango Bag', 'ING-001', '500001', '00000000-0000-4000-8000-000000000402', 0, true, false, true, 'ingredient', 'bag', 2.50, 'bag'),
-  ('00000000-0000-4000-8000-000000000512', '00000000-0000-4000-8000-000000000001', 'Cup', 'ING-002', '500002', '00000000-0000-4000-8000-000000000404', 0, true, false, true, 'ingredient', 'cup', 0.15, 'cup'),
-  ('00000000-0000-4000-8000-000000000513', '00000000-0000-4000-8000-000000000001', 'Straw', 'ING-003', '500003', '00000000-0000-4000-8000-000000000404', 0, true, false, true, 'ingredient', 'piece', 0.05, 'piece'),
-  ('00000000-0000-4000-8000-000000000514', '00000000-0000-4000-8000-000000000001', 'Ice Cream Gallon', 'ING-004', '500004', '00000000-0000-4000-8000-000000000401', 0, true, false, true, 'ingredient', 'kg', 12.00, 'kg'),
-  ('00000000-0000-4000-8000-000000000515', '00000000-0000-4000-8000-000000000001', 'Spoon', 'ING-005', '500005', '00000000-0000-4000-8000-000000000404', 0, true, false, true, 'ingredient', 'spoon', 0.08, 'spoon');
+  ('00000000-0000-4000-8000-000000000601', '00000000-0000-4000-8000-000000000001', 'بن اسبريسو', 'ING-COF-001', 'EGING0001', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 420.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000602', '00000000-0000-4000-8000-000000000001', 'بن تركي', 'ING-COF-002', 'EGING0002', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 360.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000603', '00000000-0000-4000-8000-000000000001', 'شاي', 'ING-TEA-001', 'EGING0003', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 180.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000604', '00000000-0000-4000-8000-000000000001', 'سكر', 'ING-SUG-001', 'EGING0004', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 55.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000605', '00000000-0000-4000-8000-000000000001', 'لبن', 'ING-DRY-001', 'EGING0005', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'liter', 38.00, 'liter', 'raw_material', 'standard', 'volume', 'liter'),
+  ('00000000-0000-4000-8000-000000000606', '00000000-0000-4000-8000-000000000001', 'مياه', 'ING-WAT-001', 'EGING0006', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'liter', 5.00, 'liter', 'raw_material', 'standard', 'volume', 'liter'),
+  ('00000000-0000-4000-8000-000000000607', '00000000-0000-4000-8000-000000000001', 'كاكاو خام', 'ING-COC-001', 'EGING0007', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 260.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000608', '00000000-0000-4000-8000-000000000001', 'نسكافيه', 'ING-COF-003', 'EGING0008', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 650.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000609', '00000000-0000-4000-8000-000000000001', 'ثلج', 'ING-ICE-001', 'EGING0009', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 18.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000610', '00000000-0000-4000-8000-000000000001', 'نعناع فريش', 'ING-HER-001', 'EGING0010', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 120.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000611', '00000000-0000-4000-8000-000000000001', 'ليمون', 'ING-FRT-001', 'EGING0011', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 45.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000612', '00000000-0000-4000-8000-000000000001', 'مانجو', 'ING-FRT-002', 'EGING0012', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 95.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000613', '00000000-0000-4000-8000-000000000001', 'فراولة', 'ING-FRT-003', 'EGING0013', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 80.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000614', '00000000-0000-4000-8000-000000000001', 'جوافة', 'ING-FRT-004', 'EGING0014', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 65.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000615', '00000000-0000-4000-8000-000000000001', 'كركديه', 'ING-HER-002', 'EGING0015', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 120.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000616', '00000000-0000-4000-8000-000000000001', 'بودرة سحلب', 'ING-SHL-001', 'EGING0016', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 210.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000617', '00000000-0000-4000-8000-000000000001', 'كوب', 'ING-PKG-001', 'EGING0017', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'piece', 1.50, 'piece', 'packaging_material', 'standard', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000618', '00000000-0000-4000-8000-000000000001', 'شفاط', 'ING-PKG-002', 'EGING0018', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'piece', 0.35, 'piece', 'packaging_material', 'standard', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000619', '00000000-0000-4000-8000-000000000001', 'معلقة', 'ING-PKG-003', 'EGING0019', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'piece', 0.45, 'piece', 'packaging_material', 'standard', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000620', '00000000-0000-4000-8000-000000000001', 'بسبوسة قطعة', 'ING-DES-001', 'EGING0020', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'piece', 13.00, 'piece', 'raw_material', 'standard', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000621', '00000000-0000-4000-8000-000000000001', 'رز بلبن كوب', 'ING-DES-002', 'EGING0021', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'piece', 15.00, 'piece', 'raw_material', 'standard', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000622', '00000000-0000-4000-8000-000000000001', 'عيش فينو', 'ING-SND-001', 'EGING0022', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'piece', 4.00, 'piece', 'raw_material', 'standard', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000623', '00000000-0000-4000-8000-000000000001', 'جبنة', 'ING-SND-002', 'EGING0023', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 160.00, 'kg', 'raw_material', 'standard', 'weight', 'kg'),
+  ('00000000-0000-4000-8000-000000000624', '00000000-0000-4000-8000-000000000001', 'بسطرمة', 'ING-SND-003', 'EGING0024', '00000000-0000-4000-8000-000000000406', 0, true, false, true, 'ingredient', 'kg', 420.00, 'kg', 'raw_material', 'standard', 'weight', 'kg')
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    sku = EXCLUDED.sku,
+    barcode = EXCLUDED.barcode,
+    category_id = EXCLUDED.category_id,
+    base_price = EXCLUDED.base_price,
+    is_active = EXCLUDED.is_active,
+    track_inventory = EXCLUDED.track_inventory,
+    product_type = EXCLUDED.product_type,
+    unit = EXCLUDED.unit,
+    last_unit_cost = EXCLUDED.last_unit_cost,
+    cost_unit = EXCLUDED.cost_unit,
+    inventory_product_type = EXCLUDED.inventory_product_type,
+    inventory_tracking_mode = EXCLUDED.inventory_tracking_mode,
+    sales_unit_type = EXCLUDED.sales_unit_type,
+    sale_unit = EXCLUDED.sale_unit;
 
--- Finished products with recipes
 INSERT INTO products (
   id, org_id, name, sku, barcode, category_id, base_price,
-  is_active, is_popular, track_inventory, product_type, unit
+  is_active, is_popular, track_inventory, product_type, unit,
+  inventory_product_type, inventory_tracking_mode, sales_unit_type, sale_unit
 ) VALUES
-  ('00000000-0000-4000-8000-000000000521', '00000000-0000-4000-8000-000000000001', 'Mango Juice', 'DRK-010', '200010', '00000000-0000-4000-8000-000000000402', 6.50, true, true, false, 'finished', 'piece'),
-  ('00000000-0000-4000-8000-000000000522', '00000000-0000-4000-8000-000000000001', 'Ice Cream Cup', 'ICE-010', '100010', '00000000-0000-4000-8000-000000000401', 5.00, true, true, false, 'finished', 'piece');
+  ('00000000-0000-4000-8000-000000000701', '00000000-0000-4000-8000-000000000001', 'شاي كشري', 'HOT-TEA-001', 'EGMENU0001', '00000000-0000-4000-8000-000000000401', 15.00, true, true, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000702', '00000000-0000-4000-8000-000000000001', 'شاي بالنعناع', 'HOT-TEA-002', 'EGMENU0002', '00000000-0000-4000-8000-000000000401', 18.00, true, true, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000703', '00000000-0000-4000-8000-000000000001', 'قهوة تركي', 'HOT-COF-001', 'EGMENU0003', '00000000-0000-4000-8000-000000000401', 25.00, true, true, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000704', '00000000-0000-4000-8000-000000000001', 'اسبريسو', 'HOT-COF-002', 'EGMENU0004', '00000000-0000-4000-8000-000000000401', 35.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000705', '00000000-0000-4000-8000-000000000001', 'لاتيه', 'HOT-COF-003', 'EGMENU0005', '00000000-0000-4000-8000-000000000401', 55.00, true, true, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000706', '00000000-0000-4000-8000-000000000001', 'نسكافيه باللبن', 'HOT-COF-004', 'EGMENU0006', '00000000-0000-4000-8000-000000000401', 45.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000707', '00000000-0000-4000-8000-000000000001', 'هوت شوكليت', 'HOT-CHO-001', 'EGMENU0007', '00000000-0000-4000-8000-000000000401', 55.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000708', '00000000-0000-4000-8000-000000000001', 'سحلب', 'HOT-SHL-001', 'EGMENU0008', '00000000-0000-4000-8000-000000000401', 50.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000709', '00000000-0000-4000-8000-000000000001', 'ايس كوفي', 'CLD-COF-001', 'EGMENU0009', '00000000-0000-4000-8000-000000000402', 60.00, true, true, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000710', '00000000-0000-4000-8000-000000000001', 'ليمون نعناع', 'JUI-LEM-001', 'EGMENU0010', '00000000-0000-4000-8000-000000000403', 45.00, true, true, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000711', '00000000-0000-4000-8000-000000000001', 'عصير مانجو', 'JUI-MAN-001', 'EGMENU0011', '00000000-0000-4000-8000-000000000403', 60.00, true, true, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000712', '00000000-0000-4000-8000-000000000001', 'عصير فراولة', 'JUI-STR-001', 'EGMENU0012', '00000000-0000-4000-8000-000000000403', 55.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000713', '00000000-0000-4000-8000-000000000001', 'عصير جوافة', 'JUI-GUA-001', 'EGMENU0013', '00000000-0000-4000-8000-000000000403', 50.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000714', '00000000-0000-4000-8000-000000000001', 'كركديه بارد', 'CLD-HIB-001', 'EGMENU0014', '00000000-0000-4000-8000-000000000402', 35.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000715', '00000000-0000-4000-8000-000000000001', 'بسبوسة', 'DES-BAS-001', 'EGMENU0015', '00000000-0000-4000-8000-000000000404', 35.00, true, true, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000716', '00000000-0000-4000-8000-000000000001', 'رز بلبن', 'DES-RIC-001', 'EGMENU0016', '00000000-0000-4000-8000-000000000404', 40.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000717', '00000000-0000-4000-8000-000000000001', 'سندوتش جبنة', 'SND-CHS-001', 'EGMENU0017', '00000000-0000-4000-8000-000000000405', 35.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece'),
+  ('00000000-0000-4000-8000-000000000718', '00000000-0000-4000-8000-000000000001', 'سندوتش بسطرمة', 'SND-PAS-001', 'EGMENU0018', '00000000-0000-4000-8000-000000000405', 65.00, true, false, false, 'finished', 'piece', 'finished_product', 'none', 'piece', 'piece')
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    sku = EXCLUDED.sku,
+    barcode = EXCLUDED.barcode,
+    category_id = EXCLUDED.category_id,
+    base_price = EXCLUDED.base_price,
+    is_active = EXCLUDED.is_active,
+    is_popular = EXCLUDED.is_popular,
+    track_inventory = EXCLUDED.track_inventory,
+    product_type = EXCLUDED.product_type,
+    unit = EXCLUDED.unit,
+    inventory_product_type = EXCLUDED.inventory_product_type,
+    inventory_tracking_mode = EXCLUDED.inventory_tracking_mode,
+    sales_unit_type = EXCLUDED.sales_unit_type,
+    sale_unit = EXCLUDED.sale_unit;
 
 INSERT INTO stock_levels (warehouse_id, store_id, product_id, variant_id, quantity, reorder_point)
-SELECT w.id, w.store_id, p.id, NULL,
+SELECT
+  '00000000-0000-4000-8000-000000000111',
+  '00000000-0000-4000-8000-000000000101',
+  p.id,
+  NULL,
   CASE p.id
-    WHEN '00000000-0000-4000-8000-000000000511' THEN 80
-    WHEN '00000000-0000-4000-8000-000000000512' THEN 200
-    WHEN '00000000-0000-4000-8000-000000000513' THEN 500
-    WHEN '00000000-0000-4000-8000-000000000514' THEN 10
-    WHEN '00000000-0000-4000-8000-000000000515' THEN 300
+    WHEN '00000000-0000-4000-8000-000000000601' THEN 8
+    WHEN '00000000-0000-4000-8000-000000000602' THEN 6
+    WHEN '00000000-0000-4000-8000-000000000603' THEN 5
+    WHEN '00000000-0000-4000-8000-000000000604' THEN 25
+    WHEN '00000000-0000-4000-8000-000000000605' THEN 80
+    WHEN '00000000-0000-4000-8000-000000000606' THEN 200
+    WHEN '00000000-0000-4000-8000-000000000607' THEN 4
+    WHEN '00000000-0000-4000-8000-000000000608' THEN 3
+    WHEN '00000000-0000-4000-8000-000000000609' THEN 80
+    WHEN '00000000-0000-4000-8000-000000000610' THEN 3
+    WHEN '00000000-0000-4000-8000-000000000611' THEN 20
+    WHEN '00000000-0000-4000-8000-000000000612' THEN 30
+    WHEN '00000000-0000-4000-8000-000000000613' THEN 25
+    WHEN '00000000-0000-4000-8000-000000000614' THEN 25
+    WHEN '00000000-0000-4000-8000-000000000615' THEN 4
+    WHEN '00000000-0000-4000-8000-000000000616' THEN 5
+    WHEN '00000000-0000-4000-8000-000000000617' THEN 1000
+    WHEN '00000000-0000-4000-8000-000000000618' THEN 1000
+    WHEN '00000000-0000-4000-8000-000000000619' THEN 700
+    WHEN '00000000-0000-4000-8000-000000000620' THEN 80
+    WHEN '00000000-0000-4000-8000-000000000621' THEN 70
+    WHEN '00000000-0000-4000-8000-000000000622' THEN 150
+    WHEN '00000000-0000-4000-8000-000000000623' THEN 12
+    WHEN '00000000-0000-4000-8000-000000000624' THEN 6
     ELSE 0
   END,
-  10
-FROM warehouses w
-JOIN stores s ON s.id = w.store_id AND w.is_default
-CROSS JOIN products p
-WHERE s.org_id = '00000000-0000-4000-8000-000000000001'
-  AND p.id IN (
-    '00000000-0000-4000-8000-000000000511',
-    '00000000-0000-4000-8000-000000000512',
-    '00000000-0000-4000-8000-000000000513',
-    '00000000-0000-4000-8000-000000000514',
-    '00000000-0000-4000-8000-000000000515'
-  );
+  CASE
+    WHEN p.unit IN ('piece', 'cup', 'spoon') THEN 50
+    WHEN p.unit IN ('liter', 'kg') THEN 5
+    ELSE 10
+  END
+FROM products p
+WHERE p.org_id = '00000000-0000-4000-8000-000000000001'
+  AND p.product_type = 'ingredient'
+ON CONFLICT DO NOTHING;
+
+UPDATE stock_levels sl
+SET quantity = seed.quantity,
+    reorder_point = seed.reorder_point,
+    updated_at = now()
+FROM (
+  SELECT
+    p.id AS product_id,
+    CASE p.id
+      WHEN '00000000-0000-4000-8000-000000000601' THEN 8
+      WHEN '00000000-0000-4000-8000-000000000602' THEN 6
+      WHEN '00000000-0000-4000-8000-000000000603' THEN 5
+      WHEN '00000000-0000-4000-8000-000000000604' THEN 25
+      WHEN '00000000-0000-4000-8000-000000000605' THEN 80
+      WHEN '00000000-0000-4000-8000-000000000606' THEN 200
+      WHEN '00000000-0000-4000-8000-000000000607' THEN 4
+      WHEN '00000000-0000-4000-8000-000000000608' THEN 3
+      WHEN '00000000-0000-4000-8000-000000000609' THEN 80
+      WHEN '00000000-0000-4000-8000-000000000610' THEN 3
+      WHEN '00000000-0000-4000-8000-000000000611' THEN 20
+      WHEN '00000000-0000-4000-8000-000000000612' THEN 30
+      WHEN '00000000-0000-4000-8000-000000000613' THEN 25
+      WHEN '00000000-0000-4000-8000-000000000614' THEN 25
+      WHEN '00000000-0000-4000-8000-000000000615' THEN 4
+      WHEN '00000000-0000-4000-8000-000000000616' THEN 5
+      WHEN '00000000-0000-4000-8000-000000000617' THEN 1000
+      WHEN '00000000-0000-4000-8000-000000000618' THEN 1000
+      WHEN '00000000-0000-4000-8000-000000000619' THEN 700
+      WHEN '00000000-0000-4000-8000-000000000620' THEN 80
+      WHEN '00000000-0000-4000-8000-000000000621' THEN 70
+      WHEN '00000000-0000-4000-8000-000000000622' THEN 150
+      WHEN '00000000-0000-4000-8000-000000000623' THEN 12
+      WHEN '00000000-0000-4000-8000-000000000624' THEN 6
+      ELSE 0
+    END AS quantity,
+    CASE
+      WHEN p.unit IN ('piece', 'cup', 'spoon') THEN 50
+      WHEN p.unit IN ('liter', 'kg') THEN 5
+      ELSE 10
+    END AS reorder_point
+  FROM products p
+  WHERE p.org_id = '00000000-0000-4000-8000-000000000001'
+    AND p.product_type = 'ingredient'
+) seed
+WHERE sl.warehouse_id = '00000000-0000-4000-8000-000000000111'
+  AND sl.product_id = seed.product_id
+  AND sl.variant_id IS NULL;
 
 ALTER TABLE product_recipes DISABLE TRIGGER recipes_require_feature;
 ALTER TABLE product_recipe_lines DISABLE TRIGGER recipe_lines_require_feature;
 
 INSERT INTO product_recipes (id, org_id, product_id) VALUES
-  ('00000000-0000-4000-8000-000000000531', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000521'),
-  ('00000000-0000-4000-8000-000000000532', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000522');
-
-INSERT INTO product_recipe_lines (recipe_id, ingredient_product_id, quantity, unit, sort_order) VALUES
-  ('00000000-0000-4000-8000-000000000531', '00000000-0000-4000-8000-000000000511', 1, 'bag', 0),
-  ('00000000-0000-4000-8000-000000000531', '00000000-0000-4000-8000-000000000512', 1, 'cup', 1),
-  ('00000000-0000-4000-8000-000000000531', '00000000-0000-4000-8000-000000000513', 1, 'piece', 2),
-  ('00000000-0000-4000-8000-000000000532', '00000000-0000-4000-8000-000000000514', 0.15, 'kg', 0),
-  ('00000000-0000-4000-8000-000000000532', '00000000-0000-4000-8000-000000000512', 1, 'cup', 1),
-  ('00000000-0000-4000-8000-000000000532', '00000000-0000-4000-8000-000000000515', 1, 'spoon', 2);
-
--- Supplier AP demo: received purchase + payment (Downtown / Fresh Dairy)
-INSERT INTO purchase_invoices (
-  id, store_id, warehouse_id, supplier_id, invoice_number, status,
-  subtotal, tax, total, received_at, created_by
-)
-SELECT
-  '00000000-0000-4000-8000-000000000701',
-  '00000000-0000-4000-8000-000000000101',
-  w.id,
-  '00000000-0000-4000-8000-000000000601',
-  'PO-DEMO-001',
-  'received',
-  500.00, 0, 500.00,
-  now() - interval '7 days',
-  '00000000-0000-4000-8000-000000000201'
-FROM warehouses w
-WHERE w.store_id = '00000000-0000-4000-8000-000000000101' AND w.is_default
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO supplier_payments (
-  id, org_id, store_id, supplier_id, amount, payment_method, reference, paid_at, created_by
-) VALUES (
-  '00000000-0000-4000-8000-000000000702',
-  '00000000-0000-4000-8000-000000000001',
-  '00000000-0000-4000-8000-000000000101',
-  '00000000-0000-4000-8000-000000000601',
-  200.00,
-  'cash',
-  'DEMO-PAY-1',
-  now() - interval '3 days',
-  '00000000-0000-4000-8000-000000000201'
-)
-ON CONFLICT (id) DO NOTHING;
-
-ALTER TABLE product_recipes ENABLE TRIGGER recipes_require_feature;
-ALTER TABLE product_recipe_lines ENABLE TRIGGER recipe_lines_require_feature;
-
--- Vanilla Scoop variants demo (017)
-UPDATE products SET track_inventory = false
-WHERE id = '00000000-0000-4000-8000-000000000501';
-
-DELETE FROM stock_levels
-WHERE product_id = '00000000-0000-4000-8000-000000000501' AND variant_id IS NULL;
-
-INSERT INTO product_variants (id, product_id, name, sku, barcode, price_delta, price, is_active) VALUES
-  ('00000000-0000-4000-8000-000000000541', '00000000-0000-4000-8000-000000000501', 'Small', 'ICE-001-S', '100001-S', 0, 4.50, true),
-  ('00000000-0000-4000-8000-000000000542', '00000000-0000-4000-8000-000000000501', 'Large', 'ICE-001-L', '100001-L', 0, 6.50, true);
-
-ALTER TABLE product_recipes DISABLE TRIGGER recipes_require_feature;
-ALTER TABLE product_recipe_lines DISABLE TRIGGER recipe_lines_require_feature;
-
-INSERT INTO product_recipes (id, org_id, product_id, variant_id) VALUES
-  ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000501', '00000000-0000-4000-8000-000000000541'),
-  ('00000000-0000-4000-8000-000000000552', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000501', '00000000-0000-4000-8000-000000000542')
+  ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000701'),
+  ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000702'),
+  ('00000000-0000-4000-8000-000000000803', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000703'),
+  ('00000000-0000-4000-8000-000000000804', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000704'),
+  ('00000000-0000-4000-8000-000000000805', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000705'),
+  ('00000000-0000-4000-8000-000000000806', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000706'),
+  ('00000000-0000-4000-8000-000000000807', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000707'),
+  ('00000000-0000-4000-8000-000000000808', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000708'),
+  ('00000000-0000-4000-8000-000000000809', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000709'),
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000710'),
+  ('00000000-0000-4000-8000-000000000811', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000711'),
+  ('00000000-0000-4000-8000-000000000812', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000712'),
+  ('00000000-0000-4000-8000-000000000813', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000713'),
+  ('00000000-0000-4000-8000-000000000814', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000714'),
+  ('00000000-0000-4000-8000-000000000815', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000715'),
+  ('00000000-0000-4000-8000-000000000816', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000716'),
+  ('00000000-0000-4000-8000-000000000817', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000717'),
+  ('00000000-0000-4000-8000-000000000818', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000718')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO product_recipe_lines (recipe_id, ingredient_product_id, quantity, unit, sort_order) VALUES
-  ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000514', 0.08, 'kg', 0),
-  ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000512', 1, 'cup', 1),
-  ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000515', 1, 'spoon', 2),
-  ('00000000-0000-4000-8000-000000000552', '00000000-0000-4000-8000-000000000514', 0.15, 'kg', 0),
-  ('00000000-0000-4000-8000-000000000552', '00000000-0000-4000-8000-000000000512', 1, 'cup', 1),
-  ('00000000-0000-4000-8000-000000000552', '00000000-0000-4000-8000-000000000515', 1, 'spoon', 2)
+  ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000603', 5, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000604', 10, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000606', 200, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000617', 1, 'piece', 3),
+  ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000603', 5, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000610', 10, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000604', 10, 'gram', 2),
+  ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000606', 200, 'ml', 3),
+  ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000617', 1, 'piece', 4),
+  ('00000000-0000-4000-8000-000000000803', '00000000-0000-4000-8000-000000000602', 12, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000803', '00000000-0000-4000-8000-000000000604', 8, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000803', '00000000-0000-4000-8000-000000000606', 120, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000803', '00000000-0000-4000-8000-000000000617', 1, 'piece', 3)
+ON CONFLICT (recipe_id, ingredient_product_id) DO NOTHING;
+
+-- Continue recipe lines in a separate insert to keep each item unique per recipe.
+INSERT INTO product_recipe_lines (recipe_id, ingredient_product_id, quantity, unit, sort_order) VALUES
+  ('00000000-0000-4000-8000-000000000804', '00000000-0000-4000-8000-000000000601', 8, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000804', '00000000-0000-4000-8000-000000000617', 1, 'piece', 1),
+  ('00000000-0000-4000-8000-000000000805', '00000000-0000-4000-8000-000000000601', 8, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000805', '00000000-0000-4000-8000-000000000605', 180, 'ml', 1),
+  ('00000000-0000-4000-8000-000000000805', '00000000-0000-4000-8000-000000000617', 1, 'piece', 2),
+  ('00000000-0000-4000-8000-000000000806', '00000000-0000-4000-8000-000000000608', 7, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000806', '00000000-0000-4000-8000-000000000604', 10, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000806', '00000000-0000-4000-8000-000000000605', 100, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000806', '00000000-0000-4000-8000-000000000606', 120, 'ml', 3),
+  ('00000000-0000-4000-8000-000000000806', '00000000-0000-4000-8000-000000000617', 1, 'piece', 4),
+  ('00000000-0000-4000-8000-000000000807', '00000000-0000-4000-8000-000000000607', 20, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000807', '00000000-0000-4000-8000-000000000604', 10, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000807', '00000000-0000-4000-8000-000000000605', 200, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000807', '00000000-0000-4000-8000-000000000617', 1, 'piece', 3),
+  ('00000000-0000-4000-8000-000000000808', '00000000-0000-4000-8000-000000000616', 30, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000808', '00000000-0000-4000-8000-000000000604', 15, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000808', '00000000-0000-4000-8000-000000000605', 220, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000808', '00000000-0000-4000-8000-000000000617', 1, 'piece', 3),
+  ('00000000-0000-4000-8000-000000000808', '00000000-0000-4000-8000-000000000619', 1, 'piece', 4)
+ON CONFLICT (recipe_id, ingredient_product_id) DO NOTHING;
+
+INSERT INTO product_recipe_lines (recipe_id, ingredient_product_id, quantity, unit, sort_order) VALUES
+  ('00000000-0000-4000-8000-000000000809', '00000000-0000-4000-8000-000000000601', 10, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000809', '00000000-0000-4000-8000-000000000604', 10, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000809', '00000000-0000-4000-8000-000000000605', 150, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000809', '00000000-0000-4000-8000-000000000609', 150, 'gram', 3),
+  ('00000000-0000-4000-8000-000000000809', '00000000-0000-4000-8000-000000000617', 1, 'piece', 4),
+  ('00000000-0000-4000-8000-000000000809', '00000000-0000-4000-8000-000000000618', 1, 'piece', 5),
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000611', 80, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000610', 10, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000604', 20, 'gram', 2),
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000606', 250, 'ml', 3),
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000609', 100, 'gram', 4),
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000617', 1, 'piece', 5),
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000618', 1, 'piece', 6),
+  ('00000000-0000-4000-8000-000000000811', '00000000-0000-4000-8000-000000000612', 250, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000811', '00000000-0000-4000-8000-000000000604', 15, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000811', '00000000-0000-4000-8000-000000000606', 100, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000811', '00000000-0000-4000-8000-000000000609', 100, 'gram', 3),
+  ('00000000-0000-4000-8000-000000000811', '00000000-0000-4000-8000-000000000617', 1, 'piece', 4),
+  ('00000000-0000-4000-8000-000000000811', '00000000-0000-4000-8000-000000000618', 1, 'piece', 5),
+  ('00000000-0000-4000-8000-000000000812', '00000000-0000-4000-8000-000000000613', 220, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000812', '00000000-0000-4000-8000-000000000604', 15, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000812', '00000000-0000-4000-8000-000000000606', 100, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000812', '00000000-0000-4000-8000-000000000609', 100, 'gram', 3),
+  ('00000000-0000-4000-8000-000000000812', '00000000-0000-4000-8000-000000000617', 1, 'piece', 4),
+  ('00000000-0000-4000-8000-000000000812', '00000000-0000-4000-8000-000000000618', 1, 'piece', 5)
+ON CONFLICT (recipe_id, ingredient_product_id) DO NOTHING;
+
+INSERT INTO product_recipe_lines (recipe_id, ingredient_product_id, quantity, unit, sort_order) VALUES
+  ('00000000-0000-4000-8000-000000000813', '00000000-0000-4000-8000-000000000614', 250, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000813', '00000000-0000-4000-8000-000000000604', 15, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000813', '00000000-0000-4000-8000-000000000606', 100, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000813', '00000000-0000-4000-8000-000000000609', 100, 'gram', 3),
+  ('00000000-0000-4000-8000-000000000813', '00000000-0000-4000-8000-000000000617', 1, 'piece', 4),
+  ('00000000-0000-4000-8000-000000000813', '00000000-0000-4000-8000-000000000618', 1, 'piece', 5),
+  ('00000000-0000-4000-8000-000000000814', '00000000-0000-4000-8000-000000000615', 20, 'gram', 0),
+  ('00000000-0000-4000-8000-000000000814', '00000000-0000-4000-8000-000000000604', 25, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000814', '00000000-0000-4000-8000-000000000606', 300, 'ml', 2),
+  ('00000000-0000-4000-8000-000000000814', '00000000-0000-4000-8000-000000000609', 100, 'gram', 3),
+  ('00000000-0000-4000-8000-000000000814', '00000000-0000-4000-8000-000000000617', 1, 'piece', 4),
+  ('00000000-0000-4000-8000-000000000814', '00000000-0000-4000-8000-000000000618', 1, 'piece', 5),
+  ('00000000-0000-4000-8000-000000000815', '00000000-0000-4000-8000-000000000620', 1, 'piece', 0),
+  ('00000000-0000-4000-8000-000000000815', '00000000-0000-4000-8000-000000000619', 1, 'piece', 1),
+  ('00000000-0000-4000-8000-000000000816', '00000000-0000-4000-8000-000000000621', 1, 'piece', 0),
+  ('00000000-0000-4000-8000-000000000816', '00000000-0000-4000-8000-000000000619', 1, 'piece', 1),
+  ('00000000-0000-4000-8000-000000000817', '00000000-0000-4000-8000-000000000622', 1, 'piece', 0),
+  ('00000000-0000-4000-8000-000000000817', '00000000-0000-4000-8000-000000000623', 80, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000818', '00000000-0000-4000-8000-000000000622', 1, 'piece', 0),
+  ('00000000-0000-4000-8000-000000000818', '00000000-0000-4000-8000-000000000624', 60, 'gram', 1),
+  ('00000000-0000-4000-8000-000000000818', '00000000-0000-4000-8000-000000000623', 30, 'gram', 2)
 ON CONFLICT (recipe_id, ingredient_product_id) DO NOTHING;
 
 ALTER TABLE product_recipes ENABLE TRIGGER recipes_require_feature;
 ALTER TABLE product_recipe_lines ENABLE TRIGGER recipe_lines_require_feature;
+
+INSERT INTO app_settings (org_id, key, value) VALUES
+  (
+    '00000000-0000-4000-8000-000000000001',
+    'receipt_footer',
+    '{"text": "شكرا لزيارتكم Bassata Cafe"}'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000001',
+    'tax_rate',
+    '{"rate": 0}'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000001',
+    'feature_flags',
+    '{
+      "receipt_printing": true,
+      "barcode_scanner": true,
+      "inventory_deduction": true,
+      "loyalty": true,
+      "customer_discounts": false,
+      "reports": true,
+      "imports_exports": true,
+      "monthly_closing": true,
+      "cash_drawer": false,
+      "dark_mode": true,
+      "tax": true,
+      "payment_cash": true,
+      "payment_card": true,
+      "payment_wallet": true,
+      "payment_other": true,
+      "prevent_negative_stock": true,
+      "session_expenses": true,
+      "refunds": false,
+      "stock_count": true,
+      "transfers": true,
+      "purchases": true,
+      "waste": true,
+      "recipes": true,
+      "credit_sales": false,
+      "supermarket_mode": false,
+      "weight_sales": false,
+      "price_by_amount": false,
+      "wholesale_sales": false
+    }'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000001',
+    'session_settings',
+    '{
+      "max_open_hours": 24,
+      "warn_after_hours": 20,
+      "block_sales_when_expired": true,
+      "require_manager_override_for_expired_sale": true,
+      "allow_manager_force_close": true
+    }'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000001',
+    'business_activity',
+    '{
+      "activity_type": "cafe",
+      "default_sales_mode": "retail",
+      "auto_apply_wholesale_by_quantity": false
+    }'::jsonb
+  )
+ON CONFLICT (org_id, key) DO UPDATE
+SET value = EXCLUDED.value;
+
+INSERT INTO loyalty_rules (id, org_id, points_per_currency, redemption_rate, minimum_redeem_points, is_active)
+VALUES ('00000000-0000-4000-8000-000000000901', '00000000-0000-4000-8000-000000000001', 1, 0.01, 0, true)
+ON CONFLICT (id) DO UPDATE
+SET points_per_currency = EXCLUDED.points_per_currency,
+    redemption_rate = EXCLUDED.redemption_rate,
+    minimum_redeem_points = EXCLUDED.minimum_redeem_points,
+    is_active = EXCLUDED.is_active;
+
+INSERT INTO cost_centers (id, org_id, store_id, name, code, type, is_active) VALUES
+  ('00000000-0000-4000-8000-000000000A01', '00000000-0000-4000-8000-000000000001', NULL, 'مصاريف تشغيل', 'OPS', 'operations', true),
+  ('00000000-0000-4000-8000-000000000A02', '00000000-0000-4000-8000-000000000001', NULL, 'نظافة', 'CLEAN', 'cleaning', true),
+  ('00000000-0000-4000-8000-000000000A03', '00000000-0000-4000-8000-000000000001', NULL, 'تعبئة وتغليف', 'PACK', 'packaging', true),
+  ('00000000-0000-4000-8000-000000000A04', '00000000-0000-4000-8000-000000000001', NULL, 'مرتبات', 'SAL', 'salaries', true),
+  ('00000000-0000-4000-8000-000000000A05', '00000000-0000-4000-8000-000000000001', NULL, 'مرافق', 'UTIL', 'utilities', true)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    code = EXCLUDED.code,
+    type = EXCLUDED.type,
+    is_active = EXCLUDED.is_active;
+
+INSERT INTO expense_categories (id, org_id, cost_center_id, name, requires_inventory_item, is_active) VALUES
+  ('00000000-0000-4000-8000-000000000B01', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000A01', 'مشتريات تشغيل', true, true),
+  ('00000000-0000-4000-8000-000000000B02', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000A02', 'أدوات نظافة', false, true),
+  ('00000000-0000-4000-8000-000000000B03', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000A03', 'أكواب ومستهلكات', true, true),
+  ('00000000-0000-4000-8000-000000000B04', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000A04', 'رواتب وبدلات', false, true),
+  ('00000000-0000-4000-8000-000000000B05', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000A05', 'كهرباء ومياه وإنترنت', false, true)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    requires_inventory_item = EXCLUDED.requires_inventory_item,
+    is_active = EXCLUDED.is_active;
+
+INSERT INTO role_permissions (org_id, role, permission_key)
+SELECT '00000000-0000-4000-8000-000000000001', 'owner', key
+FROM permissions
+ON CONFLICT DO NOTHING;

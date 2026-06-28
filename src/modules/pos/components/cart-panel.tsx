@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock3, Minus, Plus, Trash2, User } from "lucide-react";
+import { Clock3, Minus, Plus, Star, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +14,8 @@ interface CartPanelProps {
   checkoutDisabled?: boolean;
   discountsEnabled?: boolean;
   loyaltyEnabled?: boolean;
+  loyaltyRedemptionRate?: number | null;
+  minimumLoyaltyRedeemPoints?: number;
 }
 
 export function CartPanel({
@@ -21,11 +23,15 @@ export function CartPanel({
   checkoutDisabled,
   discountsEnabled = false,
   loyaltyEnabled = false,
+  loyaltyRedemptionRate = null,
+  minimumLoyaltyRedeemPoints = 0,
 }: CartPanelProps) {
   const { t } = useTranslation();
   const cart = usePosStore((s) => s.cart);
   const heldCarts = usePosStore((s) => s.heldCarts);
   const customer = usePosStore((s) => s.customer);
+  const loyaltyBalance = usePosStore((s) => s.customerLoyaltyBalance);
+  const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
   const discountAmount = usePosStore((s) => s.discountAmount);
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
@@ -36,10 +42,28 @@ export function CartPanel({
   const removeHeldCart = usePosStore((s) => s.removeHeldCart);
 
   const subtotal = getCartSubtotal(cart);
-  const total = getCartTotal(cart, discountAmount);
+  const totalBeforeRedemption = getCartTotal(cart, discountAmount);
+  const redemptionAmount = loyaltyRedemption?.amount ?? 0;
+  const total = Math.max(0, totalBeforeRedemption - redemptionAmount);
+  const loyaltyAvailable =
+    loyaltyEnabled &&
+    Boolean(customer) &&
+    loyaltyRedemptionRate !== null &&
+    loyaltyRedemptionRate > 0 &&
+    (loyaltyBalance ?? 0) > 0 &&
+    totalBeforeRedemption > 0;
+  const maxRedeemablePoints = loyaltyAvailable
+    ? Math.min(loyaltyBalance ?? 0, Math.floor(totalBeforeRedemption / loyaltyRedemptionRate))
+    : 0;
+  const hasMinimumRedeemPoints =
+    !loyaltyAvailable ||
+    minimumLoyaltyRedeemPoints <= 0 ||
+    maxRedeemablePoints >= minimumLoyaltyRedeemPoints;
+  const maxRedeemableAmount =
+    Math.round(maxRedeemablePoints * (loyaltyRedemptionRate ?? 0) * 100) / 100;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none bg-white shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-black/5">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none bg-card text-card-foreground shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-border">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h2 className="font-heading text-lg font-semibold">{t("Cart")}</h2>
         {cart.length > 0 && (
@@ -196,8 +220,34 @@ export function CartPanel({
         {discountAmount > 0 ? (
           <div className="mb-3 flex justify-between text-sm">
             <span className="text-muted-foreground">{t("Discount")}</span>
-            <span className="font-medium tabular-nums text-emerald-700">
+            <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
               -{formatCurrency(discountAmount)}
+            </span>
+          </div>
+        ) : null}
+        {loyaltyAvailable ? (
+          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
+            <p className="flex items-center gap-1.5 font-medium">
+              <Star className="size-4" />
+              {t("Customer can redeem points")}
+            </p>
+            {hasMinimumRedeemPoints ? (
+              <p className="mt-1 text-xs">
+                {t("Up to")} {maxRedeemablePoints} {t("points")} ={" "}
+                {formatCurrency(maxRedeemableAmount)} {t("discount at checkout")}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs">
+                {t("Minimum redemption")} {minimumLoyaltyRedeemPoints} {t("points")}
+              </p>
+            )}
+          </div>
+        ) : null}
+        {redemptionAmount > 0 ? (
+          <div className="mb-3 flex justify-between text-sm">
+            <span className="text-muted-foreground">{t("Points redeemed")}</span>
+            <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+              -{formatCurrency(redemptionAmount)}
             </span>
           </div>
         ) : null}

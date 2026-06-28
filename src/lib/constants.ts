@@ -4,6 +4,14 @@ export const ROLES = ["owner", "manager", "cashier", "inventory"] as const;
 export type UserRole = (typeof ROLES)[number];
 
 export const ORDER_STATUSES = ["open", "completed", "voided", "refunded"] as const;
+export const ONLINE_ORDER_STATUSES = [
+  "pending",
+  "accepted",
+  "preparing",
+  "ready",
+  "cancelled",
+  "invoiced",
+] as const;
 export const PAYMENT_METHODS = ["cash", "card", "wallet", "other", "credit"] as const;
 
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -137,6 +145,7 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/": "order_view",
   "/pos": "pos_access",
   "/orders": "order_view",
+  "/online-orders": "order_view",
   "/devices": "settings_manage",
   "/inventory/warehouses": "settings_manage",
   "/products": "product_manage",
@@ -281,6 +290,7 @@ export const NAV_GROUPS = [
       { label: "POS", href: "/pos/start", icon: "ShoppingCart" },
       { label: "POS Devices", href: "/devices", icon: "MonitorSmartphone" },
       { label: "Orders", href: "/orders", icon: "Receipt" },
+      { label: "Online Orders", href: "/online-orders", icon: "Receipt" },
       { label: "Sessions", href: "/sessions", icon: "Clock" },
     ],
   },

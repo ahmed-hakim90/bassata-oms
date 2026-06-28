@@ -17,6 +17,13 @@ export async function getCustomerStatement(
   if (!customer) return null;
 
   const entries = await accountRepo.listCustomerLedger(customerId);
+  const baseOpeningBalance =
+    customer.account_balance - entries.reduce((s, e) => s + e.debit - e.credit, 0);
+  const openingBalance =
+    baseOpeningBalance +
+    entries
+      .filter((e) => options?.from && e.created_at.slice(0, 10) < options.from)
+      .reduce((s, e) => s + e.debit - e.credit, 0);
   const filtered = entries.filter((e) => {
     const day = e.created_at.slice(0, 10);
     if (options?.from && day < options.from) return false;
@@ -24,7 +31,7 @@ export async function getCustomerStatement(
     return true;
   });
 
-  let balance = 0;
+  let balance = openingBalance;
   const transactions: CustomerStatementTransaction[] = filtered.map((e) => {
     balance += e.debit - e.credit;
     return {
@@ -45,15 +52,11 @@ export async function getCustomerStatement(
     };
   });
 
-  const openingBalance =
-    customer.account_balance -
-    transactions.reduce((s, t) => s + t.debit - t.credit, 0);
-
   return {
     customerId: customer.id,
     customerName: customer.name,
     openingBalance,
-    closingBalance: customer.account_balance,
+    closingBalance: balance,
     transactions,
   };
 }

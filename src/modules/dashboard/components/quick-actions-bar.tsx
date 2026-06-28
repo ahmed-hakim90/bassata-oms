@@ -20,7 +20,7 @@ export function QuickActionsBar() {
         <Link
           key={href}
           href={href}
-          className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
+          className="inline-flex items-center gap-2 rounded-2xl bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-sm ring-1 ring-border transition hover:bg-muted hover:shadow-md"
         >
           <Icon className="size-4 text-primary" />
           {label}

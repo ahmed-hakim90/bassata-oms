@@ -41,6 +41,14 @@ export interface CheckoutResult {
   orderNumber: string;
 }
 
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function getCartSubtotal(cart: CartLine[]): number {
+  return roundMoney(cart.reduce((sum, line) => sum + line.lineTotal, 0));
+}
+
 export async function completeCheckout(input: CheckoutInput): Promise<CheckoutResult> {
   if (!input.sessionId) {
     throw new Error("جلسة كاشير نشطة مطلوبة");
@@ -60,6 +68,19 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   const lifecycle = computeSessionLifecycle(session, settings);
   if (lifecycle.blocksSales && !input.override?.expiredSession) {
     throw new Error("انتهت الجلسة - أغلق الوردية للمتابعة");
+  }
+
+  if (input.cart.length === 0) {
+    throw new Error("السلة فارغة");
+  }
+
+  const subtotal = getCartSubtotal(input.cart);
+  const orderDiscount = roundMoney(input.discount ?? 0);
+  if (orderDiscount < 0) {
+    throw new Error("قيمة الخصم غير صالحة");
+  }
+  if (orderDiscount > subtotal + 0.01) {
+    throw new Error("قيمة الخصم أكبر من إجمالي الفاتورة");
   }
 
   const lines = input.cart.map((line) => ({
@@ -127,13 +148,15 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     if (!rule?.is_active || rule.redemption_rate <= 0) {
       throw new Error("برنامج الولاء غير مفعل");
     }
+    if (requestedPoints < rule.minimum_redeem_points) {
+      throw new Error(`الحد الأدنى لاستبدال النقاط هو ${rule.minimum_redeem_points} نقطة`);
+    }
     const balance = await getCustomerLoyaltyBalance(input.customer.id);
     if (requestedPoints > balance) {
       throw new Error("رصيد نقاط العميل غير كافٍ");
     }
     loyaltyDiscount = Math.round(requestedPoints * rule.redemption_rate * 100) / 100;
-    const subtotal = input.cart.reduce((sum, line) => sum + line.lineTotal, 0);
-    const maxDiscount = Math.max(0, subtotal - (input.discount ?? 0));
+    const maxDiscount = Math.max(0, subtotal - orderDiscount);
     if (loyaltyDiscount > maxDiscount + 0.01) {
       throw new Error("قيمة النقاط المستبدلة أكبر من إجمالي الفاتورة");
     }
@@ -148,7 +171,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     customerId: input.customer?.id ?? null,
     paymentMethod: input.paymentMethod,
     salesMode: input.salesMode ?? "retail",
-    discount: (input.discount ?? 0) + loyaltyDiscount,
+    discount: roundMoney(orderDiscount + loyaltyDiscount),
     lines,
   };
   const result = input.override?.expiredSession

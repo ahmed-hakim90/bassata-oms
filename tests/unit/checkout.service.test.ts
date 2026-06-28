@@ -6,6 +6,7 @@ import * as orderRepo from "@/lib/repositories/order.repository";
 import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import * as settingsService from "@/modules/system/services/settings.service";
+import * as loyaltyService from "@/modules/loyalty/services/loyalty.service";
 import { assertPeriodOpen, PeriodClosedError } from "@/lib/services/period-lock.service";
 
 vi.mock("@/lib/repositories/session.repository");
@@ -16,6 +17,9 @@ vi.mock("@/lib/repositories/warehouse.repository");
 vi.mock("@/modules/system/services/settings.service");
 vi.mock("@/modules/loyalty/services/loyalty.service", () => ({
   earnPoints: vi.fn(),
+  getLoyaltyRule: vi.fn(),
+  getCustomerLoyaltyBalance: vi.fn(),
+  redeemPoints: vi.fn(),
 }));
 vi.mock("@/lib/services/period-lock.service", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/services/period-lock.service")>();
@@ -24,6 +28,18 @@ vi.mock("@/lib/services/period-lock.service", async (importOriginal) => {
     assertPeriodOpen: vi.fn(),
   };
 });
+
+const cartLine = {
+  id: "line-1",
+  productId: "p1",
+  variantId: null,
+  name: "Latte",
+  quantity: 1,
+  unitPrice: 10,
+  modifiers: [],
+  lineTotal: 10,
+  imageUrl: null,
+};
 
 describe("completeCheckout session expiry", () => {
   beforeEach(() => {
@@ -38,6 +54,27 @@ describe("completeCheckout session expiry", () => {
       manager_discount_override_amount: null,
     });
     vi.mocked(catalogRepo.listVariants).mockResolvedValue([]);
+    vi.mocked(catalogRepo.getProduct).mockResolvedValue({
+      id: "p1",
+      org_id: "org-1",
+      name: "Latte",
+      sku: "LATTE",
+      barcode: "",
+      category_id: "cat-1",
+      base_price: 10,
+      description: "",
+      sale_price: null,
+      image_url: null,
+      is_active: true,
+      is_popular: false,
+      track_inventory: false,
+      product_type: "finished",
+      inventory_tracking_mode: "standard",
+      unit: "piece",
+      last_unit_cost: 0,
+      cost_unit: "piece",
+      updated_at: new Date().toISOString(),
+    });
     vi.mocked(warehouseRepo.getDefaultWarehouse).mockResolvedValue({
       id: "warehouse-1",
       org_id: "org-1",
@@ -138,7 +175,7 @@ describe("completeCheckout session expiry", () => {
       storeId: "store1",
       sessionId: "s1",
       cashierId: "c1",
-      cart: [],
+      cart: [cartLine],
       customer: null,
       paymentMethod: "cash",
       override: { expiredSession: true },
@@ -196,7 +233,7 @@ describe("completeCheckout session expiry", () => {
       storeId: "store1",
       sessionId: "s1",
       cashierId: "c1",
-      cart: [],
+      cart: [cartLine],
       customer: null,
       paymentMethod: "cash",
     });
@@ -258,7 +295,7 @@ describe("completeCheckout session expiry", () => {
       sessionId: "s1",
       cashierId: "c1",
       deviceId: "device-a",
-      cart: [],
+      cart: [cartLine],
       customer: null,
       paymentMethod: "cash",
     });
@@ -314,7 +351,7 @@ describe("completeCheckout session expiry", () => {
       storeId: "store1",
       sessionId: "s1",
       cashierId: "c1",
-      cart: [],
+      cart: [cartLine],
       customer: null,
       paymentMethod: "cash",
       payments: [
@@ -332,6 +369,129 @@ describe("completeCheckout session expiry", () => {
         ],
       })
     );
+    expect(orderRepo.completeCheckoutRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty cart before checkout RPC", async () => {
+    vi.mocked(sessionRepo.getSession).mockResolvedValue({
+      id: "s1",
+      store_id: "store1",
+      device_id: null,
+      cashier_id: "c1",
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+      opening_cash: 0,
+      expected_cash: null,
+      actual_cash: null,
+      variance: null,
+      status: "open",
+      notes: null,
+      closed_by: null,
+      close_reason: null,
+      force_closed: false,
+    });
+
+    await expect(
+      completeCheckout({
+        storeId: "store1",
+        sessionId: "s1",
+        cashierId: "c1",
+        cart: [],
+        customer: null,
+        paymentMethod: "cash",
+      })
+    ).rejects.toThrow("السلة فارغة");
+
+    expect(orderRepo.completeCheckoutRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a discount larger than the cart subtotal", async () => {
+    vi.mocked(sessionRepo.getSession).mockResolvedValue({
+      id: "s1",
+      store_id: "store1",
+      device_id: null,
+      cashier_id: "c1",
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+      opening_cash: 0,
+      expected_cash: null,
+      actual_cash: null,
+      variance: null,
+      status: "open",
+      notes: null,
+      closed_by: null,
+      close_reason: null,
+      force_closed: false,
+    });
+
+    await expect(
+      completeCheckout({
+        storeId: "store1",
+        sessionId: "s1",
+        cashierId: "c1",
+        cart: [cartLine],
+        customer: null,
+        paymentMethod: "cash",
+        discount: 10.02,
+      })
+    ).rejects.toThrow("قيمة الخصم أكبر من إجمالي الفاتورة");
+
+    expect(orderRepo.completeCheckoutRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects loyalty redemption below the configured minimum", async () => {
+    vi.mocked(sessionRepo.getSession).mockResolvedValue({
+      id: "s1",
+      store_id: "store1",
+      device_id: null,
+      cashier_id: "c1",
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+      opening_cash: 0,
+      expected_cash: null,
+      actual_cash: null,
+      variance: null,
+      status: "open",
+      notes: null,
+      closed_by: null,
+      close_reason: null,
+      force_closed: false,
+    });
+    vi.mocked(loyaltyService.getLoyaltyRule).mockResolvedValue({
+      id: "rule-1",
+      org_id: "org-1",
+      points_per_currency: 1,
+      redemption_rate: 0.01,
+      minimum_redeem_points: 50,
+      is_active: true,
+    });
+
+    await expect(
+      completeCheckout({
+        storeId: "store1",
+        sessionId: "s1",
+        cashierId: "c1",
+        cart: [cartLine],
+        customer: {
+          id: "customer-1",
+          org_id: "org-1",
+          name: "Sara",
+          phone: "01000000000",
+          email: null,
+          total_spent: 0,
+          visit_count: 0,
+          account_balance: 0,
+          credit_limit: 0,
+          payment_terms: "",
+          notes: "",
+          created_at: new Date().toISOString(),
+        },
+        paymentMethod: "cash",
+        loyaltyPoints: 20,
+      })
+    ).rejects.toThrow("الحد الأدنى لاستبدال النقاط هو 50 نقطة");
+
+    expect(loyaltyService.getCustomerLoyaltyBalance).not.toHaveBeenCalled();
     expect(orderRepo.completeCheckoutRpc).not.toHaveBeenCalled();
   });
 

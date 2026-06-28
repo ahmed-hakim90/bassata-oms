@@ -9,7 +9,7 @@ import {
   PRODUCT_TYPES,
   SHELF_LIFE_UNITS,
 } from "@/lib/constants";
-import { PRODUCT_IMPORT_COLUMNS } from "./import.service";
+import { PRODUCT_IMPORT_COLUMNS, PRODUCT_IMPORT_SIMPLE_COLUMNS } from "./import.service";
 
 async function categoryName(categoryId: string): Promise<string> {
   const categories = await productService.listCategories();
@@ -17,100 +17,37 @@ async function categoryName(categoryId: string): Promise<string> {
 }
 
 export function buildProductsTemplateWorkbook(): ArrayBuffer {
-  const header = [...PRODUCT_IMPORT_COLUMNS];
+  const header = [...PRODUCT_IMPORT_SIMPLE_COLUMNS];
   const sample = [
     {
-      name: "Retail Bottle",
-      sku: "RTL-001",
-      barcode: "622100001",
-      category: "Beverages",
-      base_price: 18,
-      sale_price: 25,
-      description: "Ready-to-sell menu item",
-      image_url: "",
-      import_action: "upsert",
-      product_type: "finished_product",
-      sales_unit_type: "piece",
+      name: "Latte",
+      sku: "",
+      category: "Hot drinks",
+      definition: "menu_item",
+      base_price: 65,
+      barcode: "",
       unit: "piece",
-      base_unit: "piece",
-      sale_unit: "piece",
-      cost_unit: "piece",
-      is_active: true,
-      is_popular: false,
-      track_inventory: true,
-      inventory_tracking_mode: "standard",
-      inventory_rotation_method: "FIFO",
-      expiry_tracking_enabled: false,
-      expiry_policy: "warn_only",
-      shelf_life_value: 0,
-      shelf_life_unit: "days",
-      allow_fractional_quantity: false,
-      allow_price_input: false,
-      wholesale_enabled: false,
-      supports_weight_sale: false,
-      supports_amount_sale: false,
+      track_inventory: false,
     },
     {
-      name: "Beef by KG",
-      sku: "BEEF-KG",
-      barcode: "622200001",
-      category: "Butcher",
-      base_price: 320,
-      sale_price: 350,
-      description: "Weighted product sold by kg or customer amount",
-      image_url: "",
-      import_action: "upsert",
-      product_type: "finished_product",
-      sales_unit_type: "weight",
+      name: "Milk",
+      sku: "",
+      category: "Ingredients",
+      definition: "ingredient",
+      base_price: 38,
+      barcode: "",
       unit: "kg",
-      base_unit: "kg",
-      sale_unit: "kg",
-      cost_unit: "kg",
-      is_active: true,
-      is_popular: false,
       track_inventory: true,
-      inventory_tracking_mode: "batch_and_expiry",
-      inventory_rotation_method: "FEFO",
-      expiry_tracking_enabled: true,
-      expiry_policy: "block_sale",
-      shelf_life_value: 5,
-      shelf_life_unit: "days",
-      allow_fractional_quantity: true,
-      allow_price_input: true,
-      wholesale_enabled: true,
-      supports_weight_sale: true,
-      supports_amount_sale: true,
     },
     {
       name: "Delivery Service",
-      sku: "SVC-DEL",
-      barcode: "SVC-DEL",
+      sku: "",
       category: "Services",
-      base_price: 0,
-      sale_price: 20,
-      description: "Service without inventory tracking",
-      image_url: "",
-      import_action: "upsert",
-      product_type: "service",
-      sales_unit_type: "piece",
+      definition: "service",
+      base_price: 20,
+      barcode: "",
       unit: "piece",
-      base_unit: "piece",
-      sale_unit: "piece",
-      cost_unit: "piece",
-      is_active: true,
-      is_popular: false,
       track_inventory: false,
-      inventory_tracking_mode: "none",
-      inventory_rotation_method: "FIFO",
-      expiry_tracking_enabled: false,
-      expiry_policy: "warn_only",
-      shelf_life_value: 0,
-      shelf_life_unit: "days",
-      allow_fractional_quantity: false,
-      allow_price_input: false,
-      wholesale_enabled: false,
-      supports_weight_sale: false,
-      supports_amount_sale: false,
     },
   ];
   const sheet = XLSX.utils.json_to_sheet(sample, { header });
@@ -124,19 +61,21 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
 
 function buildReadmeSheet(): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet([
-    ["CafeFlow product import template"],
+    ["CafeFlow simple product import template"],
     ["Use the Products sheet for upload. Keep the header row unchanged."],
-    ["Required columns", "name, sku, category, base_price"],
-    ["import_action", "upsert updates an existing SKU or creates it. create skips existing SKUs. update skips missing SKUs."],
-    ["Booleans", "Use true/false, yes/no, or 1/0."],
-    ["Categories", "A missing category name will be created automatically."],
-    ["Options", "See the Options sheet for allowed enum values."],
+    ["Required columns", "name"],
+    ["SKU", "Optional. Leave blank and CafeFlow will generate one."],
+    ["base_price", "The selling price for menu items/services, or unit cost for ingredients."],
+    ["definition", "menu_item, ingredient, service, or retail_product."],
+    ["Arabic headers", "اسم المنتج، كود المنتج، التصنيف، التعريف، السعر، الباركود، الوحدة، تتبع المخزون."],
+    ["Advanced columns", "Existing full templates and exports are still supported."],
   ]);
 }
 
 function buildOptionsSheet(): XLSX.WorkSheet {
   const rows = [
     ["field", "allowed_values"],
+    ["definition", "menu_item, retail_product, ingredient, service"],
     ["import_action", "upsert, create, update"],
     ["product_type", PRODUCT_TYPES.join(", ")],
     ["sales_unit_type", PRODUCT_SALES_UNIT_TYPES.join(", ")],
@@ -159,6 +98,14 @@ export async function buildProductsExportWorkbook(): Promise<ArrayBuffer> {
       sku: p.sku,
       barcode: p.barcode,
       category: await categoryName(p.category_id),
+      definition:
+        p.product_type === "ingredient" || p.product_type === "raw_material"
+          ? "ingredient"
+          : p.product_type === "service"
+            ? "service"
+            : p.track_inventory
+              ? "retail_product"
+              : "menu_item",
       base_price: p.base_price,
       sale_price: p.sale_price ?? "",
       description: p.description,

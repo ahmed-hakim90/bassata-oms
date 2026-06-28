@@ -9,7 +9,9 @@ export async function getLoyaltyRule(): Promise<LoyaltyRule | null> {
 }
 
 export async function updateLoyaltyRule(
-  input: Partial<Pick<LoyaltyRule, "points_per_currency" | "redemption_rate" | "is_active">>,
+  input: Partial<
+    Pick<LoyaltyRule, "points_per_currency" | "redemption_rate" | "minimum_redeem_points" | "is_active">
+  >,
   userId: string
 ): Promise<LoyaltyRule | null> {
   const rule = await customerRepo.getLoyaltyRule();
@@ -56,6 +58,11 @@ export async function redeemPoints(input: {
   storeId: string;
 }): Promise<LoyaltyLedgerEntry> {
   await assertPeriodOpen(input.storeId);
+  const rule = await customerRepo.getLoyaltyRule();
+  const minimumRedeemPoints = rule?.minimum_redeem_points ?? 0;
+  if (input.points < minimumRedeemPoints) {
+    throw new Error(`Minimum redemption is ${minimumRedeemPoints} points`);
+  }
   const balance = await customerRepo.getLoyaltyBalance(input.customerId);
   if (input.points > balance) throw new Error("Insufficient points");
   const entry = await customerRepo.addLoyaltyEntry({

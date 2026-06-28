@@ -141,15 +141,15 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
         </section>
       )}
 
-      <details className="rounded-2xl bg-white ring-1 ring-black/5">
+      <details className="rounded-2xl bg-card text-card-foreground ring-1 ring-border">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
           Closed session history ({closedSessions.length})
         </summary>
-        <ul className="space-y-0 border-t border-black/5">
+        <ul className="space-y-0 border-t border-border">
           {closedSessions.map((s) => (
             <li
               key={s.id}
-              className="flex items-center justify-between border-b border-black/5 px-4 py-3 last:border-0"
+              className="flex items-center justify-between border-b border-border px-4 py-3 last:border-0"
             >
               <div>
                 <p className="font-medium">

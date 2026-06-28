@@ -41,28 +41,64 @@ export async function createUser(input: {
     throw new Error(authError?.message ?? "Failed to create Supabase Auth user");
   }
 
-  const user = await userRepo.createUser({
-    name: input.name,
-    email: input.email,
-    role: input.role,
-    storeIds: input.storeIds,
-    authUserId: authData.user.id,
-  });
-  if (input.pin && input.role === "cashier") {
-    await userRepo.setPin(user.id, input.pin);
-  }
-  if (input.deviceIds?.length) {
-    await deviceRepo.setUserDeviceAccess(user.id, input.deviceIds);
-  }
   const orgId = await getOrgId();
-  await writeAuditLog({
-    orgId,
-    userId: input.userId,
-    action: "user.created",
-    entityType: "user",
-    entityId: user.id,
-  });
-  return user;
+  const authUserId = authData.user.id;
+  const storeIds = input.storeIds.filter(Boolean);
+  const deviceIds = input.deviceIds?.filter(Boolean) ?? [];
+  let appUserId: string | null = null;
+
+  try {
+    const { data: userRow, error: userError } = await admin
+      .from("users")
+      .insert({
+        org_id: orgId,
+        auth_user_id: authUserId,
+        name: input.name,
+        email: input.email,
+        role: input.role,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+
+    if (userError || !userRow) {
+      throw new Error(userError?.message ?? "Failed to create user profile");
+    }
+
+    appUserId = userRow.id;
+    await storeRepo.setUserStoreAccess(appUserId, storeIds);
+
+    const user = await userRepo.getUser(appUserId);
+    if (!user) {
+      throw new Error("Created user profile is not visible in the current organization");
+    }
+
+    if (input.pin && input.role === "cashier") {
+      await userRepo.setPin(user.id, input.pin);
+    }
+    if (deviceIds.length) {
+      await deviceRepo.setUserDeviceAccess(user.id, deviceIds);
+    }
+
+    await writeAuditLog({
+      orgId,
+      userId: input.userId,
+      action: "user.created",
+      entityType: "user",
+      entityId: user.id,
+    });
+    return user;
+  } catch (error) {
+    try {
+      if (appUserId) {
+        await admin.from("users").delete().eq("id", appUserId);
+      }
+      await admin.auth.admin.deleteUser(authUserId);
+    } catch {
+      // Keep the original creation error; cleanup failures are secondary here.
+    }
+    throw error;
+  }
 }
 
 export async function resetUserPin(id: string, pin: string, userId: string): Promise<void> {
@@ -241,13 +277,19 @@ export async function createStore(
   userId: string
 ) {
   const orgId = await getOrgId();
+  const slug = slugifyBranchName(input.name);
   const store = await storeRepo.createStore({
     name: input.name,
     address: input.address,
-    code: input.code ?? slugifyBranchName(input.name),
+    code: input.code ?? slug,
     phone: input.phone ?? "",
     timezone: input.timezone ?? null,
     is_active: true,
+    settings: {
+      online_menu_enabled: true,
+      online_menu_ordering_enabled: true,
+      online_menu_slug: slug,
+    },
   });
   await writeAuditLog({
     orgId,

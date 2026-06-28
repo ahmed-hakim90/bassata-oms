@@ -30,7 +30,12 @@ export function ExportButtonGroup({
   return (
     <div className="flex flex-wrap gap-2 print:hidden">
       {canPrint && printHref ? (
-        <Button variant="outline" size="sm" render={<a href={printHref} target="_blank" rel="noopener noreferrer" />}>
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<a href={printHref} target="_blank" rel="noopener noreferrer" />}
+        >
           <Printer className="me-2 size-4" />
           {t("Print")}
         </Button>

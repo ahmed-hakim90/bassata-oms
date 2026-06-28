@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Search, ShoppingCart, Wallet } from "lucide-react";
+import { ClipboardList, MessageCircle, Printer, Search, ShoppingCart, Wallet } from "lucide-react";
 import { CategoryRail } from "@/modules/pos/components/category-rail";
 import { CartPanel } from "@/modules/pos/components/cart-panel";
 import { PaymentPanel } from "@/modules/pos/components/payment-panel";
@@ -17,23 +17,34 @@ import {
 import { checkoutAction } from "@/modules/pos/actions/checkout.action";
 import { openCashDrawerAction } from "@/modules/pos/actions/cash-drawer.action";
 import type { POSProduct, POSVariant } from "@/modules/pos/services/catalog.service";
+import {
+  buildWhatsAppReceiptUrl,
+  type ReceiptPayload,
+} from "@/modules/pos/services/receipt-format.service";
+import { printReceiptViaUsb } from "@/modules/pos/services/receipt-usb-printer.service";
 import { findPosProductByBarcode } from "@/modules/pos/utils/barcode-lookup";
 import type { Category, CostCenter, ExpenseCategory, Product } from "@/lib/types";
 import type { ExpenseSettings, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { FeatureFlag } from "@/lib/constants";
+import type { ReportBranding } from "@/modules/reports/core/report-context";
 import { usePosStore, getCartTotal } from "@/stores/pos-store";
 import { PosReadinessBanner } from "@/components/SweetFlow/pos-readiness-banner";
 import { PosPinSwitch } from "@/modules/pos/components/pos-pin-switch";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness-copy";
 import { ExpenseWizard } from "@/modules/expenses/components/expense-wizard";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/format";
-import { useTranslation } from "@/lib/i18n/use-translation";
 import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
 import { WeightAmountModal } from "@/modules/pos/components/weight-amount-modal";
 import { PosCashierPinGate } from "@/modules/pos/components/pos-cashier-pin-gate";
+import { OnlineOrdersPageClient } from "@/modules/online-orders/components/online-orders-page";
+import type {
+  OnlineOrderWithItems,
+  StaffOnlineProductOption,
+} from "@/modules/online-orders/services/online-order.service";
 
 interface PosScreenProps {
   categories: Category[];
@@ -54,6 +65,10 @@ interface PosScreenProps {
   managerDiscountOverrideAmount?: number | null;
   currentUserName?: string | null;
   loyaltyRedemptionRate?: number | null;
+  minimumLoyaltyRedeemPoints?: number;
+  receiptBranding: ReportBranding;
+  onlineOrders?: OnlineOrderWithItems[];
+  onlineOrderProducts?: StaffOnlineProductOption[];
 }
 
 export function PosScreen({
@@ -75,20 +90,18 @@ export function PosScreen({
   managerDiscountOverrideAmount = null,
   currentUserName = null,
   loyaltyRedemptionRate = null,
+  minimumLoyaltyRedeemPoints = 0,
+  receiptBranding,
+  onlineOrders = [],
+  onlineOrderProducts = [],
 }: PosScreenProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [onlineOrdersOpen, setOnlineOrdersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pickerProduct, setPickerProduct] = useState<POSProduct | null>(null);
-  const [lastReceipt, setLastReceipt] = useState<{
-    orderNumber: string;
-    paymentMethod: PaymentMethod;
-    payments: PaymentSplit[];
-    lines: typeof cart;
-    discount: number;
-    total: number;
-  } | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<ReceiptPayload | null>(null);
   const [pending, startTransition] = useTransition();
   const addItem = usePosStore((s) => s.addItem);
   const clearCart = usePosStore((s) => s.clearCart);
@@ -98,10 +111,8 @@ export function PosScreen({
   const discountAmount = usePosStore((s) => s.discountAmount);
   const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
   const salesMode = usePosStore((s) => s.salesMode);
-  const setSalesMode = usePosStore((s) => s.setSalesMode);
   const [weightProduct, setWeightProduct] = useState<POSProduct | null>(null);
   const router = useRouter();
-  const { t } = useTranslation();
 
   const barcodeEnabled = featureFlags.barcode_scanner !== false;
   const receiptEnabled = featureFlags.receipt_printing !== false;
@@ -114,6 +125,9 @@ export function PosScreen({
   const loyaltyEnabled = featureFlags.loyalty !== false;
   const cartTotal = getCartTotal(cart, discountAmount);
   const cartItemCount = cart.reduce((total, line) => total + line.quantity, 0);
+  const activeOnlineOrdersCount = onlineOrders.filter(
+    (order) => order.status !== "cancelled" && order.status !== "invoiced"
+  ).length;
 
   const products = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -210,6 +224,7 @@ export function PosScreen({
     if ((needsDiscountOverride || needsExpiredSessionOverride) && !overrideReason) return;
     startTransition(async () => {
       const receiptCart = [...cart];
+      const receiptCustomer = customer ? { name: customer.name, phone: customer.phone } : null;
       const redemptionAmount = loyaltyRedemption?.amount ?? 0;
       const receiptDiscount = discountAmount + redemptionAmount;
       const receiptTotal = Math.max(0, getCartTotal(cart, discountAmount) - redemptionAmount);
@@ -234,13 +249,15 @@ export function PosScreen({
         if (receiptEnabled) {
           setLastReceipt({
             orderNumber: result.orderNumber,
+            createdAt: new Date().toISOString(),
             paymentMethod: checkoutPaymentMethod,
             payments,
             lines: receiptCart,
             discount: receiptDiscount,
             total: receiptTotal,
+            customer: receiptCustomer,
+            branding: receiptBranding,
           });
-          setTimeout(() => triggerReceiptPrint(), 100);
         }
         clearCart();
         setPaymentOpen(false);
@@ -274,8 +291,34 @@ export function PosScreen({
     });
   }
 
+  async function handleUsbPrintReceipt() {
+    if (!lastReceipt) return;
+    try {
+      await printReceiptViaUsb(lastReceipt);
+      toast.success("Receipt sent to USB printer");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not print receipt");
+    }
+  }
+
+  function handleBrowserPrintReceipt() {
+    if (!lastReceipt) return;
+    setTimeout(() => triggerReceiptPrint(), 50);
+  }
+
+  function handleSendWhatsAppReceipt() {
+    if (!lastReceipt) return;
+    const url = buildWhatsAppReceiptUrl(lastReceipt);
+    if (!url) {
+      toast.error("Customer phone number is not valid for WhatsApp");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   return (
-    <div className="flex h-dvh max-h-dvh flex-col gap-3 overflow-hidden p-3 lg:gap-4 lg:p-4">
+    <>
+    <div className="print:hidden flex h-dvh max-h-dvh flex-col gap-3 overflow-hidden p-3 lg:gap-4 lg:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <PosReadinessBanner state={readinessState} />
@@ -289,10 +332,22 @@ export function PosScreen({
           <PosPinSwitch />
         ) : null}
       </div>
-      {hasActiveSession &&
-      ((cashDrawerEnabled && canManagerOverride) ||
-        (canAddSessionExpense && storeId && cashierId && sessionId)) ? (
+      {hasActiveSession ? (
         <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-11 rounded-xl px-4 text-sm"
+            onClick={() => setOnlineOrdersOpen(true)}
+          >
+            <ClipboardList className="mr-2 size-4" />
+            Online Orders
+            {activeOnlineOrdersCount > 0 ? (
+              <span className="ms-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                {activeOnlineOrdersCount}
+              </span>
+            ) : null}
+          </Button>
           {cashDrawerEnabled && canManagerOverride ? (
             <Button
               variant="outline"
@@ -352,10 +407,10 @@ export function PosScreen({
               Add
             </Button>
           </form>
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl bg-[#EEF2F8]/60 p-3 pb-24 sm:p-4 xl:pb-4">
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl bg-muted/45 p-3 pb-24 ring-1 ring-border/60 sm:p-4 xl:pb-4">
             <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] lg:grid-cols-[repeat(auto-fit,minmax(190px,1fr))] xl:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
               {products.length === 0 && (
-                <div className="col-span-full flex min-h-48 items-center justify-center rounded-2xl bg-white/70 px-4 text-center text-sm text-muted-foreground ring-1 ring-black/5">
+                <div className="col-span-full flex min-h-48 items-center justify-center rounded-2xl bg-card/80 px-4 text-center text-sm text-muted-foreground ring-1 ring-border">
                   No products found
                 </div>
               )}
@@ -376,10 +431,12 @@ export function PosScreen({
             checkoutDisabled={checkoutBlocked || cart.length === 0}
             discountsEnabled={discountsEnabled}
             loyaltyEnabled={loyaltyEnabled}
+            loyaltyRedemptionRate={loyaltyRedemptionRate}
+            minimumLoyaltyRedeemPoints={minimumLoyaltyRedeemPoints}
           />
           {(readinessState === "ready" || readinessState === "session_warning") &&
             !hasActiveSession && (
-            <p className="mt-2 text-center text-xs text-amber-700">
+            <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
               Open a cashier session to checkout
             </p>
           )}
@@ -404,10 +461,12 @@ export function PosScreen({
                 checkoutDisabled={checkoutBlocked || cart.length === 0}
                 discountsEnabled={discountsEnabled}
                 loyaltyEnabled={loyaltyEnabled}
+                loyaltyRedemptionRate={loyaltyRedemptionRate}
+                minimumLoyaltyRedeemPoints={minimumLoyaltyRedeemPoints}
               />
               {(readinessState === "ready" || readinessState === "session_warning") &&
                 !hasActiveSession && (
-                <p className="mt-2 text-center text-xs text-amber-700">
+                <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
                   Open a cashier session to checkout
                 </p>
               )}
@@ -429,6 +488,7 @@ export function PosScreen({
           loading={pending}
           disabled={readinessState === "session_expired" && !canManagerOverride}
           loyaltyRedemptionRate={loyaltyEnabled ? loyaltyRedemptionRate : null}
+          minimumLoyaltyRedeemPoints={minimumLoyaltyRedeemPoints}
         />
 
         <VariantPickerDialog
@@ -437,6 +497,19 @@ export function PosScreen({
           onClose={() => setPickerProduct(null)}
           onSelect={(product, variant) => addToCart(product, variant)}
         />
+        <Dialog open={onlineOrdersOpen} onOpenChange={setOnlineOrdersOpen}>
+          <DialogContent className="max-h-[92dvh] max-w-[min(980px,calc(100%-1rem))] overflow-hidden p-0 sm:max-w-[min(980px,calc(100%-1rem))]">
+            <DialogHeader className="border-b border-border/70 px-4 py-3">
+              <DialogTitle className="flex items-center gap-2 pe-8">
+                <ClipboardList className="size-5 text-primary" />
+                Online Orders
+              </DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[calc(92dvh-56px)] overflow-y-auto p-2">
+              <OnlineOrdersPageClient orders={onlineOrders} products={onlineOrderProducts} compact />
+            </div>
+          </DialogContent>
+        </Dialog>
       <WeightAmountModal
         open={Boolean(weightProduct)}
         onOpenChange={(open) => {
@@ -479,15 +552,51 @@ export function PosScreen({
       </Button>
 
       {lastReceipt && receiptEnabled ? (
-        <ReceiptPrint
-          orderNumber={lastReceipt.orderNumber}
-          lines={lastReceipt.lines}
-          paymentMethod={lastReceipt.paymentMethod}
-          payments={lastReceipt.payments}
-          discount={lastReceipt.discount}
-          total={lastReceipt.total}
-        />
+        <div className="print:hidden rounded-2xl border bg-background/95 p-3 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Order {lastReceipt.orderNumber} completed</p>
+              <p className="text-xs text-muted-foreground">
+                Print the thermal receipt or send it to the customer on WhatsApp.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="h-10 rounded-xl"
+                onClick={handleUsbPrintReceipt}
+              >
+                <Printer className="size-4" />
+                USB print
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 rounded-xl"
+                onClick={handleSendWhatsAppReceipt}
+                disabled={!lastReceipt.customer?.phone}
+              >
+                <MessageCircle className="size-4" />
+                WhatsApp
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-10 rounded-xl"
+                onClick={handleBrowserPrintReceipt}
+              >
+                Browser print
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : null}
+
     </div>
+    {lastReceipt && receiptEnabled ? <ReceiptPrint receipt={lastReceipt} /> : null}
+    </>
   );
 }

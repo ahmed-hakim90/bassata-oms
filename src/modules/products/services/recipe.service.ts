@@ -5,7 +5,29 @@ import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { convertUnit } from "@/lib/units";
-import type { MeasurementUnit, ProductRecipeLineWithProduct } from "@/lib/types";
+import type { MeasurementUnit, Product, ProductRecipeLineWithProduct } from "@/lib/types";
+
+const RECIPE_PRODUCT_TYPES = new Set<Product["product_type"]>([
+  "finished",
+  "finished_product",
+]);
+const RECIPE_INGREDIENT_TYPES = new Set<Product["product_type"]>([
+  "ingredient",
+  "raw_material",
+]);
+
+export function canProductHaveRecipe(product: Pick<Product, "product_type">): boolean {
+  return RECIPE_PRODUCT_TYPES.has(product.product_type);
+}
+
+export function canProductBeRecipeIngredient(
+  product: Pick<Product, "product_type" | "inventory_product_type">
+): boolean {
+  return (
+    RECIPE_INGREDIENT_TYPES.has(product.product_type) ||
+    product.inventory_product_type === "raw_material"
+  );
+}
 
 export async function getRecipeForProduct(productId: string, variantId?: string | null) {
   return recipeRepo.getRecipeWithLines(productId, variantId);
@@ -19,13 +41,13 @@ export async function saveRecipe(
 ) {
   const product = await catalogRepo.getProduct(productId);
   if (!product) throw new Error("Product not found");
-  if (product.product_type !== "finished") {
+  if (!canProductHaveRecipe(product)) {
     throw new Error("Only finished products can have recipes");
   }
 
   for (const line of lines) {
     const ing = await catalogRepo.getProduct(line.ingredient_product_id);
-    if (!ing || ing.product_type !== "ingredient") {
+    if (!ing || !canProductBeRecipeIngredient(ing)) {
       throw new Error("Recipe lines must reference ingredient products");
     }
   }
@@ -90,7 +112,7 @@ export async function computeMakeableQty(
   const levels = await inventoryRepo.listStockLevels(storeId, warehouse.id);
   const levelMap = new Map(levels.filter((l) => !l.variant_id).map((l) => [l.product_id, l]));
 
-  const ingredientProducts = await catalogRepo.listProducts({ productType: "ingredient" });
+  const ingredientProducts = await listIngredients();
   const ingredientUnitMap = new Map(ingredientProducts.map((p) => [p.id, p.unit]));
 
   const makeable = recipeData.lines.map((line) => {
@@ -106,7 +128,8 @@ export async function computeMakeableQty(
 }
 
 export async function listIngredients() {
-  return catalogRepo.listProducts({ productType: "ingredient" });
+  const products = await catalogRepo.listProducts();
+  return products.filter(canProductBeRecipeIngredient);
 }
 
 export async function listProductIdsWithRecipes() {

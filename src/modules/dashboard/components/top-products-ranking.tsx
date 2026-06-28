@@ -10,7 +10,7 @@ export function TopProductsRanking({ products, currency }: TopProductsRankingPro
   const max = products[0]?.revenue ?? 1;
 
   return (
-    <div className="rounded-2xl bg-white p-5 ring-1 ring-black/5">
+    <div className="rounded-2xl bg-card p-5 text-card-foreground ring-1 ring-border">
       <h3 className="mb-4 font-heading text-sm font-semibold">Top products</h3>
       {products.length === 0 ? (
         <p className="text-sm text-muted-foreground">No sales data yet</p>

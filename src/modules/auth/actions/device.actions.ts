@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requirePermissionOrRole } from "@/lib/auth/guards";
 import { setActiveStoreCookie } from "@/lib/auth/guards";
 import {
@@ -136,14 +135,4 @@ export async function switchCashierStoreAction(storeId: string): Promise<DeviceA
       error: e instanceof Error ? e.message : "Could not switch store",
     };
   }
-}
-
-export async function selectCashierStoreAndContinueAction(storeId: string) {
-  const result = await switchCashierStoreAction(storeId);
-  if (!result.success) throw new Error(result.error ?? "Store selection failed");
-  const deviceCtx = await import("@/lib/auth/session").then((m) => m.getRegisteredDeviceContext());
-  if (!deviceCtx) {
-    redirect("/device/pair?from=/pos");
-  }
-  redirect("/pos/resume");
 }

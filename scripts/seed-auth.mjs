@@ -1,7 +1,8 @@
 /**
- * Creates Supabase Auth users and links them to app users.
+ * Creates the production admin Supabase Auth user and links it to the app user.
  * Run after: supabase db reset (or seed.sql applied)
- * Requires: SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL in .env.local
+ * Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAIL,
+ * and ADMIN_PASSWORD in the environment or .env.local.
  */
 import { readFileSync, existsSync } from "fs";
 import { dirname, resolve } from "path";
@@ -35,11 +36,27 @@ loadEnvFile(".env.local");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+const adminPassword = process.env.ADMIN_PASSWORD;
+const adminName = process.env.ADMIN_NAME?.trim() || "مدير النظام";
+const adminAppUserId = "00000000-0000-4000-8000-000000000201";
 
 if (!url || !serviceKey) {
   console.error(
     "Missing env in .env.local: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
   );
+  process.exit(1);
+}
+
+if (!adminEmail || !adminPassword) {
+  console.error(
+    "Missing env: ADMIN_EMAIL and ADMIN_PASSWORD are required to seed the admin user."
+  );
+  process.exit(1);
+}
+
+if (adminPassword.length < 12) {
+  console.error("ADMIN_PASSWORD must be at least 12 characters.");
   process.exit(1);
 }
 
@@ -61,47 +78,66 @@ const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const USERS = [
-  { appId: "00000000-0000-4000-8000-000000000201", email: "owner@CafeFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000202", email: "manager@CafeFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000203", email: "cashier1@CafeFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000204", email: "cashier2@CafeFlow.local", password: "demo1234" },
-  { appId: "00000000-0000-4000-8000-000000000205", email: "inventory@CafeFlow.local", password: "demo1234" },
-];
+async function findUserByEmail(email) {
+  let page = 1;
+  const perPage = 1000;
 
-async function main() {
-  for (const u of USERS) {
-    const { data: existing } = await admin.auth.admin.listUsers();
-    const found = existing?.users?.find((x) => x.email === u.email);
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage,
+    });
 
-    let authUserId = found?.id;
-    if (!authUserId) {
-      const { data, error } = await admin.auth.admin.createUser({
-        email: u.email,
-        password: u.password,
-        email_confirm: true,
-      });
-      if (error) {
-        console.error(`Failed to create ${u.email}:`, error.message);
-        continue;
-      }
-      authUserId = data.user.id;
-      console.log(`Created auth user: ${u.email}`);
-    } else {
-      console.log(`Auth user exists: ${u.email}`);
-    }
+    if (error) throw error;
 
-    const { error: linkError } = await admin
-      .from("users")
-      .update({ auth_user_id: authUserId })
-      .eq("id", u.appId);
-
-    if (linkError) {
-      console.error(`Failed to link ${u.email}:`, linkError.message);
-    } else {
-      console.log(`Linked app user ${u.appId} -> ${authUserId}`);
-    }
+    const found = data.users.find((user) => user.email?.toLowerCase() === email);
+    if (found) return found;
+    if (data.users.length < perPage) return null;
+    page += 1;
   }
 }
 
-main();
+async function main() {
+  const found = await findUserByEmail(adminEmail);
+
+  let authUserId = found?.id;
+  if (!authUserId) {
+    const { data, error } = await admin.auth.admin.createUser({
+      email: adminEmail,
+      password: adminPassword,
+      email_confirm: true,
+      app_metadata: { role: "owner" },
+    });
+    if (error) throw error;
+    authUserId = data.user.id;
+    console.log(`Created admin auth user: ${adminEmail}`);
+  } else {
+    const { error } = await admin.auth.admin.updateUserById(authUserId, {
+      password: adminPassword,
+      email_confirm: true,
+      app_metadata: { role: "owner" },
+    });
+    if (error) throw error;
+    console.log(`Updated existing admin auth user: ${adminEmail}`);
+  }
+
+  const { error: linkError } = await admin
+    .from("users")
+    .update({
+      auth_user_id: authUserId,
+      email: adminEmail,
+      name: adminName,
+      role: "owner",
+      is_active: true,
+    })
+    .eq("id", adminAppUserId);
+
+  if (linkError) throw linkError;
+
+  console.log(`Linked admin app user ${adminAppUserId} -> ${authUserId}`);
+}
+
+main().catch((error) => {
+  console.error("Failed to seed admin auth user:", error.message);
+  process.exit(1);
+});

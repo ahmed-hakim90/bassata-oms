@@ -35,6 +35,10 @@ function roleLabel(role: UserRole): string {
   return ROLE_LABELS[role];
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 interface UsersPageProps {
   users: AppUser[];
   stores: Store[];
@@ -108,8 +112,8 @@ export function UsersPage({
           deviceIds: form.restrictDevices ? form.deviceIds : undefined,
         });
         toast.success("User created");
-      } catch {
-        toast.error("Failed to create user");
+      } catch (error) {
+        toast.error(errorMessage(error, "Failed to create user"));
       }
     });
   };
@@ -123,34 +127,36 @@ export function UsersPage({
         />
       )}
 
-      <Tabs defaultValue="team" className="space-y-6">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="team">Team</TabsTrigger>
-          <TabsTrigger value="create">Create user</TabsTrigger>
-          <TabsTrigger value="stores">Store access</TabsTrigger>
-          <TabsTrigger value="pin">PIN reset</TabsTrigger>
-          <TabsTrigger value="passwords">Password reset</TabsTrigger>
-          <TabsTrigger value="roles">Role & status</TabsTrigger>
-          {permissionsData ? <TabsTrigger value="permissions">Permissions</TabsTrigger> : null}
-        </TabsList>
+      <Tabs defaultValue="team" className="min-w-0 space-y-6">
+        <div className="-mx-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex h-auto min-w-max flex-nowrap justify-start gap-1 sm:min-w-0 sm:flex-wrap">
+            <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="create">Create user</TabsTrigger>
+            <TabsTrigger value="stores">Store access</TabsTrigger>
+            <TabsTrigger value="pin">PIN reset</TabsTrigger>
+            <TabsTrigger value="passwords">Password reset</TabsTrigger>
+            <TabsTrigger value="roles">Role & status</TabsTrigger>
+            {permissionsData ? <TabsTrigger value="permissions">Permissions</TabsTrigger> : null}
+          </TabsList>
+        </div>
 
         <TabsContent value="team">
           <div className="grid gap-3">
             {users.map((u) => (
               <div
                 key={u.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-white px-4 py-3"
+                className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 text-card-foreground sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Shield className="size-4" />
                   </div>
-                  <div>
-                    <p className="font-medium">{u.name}</p>
-                    <p className="text-sm text-muted-foreground">{u.email}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{u.name}</p>
+                    <p className="break-all text-sm text-muted-foreground">{u.email}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <StatusPill label={roleLabel(u.role as UserRole)} variant="info" />
                   <StatusPill
                     label={u.is_active ? "active" : "inactive"}

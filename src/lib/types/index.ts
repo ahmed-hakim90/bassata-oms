@@ -5,6 +5,7 @@ import type {
   EXPENSE_STATUSES,
   MOVEMENT_TYPES,
   MEASUREMENT_UNITS,
+  ONLINE_ORDER_STATUSES,
   ORDER_STATUSES,
   PAYMENT_METHODS,
   PERMISSIONS,
@@ -44,6 +45,7 @@ export type MovementType = (typeof MOVEMENT_TYPES)[number];
 export type ProductType = (typeof PRODUCT_TYPES)[number];
 export type MeasurementUnit = (typeof MEASUREMENT_UNITS)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export type OnlineOrderStatus = (typeof ONLINE_ORDER_STATUSES)[number];
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export interface PaymentSplit {
   method: PaymentMethod;
@@ -502,6 +504,35 @@ export interface OrderPayment {
   reference: string | null;
 }
 
+export interface OnlineOrder {
+  id: string;
+  store_id: string;
+  order_id: string | null;
+  customer_name: string;
+  customer_phone: string;
+  status: OnlineOrderStatus;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OnlineOrderItem {
+  id: string;
+  online_order_id: string;
+  product_id: string;
+  variant_id: string | null;
+  product_name: string;
+  variant_name: string | null;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
+}
+
 export interface CostCenter {
   id: string;
   org_id: string;
@@ -650,6 +681,7 @@ export interface LoyaltyRule {
   org_id: string;
   points_per_currency: number;
   redemption_rate: number;
+  minimum_redeem_points: number;
   is_active: boolean;
 }
 

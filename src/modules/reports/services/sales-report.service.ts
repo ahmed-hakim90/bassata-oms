@@ -36,6 +36,16 @@ export interface SalesKpi {
   weightQuantitySold: number;
 }
 
+function getNetLineRevenue(
+  item: { order_id: string; line_total: number | string | null },
+  revenueFactors: Map<string, number>
+) {
+  const grossLineTotal = Number(item.line_total ?? 0);
+  const factor = revenueFactors.get(item.order_id);
+  if (!factor || factor <= 0) return grossLineTotal;
+  return grossLineTotal * factor;
+}
+
 export async function getSalesReport(options?: {
   storeId?: string;
   days?: number;
@@ -57,6 +67,7 @@ export async function getSalesReport(options?: {
   const orders = (await orderRepo.listOrders(options?.storeId)).filter(
     (o) =>
       o.status === "completed" &&
+      o.payment_status !== "unpaid" &&
       new Date(o.created_at) >= rangeStart &&
       new Date(o.created_at) <= rangeEnd
   );
@@ -76,6 +87,12 @@ export async function getSalesReport(options?: {
 
   const products = await catalogRepo.listProducts();
   const productMap = new Map(products.map((p) => [p.id, p.name]));
+  const revenueFactorByOrder = new Map(
+    orders.map((order) => [
+      order.id,
+      order.subtotal > 0 ? order.total / order.subtotal : 0,
+    ])
+  );
   const variantRows = await Promise.all(
     products.map(async (p) => ({
       productId: p.id,
@@ -92,7 +109,7 @@ export async function getSalesReport(options?: {
   const totalCost = (items ?? []).reduce((s, item) => s + Number(item.line_cost ?? 0), 0);
   const weightSalesRevenue = (items ?? [])
     .filter((item) => item.sale_unit === "kg" || item.sale_unit === "gram")
-    .reduce((s, item) => s + Number(item.line_total ?? 0), 0);
+    .reduce((s, item) => s + getNetLineRevenue(item, revenueFactorByOrder), 0);
   const pieceQuantitySold = (items ?? [])
     .filter((item) => item.sale_unit === "piece")
     .reduce((s, item) => s + Number(item.base_quantity ?? item.quantity ?? 0), 0);
@@ -114,7 +131,7 @@ export async function getSalesReport(options?: {
       cost: 0,
     };
     existing.quantity += item.quantity;
-    existing.revenue += Number(item.line_total);
+    existing.revenue += getNetLineRevenue(item, revenueFactorByOrder);
     existing.cost += Number(item.line_cost ?? 0);
     productStats.set(item.product_id, existing);
   }
@@ -145,7 +162,7 @@ export async function getSalesReport(options?: {
       cost: 0,
     };
     existing.quantity += item.quantity;
-    existing.revenue += Number(item.line_total);
+    existing.revenue += getNetLineRevenue(item, revenueFactorByOrder);
     existing.cost += Number(item.line_cost ?? 0);
     variantStats.set(key, existing);
   }

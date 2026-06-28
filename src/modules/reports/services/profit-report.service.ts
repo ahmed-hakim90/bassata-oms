@@ -92,7 +92,7 @@ export async function getProfitReport(options?: {
 
   const grossProfit = sales.totalRevenue - sales.totalCost;
   const purchases = await getPurchasesTotal(options);
-  const estimatedNetProfit = grossProfit - totalExpenses - wasteCost - refunds;
+  const estimatedNetProfit = grossProfit - totalExpenses - wasteCost;
 
   return {
     revenue: sales.totalRevenue,

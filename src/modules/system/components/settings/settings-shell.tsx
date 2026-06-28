@@ -157,17 +157,17 @@ export function SettingsShell({
         title="Settings"
         description="Store profile, POS, expenses, users, and system configuration"
       />
-      <Tabs value={activeTab} onValueChange={setTab} className="flex-col space-y-6">
-        <div className="space-y-3 rounded-xl border border-border/60 p-4">
+      <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col space-y-6">
+        <div className="min-w-0 space-y-3 rounded-xl border border-border/60 p-3 sm:p-4">
           <Input
             aria-label="Search settings"
             placeholder="Search settings..."
             value={settingsQuery}
             onChange={(event) => setSettingsQuery(event.target.value)}
           />
-          <div className="space-y-3 px-2">
+          <div className="-mx-3 min-w-0 overflow-x-auto px-3 pb-2 [scrollbar-gutter:stable] sm:-mx-4 sm:px-4">
             {filteredTabs.length > 0 ? (
-              <TabsList className="h-auto w-full flex-nowrap justify-start gap-1 py-4 px-2 rounded-xl bg-muted/60 p-1">
+              <TabsList className="flex h-auto w-max min-w-max flex-nowrap justify-start gap-1 rounded-xl bg-muted/60 px-2 py-3">
                 {filteredTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.id}
@@ -188,24 +188,24 @@ export function SettingsShell({
 
         {canManageSettings && bundle ? (
           <>
-            <TabsContent value="business">
+            <TabsContent value="business" className="min-w-0">
               <BusinessSettingsTab org={bundle.org} />
             </TabsContent>
-            <TabsContent value="branches">
+            <TabsContent value="branches" className="min-w-0">
               <BranchSettingsTab
                 stores={bundle.stores}
                 warehouses={bundle.warehouses}
                 devices={bundle.devices}
               />
             </TabsContent>
-            <TabsContent value="features">
+            <TabsContent value="features" className="min-w-0">
               <SystemFeaturesTab featureFlags={bundle.featureFlags} />
             </TabsContent>
           </>
         ) : null}
 
         {(canManageSettings || canManageSessions) && session && flags ? (
-          <TabsContent value="pos">
+          <TabsContent value="pos" className="min-w-0">
             <PosSessionSettingsTab
               canManageSettings={canManageSettings}
               canManageSessions={canManageSessions}
@@ -218,7 +218,7 @@ export function SettingsShell({
         ) : null}
 
         {(canManageExpenseSettings || canManageCostCenters) && (
-          <TabsContent value="expenses">
+          <TabsContent value="expenses" className="min-w-0">
             <ExpenseSettingsTab
               canManageExpenseSettings={canManageExpenseSettings}
               canManageCostCenters={canManageCostCenters}
@@ -230,13 +230,13 @@ export function SettingsShell({
         )}
 
         {usersBundle ? (
-          <TabsContent value="users">
+          <TabsContent value="users" className="min-w-0">
             <UsersSettingsTab {...usersBundle} />
           </TabsContent>
         ) : null}
 
         {auditBundle ? (
-          <TabsContent value="audit">
+          <TabsContent value="audit" className="min-w-0">
             <AuditSettingsTab {...auditBundle} />
           </TabsContent>
         ) : null}

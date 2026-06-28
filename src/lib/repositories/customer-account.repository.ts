@@ -88,6 +88,42 @@ export async function recordCustomerPaymentRpc(input: {
   return data as string;
 }
 
+export async function recordCustomerLedgerEntry(input: {
+  storeId: string;
+  customerId: string;
+  entryType: CustomerLedgerEntryType;
+  debit: number;
+  credit: number;
+  orderId?: string | null;
+  paymentId?: string | null;
+  reference?: string;
+  notes?: string;
+  createdBy: string;
+}): Promise<CustomerLedgerEntry> {
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const payload = {
+    org_id: orgId,
+    store_id: input.storeId,
+    customer_id: input.customerId,
+    entry_type: input.entryType,
+    debit: input.debit,
+    credit: input.credit,
+    order_id: input.orderId ?? null,
+    payment_id: input.paymentId ?? null,
+    reference: input.reference ?? "",
+    notes: input.notes ?? "",
+    created_by: input.createdBy,
+  };
+  const { data, error } = await db
+    .from("customer_ledger")
+    .insert(payload as never)
+    .select()
+    .single();
+  if (error || !data) throwDbError(error, "recordCustomerLedgerEntry");
+  return mapLedger(data as Record<string, unknown>);
+}
+
 export async function listCustomersWithBalance(): Promise<
   { id: string; name: string; phone: string; account_balance: number; credit_limit: number }[]
 > {

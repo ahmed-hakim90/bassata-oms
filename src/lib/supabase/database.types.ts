@@ -71,6 +71,12 @@ export type Database = {
       order_items: TableDef<OrderItemRow, Partial<OrderItemRow>, never>;
       order_item_deductions: TableDef<OrderItemDeductionRow, never, never>;
       order_payments: TableDef<OrderPaymentRow, Partial<OrderPaymentRow>, never>;
+      online_orders: TableDef<OnlineOrderRow, Partial<OnlineOrderRow>, Partial<OnlineOrderRow>>;
+      online_order_items: TableDef<
+        OnlineOrderItemRow,
+        Partial<OnlineOrderItemRow>,
+        Partial<OnlineOrderItemRow>
+      >;
       expenses: TableDef<ExpenseRow>;
       cost_centers: TableDef<CostCenterRow>;
       expense_categories: TableDef<ExpenseCategoryRow>;
@@ -567,6 +573,33 @@ export type OrderPaymentRow = {
   amount: number;
   reference: string | null;
 };
+export type OnlineOrderRow = {
+  id: string;
+  store_id: string;
+  order_id: string | null;
+  customer_name: string;
+  customer_phone: string;
+  status: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+export type OnlineOrderItemRow = {
+  id: string;
+  online_order_id: string;
+  product_id: string;
+  variant_id: string | null;
+  product_name: string;
+  variant_name: string | null;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
+};
 export type ExpenseRow = {
   id: string;
   store_id: string;
@@ -631,6 +664,7 @@ export type LoyaltyRuleRow = {
   org_id: string;
   points_per_currency: number;
   redemption_rate: number;
+  minimum_redeem_points: number;
   is_active: boolean;
 };
 export type LoyaltyLedgerRow = {

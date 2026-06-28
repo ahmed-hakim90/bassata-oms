@@ -98,14 +98,14 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
   return (
     <>
       {embedded ? (
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="font-medium">Cost centers</p>
             <p className="text-sm text-muted-foreground">
               Centers and categories for the selected branch
             </p>
           </div>
-          <Button className="rounded-xl" onClick={() => setShowCenterForm(true)}>
+          <Button className="w-full rounded-xl sm:w-auto" onClick={() => setShowCenterForm(true)}>
             <Plus className="mr-2 size-4" />
             Add center
           </Button>
@@ -159,7 +159,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               </select>
             </div>
           </div>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <Button className="rounded-xl" disabled={pending} onClick={saveCenter}>
               Save
             </Button>
@@ -208,7 +208,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               </select>
             </div>
           </div>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <Button className="rounded-xl" disabled={pending} onClick={saveEdit}>
               Save
             </Button>
@@ -298,7 +298,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
                       </div>
                     </div>
                   )}
-                  <ul className="divide-y rounded-xl ring-1 ring-black/5">
+                  <ul className="divide-y divide-border rounded-xl bg-card text-card-foreground ring-1 ring-border">
                     {centerCategories.length === 0 ? (
                       <li className="px-4 py-3 text-sm text-muted-foreground">No categories yet</li>
                     ) : (

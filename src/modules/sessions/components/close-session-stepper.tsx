@@ -66,7 +66,7 @@ export function CloseSessionStepper({
   }
 
   return (
-    <div className="rounded-2xl bg-white p-6 ring-1 ring-black/5">
+    <div className="rounded-2xl bg-card p-6 text-card-foreground ring-1 ring-border">
       <div className="mb-6 flex gap-1">
         {STEPS.map((label, i) => (
           <div

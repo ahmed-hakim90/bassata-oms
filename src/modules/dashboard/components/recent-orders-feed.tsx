@@ -9,7 +9,7 @@ interface RecentOrdersFeedProps {
 
 export function RecentOrdersFeed({ orders }: RecentOrdersFeedProps) {
   return (
-    <div className="rounded-2xl bg-white p-5 ring-1 ring-black/5">
+    <div className="rounded-2xl bg-card p-5 text-card-foreground ring-1 ring-border">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="font-heading text-sm font-semibold">Recent orders</h3>
         <Link

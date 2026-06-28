@@ -64,7 +64,12 @@ export async function getRecipeWithLines(
   if (!recipe) return null;
 
   const rawLines = await getRecipeLines(recipe.id);
-  const ingredients = await catalogRepo.listProducts({ productType: "ingredient" });
+  const ingredients = (await catalogRepo.listProducts()).filter(
+    (product) =>
+      product.product_type === "ingredient" ||
+      product.product_type === "raw_material" ||
+      product.inventory_product_type === "raw_material"
+  );
   const ingMap = new Map(ingredients.map((p) => [p.id, p]));
 
   const lines: ProductRecipeLineWithProduct[] = rawLines.map((base) => {
@@ -197,6 +202,34 @@ export async function deleteRecipe(
   const { error } = await q;
   if (error) throwDbError(error, "deleteRecipe");
   return true;
+}
+
+export async function listRecipeUsagesByIngredient(
+  ingredientProductId: string
+): Promise<{ recipeId: string; productId: string; variantId: string | null }[]> {
+  const db = await getDb();
+  const { data: lines, error: lineError } = await db
+    .from("product_recipe_lines")
+    .select("recipe_id")
+    .eq("ingredient_product_id", ingredientProductId);
+  if (lineError) throwDbError(lineError, "listRecipeUsagesByIngredient.lines");
+
+  const recipeIds = [...new Set((lines ?? []).map((line) => line.recipe_id))];
+  if (recipeIds.length === 0) return [];
+
+  const orgId = await getOrgId();
+  const { data: recipes, error: recipeError } = await db
+    .from("product_recipes")
+    .select("id, product_id, variant_id")
+    .eq("org_id", orgId)
+    .in("id", recipeIds);
+  if (recipeError) throwDbError(recipeError, "listRecipeUsagesByIngredient.recipes");
+
+  return (recipes ?? []).map((recipe) => ({
+    recipeId: recipe.id,
+    productId: recipe.product_id,
+    variantId: recipe.variant_id,
+  }));
 }
 
 export async function listProductIdsWithRecipes(): Promise<string[]> {

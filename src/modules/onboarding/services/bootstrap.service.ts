@@ -5,6 +5,7 @@ import {
   mapOnboardingFeaturesToFlags,
   type OnboardingPayload,
 } from "@/modules/onboarding/schemas/onboarding.schema";
+import type { Json } from "@/lib/supabase/database.types";
 
 export class OwnerEmailAlreadyUsedError extends Error {
   constructor() {
@@ -18,6 +19,12 @@ export interface BootstrapResult {
   storeId: string;
   userId: string;
   ownerEmail: string;
+}
+
+function jsonRecord(value: Json | null | undefined): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 async function uploadOrgLogo(
@@ -222,6 +229,29 @@ export async function initializeOrganization(
   let createdAppUserId: string | undefined;
 
   try {
+    const { data: bootstrapStore, error: bootstrapStoreError } = await admin
+      .from("stores")
+      .select("settings")
+      .eq("id", storeId)
+      .maybeSingle();
+    if (bootstrapStoreError) {
+      throw new Error(bootstrapStoreError.message);
+    }
+    const { error: menuSettingsError } = await admin
+      .from("stores")
+      .update({
+        settings: {
+          ...jsonRecord(bootstrapStore?.settings),
+          online_menu_enabled: true,
+          online_menu_ordering_enabled: true,
+          online_menu_slug: storeCode,
+        } as Json,
+      })
+      .eq("id", storeId);
+    if (menuSettingsError) {
+      throw new Error(menuSettingsError.message);
+    }
+
     if (input.organization.logoUrl?.startsWith("data:image/")) {
       const logoUrl = await uploadOrgLogo(orgId, input.organization.logoUrl);
       if (logoUrl) {
