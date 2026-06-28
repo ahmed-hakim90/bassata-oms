@@ -343,7 +343,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                   <Badge variant="outline">{group.items.length} نتيجة</Badge>
                 ) : null}
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
                 {group.items.map((item) => {
                   const displayPrice = getMenuItemDisplayPrice(
                     item,
@@ -353,9 +353,9 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                   return (
                     <article
                       key={item.id}
-                      className="group flex overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:flex-col"
+                      className="group flex flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                      <div className="relative flex w-44 shrink-0 items-center justify-center overflow-hidden bg-primary/10 sm:w-full sm:aspect-[4/3] sm:min-h-36">
+                      <div className="relative flex aspect-[4/3] w-full shrink-0 items-center justify-center overflow-hidden bg-primary/10">
                         {item.imageUrl ? (
                           <Image
                             src={item.imageUrl}
@@ -366,7 +366,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                             className="object-cover transition duration-300 group-hover:scale-105"
                           />
                         ) : (
-                          <span className="text-6xl font-bold text-primary/30">
+                          <span className="text-5xl font-bold text-primary/30 sm:text-6xl">
                             {item.name.slice(0, 1)}
                           </span>
                         )}
@@ -380,24 +380,24 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                         ) : null}
                       </div>
 
-                      <div className="flex min-w-0 flex-1 flex-col gap-3 p-3.5 sm:p-4">
-                        <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-2.5 sm:gap-3 sm:p-4">
+                        <div className="grid gap-2">
                           <div className="min-w-0">
-                            <h3 className="line-clamp-2 text-base font-semibold leading-snug">{item.name}</h3>
+                            <h3 className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">{item.name}</h3>
                             {item.description ? (
-                              <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+                              <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground sm:text-sm">
                                 {item.description}
                               </p>
                             ) : null}
                           </div>
-                          <div className="shrink-0 rounded-2xl bg-primary/10 px-3 py-2 text-end">
+                          <div className="w-fit rounded-2xl bg-primary/10 px-2.5 py-2 text-start sm:px-3">
                             {displayPrice.label ? (
                               <p className="text-xs text-primary/80">{displayPrice.label}</p>
                             ) : null}
-                            <p className="font-bold tabular-nums text-primary">
+                            <p className="text-sm font-bold tabular-nums text-primary sm:text-base">
                               {formatMoney(displayPrice.amount, menu.organization.currency)}
                               {displayPrice.range ? (
-                                <span className="ms-1 text-xs font-normal text-muted-foreground">
+                                <span className="ms-1 text-[11px] font-normal text-muted-foreground sm:text-xs">
                                   {displayPrice.range}
                                 </span>
                               ) : null}
@@ -417,17 +417,17 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                                   key={variant.id}
                                   type="button"
                                   variant="outline"
-                                  className="h-auto justify-between rounded-2xl border-border/70 bg-background/70 px-3 py-2.5 text-start hover:border-primary/40 hover:bg-primary/5 data-[added=true]:border-primary/50 data-[added=true]:bg-primary/10"
+                                  className="h-auto flex-col items-stretch gap-2 rounded-2xl border-border/70 bg-background/70 px-2 py-2 text-start hover:border-primary/40 hover:bg-primary/5 data-[added=true]:border-primary/50 data-[added=true]:bg-primary/10 sm:flex-row sm:items-center sm:justify-between sm:px-3 sm:py-2.5"
                                   data-added={wasJustAdded}
                                   disabled={!menu.store.orderingEnabled}
                                   onClick={() => addToCart(item, variant)}
                                 >
                                   <span className="min-w-0 truncate font-medium">{variant.name}</span>
-                                  <span className="flex shrink-0 items-center gap-2">
-                                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold tabular-nums">
+                                  <span className="flex shrink-0 items-center justify-between gap-1.5 sm:justify-end sm:gap-2">
+                                    <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-semibold tabular-nums sm:px-2.5 sm:text-xs">
                                       {formatMoney(variant.price, menu.organization.currency)}
                                     </span>
-                                    <span className="inline-flex h-7 items-center gap-1 rounded-full bg-primary px-2.5 text-xs font-semibold text-primary-foreground">
+                                    <span className="inline-flex h-7 items-center gap-1 rounded-full bg-primary px-2 text-xs font-semibold text-primary-foreground sm:px-2.5">
                                       {wasJustAdded ? (
                                         <>
                                           <Check className="size-3.5" />
@@ -448,7 +448,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                         ) : (
                           <Button
                             type="button"
-                            className="mt-auto h-11 w-full rounded-2xl text-base font-semibold"
+                            className="mt-auto h-10 w-full rounded-2xl text-sm font-semibold sm:h-11 sm:text-base"
                             disabled={!menu.store.orderingEnabled}
                             onClick={() => addToCart(item)}
                           >
