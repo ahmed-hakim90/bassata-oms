@@ -230,6 +230,24 @@ async function ensureCustomerForPublicOrder(input: {
   if (insertError) throw new Error(insertError.message);
 }
 
+async function findOnlineOrderCustomerId(input: {
+  orgId: string;
+  phone: string;
+}): Promise<string | null> {
+  const phone = input.phone.trim();
+  if (!phone) return null;
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("customers")
+    .select("id")
+    .eq("org_id", input.orgId)
+    .eq("phone", phone)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.id ?? null;
+}
+
 export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
   const slug = input.slug.trim().toLowerCase();
   const customerName = input.customerName.trim();
@@ -425,11 +443,18 @@ export async function invoiceOnlineOrder(input: {
   if (order.status === "cancelled") throw new Error("Cancelled orders cannot be invoiced");
   if (order.status === "invoiced") throw new Error("Order already invoiced");
 
+  const store = await storeRepo.getStore(input.storeId);
+  if (!store) throw new Error("Store not found");
+  const customerId = await findOnlineOrderCustomerId({
+    orgId: store.org_id,
+    phone: order.customer_phone,
+  });
+
   const result = await orderRepo.completeUnpaidCheckoutRpc({
     storeId: input.storeId,
     sessionId: input.sessionId,
     cashierId: input.cashierId,
-    customerId: null,
+    customerId,
     discount: 0,
     lines: order.items.map((item) => ({
       product_id: item.product_id,

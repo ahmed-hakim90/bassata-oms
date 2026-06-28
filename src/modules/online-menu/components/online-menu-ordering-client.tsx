@@ -648,7 +648,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
           <DialogHeader>
             <DialogTitle>كمّل بياناتك علشان نخدمك أسرع</DialogTitle>
             <DialogDescription>
-              الاسم يكفي لإرسال الطلب، وإضافة رقم الهاتف تساعدنا نأكد الطلب ونسجلك كعميل عندنا.
+              الاسم يكفي لإرسال الطلب، وإضافة رقم الهاتف تساعدنا نأكد الطلب ونسجل نقاطك عند إتمامه.
             </DialogDescription>
           </DialogHeader>
 
@@ -670,6 +670,10 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                 <p className="flex gap-2">
                   <Check className="mt-0.5 size-4 shrink-0 text-primary" />
                   الاسم والرقم يسجلوك كعميل تلقائيًا لتسهيل الطلبات القادمة.
+                </p>
+                <p className="flex gap-2">
+                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                  رقم الهاتف يساعدنا نضيف لك نقاط الولاء بعد إتمام الطلب.
                 </p>
               </div>
             </div>
