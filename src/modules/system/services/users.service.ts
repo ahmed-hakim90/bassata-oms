@@ -316,6 +316,7 @@ export async function updateStore(
     phone?: string;
     timezone?: string;
     isActive?: boolean;
+    settings?: Record<string, unknown>;
   },
   userId: string
 ) {
@@ -331,6 +332,7 @@ export async function updateStore(
     phone: input.phone,
     timezone: input.timezone ?? undefined,
     is_active: input.isActive,
+    settings: input.settings,
   };
 
   const store = await storeRepo.updateStore(id, patch);

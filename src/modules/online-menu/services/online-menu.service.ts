@@ -37,6 +37,7 @@ export type OnlineMenuData = {
   store: {
     id: string;
     name: string;
+    logoUrl: string | null;
     address: string;
     phone: string;
     description: string;
@@ -142,6 +143,7 @@ export async function getOnlineMenuBySlug(slug: string): Promise<OnlineMenuData 
     store: {
       id: store.id,
       name: store.name,
+      logoUrl: text(storeSettings.online_menu_logo_url) || null,
       address: store.address,
       phone: text(storeSettings.phone) || store.phone,
       description: text(storeSettings.online_menu_description),

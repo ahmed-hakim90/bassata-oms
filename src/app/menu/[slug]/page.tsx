@@ -26,6 +26,7 @@ export default async function OnlineMenuPage({ params }: MenuPageProps) {
   const { slug } = await params;
   const menu = await getOnlineMenuBySlug(slug);
   if (!menu) notFound();
+  const logoUrl = menu.store.logoUrl ?? menu.organization.logoUrl;
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.12),_transparent_35%),linear-gradient(180deg,_hsl(var(--background)),_hsl(var(--muted)/0.45))] px-4 py-6 text-foreground sm:px-6 lg:px-8">
@@ -33,10 +34,10 @@ export default async function OnlineMenuPage({ params }: MenuPageProps) {
         <section className="overflow-hidden rounded-3xl border border-border/70 bg-card/90 shadow-xl shadow-black/[0.05] backdrop-blur">
           <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              {menu.organization.logoUrl ? (
+              {logoUrl ? (
                 <Image
-                  src={menu.organization.logoUrl}
-                  alt={menu.organization.name}
+                  src={logoUrl}
+                  alt={menu.store.name}
                   width={64}
                   height={64}
                   unoptimized
@@ -44,7 +45,7 @@ export default async function OnlineMenuPage({ params }: MenuPageProps) {
                 />
               ) : (
                 <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-bold text-primary">
-                  {menu.organization.name.slice(0, 1)}
+                  {menu.store.name.slice(0, 1)}
                 </div>
               )}
               <div>

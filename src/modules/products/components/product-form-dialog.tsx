@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createProductAction,
   updateProductAction,
+  uploadProductImageAction,
 } from "@/modules/products/actions/product.actions";
 import { RecipeEditor } from "./recipe-editor";
 import { VariantEditor } from "./variant-editor";
@@ -90,6 +91,7 @@ export function ProductFormDialog({
   existingSkus = [],
 }: ProductFormDialogProps) {
   const isEdit = Boolean(product);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -234,12 +236,23 @@ export function ProductFormDialog({
         image_url: values.image_url,
       };
       if (isEdit && product) {
-        await updateProductAction(product.id, payload);
+        const savedProduct = await updateProductAction(product.id, payload);
+        if (imageFile && savedProduct) {
+          const formData = new FormData();
+          formData.append("image", imageFile);
+          await uploadProductImageAction(savedProduct.id, formData);
+        }
         toast.success("تم تحديث المنتج");
       } else {
-        await createProductAction(payload);
+        const savedProduct = await createProductAction(payload);
+        if (imageFile) {
+          const formData = new FormData();
+          formData.append("image", imageFile);
+          await uploadProductImageAction(savedProduct.id, formData);
+        }
         toast.success("تم إنشاء المنتج");
       }
+      setImageFile(null);
       onOpenChange(false);
       onSaved?.();
     } catch {
@@ -248,7 +261,13 @@ export function ProductFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setImageFile(null);
+        onOpenChange(nextOpen);
+      }}
+    >
       <StandardModalContent
         size="md"
         title={isEdit ? "تعديل منتج" : "منتج جديد"}
@@ -281,6 +300,7 @@ export function ProductFormDialog({
               activityType={businessActivitySettings.activity_type}
               onCancel={() => onOpenChange(false)}
               onSubmit={onSubmit}
+              onImageFileChange={setImageFile}
               onApplyActivityTemplate={!isEdit ? applyActivityTemplate : undefined}
             />
           </TabsContent>

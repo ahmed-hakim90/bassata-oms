@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Package } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import type { Category, Product } from "@/lib/types";
@@ -83,18 +84,33 @@ export function ProductGrid({
             )}
           >
             <div
-              className="flex h-24 items-end justify-between p-4"
+              className="relative flex h-28 items-end justify-between overflow-hidden p-4"
               style={{
                 background: `linear-gradient(135deg, ${category?.color ?? "#94A3B8"}33, transparent)`,
               }}
             >
+              {product.image_url ? (
+                <Image
+                  src={product.image_url}
+                  alt={product.name}
+                  fill
+                  sizes="(min-width: 1536px) 25vw, (min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
+                  unoptimized
+                  className="object-cover"
+                />
+              ) : null}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
               <div
-                className="flex size-12 items-center justify-center rounded-2xl text-white shadow-sm"
-                style={{ backgroundColor: category?.color ?? "#64748B" }}
+                className="relative flex size-12 items-center justify-center rounded-2xl text-white shadow-sm"
+                style={{ backgroundColor: product.image_url ? "rgb(15 23 42 / 0.65)" : category?.color ?? "#64748B" }}
               >
-                <Package className="size-5" />
+                {product.image_url ? (
+                  <span className="text-lg font-semibold">{product.name.slice(0, 1)}</span>
+                ) : (
+                  <Package className="size-5" />
+                )}
               </div>
-              <div className="flex flex-col items-end gap-1">
+              <div className="relative flex flex-col items-end gap-1">
                 {variantCount > 0 ? (
                   <StatusPill label={`${variantCount} أحجام`} variant="info" />
                 ) : null}

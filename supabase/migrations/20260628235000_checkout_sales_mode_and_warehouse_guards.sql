@@ -283,24 +283,86 @@ GRANT EXECUTE ON FUNCTION public.complete_checkout_split_expired_override(
 
 CREATE OR REPLACE FUNCTION public.validate_warehouse_store_match()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_warehouse_store_id UUID;
+  v_warehouse_org_id UUID;
 BEGIN
   IF NEW.warehouse_id IS NULL OR NEW.store_id IS NULL THEN
     RETURN NEW;
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM public.warehouses w
-    WHERE w.id = NEW.warehouse_id
-      AND w.store_id = NEW.store_id
-  ) THEN
+  SELECT w.store_id, w.org_id
+    INTO v_warehouse_store_id, v_warehouse_org_id
+  FROM public.warehouses w
+  WHERE w.id = NEW.warehouse_id;
+
+  IF v_warehouse_store_id IS DISTINCT FROM NEW.store_id THEN
     RAISE EXCEPTION 'Warehouse % does not belong to store % on %',
       NEW.warehouse_id, NEW.store_id, TG_TABLE_NAME;
+  END IF;
+
+  IF TG_TABLE_NAME = 'inventory_batches'
+    AND NEW.org_id IS DISTINCT FROM v_warehouse_org_id
+  THEN
+    RAISE EXCEPTION 'Warehouse % does not belong to org % on %',
+      NEW.warehouse_id, NEW.org_id, TG_TABLE_NAME;
   END IF;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
+
+REVOKE EXECUTE ON FUNCTION public.validate_warehouse_store_match() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.validate_warehouse_store_match() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.validate_warehouse_store_match() FROM authenticated;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.purchase_invoices pi
+    LEFT JOIN public.warehouses w
+      ON w.id = pi.warehouse_id
+     AND w.store_id = pi.store_id
+    WHERE w.id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Existing purchase_invoices rows have warehouse/store mismatches';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.stock_levels sl
+    LEFT JOIN public.warehouses w
+      ON w.id = sl.warehouse_id
+     AND w.store_id = sl.store_id
+    WHERE w.id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Existing stock_levels rows have warehouse/store mismatches';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.inventory_movements im
+    LEFT JOIN public.warehouses w
+      ON w.id = im.warehouse_id
+     AND w.store_id = im.store_id
+    WHERE w.id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Existing inventory_movements rows have warehouse/store mismatches';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.inventory_batches ib
+    LEFT JOIN public.warehouses w
+      ON w.id = ib.warehouse_id
+     AND w.store_id = ib.store_id
+     AND w.org_id = ib.org_id
+    WHERE w.id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Existing inventory_batches rows have warehouse/store/org mismatches';
+  END IF;
+END $$;
 
 DROP TRIGGER IF EXISTS trg_purchase_invoices_warehouse_store_match ON public.purchase_invoices;
 CREATE TRIGGER trg_purchase_invoices_warehouse_store_match
@@ -329,6 +391,16 @@ CREATE TRIGGER trg_inventory_batches_warehouse_store_match
 CREATE OR REPLACE FUNCTION public.validate_transfer_warehouse_store_match()
 RETURNS TRIGGER AS $$
 BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.stores fs
+    JOIN public.stores ts ON ts.id = NEW.to_store_id
+    WHERE fs.id = NEW.from_store_id
+      AND fs.org_id IS DISTINCT FROM ts.org_id
+  ) THEN
+    RAISE EXCEPTION 'Transfer stores must belong to the same org';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1
     FROM public.warehouses w
@@ -352,6 +424,31 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
+
+REVOKE EXECUTE ON FUNCTION public.validate_transfer_warehouse_store_match() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.validate_transfer_warehouse_store_match() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.validate_transfer_warehouse_store_match() FROM authenticated;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.transfer_orders t
+    JOIN public.stores fs ON fs.id = t.from_store_id
+    JOIN public.stores ts ON ts.id = t.to_store_id
+    LEFT JOIN public.warehouses fw
+      ON fw.id = t.from_warehouse_id
+     AND fw.store_id = t.from_store_id
+    LEFT JOIN public.warehouses tw
+      ON tw.id = t.to_warehouse_id
+     AND tw.store_id = t.to_store_id
+    WHERE fw.id IS NULL
+       OR tw.id IS NULL
+       OR fs.org_id IS DISTINCT FROM ts.org_id
+  ) THEN
+    RAISE EXCEPTION 'Existing transfer_orders rows have warehouse/store/org mismatches';
+  END IF;
+END $$;
 
 DROP TRIGGER IF EXISTS trg_transfer_orders_warehouse_store_match ON public.transfer_orders;
 CREATE TRIGGER trg_transfer_orders_warehouse_store_match

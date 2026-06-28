@@ -20,7 +20,7 @@ export type OnlineOrderLineInput = {
 export type PublicOnlineOrderInput = {
   slug: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone?: string;
   notes?: string;
   lines: OnlineOrderLineInput[];
 };
@@ -199,14 +199,47 @@ async function priceLinesForStaffOrder(lines: OnlineOrderLineInput[]) {
   };
 }
 
+async function ensureCustomerForPublicOrder(input: {
+  orgId: string;
+  name: string;
+  phone: string;
+}) {
+  if (!input.phone) return;
+
+  const admin = createAdminClient();
+  const { data: existing, error: existingError } = await admin
+    .from("customers")
+    .select("id")
+    .eq("org_id", input.orgId)
+    .eq("phone", input.phone)
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+  if (existing) return;
+
+  const { error: insertError } = await admin.from("customers").insert({
+    org_id: input.orgId,
+    name: input.name,
+    phone: input.phone,
+    notes: "Created from online menu order",
+    total_spent: 0,
+    visit_count: 0,
+    account_balance: 0,
+    credit_limit: 0,
+    payment_terms: "",
+  });
+  if (insertError) throw new Error(insertError.message);
+}
+
 export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
   const slug = input.slug.trim().toLowerCase();
   const customerName = input.customerName.trim();
-  const customerPhone = input.customerPhone.trim();
+  const customerPhone = input.customerPhone?.trim() ?? "";
   const notes = input.notes?.trim() ?? "";
   if (!slug) throw new Error("Menu link is invalid");
   if (customerName.length < 2) throw new Error("Customer name is required");
-  if (customerPhone.length < 5) throw new Error("Customer phone is required");
+  if (customerPhone && customerPhone.length < 5) {
+    throw new Error("Enter a valid phone number or leave it empty");
+  }
   if (customerName.length > 120 || customerPhone.length > 40 || notes.length > 500) {
     throw new Error("Order details are too long");
   }
@@ -227,6 +260,14 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
   }
 
   const priced = await priceLinesForPublicOrder(store.org_id, input.lines);
+  if (customerPhone) {
+    await ensureCustomerForPublicOrder({
+      orgId: store.org_id,
+      name: customerName,
+      phone: customerPhone,
+    });
+  }
+
   const { data: order, error: orderError } = await admin
     .from("online_orders")
     .insert({

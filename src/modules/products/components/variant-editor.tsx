@@ -32,6 +32,7 @@ export function VariantEditor({
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
+  const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState({
     name: "",
     sku: "",
@@ -105,6 +106,7 @@ export function VariantEditor({
           fixed_price: "",
         });
         await reload();
+        setAddOpen(false);
         toast.success("Variant created");
       } catch {
         toast.error("Could not create variant");
@@ -141,19 +143,35 @@ export function VariantEditor({
 
   return (
     <div className="grid gap-4 pt-2">
-      <div className="rounded-xl border p-4">
-        <p className="mb-3 text-sm font-medium">Add variant</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-xl border p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">الأحجام والأسعار</p>
+            <p className="text-xs text-muted-foreground">أضف حجمًا بسعر وباركود في صف واحد.</p>
+          </div>
+          <Button
+            type="button"
+            variant={addOpen ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setAddOpen((current) => !current)}
+          >
+            <Plus className="size-4" />
+            {addOpen ? "إغلاق" : "إضافة حجم"}
+          </Button>
+        </div>
+
+        {addOpen ? (
+        <div className="mt-3 grid gap-2 rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 sm:grid-cols-[1fr_1fr_120px_120px_150px_auto] sm:items-end">
           <div className="grid gap-1">
-            <Label>Name</Label>
+            <Label className="text-xs">الاسم</Label>
             <Input
               value={draft.name}
               onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-              placeholder="Small"
+              placeholder="صغير"
             />
           </div>
           <div className="grid gap-1">
-            <Label>SKU (optional)</Label>
+            <Label className="text-xs">SKU</Label>
             <Input
               value={draft.sku}
               onChange={(e) => setDraft((d) => ({ ...d, sku: e.target.value }))}
@@ -161,14 +179,14 @@ export function VariantEditor({
             />
           </div>
           <div className="grid gap-1">
-            <Label>Barcode</Label>
+            <Label className="text-xs">باركود</Label>
             <Input
               value={draft.barcode}
               onChange={(e) => setDraft((d) => ({ ...d, barcode: e.target.value }))}
             />
           </div>
           <div className="grid gap-1">
-            <Label>Price ({currency})</Label>
+            <Label className="text-xs">السعر ({currency})</Label>
             <Input
               type="number"
               step="0.01"
@@ -176,15 +194,8 @@ export function VariantEditor({
               onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))}
             />
           </div>
-          <div className="grid gap-1 sm:col-span-2">
-            <Label>Image URL (optional)</Label>
-            <Input
-              value={draft.image_url}
-              onChange={(e) => setDraft((d) => ({ ...d, image_url: e.target.value }))}
-            />
-          </div>
           <div className="grid gap-1">
-            <Label>Variant kind</Label>
+            <Label className="text-xs">النوع</Label>
             <select
               className="h-9 rounded-xl border border-input bg-transparent px-3 text-sm"
               value={draft.variant_kind}
@@ -196,10 +207,13 @@ export function VariantEditor({
               <option value="weight_portion">weight_portion</option>
             </select>
           </div>
+          <Button size="sm" onClick={handleCreate} disabled={pending}>
+            <Plus className="size-4" /> حفظ
+          </Button>
           {draft.variant_kind === "weight_portion" ? (
-            <>
+            <div className="grid gap-2 sm:col-span-full sm:grid-cols-4">
               <div className="grid gap-1">
-                <Label>Quantity value</Label>
+                <Label className="text-xs">الكمية</Label>
                 <Input
                   value={draft.quantity_value}
                   onChange={(e) => setDraft((d) => ({ ...d, quantity_value: e.target.value }))}
@@ -207,7 +221,7 @@ export function VariantEditor({
                 />
               </div>
               <div className="grid gap-1">
-                <Label>Quantity unit</Label>
+                <Label className="text-xs">الوحدة</Label>
                 <select
                   className="h-9 rounded-xl border border-input bg-transparent px-3 text-sm"
                   value={draft.quantity_unit}
@@ -223,7 +237,7 @@ export function VariantEditor({
                 </select>
               </div>
               <div className="grid gap-1">
-                <Label>Price mode</Label>
+                <Label className="text-xs">طريقة السعر</Label>
                 <select
                   className="h-9 rounded-xl border border-input bg-transparent px-3 text-sm"
                   value={draft.price_mode}
@@ -239,19 +253,17 @@ export function VariantEditor({
                 </select>
               </div>
               <div className="grid gap-1">
-                <Label>Fixed price ({currency})</Label>
+                <Label className="text-xs">سعر ثابت ({currency})</Label>
                 <Input
                   value={draft.fixed_price}
                   onChange={(e) => setDraft((d) => ({ ...d, fixed_price: e.target.value }))}
                   placeholder="50"
                 />
               </div>
-            </>
+            </div>
           ) : null}
         </div>
-        <Button className="mt-3" size="sm" onClick={handleCreate} disabled={pending}>
-          <Plus className="size-4" /> Add variant
-        </Button>
+        ) : null}
       </div>
 
       {variants.length === 0 ? (
@@ -269,9 +281,9 @@ export function VariantEditor({
           </TabsList>
           {variants.map((variant) => (
             <TabsContent key={variant.id} value={variant.id} className="grid gap-4 pt-3">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-[1fr_120px_1fr_1fr_auto_auto] sm:items-end">
                 <div className="grid gap-1">
-                  <Label>Name</Label>
+                  <Label className="text-xs">الاسم</Label>
                   <Input
                     defaultValue={variant.name}
                     onBlur={(e) => {
@@ -282,7 +294,7 @@ export function VariantEditor({
                   />
                 </div>
                 <div className="grid gap-1">
-                  <Label>Price</Label>
+                  <Label className="text-xs">السعر</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -300,7 +312,7 @@ export function VariantEditor({
                   />
                 </div>
                 <div className="grid gap-1">
-                  <Label>SKU</Label>
+                  <Label className="text-xs">SKU</Label>
                   <Input
                     defaultValue={variant.sku}
                     onBlur={(e) => {
@@ -311,7 +323,7 @@ export function VariantEditor({
                   />
                 </div>
                 <div className="grid gap-1">
-                  <Label>Barcode</Label>
+                  <Label className="text-xs">باركود</Label>
                   <Input
                     defaultValue={variant.barcode}
                     onBlur={(e) => {
@@ -321,27 +333,25 @@ export function VariantEditor({
                     }}
                   />
                 </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={variant.is_active}
-                  onCheckedChange={(v) => handleUpdate(variant.id, { is_active: Boolean(v) })}
-                />
-                Active
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Sell price: {formatCurrency(variant.price ?? product.base_price + variant.price_delta, currency)}
-              </p>
-              <div className="flex gap-2">
+                <label className="flex h-8 items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={variant.is_active}
+                    onCheckedChange={(v) => handleUpdate(variant.id, { is_active: Boolean(v) })}
+                  />
+                  نشط
+                </label>
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => handleDelete(variant.id)}
                   disabled={pending}
                 >
-                  <Trash2 className="size-4" /> Delete
+                  <Trash2 className="size-4" /> حذف
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                سعر البيع: {formatCurrency(variant.price ?? product.base_price + variant.price_delta, currency)}
+              </p>
               {recipesEnabled ? (
                 <div className="rounded-xl border p-3">
                   <p className="mb-2 text-sm font-medium">Recipe for {variant.name}</p>

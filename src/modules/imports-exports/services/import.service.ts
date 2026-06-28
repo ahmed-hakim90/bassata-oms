@@ -59,6 +59,7 @@ export const PRODUCT_IMPORT_SIMPLE_COLUMNS = [
   "barcode",
   "unit",
   "track_inventory",
+  "import_action",
 ] as const;
 
 export const PRODUCT_VARIANT_IMPORT_COLUMNS = [
@@ -68,6 +69,7 @@ export const PRODUCT_VARIANT_IMPORT_COLUMNS = [
   "barcode",
   "price",
   "is_active",
+  "import_action",
 ] as const;
 
 export const PRODUCT_RECIPE_IMPORT_COLUMNS = [
@@ -96,12 +98,45 @@ export interface ParsedImportResult {
   warnings: ImportValidationError[];
 }
 
-const IMPORT_ACTIONS = ["upsert", "create", "update"] as const;
+const IMPORT_ACTIONS = ["upsert", "create", "update", "cancel", "deactivate"] as const;
 type ImportAction = (typeof IMPORT_ACTIONS)[number];
 
 type ProductImportPayload = ProductImportRow & {
   category_id: string;
 };
+
+const PRODUCT_SHEET_ALIASES = [
+  "products",
+  "items",
+  "menu",
+  "المنتجات",
+  "منتجات",
+  "الأصناف",
+  "اصناف",
+] as const;
+
+const VARIANT_SHEET_ALIASES = [
+  "variants",
+  "product_variants",
+  "sizes",
+  "product_sizes",
+  "الأحجام",
+  "احجام",
+  "الحجوم",
+  "المقاسات",
+  "مقاسات",
+] as const;
+
+const RECIPE_SHEET_ALIASES = [
+  "recipes",
+  "recipe",
+  "components",
+  "ingredients",
+  "الوصفات",
+  "وصفات",
+  "المكونات",
+  "مكونات",
+] as const;
 
 const HEADER_ALIASES: Record<string, (typeof PRODUCT_IMPORT_COLUMNS)[number]> = {
   product_name: "name",
@@ -153,6 +188,7 @@ const HEADER_ALIASES: Record<string, (typeof PRODUCT_IMPORT_COLUMNS)[number]> = 
   "نوع_الاستيراد": "import_action",
   active: "is_active",
   "نشط": "is_active",
+  status: "is_active",
   popular: "is_popular",
   "مميز": "is_popular",
   "الوحدة": "unit",
@@ -163,18 +199,21 @@ const HEADER_ALIASES: Record<string, (typeof PRODUCT_IMPORT_COLUMNS)[number]> = 
 };
 
 const VARIANT_HEADER_ALIASES: Record<string, (typeof PRODUCT_VARIANT_IMPORT_COLUMNS)[number]> = {
+  product: "product_sku",
   product_code: "product_sku",
   product_sku: "product_sku",
   item_code: "product_sku",
   "كود_المنتج": "product_sku",
   "كود_الصنف": "product_sku",
   variant: "variant_name",
+  name: "variant_name",
   size: "variant_name",
   size_name: "variant_name",
   variant_name: "variant_name",
   "الحجم": "variant_name",
   "اسم_الحجم": "variant_name",
   variant_code: "variant_sku",
+  sku: "variant_sku",
   variant_sku: "variant_sku",
   size_code: "variant_sku",
   "كود_الحجم": "variant_sku",
@@ -183,15 +222,24 @@ const VARIANT_HEADER_ALIASES: Record<string, (typeof PRODUCT_VARIANT_IMPORT_COLU
   price: "price",
   fixed_price: "price",
   variant_price: "price",
+  sale_price: "price",
+  selling_price: "price",
   "السعر": "price",
   "سعر": "price",
   "سعر_الحجم": "price",
+  "سعر_البيع": "price",
   active: "is_active",
   is_active: "is_active",
   "نشط": "is_active",
+  status: "is_active",
+  action: "import_action",
+  import_action: "import_action",
+  "الإجراء": "import_action",
+  "نوع_الاستيراد": "import_action",
 };
 
 const RECIPE_HEADER_ALIASES: Record<string, (typeof PRODUCT_RECIPE_IMPORT_COLUMNS)[number]> = {
+  product: "product_sku",
   product_code: "product_sku",
   product_sku: "product_sku",
   item_code: "product_sku",
@@ -202,6 +250,8 @@ const RECIPE_HEADER_ALIASES: Record<string, (typeof PRODUCT_RECIPE_IMPORT_COLUMN
   size_code: "variant_sku",
   "كود_الحجم": "variant_sku",
   ingredient_code: "ingredient_sku",
+  ingredient: "ingredient_sku",
+  sku: "ingredient_sku",
   ingredient_sku: "ingredient_sku",
   component_sku: "ingredient_sku",
   "كود_المكون": "ingredient_sku",
@@ -296,6 +346,25 @@ function normalizeRecipeHeader(value: string): string {
   return RECIPE_HEADER_ALIASES[normalized] ?? normalized;
 }
 
+function normalizeSheetName(value: string): string {
+  return normalizeToken(value).replace(/_/g, "");
+}
+
+function findSheetName(workbook: XLSX.WorkBook, aliases: string[]): string | undefined {
+  const normalizedAliases = new Set(aliases.map(normalizeSheetName));
+  return workbook.SheetNames.find((name) => normalizedAliases.has(normalizeSheetName(name)));
+}
+
+function sheetNameMatches(name: string | undefined, aliases: readonly string[]): boolean {
+  if (!name) return false;
+  const normalized = normalizeSheetName(name);
+  return aliases.some((alias) => normalizeSheetName(alias) === normalized);
+}
+
+function rowHasValue(row: Record<string, unknown>): boolean {
+  return Object.values(row).some((value) => String(value ?? "").trim() !== "");
+}
+
 function valueOrDefault(value: string | undefined, fallback: string): string {
   return value?.trim() ? value : fallback;
 }
@@ -323,11 +392,19 @@ function salesUnitTypeForUnit(unit: string): ProductImportRow["sales_unit_type"]
 
 export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
   const workbook = XLSX.read(buffer, { type: "array" });
-  const productsSheetName = workbook.SheetNames.find(
-    (name) => name.trim().toLowerCase() === "products"
-  ) ?? workbook.SheetNames[0];
-  const sheet = workbook.Sheets[productsSheetName];
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+  const explicitProductsSheetName = findSheetName(workbook, [...PRODUCT_SHEET_ALIASES]);
+  const firstSheetName = workbook.SheetNames[0];
+  const productsSheetName =
+    explicitProductsSheetName ??
+    (sheetNameMatches(firstSheetName, VARIANT_SHEET_ALIASES) ||
+    sheetNameMatches(firstSheetName, RECIPE_SHEET_ALIASES)
+      ? undefined
+      : firstSheetName);
+  const raw = productsSheetName
+    ? XLSX.utils
+        .sheet_to_json<Record<string, unknown>>(workbook.Sheets[productsSheetName], { defval: "" })
+        .filter(rowHasValue)
+    : [];
 
   const rows: ProductImportRow[] = raw.map((row) => {
     const normalized: Record<string, string> = {};
@@ -400,11 +477,13 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
 }
 
 function parseVariantSheet(workbook: XLSX.WorkBook): ProductVariantImportRow[] {
-  const sheetName = workbook.SheetNames.find((name) => name.trim().toLowerCase() === "variants");
+  const sheetName = findSheetName(workbook, [...VARIANT_SHEET_ALIASES]);
   if (!sheetName) return [];
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], {
-    defval: "",
-  });
+  const raw = XLSX.utils
+    .sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], {
+      defval: "",
+    })
+    .filter(rowHasValue);
   return raw.map((row) => {
     const normalized: Record<string, string> = {};
     for (const [key, value] of Object.entries(row)) {
@@ -417,16 +496,19 @@ function parseVariantSheet(workbook: XLSX.WorkBook): ProductVariantImportRow[] {
       barcode: normalized.barcode ?? "",
       price: normalized.price ?? "",
       is_active: valueOrDefault(normalized.is_active, "true"),
+      import_action: valueOrDefault(normalized.import_action, "upsert"),
     };
   });
 }
 
 function parseRecipeSheet(workbook: XLSX.WorkBook): ProductRecipeImportRow[] {
-  const sheetName = workbook.SheetNames.find((name) => name.trim().toLowerCase() === "recipes");
+  const sheetName = findSheetName(workbook, [...RECIPE_SHEET_ALIASES]);
   if (!sheetName) return [];
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], {
-    defval: "",
-  });
+  const raw = XLSX.utils
+    .sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], {
+      defval: "",
+    })
+    .filter(rowHasValue);
   return raw.map((row) => {
     const normalized: Record<string, string> = {};
     for (const [key, value] of Object.entries(row)) {
@@ -448,7 +530,13 @@ export function validateProductRows(rows: ProductImportRow[]): ImportValidationE
 
   rows.forEach((row, index) => {
     const rowNum = index + 2;
-    if (!row.name) errors.push({ row: rowNum, field: "name", message: "Name is required" });
+    const action = row.import_action as ImportAction;
+    if (!row.name && !isDeactivateAction(action)) {
+      errors.push({ row: rowNum, field: "name", message: "Name is required" });
+    }
+    if (isDeactivateAction(action) && !row.sku) {
+      errors.push({ row: rowNum, field: "sku", message: "SKU is required to cancel a product" });
+    }
     if (row.sku && skuSet.has(row.sku)) {
       errors.push({ row: rowNum, field: "sku", message: "Duplicate SKU in file" });
     } else if (row.sku) {
@@ -469,11 +557,11 @@ export function validateProductRows(rows: ProductImportRow[]): ImportValidationE
     if (row.sale_price && Number.isNaN(salePrice)) {
       errors.push({ row: rowNum, field: "sale_price", message: "Invalid sale price" });
     }
-    if (!IMPORT_ACTIONS.includes(row.import_action as ImportAction)) {
+    if (!IMPORT_ACTIONS.includes(action)) {
       errors.push({
         row: rowNum,
         field: "import_action",
-        message: "Use upsert, create, or update",
+        message: "Use upsert, create, update, cancel, or deactivate",
       });
     }
     if (!PRODUCT_TYPES.includes(row.product_type as (typeof PRODUCT_TYPES)[number])) {
@@ -549,12 +637,25 @@ export function validateVariantRows(rows: ProductVariantImportRow[]): ImportVali
     if (!row.product_sku) {
       errors.push({ row: rowNum, field: "product_sku", message: "Product SKU is required" });
     }
-    if (!row.variant_name) {
+    const action = row.import_action as ImportAction;
+    if (!row.variant_name && !isDeactivateAction(action)) {
       errors.push({ row: rowNum, field: "variant_name", message: "Variant name is required" });
     }
+    if (isDeactivateAction(action) && !row.variant_sku) {
+      errors.push({ row: rowNum, field: "variant_sku", message: "Variant SKU is required to cancel a variant" });
+    }
     const price = Number(row.price);
-    if (!row.price || Number.isNaN(price) || price < 0) {
+    if (!row.price && action !== "cancel" && action !== "deactivate") {
       errors.push({ row: rowNum, field: "price", message: "Valid variant price is required" });
+    } else if (row.price && (Number.isNaN(price) || price < 0)) {
+      errors.push({ row: rowNum, field: "price", message: "Valid variant price is required" });
+    }
+    if (!IMPORT_ACTIONS.includes(action)) {
+      errors.push({
+        row: rowNum,
+        field: "import_action",
+        message: "Use upsert, create, update, cancel, or deactivate",
+      });
     }
     if (row.variant_sku) {
       const key = `${row.product_sku.toLowerCase()}::${row.variant_sku.toLowerCase()}`;
@@ -631,6 +732,73 @@ function parseBool(value: string, fallback: boolean): boolean {
   if (["true", "yes", "1", "y", "نعم", "صح"].includes(v)) return true;
   if (["false", "no", "0", "n", "لا", "خطأ"].includes(v)) return false;
   return fallback;
+}
+
+function isDeactivateAction(action: string): boolean {
+  return action === "cancel" || action === "deactivate";
+}
+
+function numbersEqual(a: number | null | undefined, b: number | null | undefined): boolean {
+  return Number(a ?? 0) === Number(b ?? 0);
+}
+
+function productMatchesPayload(
+  product: Product,
+  payload: productService.ProductInput
+): boolean {
+  const payloadProductType =
+    payload.product_type === "ingredient" || payload.product_type === "raw_material"
+      ? "ingredient"
+      : "finished";
+  return (
+    product.name === payload.name &&
+    product.sku === payload.sku &&
+    product.barcode === payload.barcode &&
+    product.category_id === payload.category_id &&
+    numbersEqual(product.base_price, payload.base_price) &&
+    (product.description ?? "") === (payload.description ?? "") &&
+    numbersEqual(product.sale_price, payload.sale_price) &&
+    (product.image_url ?? null) === (payload.image_url ?? null) &&
+    product.is_active === payload.is_active &&
+    product.is_popular === payload.is_popular &&
+    product.track_inventory === payload.track_inventory &&
+    product.product_type === payloadProductType &&
+    product.inventory_tracking_mode === payload.inventory_tracking_mode &&
+    product.inventory_rotation_method === payload.inventory_rotation_method &&
+    product.expiry_tracking_enabled === payload.expiry_tracking_enabled &&
+    product.expiry_policy === payload.expiry_policy &&
+    numbersEqual(product.shelf_life_value, payload.shelf_life_value) &&
+    product.shelf_life_unit === payload.shelf_life_unit &&
+    product.unit === payload.unit &&
+    product.base_unit === payload.base_unit &&
+    product.sale_unit === payload.sale_unit &&
+    product.sales_unit_type === payload.sales_unit_type &&
+    product.allow_fractional_quantity === payload.allow_fractional_quantity &&
+    product.allow_price_input === payload.allow_price_input &&
+    product.wholesale_enabled === payload.wholesale_enabled &&
+    numbersEqual(product.last_unit_cost, payload.last_unit_cost) &&
+    product.cost_unit === payload.cost_unit
+  );
+}
+
+function variantMatchesPayload(
+  variant: ProductVariant,
+  payload: Omit<ProductVariant, "id" | "product_id">
+): boolean {
+  return (
+    variant.name === payload.name &&
+    variant.sku === payload.sku &&
+    variant.barcode === payload.barcode &&
+    numbersEqual(variant.price_delta, payload.price_delta) &&
+    numbersEqual(variant.price, payload.price) &&
+    (variant.image_url ?? null) === (payload.image_url ?? null) &&
+    variant.is_active === payload.is_active &&
+    variant.variant_kind === payload.variant_kind &&
+    numbersEqual(variant.quantity_value, payload.quantity_value) &&
+    variant.quantity_unit === payload.quantity_unit &&
+    variant.price_mode === payload.price_mode &&
+    numbersEqual(variant.fixed_price, payload.fixed_price)
+  );
 }
 
 function buildGeneratedVariantSku(productSku: string, variantName: string): string {
@@ -715,9 +883,11 @@ export async function bulkImportProducts(
 ): Promise<{
   imported: Product[];
   updated: Product[];
+  unchanged: Product[];
   skipped: number;
   variantsImported: ProductVariant[];
   variantsUpdated: ProductVariant[];
+  variantsUnchanged: ProductVariant[];
   recipeGroupsImported: number;
   warnings: ImportValidationError[];
 }> {
@@ -731,6 +901,7 @@ export async function bulkImportProducts(
   const existingBySku = new Map(existing.map((p) => [p.sku.toLowerCase(), p]));
   const imported: Product[] = [];
   const updated: Product[] = [];
+  const unchanged: Product[] = [];
   let skipped = 0;
 
   const categories = await productService.listCategories();
@@ -739,22 +910,42 @@ export async function bulkImportProducts(
     (await resolveCategoryId("General", createdBy));
 
   for (const row of rows) {
-    if (!row.name) {
+    const action = row.import_action as ImportAction;
+    if (!row.name && !isDeactivateAction(action)) {
       skipped += 1;
       continue;
     }
-
-    const categoryId = row.category
-      ? await resolveCategoryId(row.category, createdBy)
-      : defaultCategoryId;
-
-    const action = row.import_action as ImportAction;
     const existingProduct = row.sku ? existingBySku.get(row.sku.toLowerCase()) : undefined;
-    const payload = rowToProductInput({ ...row, category_id: categoryId });
 
     if (existingProduct) {
       if (action === "create") {
         skipped += 1;
+        warnings.push({
+          row: 0,
+          field: "import_action",
+          message: `Product ${row.sku} skipped because it already exists and action is create`,
+        });
+        continue;
+      }
+      if (isDeactivateAction(action)) {
+        if (!existingProduct.is_active) {
+          unchanged.push(existingProduct);
+          continue;
+        }
+        const product = await productService.updateProduct(
+          existingProduct.id,
+          { is_active: false },
+          createdBy
+        );
+        if (product) updated.push(product);
+        continue;
+      }
+      const categoryId = row.category
+        ? await resolveCategoryId(row.category, createdBy)
+        : defaultCategoryId;
+      const payload = rowToProductInput({ ...row, category_id: categoryId });
+      if (productMatchesPayload(existingProduct, payload)) {
+        unchanged.push(existingProduct);
         continue;
       }
       const product = await productService.updateProduct(existingProduct.id, payload, createdBy);
@@ -762,11 +953,20 @@ export async function bulkImportProducts(
       continue;
     }
 
-    if (action === "update") {
+    if (action === "update" || isDeactivateAction(action)) {
       skipped += 1;
+      warnings.push({
+        row: 0,
+        field: "sku",
+        message: `Product ${row.sku || row.name} skipped because it was not found`,
+      });
       continue;
     }
 
+    const categoryId = row.category
+      ? await resolveCategoryId(row.category, createdBy)
+      : defaultCategoryId;
+    const payload = rowToProductInput({ ...row, category_id: categoryId });
     const product = await productService.createProduct(payload, createdBy);
     if (product.sku) existingBySku.set(product.sku.toLowerCase(), product);
     imported.push(product);
@@ -779,6 +979,7 @@ export async function bulkImportProducts(
 
   const variantsImported: ProductVariant[] = [];
   const variantsUpdated: ProductVariant[] = [];
+  const variantsUnchanged: ProductVariant[] = [];
   const variantByProductAndSku = new Map<string, ProductVariant>();
   if (variants.length > 0 || recipes.length > 0) {
     for (const product of productBySku.values()) {
@@ -804,8 +1005,9 @@ export async function bulkImportProducts(
     }
 
     const sku = row.variant_sku || buildGeneratedVariantSku(product.sku, row.variant_name);
+    const action = row.import_action as ImportAction;
     const payload: Omit<ProductVariant, "id" | "product_id"> = {
-      name: row.variant_name,
+      name: row.variant_name || sku,
       sku,
       barcode: row.barcode || sku,
       price_delta: 0,
@@ -820,10 +1022,46 @@ export async function bulkImportProducts(
     };
     const existingVariant = variantByProductAndSku.get(`${product.id}::${sku.toLowerCase()}`);
     if (existingVariant) {
+      if (action === "create") {
+        skipped += 1;
+        warnings.push({
+          row: 0,
+          field: "import_action",
+          message: `Variant ${sku} skipped because it already exists and action is create`,
+        });
+        continue;
+      }
+      if (isDeactivateAction(action)) {
+        if (!existingVariant.is_active) {
+          variantsUnchanged.push(existingVariant);
+          continue;
+        }
+        const updatedVariant = await variantService.updateVariant(
+          existingVariant.id,
+          { is_active: false },
+          createdBy
+        );
+        variantsUpdated.push(updatedVariant);
+        variantByProductAndSku.set(`${product.id}::${sku.toLowerCase()}`, updatedVariant);
+        continue;
+      }
+      if (variantMatchesPayload(existingVariant, payload)) {
+        variantsUnchanged.push(existingVariant);
+        continue;
+      }
       const updatedVariant = await variantService.updateVariant(existingVariant.id, payload, createdBy);
       variantsUpdated.push(updatedVariant);
       variantByProductAndSku.set(`${product.id}::${sku.toLowerCase()}`, updatedVariant);
     } else {
+      if (action === "update" || isDeactivateAction(action)) {
+        skipped += 1;
+        warnings.push({
+          row: 0,
+          field: "variant_sku",
+          message: `Variant ${sku} skipped because it was not found`,
+        });
+        continue;
+      }
       const createdVariant = await variantService.createVariant(product.id, payload, createdBy);
       variantsImported.push(createdVariant);
       variantByProductAndSku.set(`${product.id}::${sku.toLowerCase()}`, createdVariant);
@@ -915,9 +1153,11 @@ export async function bulkImportProducts(
     result: {
       imported: imported.length,
       updated: updated.length,
+      unchanged: unchanged.length,
       skipped,
       variants_imported: variantsImported.length,
       variants_updated: variantsUpdated.length,
+      variants_unchanged: variantsUnchanged.length,
       recipe_groups_imported: recipeGroupsImported,
       warnings: warnings.length,
       created_by: createdBy,
@@ -936,9 +1176,11 @@ export async function bulkImportProducts(
     metadata: {
       imported: imported.length,
       updated: updated.length,
+      unchanged: unchanged.length,
       skipped,
       variantsImported: variantsImported.length,
       variantsUpdated: variantsUpdated.length,
+      variantsUnchanged: variantsUnchanged.length,
       recipeGroupsImported,
       warnings: warnings.length,
     },
@@ -947,9 +1189,11 @@ export async function bulkImportProducts(
   return {
     imported,
     updated,
+    unchanged,
     skipped,
     variantsImported,
     variantsUpdated,
+    variantsUnchanged,
     recipeGroupsImported,
     warnings,
   };

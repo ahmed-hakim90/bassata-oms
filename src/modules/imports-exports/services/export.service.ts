@@ -33,6 +33,7 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
       barcode: "",
       unit: "piece",
       track_inventory: false,
+      import_action: "upsert",
     },
     {
       name: "Milk",
@@ -43,6 +44,7 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
       barcode: "",
       unit: "kg",
       track_inventory: true,
+      import_action: "upsert",
     },
     {
       name: "Espresso Shot",
@@ -53,6 +55,7 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
       barcode: "",
       unit: "kg",
       track_inventory: true,
+      import_action: "upsert",
     },
     {
       name: "Paper Cup",
@@ -63,6 +66,7 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
       barcode: "",
       unit: "piece",
       track_inventory: true,
+      import_action: "upsert",
     },
   ];
   const sheet = XLSX.utils.json_to_sheet(sample, { header });
@@ -85,6 +89,7 @@ function buildVariantsSheet(): XLSX.WorkSheet {
       barcode: "",
       price: 45,
       is_active: true,
+      import_action: "upsert",
     },
     {
       product_sku: "LATTE",
@@ -93,6 +98,7 @@ function buildVariantsSheet(): XLSX.WorkSheet {
       barcode: "",
       price: 55,
       is_active: true,
+      import_action: "upsert",
     },
     {
       product_sku: "LATTE",
@@ -101,6 +107,16 @@ function buildVariantsSheet(): XLSX.WorkSheet {
       barcode: "",
       price: 70,
       is_active: true,
+      import_action: "upsert",
+    },
+    {
+      product_sku: "LATTE",
+      variant_name: "",
+      variant_sku: "LATTE-OLD",
+      barcode: "",
+      price: "",
+      is_active: false,
+      import_action: "cancel",
     },
   ];
   const sheet = XLSX.utils.json_to_sheet(rows, { header: [...PRODUCT_VARIANT_IMPORT_COLUMNS] });
@@ -134,6 +150,8 @@ function buildReadmeSheet(): XLSX.WorkSheet {
     ["SKU", "Optional for standalone products. Required when the product is referenced from Variants or Recipes."],
     ["Menu items", "Put sizes and selling prices in Variants. base_price can stay blank for menu items with sizes."],
     ["Recipes", "Optional. Missing recipes import as warnings only; profit and inventory deduction stay zero until recipes are added."],
+    ["Updating", "Upload the same SKU again with import_action upsert or update. Rows with no changes are reported as unchanged."],
+    ["Cancel", "Use import_action cancel or deactivate with product SKU or variant SKU. This disables the product/size; it does not delete history."],
     ["definition", "Optional. Blank means menu_item. Use ingredient, service, or retail_product only when needed."],
     ["base_price", "Unit cost for ingredients. For simple menu items without variants it can be the selling price."],
     ["Arabic headers", "Products: اسم المنتج، كود المنتج، التصنيف، التعريف، السعر، الباركود، الوحدة، تتبع المخزون."],
@@ -147,7 +165,7 @@ function buildOptionsSheet(): XLSX.WorkSheet {
   const rows = [
     ["field", "allowed_values"],
     ["definition", "menu_item, retail_product, ingredient, service"],
-    ["import_action", "upsert, create, update"],
+    ["import_action", "upsert, create, update, cancel, deactivate"],
     ["product_type", PRODUCT_TYPES.join(", ")],
     ["sales_unit_type", PRODUCT_SALES_UNIT_TYPES.join(", ")],
     ["unit/base_unit/sale_unit/cost_unit", MEASUREMENT_UNITS.join(", ")],

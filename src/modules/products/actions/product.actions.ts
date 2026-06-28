@@ -2,10 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCatalogRead, requireFeature, requirePermissionOrRole } from "@/lib/auth/guards";
+import { getOrgId } from "@/lib/repositories/organization.repository";
 import type { MeasurementUnit } from "@/lib/types";
 import type { CategoryInput, ProductInput } from "../services/product.service";
 import * as productService from "../services/product.service";
 import * as variantService from "../services/variant.service";
+
+const PRODUCT_IMAGE_BUCKET = "org-assets";
+const PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const PRODUCT_IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
 
 export async function listProductsAction(
   options?: Parameters<typeof productService.listProducts>[0]
@@ -38,6 +48,47 @@ export async function updateProductAction(id: string, input: Partial<ProductInpu
   return product;
 }
 
+export async function uploadProductImageAction(productId: string, formData: FormData) {
+  const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
+  const product = await productService.getProduct(productId);
+  if (!product) throw new Error("Product not found");
+
+  const file = formData.get("image");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Product image is required.");
+  }
+  if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+    throw new Error("Product image must be 5 MB or smaller.");
+  }
+
+  const ext = PRODUCT_IMAGE_EXTENSIONS[file.type];
+  if (!ext) {
+    throw new Error("Product image must be JPEG, PNG, WebP, or GIF.");
+  }
+
+  const orgId = await getOrgId();
+  const path = `${orgId}/public/products/${productId}-${Date.now()}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { getDb } = await import("@/lib/repositories/client");
+  const db = await getDb();
+  const { error: uploadError } = await db.storage.from(PRODUCT_IMAGE_BUCKET).upload(path, buffer, {
+    contentType: file.type,
+    cacheControl: "31536000",
+    upsert: false,
+  });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const {
+    data: { publicUrl },
+  } = db.storage.from(PRODUCT_IMAGE_BUCKET).getPublicUrl(path);
+
+  await productService.updateProduct(productId, { image_url: publicUrl }, user.id);
+  revalidatePath("/products");
+  revalidatePath("/pos");
+  revalidatePath("/menu", "layout");
+  return publicUrl;
+}
+
 export async function deleteProductAction(id: string) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   const ok = await productService.deleteProduct(id, user.id);
@@ -49,6 +100,7 @@ export async function createCategoryAction(input: CategoryInput) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   const category = await productService.createCategory(input, user.id);
   revalidatePath("/products");
+  revalidatePath("/menu", "layout");
   return category;
 }
 
@@ -56,6 +108,7 @@ export async function updateCategoryAction(id: string, input: Partial<CategoryIn
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   const category = await productService.updateCategory(id, input, user.id);
   revalidatePath("/products");
+  revalidatePath("/menu", "layout");
   return category;
 }
 
@@ -63,6 +116,7 @@ export async function deleteCategoryAction(id: string) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   const ok = await productService.deleteCategory(id, user.id);
   revalidatePath("/products");
+  revalidatePath("/menu", "layout");
   return ok;
 }
 
@@ -74,6 +128,7 @@ export type CafeMenuItemInput = {
   sku?: string;
   barcode?: string;
   description?: string;
+  image_url?: string | null;
   is_active?: boolean;
   is_popular?: boolean;
   ingredients: {
@@ -108,7 +163,7 @@ function buildCafeMenuProductInput(input: CafeMenuItemInput): ProductInput {
     name: input.name.trim(),
     sku,
     barcode,
-    image_url: null,
+    image_url: input.image_url ?? null,
     category_id: input.category_id,
     base_price: input.sale_price ?? 0,
     description: input.description?.trim() ?? "",

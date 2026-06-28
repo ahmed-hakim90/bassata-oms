@@ -42,25 +42,29 @@ function multiSheetWorkbookBuffer(input: {
   products: Record<string, unknown>[];
   variants?: Record<string, unknown>[];
   recipes?: Record<string, unknown>[];
+  variantSheetName?: string;
+  recipeSheetName?: string;
 }): ArrayBuffer {
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(
-    workbook,
-    XLSX.utils.json_to_sheet(input.products, { header: [...PRODUCT_IMPORT_SIMPLE_COLUMNS] }),
-    "Products"
-  );
+  if (input.products.length > 0) {
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(input.products, { header: [...PRODUCT_IMPORT_SIMPLE_COLUMNS] }),
+      "Products"
+    );
+  }
   if (input.variants) {
     XLSX.utils.book_append_sheet(
       workbook,
       XLSX.utils.json_to_sheet(input.variants),
-      "Variants"
+      input.variantSheetName ?? "Variants"
     );
   }
   if (input.recipes) {
     XLSX.utils.book_append_sheet(
       workbook,
       XLSX.utils.json_to_sheet(input.recipes),
-      "Recipes"
+      input.recipeSheetName ?? "Recipes"
     );
   }
   return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
@@ -232,6 +236,34 @@ describe("product import schema", () => {
         }),
       ])
     );
+  });
+
+  it("parses Arabic sizes sheet without requiring Products rows", () => {
+    const parsed = parseProductsXlsx(
+      multiSheetWorkbookBuffer({
+        products: [],
+        variantSheetName: "الأحجام",
+        variants: [
+          {
+            "كود المنتج": "TEA",
+            "الحجم": "كبير",
+            "كود الحجم": "TEA-L",
+            "سعر الحجم": 18,
+          },
+        ],
+      })
+    );
+
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.rows).toHaveLength(0);
+    expect(parsed.variants).toEqual([
+      expect.objectContaining({
+        product_sku: "TEA",
+        variant_name: "كبير",
+        variant_sku: "TEA-L",
+        price: "18",
+      }),
+    ]);
   });
 
   it("validates enum-backed product fields", () => {
@@ -489,6 +521,7 @@ describe("product import schema", () => {
             barcode: "",
             price: "45",
             is_active: "true",
+            import_action: "upsert",
           },
         ],
         recipes: [

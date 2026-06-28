@@ -93,6 +93,63 @@ export async function uploadOrganizationLogoAction(formData: FormData) {
   return publicUrl;
 }
 
+const STORE_LOGO_MAX_BYTES = 5 * 1024 * 1024;
+const STORE_LOGO_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
+export async function uploadStoreLogoAction(storeId: string, formData: FormData) {
+  const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
+  const store = (await listStores()).find((row) => row.id === storeId);
+  if (!store) throw new Error("Store not found");
+
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Branch logo file is required.");
+  }
+  if (file.size > STORE_LOGO_MAX_BYTES) {
+    throw new Error("Branch logo must be 5 MB or smaller.");
+  }
+
+  const ext = STORE_LOGO_EXTENSIONS[file.type];
+  if (!ext) {
+    throw new Error("Branch logo must be JPEG, PNG, WebP, or GIF.");
+  }
+
+  const orgId = await getOrgId();
+  const path = `${orgId}/public/stores/${storeId}-logo.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { getDb } = await import("@/lib/repositories/client");
+  const db = await getDb();
+  const { error: uploadError } = await db.storage.from("org-assets").upload(path, buffer, {
+    contentType: file.type,
+    cacheControl: "31536000",
+    upsert: true,
+  });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const {
+    data: { publicUrl },
+  } = db.storage.from("org-assets").getPublicUrl(path);
+
+  await updateStore(
+    storeId,
+    {
+      settings: {
+        ...store.settings,
+        online_menu_logo_url: publicUrl,
+      },
+    },
+    user.id
+  );
+  revalidatePath("/settings");
+  revalidatePath("/menu", "layout");
+  return publicUrl;
+}
+
 export async function updateReceiptHeaderAction(text: string) {
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   await upsertSetting("receipt_header", { text }, user.id);

@@ -16,6 +16,7 @@ import {
   deleteDeviceAction,
   generateDevicePairingCodeAction,
   setDefaultWarehouseAction,
+  uploadStoreLogoAction,
   updateStoreAction,
   updateWarehouseAction,
   updateDeviceAction,
@@ -38,6 +39,11 @@ function storeEditDefaults(store: Store) {
 function getOnlineMenuSlug(store: Store): string {
   const slug = store.settings.online_menu_slug;
   return typeof slug === "string" ? slug : "";
+}
+
+function getOnlineMenuLogoUrl(store: Store): string {
+  const logoUrl = store.settings.online_menu_logo_url;
+  return typeof logoUrl === "string" ? logoUrl : "";
 }
 
 interface BranchSettingsTabProps {
@@ -64,6 +70,9 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
   });
   const [storeEdits, setStoreEdits] = useState(
     Object.fromEntries(stores.map((s) => [s.id, storeEditDefaults(s)]))
+  );
+  const [storeLogoUrls, setStoreLogoUrls] = useState(
+    Object.fromEntries(stores.map((s) => [s.id, getOnlineMenuLogoUrl(s)]))
   );
   const [warehouseEdits, setWarehouseEdits] = useState(
     Object.fromEntries(
@@ -102,6 +111,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
             const storeDevices = devices.filter((d) => d.store_id === store.id);
             const onlineMenuSlug = getOnlineMenuSlug(store);
             const onlineMenuHref = onlineMenuSlug ? `/menu/${onlineMenuSlug}` : "";
+            const logoUrl = storeLogoUrls[store.id] ?? getOnlineMenuLogoUrl(store);
 
             return (
               <div
@@ -109,9 +119,23 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                 className="grid gap-4 rounded-xl border border-border/60 p-4"
               >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-semibold">{store.name}</p>
-                    <p className="text-xs text-muted-foreground">فرع · مخازن · أجهزة كاشير</p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    {logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={logoUrl}
+                        alt={`لوجو ${store.name}`}
+                        className="size-12 shrink-0 rounded-2xl border border-border/60 object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold text-primary">
+                        {store.name.slice(0, 1)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold">{store.name}</p>
+                      <p className="text-xs text-muted-foreground">فرع · مخازن · أجهزة كاشير</p>
+                    </div>
                   </div>
                   {onlineMenuHref ? (
                     <Button
@@ -134,6 +158,34 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                 ) : null}
 
                 <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1 md:col-span-2">
+                    <Label className="text-xs text-muted-foreground">لوجو الفرع للمنيو</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      disabled={pending}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        startTransition(async () => {
+                          try {
+                            const formData = new FormData();
+                            formData.set("logo", file);
+                            const url = await uploadStoreLogoAction(store.id, formData);
+                            setStoreLogoUrls((current) => ({ ...current, [store.id]: url }));
+                            toast.success("تم رفع لوجو الفرع");
+                          } catch (error) {
+                            toast.error(error instanceof Error ? error.message : "فشل رفع لوجو الفرع");
+                          } finally {
+                            event.target.value = "";
+                          }
+                        });
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      سيظهر هذا اللوجو في رأس منيو الأونلاين لهذا الفرع بدل لوجو المتجر العام.
+                    </p>
+                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">اسم الفرع</Label>
                     <Input

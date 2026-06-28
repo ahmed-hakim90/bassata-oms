@@ -45,6 +45,7 @@ type Props = {
   activityType: BusinessActivityType;
   onSubmit: (values: ProductFormValues) => void | Promise<void>;
   onCancel: () => void;
+  onImageFileChange?: (file: File | null) => void;
   onApplyActivityTemplate?: (
     productType: ProductFormValues["product_type"],
     salesUnitType?: ProductFormValues["sales_unit_type"]
@@ -72,6 +73,7 @@ export function GuidedProductDetailsForm({
   activityType,
   onSubmit,
   onCancel,
+  onImageFileChange,
   onApplyActivityTemplate,
 }: Props) {
   const [step, setStep] = useState(1);
@@ -216,14 +218,27 @@ export function GuidedProductDetailsForm({
               />
             </SweetFormField>
           </div>
-          <SweetFormField id="image_url" label="رابط صورة المنتج" error={errors.image_url?.message}>
-            <Input
-              id="image_url"
-              aria-invalid={!!errors.image_url}
-              value={values.image_url ?? ""}
-              onChange={(e) => form.setValue("image_url", e.target.value || null)}
-              placeholder="https://example.com/image.jpg"
-            />
+          <SweetFormField
+            id="image_upload"
+            label="صورة المنتج"
+            hint="ارفع صورة من الجهاز. يمكن أيضاً استخدام رابط صورة مباشر."
+            error={errors.image_url?.message}
+          >
+            <div className="grid gap-2">
+              <Input
+                id="image_upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(e) => onImageFileChange?.(e.target.files?.[0] ?? null)}
+              />
+              <Input
+                id="image_url"
+                aria-invalid={!!errors.image_url}
+                value={values.image_url ?? ""}
+                onChange={(e) => form.setValue("image_url", e.target.value || null)}
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
           </SweetFormField>
         </div>
       ) : null}
@@ -240,7 +255,6 @@ export function GuidedProductDetailsForm({
                 <button
                   key={item.id}
                   type="button"
-                  aria-invalid={!!errors.product_type}
                   className={`rounded-xl border p-3 text-left ${values.product_type === item.id ? "border-primary bg-primary/10" : "border-border/60"} ${errors.product_type ? "border-destructive ring-3 ring-destructive/20" : ""}`}
                   onClick={() => {
                     form.setValue("product_type", item.id, { shouldValidate: true });

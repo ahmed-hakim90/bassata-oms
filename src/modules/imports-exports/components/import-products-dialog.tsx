@@ -64,6 +64,7 @@ export function ImportProductsDialog({
   const [fileName, setFileName] = useState<string | null>(null);
   const [stage, setStage] = useState<ImportStage>("idle");
   const [progress, setProgress] = useState(0);
+  const [importSummary, setImportSummary] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const progressLabel =
@@ -87,6 +88,7 @@ export function ImportProductsDialog({
     setParsed(null);
     setErrors([]);
     setWarnings([]);
+    setImportSummary(null);
     setStage("reading");
     setProgress(15);
     const buffer = await file.arrayBuffer();
@@ -111,7 +113,7 @@ export function ImportProductsDialog({
   }
 
   async function handleImport() {
-    if (!parsed || parsed.rows.length === 0) return;
+    if (!parsed || parsed.rows.length + parsed.variants.length + parsed.recipes.length === 0) return;
     setStage("importing");
     setProgress(65);
     startTransition(async () => {
@@ -119,17 +121,21 @@ export function ImportProductsDialog({
         const result = await importProductsAction(parsed);
         setProgress(100);
         setStage("imported");
-        toast.success(
-          `Imported ${result.imported.length}, updated ${result.updated.length}, variants ${result.variantsImported.length + result.variantsUpdated.length}, recipes ${result.recipeGroupsImported}`
-        );
-        onOpenChange(false);
-        setParsed(null);
-        setErrors([]);
-        setWarnings([]);
-        setFileName(null);
-        setProgress(0);
-        setStage("idle");
+        const summary = `Added ${result.imported.length}, updated ${result.updated.length}, unchanged ${result.unchanged.length}, variants changed ${result.variantsImported.length + result.variantsUpdated.length}, variants unchanged ${result.variantsUnchanged.length}, skipped ${result.skipped}`;
+        setImportSummary(summary);
+        setWarnings(result.warnings);
+        toast.success(summary);
         onImported?.();
+        if (result.warnings.length === 0 && result.skipped === 0) {
+          onOpenChange(false);
+          setParsed(null);
+          setErrors([]);
+          setWarnings([]);
+          setImportSummary(null);
+          setFileName(null);
+          setProgress(0);
+          setStage("idle");
+        }
       } catch {
         setStage("ready");
         setProgress(100);
@@ -224,6 +230,12 @@ export function ImportProductsDialog({
             </div>
           ) : null}
 
+          {importSummary ? (
+            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+              {importSummary}
+            </p>
+          ) : null}
+
           {errors.length > 0 ? (
             <ul className="max-h-32 overflow-auto text-xs text-amber-800 dark:text-amber-200">
               {errors.slice(0, 8).map((e, i) => (
@@ -250,10 +262,15 @@ export function ImportProductsDialog({
             Cancel
           </Button>
           <Button
-            disabled={pending || !parsed || parsed.rows.length === 0 || errors.length > 0}
+            disabled={
+              pending ||
+              !parsed ||
+              parsed.rows.length + parsed.variants.length + parsed.recipes.length === 0 ||
+              errors.length > 0
+            }
             onClick={handleImport}
           >
-            Import {parsed ? parsed.rows.length : ""} products
+            Import {parsed ? parsed.rows.length + parsed.variants.length : ""} rows
           </Button>
         </DialogFooter>
       </DialogContent>

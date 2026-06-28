@@ -23,6 +23,7 @@ import { nextSequentialProductSku } from "@/modules/products/lib/generate-produc
 import {
   createCafeIngredientAction,
   saveCafeMenuItemAction,
+  uploadProductImageAction,
   type CafeMenuItemInput,
 } from "@/modules/products/actions/product.actions";
 import { VariantEditor } from "@/modules/products/components/variant-editor";
@@ -98,7 +99,9 @@ function CafeMenuItemDialogContent({
     category_id: product?.category_id ?? categories[0]?.id ?? "",
     sku: initialSku,
     barcode: product?.barcode ?? initialSku,
+    image_url: product?.image_url ?? null,
   }));
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [availableIngredients, setAvailableIngredients] = useState(ingredients);
   const [newIngredient, setNewIngredient] = useState({
     name: "",
@@ -109,6 +112,7 @@ function CafeMenuItemDialogContent({
   const [variantDrafts, setVariantDrafts] = useState<NewVariantDraft[]>([
     emptyVariant(1),
   ]);
+  const [expandedVariantKey, setExpandedVariantKey] = useState<string | null>(null);
 
   const ingredientMap = useMemo(
     () => new Map(availableIngredients.map((ingredient) => [ingredient.id, ingredient])),
@@ -218,8 +222,14 @@ function CafeMenuItemDialogContent({
           category_id: draft.category_id,
           sku: draft.sku,
           barcode: draft.barcode,
+          image_url: draft.image_url,
           ingredients: [],
           variants: validVariants,
+        }).then(async (savedProduct) => {
+          if (!imageFile) return;
+          const formData = new FormData();
+          formData.append("image", imageFile);
+          await uploadProductImageAction(savedProduct.id, formData);
         });
         toast.success(isEdit ? "Menu item updated" : "Menu item created");
         onOpenChange(false);
@@ -347,6 +357,33 @@ function CafeMenuItemDialogContent({
                   </Select>
                 </SweetFormField>
               </div>
+
+              <SweetFormField
+                id="menu_item_image"
+                label="صورة الصنف"
+                hint="ارفع صورة من الجهاز أو اترك الرابط الحالي كما هو."
+              >
+                <div className="grid gap-2">
+                  <Input
+                    id="menu_item_image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+                  />
+                  {draft.image_url ? (
+                    <Input
+                      value={draft.image_url}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          image_url: event.target.value || null,
+                        }))
+                      }
+                      placeholder="رابط الصورة الحالي"
+                    />
+                  ) : null}
+                </div>
+              </SweetFormField>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm">
@@ -554,18 +591,38 @@ function CafeMenuItemDialogContent({
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-muted-foreground">مكونات هذا الحجم</p>
+                        <p className="text-xs font-medium text-muted-foreground">
+                          {variant.ingredients.filter((line) => line.ingredient_product_id).length > 0
+                            ? `${variant.ingredients.filter((line) => line.ingredient_product_id).length} مكونات`
+                            : "مكونات اختيارية"}
+                        </p>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
+                          onClick={() =>
+                            setExpandedVariantKey((current) =>
+                              current === variant.key ? null : variant.key
+                            )
+                          }
+                        >
+                          <Plus className="size-4" />
+                          {expandedVariantKey === variant.key ? "إخفاء المكونات" : "فتح المكونات"}
+                        </Button>
+                      </div>
+                      {expandedVariantKey === variant.key ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start"
                           onClick={() => addVariantLine(variantIndex)}
                         >
                           <Plus className="size-4" />
-                          Add ingredient
+                          إضافة مكون
                         </Button>
-                      </div>
-                      {variant.ingredients.map((line, lineIndex) => (
+                      ) : null}
+                      {expandedVariantKey === variant.key ? variant.ingredients.map((line, lineIndex) => (
                         <div
                           key={`${variant.key}-${lineIndex}`}
                           className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-[1fr_120px_140px_auto]"
@@ -658,7 +715,7 @@ function CafeMenuItemDialogContent({
                             </Button>
                           </div>
                         </div>
-                      ))}
+                      )) : null}
                     </div>
                   </div>
                 ))}
