@@ -9,7 +9,12 @@ import {
   PRODUCT_TYPES,
   SHELF_LIFE_UNITS,
 } from "@/lib/constants";
-import { PRODUCT_IMPORT_COLUMNS, PRODUCT_IMPORT_SIMPLE_COLUMNS } from "./import.service";
+import {
+  PRODUCT_IMPORT_COLUMNS,
+  PRODUCT_IMPORT_SIMPLE_COLUMNS,
+  PRODUCT_RECIPE_IMPORT_COLUMNS,
+  PRODUCT_VARIANT_IMPORT_COLUMNS,
+} from "./import.service";
 
 async function categoryName(categoryId: string): Promise<string> {
   const categories = await productService.listCategories();
@@ -21,17 +26,17 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
   const sample = [
     {
       name: "Latte",
-      sku: "",
+      sku: "LATTE",
       category: "Hot drinks",
       definition: "menu_item",
-      base_price: 65,
+      base_price: "",
       barcode: "",
       unit: "piece",
       track_inventory: false,
     },
     {
       name: "Milk",
-      sku: "",
+      sku: "MILK",
       category: "Ingredients",
       definition: "ingredient",
       base_price: 38,
@@ -40,34 +45,100 @@ export function buildProductsTemplateWorkbook(): ArrayBuffer {
       track_inventory: true,
     },
     {
-      name: "Delivery Service",
-      sku: "",
-      category: "Services",
-      definition: "service",
-      base_price: 20,
+      name: "Espresso Shot",
+      sku: "ESPRESSO",
+      category: "Ingredients",
+      definition: "ingredient",
+      base_price: 160,
+      barcode: "",
+      unit: "kg",
+      track_inventory: true,
+    },
+    {
+      name: "Paper Cup",
+      sku: "CUP-12",
+      category: "Packaging",
+      definition: "ingredient",
+      base_price: 1.25,
       barcode: "",
       unit: "piece",
-      track_inventory: false,
+      track_inventory: true,
     },
   ];
   const sheet = XLSX.utils.json_to_sheet(sample, { header });
   sheet["!cols"] = header.map((name) => ({ wch: Math.max(name.length + 2, 16) }));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Products");
+  XLSX.utils.book_append_sheet(workbook, buildVariantsSheet(), "Variants");
+  XLSX.utils.book_append_sheet(workbook, buildRecipesSheet(), "Recipes");
   XLSX.utils.book_append_sheet(workbook, buildReadmeSheet(), "README");
   XLSX.utils.book_append_sheet(workbook, buildOptionsSheet(), "Options");
   return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
 }
 
+function buildVariantsSheet(): XLSX.WorkSheet {
+  const rows = [
+    {
+      product_sku: "LATTE",
+      variant_name: "Small",
+      variant_sku: "LATTE-S",
+      barcode: "",
+      price: 45,
+      is_active: true,
+    },
+    {
+      product_sku: "LATTE",
+      variant_name: "Medium",
+      variant_sku: "LATTE-M",
+      barcode: "",
+      price: 55,
+      is_active: true,
+    },
+    {
+      product_sku: "LATTE",
+      variant_name: "Large",
+      variant_sku: "LATTE-L",
+      barcode: "",
+      price: 70,
+      is_active: true,
+    },
+  ];
+  const sheet = XLSX.utils.json_to_sheet(rows, { header: [...PRODUCT_VARIANT_IMPORT_COLUMNS] });
+  sheet["!cols"] = PRODUCT_VARIANT_IMPORT_COLUMNS.map((name) => ({
+    wch: Math.max(name.length + 2, 16),
+  }));
+  return sheet;
+}
+
+function buildRecipesSheet(): XLSX.WorkSheet {
+  const rows = [
+    { product_sku: "LATTE", variant_sku: "LATTE-S", ingredient_sku: "MILK", quantity: 0.18, unit: "liter" },
+    { product_sku: "LATTE", variant_sku: "LATTE-S", ingredient_sku: "ESPRESSO", quantity: 0.018, unit: "kg" },
+    { product_sku: "LATTE", variant_sku: "LATTE-S", ingredient_sku: "CUP-12", quantity: 1, unit: "piece" },
+    { product_sku: "LATTE", variant_sku: "LATTE-M", ingredient_sku: "MILK", quantity: 0.24, unit: "liter" },
+    { product_sku: "LATTE", variant_sku: "LATTE-M", ingredient_sku: "ESPRESSO", quantity: 0.022, unit: "kg" },
+    { product_sku: "LATTE", variant_sku: "LATTE-M", ingredient_sku: "CUP-12", quantity: 1, unit: "piece" },
+  ];
+  const sheet = XLSX.utils.json_to_sheet(rows, { header: [...PRODUCT_RECIPE_IMPORT_COLUMNS] });
+  sheet["!cols"] = PRODUCT_RECIPE_IMPORT_COLUMNS.map((name) => ({
+    wch: Math.max(name.length + 2, 18),
+  }));
+  return sheet;
+}
+
 function buildReadmeSheet(): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet([
     ["CafeFlow simple product import template"],
-    ["Use the Products sheet for upload. Keep the header row unchanged."],
+    ["Use Products, Variants, and Recipes sheets. Keep header rows unchanged."],
     ["Required columns", "name"],
-    ["SKU", "Optional. Leave blank and CafeFlow will generate one."],
-    ["base_price", "The selling price for menu items/services, or unit cost for ingredients."],
-    ["definition", "menu_item, ingredient, service, or retail_product."],
-    ["Arabic headers", "اسم المنتج، كود المنتج، التصنيف، التعريف، السعر، الباركود، الوحدة، تتبع المخزون."],
+    ["SKU", "Optional for standalone products. Required when the product is referenced from Variants or Recipes."],
+    ["Menu items", "Put sizes and selling prices in Variants. base_price can stay blank for menu items with sizes."],
+    ["Recipes", "Optional. Missing recipes import as warnings only; profit and inventory deduction stay zero until recipes are added."],
+    ["definition", "Optional. Blank means menu_item. Use ingredient, service, or retail_product only when needed."],
+    ["base_price", "Unit cost for ingredients. For simple menu items without variants it can be the selling price."],
+    ["Arabic headers", "Products: اسم المنتج، كود المنتج، التصنيف، التعريف، السعر، الباركود، الوحدة، تتبع المخزون."],
+    ["Arabic headers", "Variants: كود المنتج، الحجم، كود الحجم، سعر الحجم، الباركود، نشط."],
+    ["Arabic headers", "Recipes: كود المنتج، كود الحجم، كود المكون، الكمية، الوحدة."],
     ["Advanced columns", "Existing full templates and exports are still supported."],
   ]);
 }

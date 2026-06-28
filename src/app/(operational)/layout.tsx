@@ -29,8 +29,8 @@ export default async function OperationalLayout({
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
         <AccessDenied
-          title="POS not available"
-          description="Your role cannot use the register. Use the dashboard and allowed modules from the menu."
+          title="نقطة البيع غير متاحة"
+          description="دورك لا يسمح باستخدام الكاشير. استخدم لوحة التحكم والموديولات المسموحة من المنيو."
         />
       </div>
     );

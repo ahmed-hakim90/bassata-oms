@@ -47,22 +47,22 @@ export async function DashboardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Dashboard"
-        description={`${org.name} — today&apos;s sales, inventory, and cashier pulse`}
+        title="لوحة التحكم"
+        description={`${org.name} - مبيعات اليوم والمخزون ونشاط الكاشير`}
       />
       <div className="grid gap-4 rounded-2xl border border-border/60 bg-gradient-to-br from-primary/5 via-transparent to-sky-500/5 p-6 md:grid-cols-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Today
+            اليوم
           </p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">
             {formatCurrency(stats.todaySales, org.currency)}
           </p>
-          <p className="text-sm text-muted-foreground">{stats.todayOrders} orders</p>
+          <p className="text-sm text-muted-foreground">{stats.todayOrders} طلب</p>
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Avg ticket
+            متوسط الفاتورة
           </p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">
             {formatCurrency(stats.avgTicket, org.currency)}
@@ -70,26 +70,26 @@ export async function DashboardPage() {
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Attention
+            يحتاج متابعة
           </p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{lowStock.length}</p>
-          <p className="text-sm text-muted-foreground">SKUs below reorder</p>
+          <p className="text-sm text-muted-foreground">أصناف تحت حد إعادة الطلب</p>
         </div>
       </div>
       <QuickActionsBar />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard
-          label="Today's sales"
+          label="مبيعات اليوم"
           value={formatCurrency(stats.todaySales, org.currency)}
         />
         <KpiCard
-          label="Net profit estimate"
+          label="تقدير صافي الربح"
           value={formatCurrency(grossProfit, org.currency)}
         />
-        <KpiCard label="Inventory value" value={formatCurrency(inventoryValue, org.currency)} />
-        <KpiCard label="Open sessions" value={String(activeSessions.length)} />
-        <KpiCard label="Low stock" value={String(lowStock.length)} />
-        <KpiCard label="Near expiry" value={String(nearExpiryCount)} />
+        <KpiCard label="قيمة المخزون" value={formatCurrency(inventoryValue, org.currency)} />
+        <KpiCard label="الجلسات المفتوحة" value={String(activeSessions.length)} />
+        <KpiCard label="مخزون منخفض" value={String(lowStock.length)} />
+        <KpiCard label="قريب من الانتهاء" value={String(nearExpiryCount)} />
       </div>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

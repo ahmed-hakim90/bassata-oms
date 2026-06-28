@@ -56,6 +56,16 @@ async function enrichPurchase(invoice: PurchaseInvoice): Promise<PurchaseWithLin
   };
 }
 
+async function assertWarehouseBelongsToStore(
+  warehouseId: string,
+  storeId: string
+): Promise<void> {
+  const warehouse = await warehouseRepo.getWarehouse(warehouseId);
+  if (!warehouse || warehouse.store_id !== storeId || !warehouse.is_active) {
+    throw new Error("Warehouse does not belong to the selected store");
+  }
+}
+
 export async function listPurchases(storeId?: string): Promise<PurchaseWithLines[]> {
   const invoices = await purchaseRepo.listPurchases(storeId);
   return Promise.all(invoices.map(enrichPurchase));
@@ -76,6 +86,7 @@ export async function createDraftPurchase(input: {
   createdBy: string;
 }): Promise<PurchaseInvoice> {
   await assertPeriodOpen(input.storeId);
+  await assertWarehouseBelongsToStore(input.warehouseId, input.storeId);
   const invoice = await purchaseRepo.insertPurchase(
     {
       store_id: input.storeId,

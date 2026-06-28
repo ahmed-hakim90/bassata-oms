@@ -12,7 +12,7 @@ export default async function PrintSalesReportPage({
   return (
     <PrintableDocument
       branding={data.context}
-      title="Sales Report"
+      title="تقرير المبيعات"
       dateRange={data.context.filterSummary}
       generatedBy={data.context.generatedBy}
       generatedAt={data.context.generatedAt}
@@ -21,17 +21,17 @@ export default async function PrintSalesReportPage({
       <table className="w-full text-sm">
         <tbody>
           <tr>
-            <td className="py-1 font-medium">Revenue</td>
+            <td className="py-1 font-medium">الإيراد</td>
             <td className="py-1 text-end">
               {formatCurrency(data.summary?.totalRevenue ?? 0, data.currency)}
             </td>
           </tr>
           <tr>
-            <td className="py-1 font-medium">Orders</td>
+            <td className="py-1 font-medium">الطلبات</td>
             <td className="py-1 text-end">{data.summary?.orderCount ?? 0}</td>
           </tr>
           <tr>
-            <td className="py-1 font-medium">Average order</td>
+            <td className="py-1 font-medium">متوسط الطلب</td>
             <td className="py-1 text-end">
               {formatCurrency(data.summary?.avgOrderValue ?? 0, data.currency)}
             </td>

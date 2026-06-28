@@ -105,7 +105,6 @@ export async function getOnlineMenuBySlug(slug: string): Promise<OnlineMenuData 
     .eq("is_active", true)
     .eq("product_type", "finished")
     .eq("inventory_product_type", "finished_product")
-    .gt("base_price", 0)
     .order("is_popular", { ascending: false })
     .order("name", { ascending: true });
 
@@ -155,15 +154,20 @@ export async function getOnlineMenuBySlug(slug: string): Promise<OnlineMenuData 
       color: category.color,
       icon: category.icon,
     })),
-    items: (productRows ?? []).map((product) => ({
-      id: product.id,
-      categoryId: product.category_id,
-      name: product.name,
-      description: product.description,
-      imageUrl: product.image_url,
-      price: num(product.sale_price ?? product.base_price),
-      isPopular: product.is_popular,
-      variants: variantsByProduct.get(product.id) ?? [],
-    })),
+    items: (productRows ?? [])
+      .map((product) => {
+        const variants = variantsByProduct.get(product.id) ?? [];
+        return {
+          id: product.id,
+          categoryId: product.category_id,
+          name: product.name,
+          description: product.description,
+          imageUrl: product.image_url,
+          price: num(product.sale_price ?? product.base_price),
+          isPopular: product.is_popular,
+          variants,
+        };
+      })
+      .filter((item) => item.price > 0 || item.variants.some((variant) => variant.price > 0)),
   };
 }

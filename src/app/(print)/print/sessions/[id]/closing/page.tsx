@@ -10,16 +10,16 @@ export default async function PrintSessionClosingPage({
   const { id } = await params;
   const data = await getSessionClosingData(id);
   const rows = [
-    ["Opening cash", data.reconciliation.openingCash],
-    ["Cash sales", data.reconciliation.cashSales],
-    ["Card sales", data.reconciliation.cardSales],
-    ["Wallet sales", data.reconciliation.walletSales],
-    ["Credit sales", data.reconciliation.creditSales],
-    ["Cash refunds", data.reconciliation.cashRefunds],
-    ["Expenses", data.reconciliation.expenses],
-    ["Expected cash", data.reconciliation.expectedCash],
-    ["Actual cash", data.actualCash ?? 0],
-    ["Variance", data.variance ?? 0],
+    ["رصيد الافتتاح", data.reconciliation.openingCash],
+    ["مبيعات نقدية", data.reconciliation.cashSales],
+    ["مبيعات كارت", data.reconciliation.cardSales],
+    ["مبيعات محفظة", data.reconciliation.walletSales],
+    ["مبيعات آجلة", data.reconciliation.creditSales],
+    ["مرتجعات نقدية", data.reconciliation.cashRefunds],
+    ["المصروفات", data.reconciliation.expenses],
+    ["النقدية المتوقعة", data.reconciliation.expectedCash],
+    ["النقدية الفعلية", data.actualCash ?? 0],
+    ["الفرق", data.variance ?? 0],
   ] as const;
 
   return (
@@ -34,7 +34,7 @@ export default async function PrintSessionClosingPage({
         receiptHeader: null,
         receiptFooter: null,
       }}
-      title="Session Closing Report"
+      title="تقرير إغلاق الجلسة"
       subtitle={`${data.cashierName} · ${formatDateTime(data.session.opened_at)}`}
       generatedBy={data.generatedBy}
       generatedAt={data.generatedAt}

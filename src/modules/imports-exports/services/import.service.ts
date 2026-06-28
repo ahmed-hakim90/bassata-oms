@@ -1,5 +1,7 @@
 import * as XLSX from "xlsx";
 import * as productService from "@/modules/products/services/product.service";
+import * as recipeService from "@/modules/products/services/recipe.service";
+import * as variantService from "@/modules/products/services/variant.service";
 import * as importRepo from "@/lib/repositories/import.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -13,7 +15,7 @@ import {
   PRODUCT_TYPES,
   SHELF_LIFE_UNITS,
 } from "@/lib/constants";
-import type { Product } from "@/lib/types";
+import type { MeasurementUnit, Product, ProductVariant } from "@/lib/types";
 
 export const PRODUCT_IMPORT_COLUMNS = [
   "name",
@@ -59,7 +61,26 @@ export const PRODUCT_IMPORT_SIMPLE_COLUMNS = [
   "track_inventory",
 ] as const;
 
+export const PRODUCT_VARIANT_IMPORT_COLUMNS = [
+  "product_sku",
+  "variant_name",
+  "variant_sku",
+  "barcode",
+  "price",
+  "is_active",
+] as const;
+
+export const PRODUCT_RECIPE_IMPORT_COLUMNS = [
+  "product_sku",
+  "variant_sku",
+  "ingredient_sku",
+  "quantity",
+  "unit",
+] as const;
+
 export type ProductImportRow = Record<(typeof PRODUCT_IMPORT_COLUMNS)[number], string>;
+export type ProductVariantImportRow = Record<(typeof PRODUCT_VARIANT_IMPORT_COLUMNS)[number], string>;
+export type ProductRecipeImportRow = Record<(typeof PRODUCT_RECIPE_IMPORT_COLUMNS)[number], string>;
 
 export interface ImportValidationError {
   row: number;
@@ -69,7 +90,10 @@ export interface ImportValidationError {
 
 export interface ParsedImportResult {
   rows: ProductImportRow[];
+  variants: ProductVariantImportRow[];
+  recipes: ProductRecipeImportRow[];
   errors: ImportValidationError[];
+  warnings: ImportValidationError[];
 }
 
 const IMPORT_ACTIONS = ["upsert", "create", "update"] as const;
@@ -136,6 +160,56 @@ const HEADER_ALIASES: Record<string, (typeof PRODUCT_IMPORT_COLUMNS)[number]> = 
   "وحدة_البيع": "unit",
   track_stock: "track_inventory",
   "تتبع_المخزون": "track_inventory",
+};
+
+const VARIANT_HEADER_ALIASES: Record<string, (typeof PRODUCT_VARIANT_IMPORT_COLUMNS)[number]> = {
+  product_code: "product_sku",
+  product_sku: "product_sku",
+  item_code: "product_sku",
+  "كود_المنتج": "product_sku",
+  "كود_الصنف": "product_sku",
+  variant: "variant_name",
+  size: "variant_name",
+  size_name: "variant_name",
+  variant_name: "variant_name",
+  "الحجم": "variant_name",
+  "اسم_الحجم": "variant_name",
+  variant_code: "variant_sku",
+  variant_sku: "variant_sku",
+  size_code: "variant_sku",
+  "كود_الحجم": "variant_sku",
+  barcode: "barcode",
+  "باركود": "barcode",
+  price: "price",
+  fixed_price: "price",
+  variant_price: "price",
+  "السعر": "price",
+  "سعر": "price",
+  "سعر_الحجم": "price",
+  active: "is_active",
+  is_active: "is_active",
+  "نشط": "is_active",
+};
+
+const RECIPE_HEADER_ALIASES: Record<string, (typeof PRODUCT_RECIPE_IMPORT_COLUMNS)[number]> = {
+  product_code: "product_sku",
+  product_sku: "product_sku",
+  item_code: "product_sku",
+  "كود_المنتج": "product_sku",
+  "كود_الصنف": "product_sku",
+  variant_code: "variant_sku",
+  variant_sku: "variant_sku",
+  size_code: "variant_sku",
+  "كود_الحجم": "variant_sku",
+  ingredient_code: "ingredient_sku",
+  ingredient_sku: "ingredient_sku",
+  component_sku: "ingredient_sku",
+  "كود_المكون": "ingredient_sku",
+  quantity: "quantity",
+  qty: "quantity",
+  "الكمية": "quantity",
+  unit: "unit",
+  "الوحدة": "unit",
 };
 
 type DefinitionDefaults = Partial<
@@ -212,6 +286,16 @@ function normalizeHeader(value: string): string {
   return HEADER_ALIASES[normalized] ?? normalized;
 }
 
+function normalizeVariantHeader(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "_");
+  return VARIANT_HEADER_ALIASES[normalized] ?? normalized;
+}
+
+function normalizeRecipeHeader(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "_");
+  return RECIPE_HEADER_ALIASES[normalized] ?? normalized;
+}
+
 function valueOrDefault(value: string | undefined, fallback: string): string {
   return value?.trim() ? value : fallback;
 }
@@ -228,7 +312,7 @@ function definitionKey(value: string): keyof typeof PRODUCT_DEFINITION_DEFAULTS 
 
 function definitionDefaults(value: string): DefinitionDefaults {
   const key = definitionKey(value);
-  return key ? PRODUCT_DEFINITION_DEFAULTS[key] : {};
+  return key ? PRODUCT_DEFINITION_DEFAULTS[key] : PRODUCT_DEFINITION_DEFAULTS.menu_item;
 }
 
 function salesUnitTypeForUnit(unit: string): ProductImportRow["sales_unit_type"] {
@@ -239,7 +323,10 @@ function salesUnitTypeForUnit(unit: string): ProductImportRow["sales_unit_type"]
 
 export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
   const workbook = XLSX.read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const productsSheetName = workbook.SheetNames.find(
+    (name) => name.trim().toLowerCase() === "products"
+  ) ?? workbook.SheetNames[0];
+  const sheet = workbook.Sheets[productsSheetName];
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
 
   const rows: ProductImportRow[] = raw.map((row) => {
@@ -300,7 +387,59 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
     };
   });
 
-  return { rows, errors: validateProductRows(rows) };
+  const variants = parseVariantSheet(workbook);
+  const recipes = parseRecipeSheet(workbook);
+  const errors = [
+    ...validateProductRows(rows),
+    ...validateVariantRows(variants),
+    ...validateRecipeRows(recipes),
+  ];
+  const warnings = buildImportWarnings(rows, variants, recipes);
+
+  return { rows, variants, recipes, errors, warnings };
+}
+
+function parseVariantSheet(workbook: XLSX.WorkBook): ProductVariantImportRow[] {
+  const sheetName = workbook.SheetNames.find((name) => name.trim().toLowerCase() === "variants");
+  if (!sheetName) return [];
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], {
+    defval: "",
+  });
+  return raw.map((row) => {
+    const normalized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(row)) {
+      normalized[normalizeVariantHeader(key)] = String(value ?? "").trim();
+    }
+    return {
+      product_sku: normalized.product_sku ?? "",
+      variant_name: normalized.variant_name ?? "",
+      variant_sku: normalized.variant_sku ?? "",
+      barcode: normalized.barcode ?? "",
+      price: normalized.price ?? "",
+      is_active: valueOrDefault(normalized.is_active, "true"),
+    };
+  });
+}
+
+function parseRecipeSheet(workbook: XLSX.WorkBook): ProductRecipeImportRow[] {
+  const sheetName = workbook.SheetNames.find((name) => name.trim().toLowerCase() === "recipes");
+  if (!sheetName) return [];
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], {
+    defval: "",
+  });
+  return raw.map((row) => {
+    const normalized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(row)) {
+      normalized[normalizeRecipeHeader(key)] = String(value ?? "").trim();
+    }
+    return {
+      product_sku: normalized.product_sku ?? "",
+      variant_sku: normalized.variant_sku ?? "",
+      ingredient_sku: normalized.ingredient_sku ?? "",
+      quantity: normalized.quantity ?? "",
+      unit: valueOrDefault(normalized.unit, "piece"),
+    };
+  });
 }
 
 export function validateProductRows(rows: ProductImportRow[]): ImportValidationError[] {
@@ -401,11 +540,107 @@ export function validateProductRows(rows: ProductImportRow[]): ImportValidationE
   return errors;
 }
 
+export function validateVariantRows(rows: ProductVariantImportRow[]): ImportValidationError[] {
+  const errors: ImportValidationError[] = [];
+  const variantSkuSet = new Set<string>();
+
+  rows.forEach((row, index) => {
+    const rowNum = index + 2;
+    if (!row.product_sku) {
+      errors.push({ row: rowNum, field: "product_sku", message: "Product SKU is required" });
+    }
+    if (!row.variant_name) {
+      errors.push({ row: rowNum, field: "variant_name", message: "Variant name is required" });
+    }
+    const price = Number(row.price);
+    if (!row.price || Number.isNaN(price) || price < 0) {
+      errors.push({ row: rowNum, field: "price", message: "Valid variant price is required" });
+    }
+    if (row.variant_sku) {
+      const key = `${row.product_sku.toLowerCase()}::${row.variant_sku.toLowerCase()}`;
+      if (variantSkuSet.has(key)) {
+        errors.push({ row: rowNum, field: "variant_sku", message: "Duplicate variant SKU in file" });
+      }
+      variantSkuSet.add(key);
+    }
+  });
+
+  return errors;
+}
+
+export function validateRecipeRows(rows: ProductRecipeImportRow[]): ImportValidationError[] {
+  const errors: ImportValidationError[] = [];
+
+  rows.forEach((row, index) => {
+    const rowNum = index + 2;
+    if (!row.product_sku) {
+      errors.push({ row: rowNum, field: "product_sku", message: "Product SKU is required" });
+    }
+    if (!row.variant_sku) {
+      errors.push({ row: rowNum, field: "variant_sku", message: "Variant SKU is required" });
+    }
+    if (!row.ingredient_sku) {
+      errors.push({ row: rowNum, field: "ingredient_sku", message: "Ingredient SKU is required" });
+    }
+    const qty = Number(row.quantity);
+    if (!row.quantity || Number.isNaN(qty) || qty <= 0) {
+      errors.push({ row: rowNum, field: "quantity", message: "Quantity must be greater than zero" });
+    }
+    if (!MEASUREMENT_UNITS.includes(row.unit as MeasurementUnit)) {
+      errors.push({ row: rowNum, field: "unit", message: "Invalid unit" });
+    }
+  });
+
+  return errors;
+}
+
+function buildImportWarnings(
+  rows: ProductImportRow[],
+  variants: ProductVariantImportRow[],
+  recipes: ProductRecipeImportRow[]
+): ImportValidationError[] {
+  const warnings: ImportValidationError[] = [];
+  const productSkus = new Set(rows.map((row) => row.sku).filter(Boolean).map((sku) => sku.toLowerCase()));
+  const recipeKeys = new Set(
+    recipes.map((row) => `${row.product_sku.toLowerCase()}::${row.variant_sku.toLowerCase()}`)
+  );
+
+  variants.forEach((variant, index) => {
+    const key = `${variant.product_sku.toLowerCase()}::${variant.variant_sku.toLowerCase()}`;
+    if (!recipeKeys.has(key)) {
+      warnings.push({
+        row: index + 2,
+        field: "Recipes",
+        message: "Variant has no recipe; sales will have zero cost until a recipe is added",
+      });
+    }
+    if (!productSkus.has(variant.product_sku.toLowerCase())) {
+      warnings.push({
+        row: index + 2,
+        field: "product_sku",
+        message: "Product SKU is not in Products sheet; import will use an existing product if found",
+      });
+    }
+  });
+
+  return warnings;
+}
+
 function parseBool(value: string, fallback: boolean): boolean {
   const v = value.trim().toLowerCase();
   if (["true", "yes", "1", "y", "نعم", "صح"].includes(v)) return true;
   if (["false", "no", "0", "n", "لا", "خطأ"].includes(v)) return false;
   return fallback;
+}
+
+function buildGeneratedVariantSku(productSku: string, variantName: string): string {
+  const suffix = variantName
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9\u0600-\u06FF]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24);
+  return [productSku.trim(), suffix || "VAR"].filter(Boolean).join("-");
 }
 
 function rowToProductInput(row: ProductImportPayload): productService.ProductInput {
@@ -474,10 +709,23 @@ async function resolveCategoryId(
 }
 
 export async function bulkImportProducts(
-  rows: ProductImportRow[],
+  input: ProductImportRow[] | ParsedImportResult,
   createdBy: string,
   storeId: string
-): Promise<{ imported: Product[]; updated: Product[]; skipped: number }> {
+): Promise<{
+  imported: Product[];
+  updated: Product[];
+  skipped: number;
+  variantsImported: ProductVariant[];
+  variantsUpdated: ProductVariant[];
+  recipeGroupsImported: number;
+  warnings: ImportValidationError[];
+}> {
+  const rows = Array.isArray(input) ? input : input.rows;
+  const variants = Array.isArray(input) ? [] : input.variants;
+  const recipes = Array.isArray(input) ? [] : input.recipes;
+  const warnings = Array.isArray(input) ? [] : [...input.warnings];
+
   await assertPeriodOpen(storeId);
   const existing = await productService.listProducts();
   const existingBySku = new Map(existing.map((p) => [p.sku.toLowerCase(), p]));
@@ -524,11 +772,156 @@ export async function bulkImportProducts(
     imported.push(product);
   }
 
+  const productBySku = new Map(existingBySku);
+  for (const product of [...imported, ...updated]) {
+    if (product.sku) productBySku.set(product.sku.toLowerCase(), product);
+  }
+
+  const variantsImported: ProductVariant[] = [];
+  const variantsUpdated: ProductVariant[] = [];
+  const variantByProductAndSku = new Map<string, ProductVariant>();
+  if (variants.length > 0 || recipes.length > 0) {
+    for (const product of productBySku.values()) {
+      const productVariants = await variantService.listVariants(product.id);
+      for (const variant of productVariants) {
+        if (variant.sku) {
+          variantByProductAndSku.set(`${product.id}::${variant.sku.toLowerCase()}`, variant);
+        }
+      }
+    }
+  }
+
+  for (const row of variants) {
+    const product = productBySku.get(row.product_sku.toLowerCase());
+    if (!product) {
+      skipped += 1;
+      warnings.push({
+        row: 0,
+        field: "product_sku",
+        message: `Variant skipped because product SKU ${row.product_sku} was not found`,
+      });
+      continue;
+    }
+
+    const sku = row.variant_sku || buildGeneratedVariantSku(product.sku, row.variant_name);
+    const payload: Omit<ProductVariant, "id" | "product_id"> = {
+      name: row.variant_name,
+      sku,
+      barcode: row.barcode || sku,
+      price_delta: 0,
+      price: Number(row.price) || 0,
+      image_url: null,
+      is_active: parseBool(row.is_active, true),
+      variant_kind: "standard",
+      quantity_value: null,
+      quantity_unit: null,
+      price_mode: "fixed_price",
+      fixed_price: Number(row.price) || 0,
+    };
+    const existingVariant = variantByProductAndSku.get(`${product.id}::${sku.toLowerCase()}`);
+    if (existingVariant) {
+      const updatedVariant = await variantService.updateVariant(existingVariant.id, payload, createdBy);
+      variantsUpdated.push(updatedVariant);
+      variantByProductAndSku.set(`${product.id}::${sku.toLowerCase()}`, updatedVariant);
+    } else {
+      const createdVariant = await variantService.createVariant(product.id, payload, createdBy);
+      variantsImported.push(createdVariant);
+      variantByProductAndSku.set(`${product.id}::${sku.toLowerCase()}`, createdVariant);
+    }
+  }
+
+  const productsWithImportedVariants = new Set(
+    variants
+      .map((variant) => productBySku.get(variant.product_sku.toLowerCase())?.id)
+      .filter((id): id is string => Boolean(id))
+  );
+  for (const productId of productsWithImportedVariants) {
+    const allVariants = [...variantByProductAndSku.values()].filter(
+      (variant) => variant.product_id === productId && variant.is_active
+    );
+    const prices = allVariants
+      .map((variant) => variant.price ?? variant.fixed_price)
+      .filter((price): price is number => typeof price === "number");
+    if (prices.length > 0) {
+      await productService.updateProduct(
+        productId,
+        { base_price: Math.min(...prices), sale_price: null },
+        createdBy
+      );
+    }
+  }
+
+  const ingredientProducts = [...productBySku.values()].filter(recipeService.canProductBeRecipeIngredient);
+  const ingredientBySku = new Map(
+    ingredientProducts.filter((p) => p.sku).map((p) => [p.sku.toLowerCase(), p])
+  );
+  const recipeGroups = new Map<
+    string,
+    {
+      product: Product;
+      variant: ProductVariant;
+      lines: { ingredient_product_id: string; quantity: number; unit: MeasurementUnit }[];
+    }
+  >();
+
+  for (const row of recipes) {
+    const product = productBySku.get(row.product_sku.toLowerCase());
+    if (!product) {
+      warnings.push({
+        row: 0,
+        field: "product_sku",
+        message: `Recipe skipped because product SKU ${row.product_sku} was not found`,
+      });
+      continue;
+    }
+    const variant = variantByProductAndSku.get(`${product.id}::${row.variant_sku.toLowerCase()}`);
+    if (!variant) {
+      warnings.push({
+        row: 0,
+        field: "variant_sku",
+        message: `Recipe skipped because variant SKU ${row.variant_sku} was not found`,
+      });
+      continue;
+    }
+    const ingredient = ingredientBySku.get(row.ingredient_sku.toLowerCase());
+    if (!ingredient) {
+      warnings.push({
+        row: 0,
+        field: "ingredient_sku",
+        message: `Recipe line skipped because ingredient SKU ${row.ingredient_sku} was not found`,
+      });
+      continue;
+    }
+    const key = `${product.id}::${variant.id}`;
+    const group = recipeGroups.get(key) ?? { product, variant, lines: [] };
+    group.lines.push({
+      ingredient_product_id: ingredient.id,
+      quantity: Number(row.quantity),
+      unit: row.unit as MeasurementUnit,
+    });
+    recipeGroups.set(key, group);
+  }
+
+  let recipeGroupsImported = 0;
+  for (const group of recipeGroups.values()) {
+    await recipeService.saveRecipe(group.product.id, group.lines, createdBy, group.variant.id);
+    recipeGroupsImported += 1;
+  }
+
   const job = await importRepo.createImportJob({
     type: "products",
     status: "completed",
     file_url: null,
-    result: { imported: imported.length, updated: updated.length, skipped, created_by: createdBy },
+    result: {
+      imported: imported.length,
+      updated: updated.length,
+      skipped,
+      variants_imported: variantsImported.length,
+      variants_updated: variantsUpdated.length,
+      recipe_groups_imported: recipeGroupsImported,
+      warnings: warnings.length,
+      created_by: createdBy,
+    },
     created_by: createdBy,
   });
 
@@ -540,8 +933,24 @@ export async function bulkImportProducts(
     action: "import.completed",
     entityType: "import_job",
     entityId: job.id,
-    metadata: { imported: imported.length, updated: updated.length, skipped },
+    metadata: {
+      imported: imported.length,
+      updated: updated.length,
+      skipped,
+      variantsImported: variantsImported.length,
+      variantsUpdated: variantsUpdated.length,
+      recipeGroupsImported,
+      warnings: warnings.length,
+    },
   });
 
-  return { imported, updated, skipped };
+  return {
+    imported,
+    updated,
+    skipped,
+    variantsImported,
+    variantsUpdated,
+    recipeGroupsImported,
+    warnings,
+  };
 }

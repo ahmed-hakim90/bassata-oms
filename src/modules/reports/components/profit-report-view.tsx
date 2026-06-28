@@ -47,8 +47,8 @@ export function ProfitReportView({
 
   return (
     <ReportPage
-      title="Profit Report"
-      description="Revenue, COGS, expenses, and net profit"
+      title="تقرير الأرباح"
+      description="الإيراد وتكلفة البضاعة والمصروفات وصافي الربح"
       actions={
         <ExportButtonGroup
           printHref={canPrint ? printHref : undefined}
@@ -65,9 +65,9 @@ export function ProfitReportView({
                   ) as Record<string, string>
                 );
                 downloadBase64Excel(result.base64, result.filename);
-                toast.success("Excel exported");
+                toast.success("تم تصدير Excel");
               } catch {
-                toast.error("Export failed");
+                toast.error("فشل التصدير");
               }
             });
           }}
@@ -78,16 +78,16 @@ export function ProfitReportView({
       <ReportKpiGrid
         columns={4}
         items={[
-          { label: "Revenue", value: formatCurrency(profit.revenue, currency), icon: <TrendingUp className="size-5" /> },
-          { label: "COGS", value: formatCurrency(profit.cogs, currency), icon: <TrendingDown className="size-5" /> },
-          { label: "Gross profit", value: formatCurrency(profit.grossProfit, currency), icon: <CircleDollarSign className="size-5" /> },
-          { label: "Net profit", value: formatCurrency(profit.estimatedNetProfit, currency), icon: <CircleDollarSign className="size-5" /> },
-          { label: "Expenses", value: formatCurrency(profit.totalExpenses, currency) },
-          { label: "Waste cost", value: formatCurrency(profit.wasteCost, currency), icon: <Trash2 className="size-5" /> },
+          { label: "الإيراد", value: formatCurrency(profit.revenue, currency), icon: <TrendingUp className="size-5" /> },
+          { label: "تكلفة البضاعة", value: formatCurrency(profit.cogs, currency), icon: <TrendingDown className="size-5" /> },
+          { label: "إجمالي الربح", value: formatCurrency(profit.grossProfit, currency), icon: <CircleDollarSign className="size-5" /> },
+          { label: "صافي الربح", value: formatCurrency(profit.estimatedNetProfit, currency), icon: <CircleDollarSign className="size-5" /> },
+          { label: "المصروفات", value: formatCurrency(profit.totalExpenses, currency) },
+          { label: "تكلفة الهالك", value: formatCurrency(profit.wasteCost, currency), icon: <Trash2 className="size-5" /> },
         ]}
       />
       <div className="grid gap-4 lg:grid-cols-2">
-        <OperationalCard title="Top products by profit">
+        <OperationalCard title="أفضل المنتجات حسب الربح">
           <ul className="space-y-2 text-sm">
             {rankings.highestProfit.map((p) => (
               <li key={p.name} className="flex justify-between">
@@ -97,7 +97,7 @@ export function ProfitReportView({
             ))}
           </ul>
         </OperationalCard>
-        <OperationalCard title="Customer credit balances">
+        <OperationalCard title="أرصدة العملاء الآجلة">
           <ul className="space-y-2 text-sm">
             {outstanding.slice(0, 8).map((c) => (
               <li key={c.id} className="flex justify-between">
@@ -107,7 +107,7 @@ export function ProfitReportView({
             ))}
           </ul>
         </OperationalCard>
-        <OperationalCard title="Supplier balances">
+        <OperationalCard title="أرصدة الموردين">
           <ul className="space-y-2 text-sm">
             {supplierBalances.slice(0, 8).map((s) => (
               <li key={s.id} className="flex justify-between">
@@ -117,7 +117,7 @@ export function ProfitReportView({
             ))}
           </ul>
         </OperationalCard>
-        <OperationalCard title="Expenses by cost center">
+        <OperationalCard title="المصروفات حسب مركز التكلفة">
           <ul className="space-y-2 text-sm">
             {profit.expensesByCostCenter.slice(0, 8).map((c) => (
               <li key={c.name} className="flex justify-between">

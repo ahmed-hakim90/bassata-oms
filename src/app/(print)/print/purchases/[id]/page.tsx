@@ -22,22 +22,22 @@ export default async function PrintPurchaseInvoicePage({
   return (
     <PrintableDocument
       branding={branding}
-      title="Purchase Invoice"
+      title="فاتورة شراء"
       subtitle={purchase.invoice_number}
       dateRange={formatDateTime(purchase.created_at)}
       generatedBy={user.name}
       generatedAt={new Date().toISOString()}
     >
       <p className="mb-4 text-sm">
-        Supplier: {purchase.supplierName} · Warehouse: {purchase.warehouseName}
+        المورد: {purchase.supplierName} · المخزن: {purchase.warehouseName}
       </p>
       <table className="mb-4 w-full border-collapse text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-2 text-start">Product</th>
-            <th className="py-2 text-end">Qty</th>
-            <th className="py-2 text-end">Cost</th>
-            <th className="py-2 text-end">Total</th>
+            <th className="py-2 text-start">المنتج</th>
+            <th className="py-2 text-end">الكمية</th>
+            <th className="py-2 text-end">التكلفة</th>
+            <th className="py-2 text-end">الإجمالي</th>
           </tr>
         </thead>
         <tbody>
@@ -56,7 +56,7 @@ export default async function PrintPurchaseInvoicePage({
         </tbody>
       </table>
       <p className="text-end text-base font-bold">
-        Total: {formatCurrency(purchase.total, branding.currency)}
+        الإجمالي: {formatCurrency(purchase.total, branding.currency)}
       </p>
     </PrintableDocument>
   );

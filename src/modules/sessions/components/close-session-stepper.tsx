@@ -13,12 +13,12 @@ import type { SessionReconciliation } from "@/modules/sessions/services/reconcil
 import type { CashierSession, Expense } from "@/lib/types";
 
 const STEPS = [
-  "Summary",
-  "Expenses",
-  "Expected",
-  "Actual",
-  "Variance",
-  "Confirm",
+  "الملخص",
+  "المصروفات",
+  "المتوقع",
+  "الفعلي",
+  "الفرق",
+  "التأكيد",
 ] as const;
 
 interface CloseSessionStepperProps {
@@ -57,10 +57,10 @@ export function CloseSessionStepper({
           actualCash: actual,
           notes: notes || undefined,
         });
-        toast.success("Session closed");
+        toast.success("تم إغلاق الجلسة");
         window.location.reload();
       } catch {
-        toast.error("Could not close session");
+        toast.error("تعذر إغلاق الجلسة");
       }
     });
   }
@@ -82,22 +82,22 @@ export function CloseSessionStepper({
 
       {step === 0 && (
         <div className="space-y-3">
-          <h3 className="font-heading text-lg font-semibold">Session summary</h3>
-          <p className="text-sm text-muted-foreground">Cashier: {cashierName}</p>
+          <h3 className="font-heading text-lg font-semibold">ملخص الجلسة</h3>
+          <p className="text-sm text-muted-foreground">الكاشير: {cashierName}</p>
           <p className="text-sm text-muted-foreground">
-            Opened {new Date(session.opened_at).toLocaleString()}
+            تم الفتح {new Date(session.opened_at).toLocaleString()}
           </p>
           <p className="text-sm">
-            Opening float: {formatCurrency(session.opening_cash)}
+            رصيد الافتتاح: {formatCurrency(session.opening_cash)}
           </p>
         </div>
       )}
 
       {step === 1 && (
         <div className="space-y-3">
-          <h3 className="font-heading text-lg font-semibold">Session expenses</h3>
+          <h3 className="font-heading text-lg font-semibold">مصروفات الجلسة</h3>
           {sessionExpenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No expenses recorded</p>
+            <p className="text-sm text-muted-foreground">لا توجد مصروفات مسجلة</p>
           ) : (
             <ul className="space-y-2">
               {sessionExpenses.map((e) => (
@@ -124,25 +124,25 @@ export function CloseSessionStepper({
             </ul>
           )}
           <p className="text-sm font-medium">
-            Total expenses: {formatCurrency(reconciliation.expenses)}
+            إجمالي المصروفات: {formatCurrency(reconciliation.expenses)}
           </p>
         </div>
       )}
 
       {step === 2 && (
         <div className="space-y-3">
-          <h3 className="font-heading text-lg font-semibold">Expected cash</h3>
+          <h3 className="font-heading text-lg font-semibold">النقدية المتوقعة</h3>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Opening</dt>
+              <dt className="text-muted-foreground">الافتتاح</dt>
               <dd>{formatCurrency(reconciliation.openingCash)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Cash sales</dt>
+              <dt className="text-muted-foreground">مبيعات نقدية</dt>
               <dd>+{formatCurrency(reconciliation.cashSales)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Expenses</dt>
+              <dt className="text-muted-foreground">المصروفات</dt>
               <dd>-{formatCurrency(reconciliation.expenses)}</dd>
             </div>
           </dl>
@@ -154,9 +154,9 @@ export function CloseSessionStepper({
 
       {step === 3 && (
         <div className="space-y-4">
-          <h3 className="font-heading text-lg font-semibold">Count actual cash</h3>
+          <h3 className="font-heading text-lg font-semibold">عدّ النقدية الفعلية</h3>
           <div className="space-y-2">
-            <Label htmlFor="actual-cash">Amount in drawer</Label>
+            <Label htmlFor="actual-cash">المبلغ في الدرج</Label>
             <Input
               id="actual-cash"
               type="number"
@@ -173,9 +173,9 @@ export function CloseSessionStepper({
 
       {step === 4 && (
         <div className="space-y-3">
-          <h3 className="font-heading text-lg font-semibold">Variance</h3>
+          <h3 className="font-heading text-lg font-semibold">الفرق</h3>
           <p className="text-sm text-muted-foreground">
-            Expected {formatCurrency(reconciliation.expectedCash)} · Actual{" "}
+            المتوقع {formatCurrency(reconciliation.expectedCash)} · الفعلي{" "}
             {formatCurrency(actual)}
           </p>
           <p
@@ -196,12 +196,12 @@ export function CloseSessionStepper({
 
       {step === 5 && (
         <div className="space-y-4">
-          <h3 className="font-heading text-lg font-semibold">Confirm close</h3>
+          <h3 className="font-heading text-lg font-semibold">تأكيد الإغلاق</h3>
           <p className="text-sm text-muted-foreground">
-            This will close the session and lock the register totals.
+            سيتم إغلاق الجلسة وتثبيت إجماليات الكاشير.
           </p>
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
+            <Label htmlFor="notes">ملاحظات (اختياري)</Label>
             <Textarea
               id="notes"
               value={notes}
@@ -220,7 +220,7 @@ export function CloseSessionStepper({
           disabled={step === 0 || pending}
           onClick={() => setStep((s) => Math.max(0, s - 1))}
         >
-          Back
+          رجوع
         </Button>
         {step < STEPS.length - 1 ? (
           <Button
@@ -228,7 +228,7 @@ export function CloseSessionStepper({
             disabled={step === 3 && !actualCash}
             onClick={() => setStep((s) => s + 1)}
           >
-            Continue
+            متابعة
           </Button>
         ) : (
           <Button
@@ -236,7 +236,7 @@ export function CloseSessionStepper({
             disabled={pending}
             onClick={handleClose}
           >
-            {pending ? "Closing…" : "Close session"}
+            {pending ? "جاري الإغلاق…" : "إغلاق الجلسة"}
           </Button>
         )}
       </div>

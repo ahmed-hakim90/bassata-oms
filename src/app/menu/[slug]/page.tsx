@@ -15,10 +15,10 @@ type MenuPageProps = {
 export async function generateMetadata({ params }: MenuPageProps): Promise<Metadata> {
   const { slug } = await params;
   const menu = await getOnlineMenuBySlug(slug);
-  if (!menu) return { title: "Online menu" };
+  if (!menu) return { title: "منيو أونلاين" };
   return {
-    title: `${menu.store.name} menu`,
-    description: menu.store.description || `Public menu for ${menu.store.name}`,
+    title: `منيو ${menu.store.name}`,
+    description: menu.store.description || `المنيو العام لـ ${menu.store.name}`,
   };
 }
 

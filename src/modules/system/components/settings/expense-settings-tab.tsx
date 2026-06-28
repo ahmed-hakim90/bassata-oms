@@ -11,6 +11,12 @@ import { updateExpenseSettingsAction } from "@/modules/system/actions/system.act
 import { CostCentersPage } from "@/modules/accounting/components/cost-centers-page";
 import type { CostCenter, ExpenseCategory, ExpenseSettings } from "@/lib/types";
 
+const costCenterDefaultsLabels = {
+  packaging: "التعبئة والتغليف",
+  cleaning: "النظافة",
+  utilities: "المرافق",
+} as const;
+
 interface ExpenseSettingsTabProps {
   canManageExpenseSettings: boolean;
   canManageCostCenters: boolean;
@@ -47,7 +53,7 @@ export function ExpenseSettingsTab({
   return (
     <div className="space-y-6">
       {canManageExpenseSettings && expenseSettings ? (
-        <OperationalCard title="Expense settings">
+        <OperationalCard title="إعدادات المصروفات">
           <div className="grid max-w-lg gap-4">
             <label className="flex items-center gap-2">
               <Checkbox
@@ -56,7 +62,7 @@ export function ExpenseSettingsTab({
                   setExpenseForm({ ...expenseForm, approval_required: v === true })
                 }
               />
-              <span className="text-sm">Expense approval required</span>
+              <span className="text-sm">الموافقة على المصروف مطلوبة</span>
             </label>
             <label className="flex items-center gap-2">
               <Checkbox
@@ -68,14 +74,14 @@ export function ExpenseSettingsTab({
                   })
                 }
               />
-              <span className="text-sm">Cashier can add session expense</span>
+              <span className="text-sm">الكاشير يمكنه إضافة مصروف للجلسة</span>
             </label>
             <div className="space-y-2">
-              <Label>Cashier max expense amount</Label>
+              <Label>أقصى مبلغ مصروف للكاشير</Label>
               <Input
                 type="number"
                 min={0}
-                placeholder="No limit"
+                placeholder="بدون حد"
                 value={expenseForm.cashier_max_expense_amount ?? ""}
                 onChange={(e) =>
                   setExpenseForm({
@@ -97,7 +103,7 @@ export function ExpenseSettingsTab({
                   })
                 }
               />
-              <span className="text-sm">Allow inventory purchase from session</span>
+              <span className="text-sm">السماح بشراء مخزون من الجلسة</span>
             </label>
             <label className="flex items-center gap-2">
               <Checkbox
@@ -109,11 +115,11 @@ export function ExpenseSettingsTab({
                   })
                 }
               />
-              <span className="text-sm">Prevent expenses in closed periods</span>
+              <span className="text-sm">منع المصروفات في الفترات المغلقة</span>
             </label>
             {(["packaging", "cleaning", "utilities"] as const).map((key) => (
               <div key={key} className="space-y-2">
-                <Label>Default cost center — {key}</Label>
+                <Label>مركز التكلفة الافتراضي - {costCenterDefaultsLabels[key]}</Label>
                 <select
                   className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
                   value={
@@ -127,7 +133,7 @@ export function ExpenseSettingsTab({
                     })
                   }
                 >
-                  <option value="">None</option>
+                  <option value="">لا يوجد</option>
                   {costCenters.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -142,14 +148,14 @@ export function ExpenseSettingsTab({
                 startTransition(async () => {
                   try {
                     await updateExpenseSettingsAction(expenseForm);
-                    toast.success("Expense settings saved");
+                    toast.success("تم حفظ إعدادات المصروفات");
                   } catch {
-                    toast.error("Failed to save");
+                    toast.error("فشل الحفظ");
                   }
                 })
               }
             >
-              Save expense settings
+              حفظ إعدادات المصروفات
             </Button>
           </div>
         </OperationalCard>
@@ -163,10 +169,9 @@ export function ExpenseSettingsTab({
             embedded
           />
         ) : (
-          <OperationalCard title="Cost centers">
+          <OperationalCard title="مراكز التكلفة">
             <p className="text-sm text-muted-foreground">
-              Select a branch from the header store switcher to manage cost centers for that
-              branch.
+              اختر فرعًا من مبدّل الفروع في أعلى الصفحة لإدارة مراكز التكلفة الخاصة به.
             </p>
           </OperationalCard>
         )

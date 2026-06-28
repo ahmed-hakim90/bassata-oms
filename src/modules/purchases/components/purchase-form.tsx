@@ -114,7 +114,7 @@ export function PurchaseForm({
 
   const handleCreateDraft = () => {
     if (!supplierId || !warehouseId || !invoiceNumber.trim()) {
-      toast.error("Select supplier, warehouse, and enter invoice number");
+      toast.error("اختار المورد والمخزن واكتب رقم الفاتورة");
       return;
     }
     startTransition(async () => {
@@ -136,7 +136,7 @@ export function PurchaseForm({
         supplierName: supplier?.name ?? "",
         warehouseName: warehouses.find((w) => w.id === warehouseId)?.name ?? "",
       });
-      toast.success("Draft purchase created");
+      toast.success("تم إنشاء فاتورة شراء مسودة");
       setTimeout(() => barcodeRef.current?.focus(), 100);
     });
   };
@@ -201,7 +201,7 @@ export function PurchaseForm({
         expiryDate || calculatedExpiryDate || null
       );
     } else {
-      toast.error("Product not found");
+      toast.error("المنتج غير موجود");
     }
   };
 
@@ -213,7 +213,7 @@ export function PurchaseForm({
         toast.error(result.error);
         return;
       }
-      toast.success("Purchase received — stock updated");
+      toast.success("تم استلام الشراء - تم تحديث المخزون");
       onComplete();
     });
   };
@@ -237,7 +237,7 @@ export function PurchaseForm({
         ...result.data,
         supplierName: supplier?.name ?? invoice.supplierName,
       });
-      toast.success("Invoice updated");
+      toast.success("تم تحديث الفاتورة");
     });
   };
 
@@ -289,7 +289,7 @@ export function PurchaseForm({
       toast.error(result.error);
       throw new Error(result.error);
     }
-    toast.success("Purchase deleted");
+    toast.success("تم حذف فاتورة الشراء");
     onComplete();
   };
 
@@ -300,14 +300,14 @@ export function PurchaseForm({
       toast.error(result.error);
       throw new Error(result.error);
     }
-    toast.success("Purchase voided — stock reversed");
+    toast.success("تم إلغاء الشراء - تم عكس المخزون");
     onComplete();
   };
 
   if (loading) {
     return (
-      <OperationalCard title="Loading purchase…">
-        <p className="text-sm text-muted-foreground">Please wait</p>
+      <OperationalCard title="جاري تحميل فاتورة الشراء…">
+        <p className="text-sm text-muted-foreground">برجاء الانتظار</p>
       </OperationalCard>
     );
   }
@@ -318,13 +318,13 @@ export function PurchaseForm({
 
   if (!invoice) {
     return (
-      <OperationalCard title="New Purchase Invoice">
+      <OperationalCard title="فاتورة شراء جديدة">
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="space-y-2">
-            <Label>Supplier</Label>
+            <Label>المورد</Label>
             <Select value={supplierId} onValueChange={(v) => setSupplierId(v ?? "")}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select supplier">
+                <SelectValue placeholder="اختار المورد">
                   {(value) => selectLabelById(suppliers, value, (s) => s.name)}
                 </SelectValue>
               </SelectTrigger>
@@ -338,10 +338,10 @@ export function PurchaseForm({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Warehouse</Label>
+            <Label>المخزن</Label>
             <Select value={warehouseId} onValueChange={(v) => setWarehouseId(v ?? "")}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select warehouse">
+                <SelectValue placeholder="اختار المخزن">
                   {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                 </SelectValue>
               </SelectTrigger>
@@ -355,7 +355,7 @@ export function PurchaseForm({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Invoice #</Label>
+            <Label>رقم الفاتورة</Label>
             <Input
               value={invoiceNumber}
               onChange={(e) => setInvoiceNumber(e.target.value)}
@@ -364,14 +364,14 @@ export function PurchaseForm({
             />
           </div>
           <div className="space-y-2">
-            <Label>Extra cost</Label>
+            <Label>تكلفة إضافية</Label>
             <Input
               type="number"
               min={0}
               step="0.01"
               value={extraCost}
               onChange={(e) => setExtraCost(e.target.value)}
-              placeholder="Freight, duties"
+              placeholder="شحن، جمارك"
             />
           </div>
         </div>
@@ -385,18 +385,18 @@ export function PurchaseForm({
   return (
     <div className="flex flex-col gap-6 pb-32">
       <OperationalCard
-        title={`Invoice ${invoice.invoice_number}`}
+        title={`فاتورة ${invoice.invoice_number}`}
         description={
           isDraft
-            ? "Scan barcode or search product — Enter to add"
-            : `Status: ${invoice.status} · ${invoice.supplierName} · ${invoice.warehouseName}`
+            ? "امسح الباركود أو ابحث عن منتج - Enter للإضافة"
+            : `الحالة: ${invoice.status} · ${invoice.supplierName} · ${invoice.warehouseName}`
         }
       >
         {isDraft && (
           <>
             <div className="mb-4 grid gap-4 sm:grid-cols-4">
               <div className="space-y-2">
-                <Label>Supplier</Label>
+                <Label>المورد</Label>
                 <Select value={supplierId} onValueChange={(v) => setSupplierId(v ?? "")}>
                   <SelectTrigger className="w-full">
                     <SelectValue>
@@ -413,7 +413,7 @@ export function PurchaseForm({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Warehouse</Label>
+                <Label>المخزن</Label>
                 <Select value={warehouseId} disabled>
                   <SelectTrigger className="w-full">
                     <SelectValue>
@@ -430,45 +430,45 @@ export function PurchaseForm({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Invoice #</Label>
+                <Label>رقم الفاتورة</Label>
                 <div className="flex gap-2">
                   <Input
                     value={invoiceNumber}
                     onChange={(e) => setInvoiceNumber(e.target.value)}
                   />
                   <Button type="button" variant="outline" onClick={saveHeader} disabled={pending}>
-                    Save
+                    حفظ
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Extra cost</Label>
+                <Label>تكلفة إضافية</Label>
                 <Input
                   type="number"
                   min={0}
                   step="0.01"
                   value={extraCost}
                   onChange={(e) => setExtraCost(e.target.value)}
-                  placeholder="Freight, duties"
+                  placeholder="شحن، جمارك"
                 />
               </div>
             </div>
             <form onSubmit={handleBarcodeSubmit} className="grid gap-4 lg:grid-cols-4">
               <div className="space-y-2 lg:col-span-2">
                 <Label className="flex items-center gap-2">
-                  <Barcode className="size-4" /> Barcode / SKU
+                  <Barcode className="size-4" /> باركود / كود المنتج
                 </Label>
                 <Input
                   ref={barcodeRef}
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
-                  placeholder="Scan or type barcode..."
+                  placeholder="امسح أو اكتب الباركود..."
                   autoComplete="off"
                   className="font-mono text-lg"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Product</Label>
+                <Label>المنتج</Label>
                 <Select
                   value={selectedProductId}
                   onValueChange={(v) => {
@@ -478,10 +478,10 @@ export function PurchaseForm({
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Or select...">
+                    <SelectValue placeholder="أو اختار...">
                       {(value) => {
                         const p = products.find((x) => x.id === value);
-                        return p ? productLabel(p) : "Or select...";
+                        return p ? productLabel(p) : "أو اختار...";
                       }}
                     </SelectValue>
                   </SelectTrigger>
@@ -497,7 +497,7 @@ export function PurchaseForm({
               <div className="flex gap-2">
                 <div className="flex-1 space-y-2">
                   <Label>
-                    Qty{selectedProduct ? ` (${formatUnit(selectedProduct.unit)})` : ""}
+                    الكمية{selectedProduct ? ` (${formatUnit(selectedProduct.unit)})` : ""}
                   </Label>
                   <Input
                     ref={qtyRef}
@@ -508,7 +508,7 @@ export function PurchaseForm({
                   />
                 </div>
                 <div className="flex-1 space-y-2">
-                  <Label>Cost</Label>
+                  <Label>التكلفة</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -519,15 +519,15 @@ export function PurchaseForm({
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Batch #</Label>
+                <Label>رقم التشغيلة</Label>
                 <Input
                   value={batchNumber}
                   onChange={(e) => setBatchNumber(e.target.value)}
-                  placeholder="Optional"
+                  placeholder="اختياري"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Production Date</Label>
+                <Label>تاريخ الإنتاج</Label>
                 <Input
                   type="date"
                   value={productionDate}
@@ -535,7 +535,7 @@ export function PurchaseForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Expiry Date (override)</Label>
+                <Label>تاريخ الانتهاء (تعديل يدوي)</Label>
                 <Input
                   type="date"
                   value={expiryDate}
@@ -543,11 +543,11 @@ export function PurchaseForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Calculated Expiry</Label>
+                <Label>تاريخ الانتهاء المحسوب</Label>
                 <Input value={calculatedExpiryDate ?? "-"} readOnly />
               </div>
               <Button type="submit" className="lg:col-span-4" disabled={pending}>
-                <Plus className="size-4" /> Add Line (Enter)
+                <Plus className="size-4" /> إضافة سطر (Enter)
               </Button>
             </form>
           </>
@@ -555,18 +555,18 @@ export function PurchaseForm({
       </OperationalCard>
 
       {invoice.lines.length > 0 && (
-        <OperationalCard title="Line Items">
+        <OperationalCard title="بنود الفاتورة">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Unit Cost</TableHead>
-                <TableHead>Batch</TableHead>
-                <TableHead>Production</TableHead>
-                <TableHead>Expiry</TableHead>
-                {!isDraft && <TableHead className="text-right">Landed Cost</TableHead>}
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead>المنتج</TableHead>
+                <TableHead className="text-right">الكمية</TableHead>
+                <TableHead className="text-right">تكلفة الوحدة</TableHead>
+                <TableHead>التشغيلة</TableHead>
+                <TableHead>الإنتاج</TableHead>
+                <TableHead>الانتهاء</TableHead>
+                {!isDraft && <TableHead className="text-right">التكلفة بعد الإضافات</TableHead>}
+                <TableHead className="text-right">الإجمالي</TableHead>
                 {isDraft && <TableHead />}
               </TableRow>
             </TableHeader>
@@ -717,19 +717,19 @@ export function PurchaseForm({
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">
-              {invoice.lines.length} line{invoice.lines.length !== 1 ? "s" : ""}
+              {invoice.lines.length} بند
             </p>
             <p className="text-2xl font-semibold">{formatCurrency(subtotal, currency)}</p>
             {invoice.extra_cost > 0 ? (
               <p className="text-xs text-muted-foreground">
-                + {formatCurrency(invoice.extra_cost, currency)} landed cost · total{" "}
+                + {formatCurrency(invoice.extra_cost, currency)} تكلفة إضافية · الإجمالي{" "}
                 {formatCurrency(invoice.total, currency)}
               </p>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={onComplete}>
-              {invoice.status === "cancelled" ? "Back" : "Close"}
+              {invoice.status === "cancelled" ? "رجوع" : "إغلاق"}
             </Button>
             {isDraft && (
               <>
@@ -738,20 +738,20 @@ export function PurchaseForm({
                   onClick={() => setConfirmDelete(true)}
                   disabled={pending}
                 >
-                  Delete Draft
+                  حذف المسودة
                 </Button>
                 <Button
                   onClick={handleReceive}
                   disabled={pending || invoice.lines.length === 0}
                   className="min-w-32"
                 >
-                  Receive Stock
+                  استلام المخزون
                 </Button>
               </>
             )}
             {isReceived && (
               <Button variant="outline" onClick={() => setConfirmVoid(true)} disabled={pending}>
-                Void Receipt
+                إلغاء الاستلام
               </Button>
             )}
           </div>
@@ -761,9 +761,9 @@ export function PurchaseForm({
       <ConfirmActionDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title="Delete draft purchase?"
-        description="Permanently removes this invoice and lines. Stock has not been updated yet."
-        confirmLabel="Delete"
+        title="حذف مسودة الشراء؟"
+        description="سيتم حذف الفاتورة وبنودها نهائيًا. المخزون لم يتم تحديثه بعد."
+        confirmLabel="حذف"
         destructive
         onConfirm={handleDeleteDraft}
       />
@@ -771,9 +771,9 @@ export function PurchaseForm({
       <ConfirmActionDialog
         open={confirmVoid}
         onOpenChange={setConfirmVoid}
-        title="Void received purchase?"
-        description="Received quantities will be removed from stock. Requires owner or manager."
-        confirmLabel="Void & reverse stock"
+        title="إلغاء شراء مستلم؟"
+        description="سيتم إزالة الكميات المستلمة من المخزون. يتطلب مالكًا أو مديرًا."
+        confirmLabel="إلغاء وعكس المخزون"
         destructive
         onConfirm={handleVoid}
       />

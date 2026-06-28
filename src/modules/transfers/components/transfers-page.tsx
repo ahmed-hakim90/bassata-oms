@@ -45,8 +45,8 @@ export function TransfersPage({
     return (
       <>
         <PageHeader
-          title={editingId ? "Transfer" : "New Transfer"}
-          description={editingId ? "View or edit transfer" : "Move stock between stores"}
+          title={editingId ? "تحويل" : "تحويل جديد"}
+          description={editingId ? "عرض أو تعديل التحويل" : "نقل مخزون بين الفروع"}
         />
         <TransferForm
           stores={stores}
@@ -67,20 +67,20 @@ export function TransfersPage({
   return (
     <>
       <PageHeader
-        title="Transfers"
-        description="Inter-store stock movements"
+        title="التحويلات"
+        description="حركات مخزون بين الفروع"
         action={
           <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" /> New Transfer
+            <Plus className="size-4" /> تحويل جديد
           </Button>
         }
       />
 
       {transfers.length === 0 ? (
-        <OperationalCard title="No transfers yet">
+        <OperationalCard title="لا توجد تحويلات بعد">
           <div className="flex flex-col items-center py-12">
             <ArrowLeftRight className="mb-4 size-12 text-muted-foreground" />
-            <Button onClick={() => setCreating(true)}>Create Transfer</Button>
+            <Button onClick={() => setCreating(true)}>إنشاء تحويل</Button>
           </div>
         </OperationalCard>
       ) : (
@@ -96,12 +96,12 @@ export function TransfersPage({
                     <StatusPill label={t.status} variant={statusVariant[t.status]} />
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {t.lines.length} items · {formatDateTime(t.created_at)}
+                    {t.lines.length} أصناف · {formatDateTime(t.created_at)}
                   </p>
                 </div>
                 <Button variant="outline" onClick={() => setEditingId(t.id)}>
                   <Pencil className="size-4" />
-                  Open
+                  فتح
                 </Button>
               </div>
             </OperationalCard>

@@ -11,7 +11,7 @@ export default async function PosStartPage() {
   if (user.store_ids.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6 text-center text-muted-foreground">
-        No branch access assigned. Ask a manager.
+        لا توجد صلاحية فرع مخصصة لك. تواصل مع المدير.
       </div>
     );
   }

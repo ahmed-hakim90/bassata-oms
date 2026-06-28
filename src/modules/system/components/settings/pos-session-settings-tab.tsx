@@ -19,6 +19,16 @@ import {
 } from "@/lib/constants";
 import type { SessionSettings } from "@/lib/types";
 
+const operationalFlagLabels: Record<(typeof POS_OPERATIONAL_FEATURE_FLAGS)[number], string> = {
+  payment_cash: "الدفع النقدي",
+  payment_card: "الدفع بالكارت",
+  payment_wallet: "الدفع بالمحفظة",
+  payment_other: "طرق دفع أخرى",
+  receipt_printing: "طباعة الإيصالات",
+  cash_drawer: "درج النقدية",
+  tax: "الضريبة",
+};
+
 interface PosSessionSettingsTabProps {
   canManageSettings: boolean;
   canManageSessions: boolean;
@@ -56,10 +66,10 @@ export function PosSessionSettingsTab({
   return (
     <div className="space-y-6">
       {canManageSettings && org && featureFlags ? (
-        <OperationalCard title="Receipt, tax & payments">
+        <OperationalCard title="الإيصالات والضريبة والدفع">
           <div className="grid max-w-lg gap-4">
             <div className="space-y-2">
-              <Label>Tax rate (%)</Label>
+              <Label>نسبة الضريبة (%)</Label>
               <Input
                 type="number"
                 step={0.01}
@@ -79,10 +89,10 @@ export function PosSessionSettingsTab({
                   setPosForm({ ...posForm, taxInclusive: v === true })
                 }
               />
-              <span className="text-sm">Tax-inclusive pricing</span>
+              <span className="text-sm">الأسعار شاملة الضريبة</span>
             </label>
             <div className="space-y-2">
-              <Label>Receipt footer</Label>
+              <Label>نهاية الإيصال</Label>
               <Input
                 value={posForm.receiptFooter}
                 onChange={(e) =>
@@ -91,7 +101,7 @@ export function PosSessionSettingsTab({
               />
             </div>
             <div className="space-y-2">
-              <Label>Payment & receipt options</Label>
+              <Label>خيارات الدفع والإيصال</Label>
               <div className="grid gap-2 sm:grid-cols-2">
                 {POS_OPERATIONAL_FEATURE_FLAGS.map((flag) => (
                   <label
@@ -110,7 +120,7 @@ export function PosSessionSettingsTab({
                         })
                       }
                     />
-                    <span className="text-sm">{flag.replaceAll("_", " ")}</span>
+                    <span className="text-sm">{operationalFlagLabels[flag]}</span>
                   </label>
                 ))}
               </div>
@@ -126,24 +136,24 @@ export function PosSessionSettingsTab({
                     });
                     await updateReceiptFooterAction(posForm.receiptFooter);
                     await updateFeatureFlagsAction(posForm.operationalFlags);
-                    toast.success("POS settings saved");
+                    toast.success("تم حفظ إعدادات الكاشير");
                   } catch {
-                    toast.error("Failed to save");
+                    toast.error("فشل الحفظ");
                   }
                 })
               }
             >
-              Save receipt & payments
+              حفظ الإيصال والدفع
             </Button>
           </div>
         </OperationalCard>
       ) : null}
 
       {canManageSessions ? (
-        <OperationalCard title="Session / shift settings">
+        <OperationalCard title="إعدادات الجلسة / الوردية">
           <div className="grid max-w-lg gap-4">
             <div className="space-y-2">
-              <Label>Max open hours</Label>
+              <Label>أقصى ساعات فتح</Label>
               <Input
                 type="number"
                 min={1}
@@ -157,7 +167,7 @@ export function PosSessionSettingsTab({
               />
             </div>
             <div className="space-y-2">
-              <Label>Warn after hours</Label>
+              <Label>التحذير بعد عدد ساعات</Label>
               <Input
                 type="number"
                 min={0}
@@ -180,7 +190,7 @@ export function PosSessionSettingsTab({
                   })
                 }
               />
-              <span className="text-sm">Block sales when session expired</span>
+              <span className="text-sm">منع البيع عند انتهاء الجلسة</span>
             </label>
             <label className="flex items-center gap-2">
               <Checkbox
@@ -192,16 +202,16 @@ export function PosSessionSettingsTab({
                   })
                 }
               />
-              <span className="text-sm">Allow manager force close</span>
+              <span className="text-sm">السماح للمدير بالإغلاق الإجباري</span>
             </label>
             <div className="space-y-2">
-              <Label>Manager override above discount amount</Label>
+              <Label>موافقة المدير عند تجاوز مبلغ الخصم</Label>
               <Input
                 type="number"
                 min={0}
                 step={0.01}
                 value={sessionForm.manager_discount_override_amount ?? ""}
-                placeholder="No limit"
+                placeholder="بدون حد"
                 onChange={(e) =>
                   setSessionForm({
                     ...sessionForm,
@@ -224,14 +234,14 @@ export function PosSessionSettingsTab({
                       manager_discount_override_amount:
                         sessionForm.manager_discount_override_amount,
                     });
-                    toast.success("Session settings saved");
+                    toast.success("تم حفظ إعدادات الجلسة");
                   } catch {
-                    toast.error("Failed to save");
+                    toast.error("فشل الحفظ");
                   }
                 })
               }
             >
-              Save session settings
+              حفظ إعدادات الجلسة
             </Button>
           </div>
         </OperationalCard>

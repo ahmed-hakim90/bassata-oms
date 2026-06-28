@@ -30,7 +30,7 @@ export function WastePage({ records, summary, products, warehouses }: WastePageP
   if (showForm) {
     return (
       <>
-        <PageHeader title="Record Waste" />
+        <PageHeader title="تسجيل هالك" />
         <WasteForm
           products={products}
           warehouses={warehouses}
@@ -46,29 +46,29 @@ export function WastePage({ records, summary, products, warehouses }: WastePageP
   return (
     <>
       <PageHeader
-        title="Waste"
-        description="Track shrinkage and spoilage"
+        title="الهالك"
+        description="تتبع الفاقد والتالف"
         action={
           <Button onClick={() => setShowForm(true)}>
-            <Plus className="size-4" /> Record Waste
+            <Plus className="size-4" /> تسجيل هالك
           </Button>
         }
       />
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Units (30d)" value={String(summary.totalUnits)} icon={<Trash2 className="size-5" />} />
-        <KpiCard label="Records" value={String(summary.recordCount)} />
+        <KpiCard label="الوحدات (30 يوم)" value={String(summary.totalUnits)} icon={<Trash2 className="size-5" />} />
+        <KpiCard label="السجلات" value={String(summary.recordCount)} />
         <KpiCard
-          label="Top Reason"
+          label="أهم سبب"
           value={
             summary.byReason.sort((a, b) => b.units - a.units)[0]?.label ?? "—"
           }
         />
       </div>
 
-      <OperationalCard title="Recent Records">
+      <OperationalCard title="آخر السجلات">
         {records.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground">No waste recorded yet</p>
+          <p className="py-8 text-center text-muted-foreground">لا يوجد هالك مسجل بعد</p>
         ) : (
           <ul className="divide-y">
             {records.map((r) => (

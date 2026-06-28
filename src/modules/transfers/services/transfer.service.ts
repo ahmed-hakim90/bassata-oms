@@ -35,6 +35,16 @@ async function enrichTransfer(transfer: TransferOrder): Promise<TransferWithLine
   };
 }
 
+async function assertWarehouseBelongsToStore(
+  warehouseId: string,
+  storeId: string
+): Promise<void> {
+  const warehouse = await warehouseRepo.getWarehouse(warehouseId);
+  if (!warehouse || warehouse.store_id !== storeId || !warehouse.is_active) {
+    throw new Error("Warehouse does not belong to the selected store");
+  }
+}
+
 export async function listTransfers(storeId?: string): Promise<TransferWithLines[]> {
   const transfers = await transferRepo.listTransfers();
   const filtered = transfers.filter(
@@ -61,6 +71,8 @@ export async function createDraftTransfer(input: {
     throw new Error("Source and destination warehouses must differ");
   }
   await assertPeriodOpen(input.fromStoreId);
+  await assertWarehouseBelongsToStore(input.fromWarehouseId, input.fromStoreId);
+  await assertWarehouseBelongsToStore(input.toWarehouseId, input.toStoreId);
   const transfer = await transferRepo.insertTransfer(
     {
       from_store_id: input.fromStoreId,
@@ -273,6 +285,8 @@ export async function updateDraftTransfer(
   }
 
   await assertPeriodOpen(fromStoreId);
+  await assertWarehouseBelongsToStore(fromWarehouseId, fromStoreId);
+  await assertWarehouseBelongsToStore(toWarehouseId, toStoreId);
 
   const updated = await transferRepo.updateTransfer(transferId, {
     from_store_id: fromStoreId,

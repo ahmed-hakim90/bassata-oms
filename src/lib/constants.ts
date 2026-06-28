@@ -15,10 +15,10 @@ export const ONLINE_ORDER_STATUSES = [
 export const PAYMENT_METHODS = ["cash", "card", "wallet", "other", "credit"] as const;
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  owner: "Owner",
-  manager: "Manager",
-  cashier: "Cashier",
-  inventory: "Store Keeper",
+  owner: "مالك",
+  manager: "مدير",
+  cashier: "كاشير",
+  inventory: "أمين مخزن",
 };
 export const SESSION_STATUSES = ["open", "closed"] as const;
 export const SESSION_LIFECYCLE_STATES = ["open", "warning", "expired_locked"] as const;
@@ -119,7 +119,7 @@ export type PermissionKey = (typeof PERMISSIONS)[number];
 export const BUSINESS_ACTIVITY_TYPES = ["cafe", "ice_cream", "juice_bar"] as const;
 export type BusinessActivityType = (typeof BUSINESS_ACTIVITY_TYPES)[number];
 
-export const SALES_MODES = ["retail"] as const;
+export const SALES_MODES = ["retail", "wholesale"] as const;
 export type SalesMode = (typeof SALES_MODES)[number];
 
 export const PRODUCT_SALES_UNIT_TYPES = [

@@ -51,26 +51,26 @@ export function InventoryReportView({
   const printHref = `/print/reports/inventory${printQs ? `?${printQs}` : ""}`;
 
   const valuationColumns: ColumnDef<(typeof valuation)[number]>[] = [
-    { header: "Product", accessorKey: "productName" },
-    { header: "Qty", accessorKey: "quantity" },
+    { header: "المنتج", accessorKey: "productName" },
+    { header: "الكمية", accessorKey: "quantity" },
     {
-      header: "Value",
+      header: "القيمة",
       cell: ({ row }) => formatCurrency(row.original.totalValue, currency),
     },
   ];
 
   const expiryColumns: ColumnDef<ExpiryBatchRow>[] = [
-    { header: "Product", accessorKey: "productName" },
-    { header: "Batch", accessorKey: "batchNumber" },
-    { header: "Expiry", accessorKey: "expiryDate" },
-    { header: "Qty", accessorKey: "remainingQuantity" },
-    { header: "Days", accessorKey: "daysUntilExpiry" },
+    { header: "المنتج", accessorKey: "productName" },
+    { header: "التشغيلة", accessorKey: "batchNumber" },
+    { header: "الانتهاء", accessorKey: "expiryDate" },
+    { header: "الكمية", accessorKey: "remainingQuantity" },
+    { header: "الأيام", accessorKey: "daysUntilExpiry" },
   ];
 
   return (
     <ReportPage
-      title="Inventory Report"
-      description="Valuation, batches, expiry, and waste"
+      title="تقرير المخزون"
+      description="التقييم والتشغيلات والانتهاء والهالك"
       actions={
         <ExportButtonGroup
           printHref={canPrint ? printHref : undefined}
@@ -87,9 +87,9 @@ export function InventoryReportView({
                   ) as Record<string, string>
                 );
                 downloadBase64Excel(result.base64, result.filename);
-                toast.success("Excel exported");
+                toast.success("تم تصدير Excel");
               } catch {
-                toast.error("Export failed");
+                toast.error("فشل التصدير");
               }
             });
           }}
@@ -99,14 +99,14 @@ export function InventoryReportView({
     >
       <ReportKpiGrid
         items={[
-          { label: "Stock value", value: formatCurrency(kpi.valuationEstimate, currency), icon: <Package className="size-5" /> },
-          { label: "Low stock items", value: String(kpi.lowStockCount), icon: <AlertTriangle className="size-5" /> },
-          { label: "Near expiry", value: String(nearExpiry.length), icon: <Boxes className="size-5" /> },
-          { label: "Expired batches", value: String(expired.length), icon: <AlertTriangle className="size-5" /> },
+          { label: "قيمة المخزون", value: formatCurrency(kpi.valuationEstimate, currency), icon: <Package className="size-5" /> },
+          { label: "أصناف مخزون منخفض", value: String(kpi.lowStockCount), icon: <AlertTriangle className="size-5" /> },
+          { label: "قريب من الانتهاء", value: String(nearExpiry.length), icon: <Boxes className="size-5" /> },
+          { label: "تشغيلات منتهية", value: String(expired.length), icon: <AlertTriangle className="size-5" /> },
         ]}
       />
-      <ReportTable title="Inventory valuation" columns={valuationColumns} data={valuation.slice(0, 50)} />
-      <ReportTable title="Expiry & batches" columns={expiryColumns} data={expiryBatches.slice(0, 50)} />
+      <ReportTable title="تقييم المخزون" columns={valuationColumns} data={valuation.slice(0, 50)} />
+      <ReportTable title="الانتهاء والتشغيلات" columns={expiryColumns} data={expiryBatches.slice(0, 50)} />
     </ReportPage>
   );
 }

@@ -242,7 +242,7 @@ export function RecipeEditor({
           </div>
           <div>
             <p className="text-muted-foreground">Sale price</p>
-            <p className="font-semibold">{formatCurrency(product.base_price, currency)}</p>
+            <p className="font-semibold">{formatCurrency(price, currency)}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Profit</p>

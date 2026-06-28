@@ -31,7 +31,7 @@ export function DataTableShell({
               <Input
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="Search..."
+                placeholder="بحث..."
                 className="h-9 min-w-56"
               />
             ) : null}

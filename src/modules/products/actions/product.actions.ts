@@ -5,6 +5,7 @@ import { requireCatalogRead, requireFeature, requirePermissionOrRole } from "@/l
 import type { MeasurementUnit } from "@/lib/types";
 import type { CategoryInput, ProductInput } from "../services/product.service";
 import * as productService from "../services/product.service";
+import * as variantService from "../services/variant.service";
 
 export async function listProductsAction(
   options?: Parameters<typeof productService.listProducts>[0]
@@ -69,7 +70,7 @@ export type CafeMenuItemInput = {
   productId?: string;
   name: string;
   category_id: string;
-  sale_price: number;
+  sale_price?: number;
   sku?: string;
   barcode?: string;
   description?: string;
@@ -79,6 +80,17 @@ export type CafeMenuItemInput = {
     ingredient_product_id: string;
     quantity: number;
     unit: MeasurementUnit;
+  }[];
+  variants?: {
+    name: string;
+    sku?: string;
+    barcode?: string;
+    price: number;
+    ingredients: {
+      ingredient_product_id: string;
+      quantity: number;
+      unit: MeasurementUnit;
+    }[];
   }[];
 };
 
@@ -98,7 +110,7 @@ function buildCafeMenuProductInput(input: CafeMenuItemInput): ProductInput {
     barcode,
     image_url: null,
     category_id: input.category_id,
-    base_price: input.sale_price,
+    base_price: input.sale_price ?? 0,
     description: input.description?.trim() ?? "",
     sale_price: null,
     is_active: input.is_active ?? true,
@@ -180,28 +192,119 @@ export async function createCafeIngredientAction(input: CafeIngredientInput) {
   return ingredient;
 }
 
-export async function saveCafeMenuItemAction(input: CafeMenuItemInput) {
-  await requireFeature("recipes");
+export async function updateCafeIngredientAction(productId: string, input: CafeIngredientInput) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
-  await requirePermissionOrRole("recipe_manage", ["owner", "manager"]);
+  if (!input.name.trim()) {
+    throw new Error("Ingredient name is required");
+  }
+  if (!input.category_id) {
+    throw new Error("Ingredient category is required");
+  }
+
+  const unitCost = Math.max(0, Number(input.unit_cost) || 0);
+  const ingredient = await productService.updateProduct(
+    productId,
+    {
+      name: input.name.trim(),
+      category_id: input.category_id,
+      base_price: 0,
+      sale_price: null,
+      track_inventory: true,
+      product_type: "ingredient",
+      inventory_tracking_mode: "standard",
+      inventory_rotation_method: "FIFO",
+      expiry_policy: "warn_only",
+      unit: input.unit,
+      sale_unit: input.unit,
+      base_unit: input.unit,
+      sales_unit_type: salesUnitTypeForUnit(input.unit),
+      allow_fractional_quantity: input.unit !== "piece",
+      allow_price_input: false,
+      wholesale_enabled: false,
+      last_unit_cost: unitCost,
+      cost_unit: input.unit,
+    },
+    user.id
+  );
+  if (!ingredient) throw new Error("Ingredient not found");
+  revalidatePath("/products");
+  revalidatePath("/inventory");
+  return ingredient;
+}
+
+export async function saveCafeMenuItemAction(input: CafeMenuItemInput) {
+  const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
 
   const ingredients = input.ingredients.filter(
     (line) => line.ingredient_product_id && line.quantity > 0
   );
-  if (!input.name.trim() || !input.category_id || input.sale_price < 0) {
-    throw new Error("Menu item name, category, and sale price are required");
-  }
-  if (ingredients.length === 0) {
-    throw new Error("Add at least one ingredient");
+  const variants = (input.variants ?? [])
+    .map((variant) => ({
+      ...variant,
+      name: variant.name.trim(),
+      sku: variant.sku?.trim() ?? "",
+      barcode: variant.barcode?.trim() ?? "",
+      price: Math.max(0, Number(variant.price) || 0),
+      ingredients: variant.ingredients.filter(
+        (line) => line.ingredient_product_id && line.quantity > 0
+      ),
+    }))
+    .filter((variant) => variant.name && variant.price > 0);
+  let salePrice =
+    variants.length > 0
+      ? Math.min(...variants.map((variant) => variant.price))
+      : Math.max(0, Number(input.sale_price) || 0);
+  if (input.productId && variants.length === 0 && input.sale_price == null) {
+    const existing = await productService.getProduct(input.productId);
+    salePrice = existing?.base_price ?? 0;
   }
 
-  const productInput = buildCafeMenuProductInput(input);
+  if (!input.name.trim() || !input.category_id || salePrice < 0) {
+    throw new Error("Menu item name and category are required");
+  }
+  if (!input.productId && variants.length === 0 && salePrice <= 0) {
+    throw new Error("Add at least one size and price");
+  }
+
+  const hasRecipeLines =
+    ingredients.length > 0 || variants.some((variant) => variant.ingredients.length > 0);
+  if (hasRecipeLines) {
+    await requireFeature("recipes");
+    await requirePermissionOrRole("recipe_manage", ["owner", "manager"]);
+  }
+
+  const productInput = buildCafeMenuProductInput({ ...input, sale_price: salePrice });
   const product = input.productId
     ? await productService.updateProduct(input.productId, productInput, user.id)
     : await productService.createProduct(productInput, user.id);
   if (!product) throw new Error("Could not save menu item");
 
-  await recipeService.saveRecipe(product.id, ingredients, user.id, null);
+  if (ingredients.length > 0) {
+    await recipeService.saveRecipe(product.id, ingredients, user.id, null);
+  }
+  for (const [index, variantInput] of variants.entries()) {
+    const variant = await variantService.createVariant(
+      product.id,
+      {
+        name: variantInput.name,
+        sku: variantInput.sku || `${product.sku || product.id}-${index + 1}`,
+        barcode: variantInput.barcode || variantInput.sku || `${product.sku || product.id}-${index + 1}`,
+        price_delta: 0,
+        price: variantInput.price,
+        image_url: null,
+        is_active: true,
+        variant_kind: "standard",
+        quantity_value: null,
+        quantity_unit: "piece",
+        price_mode: "fixed_price",
+        fixed_price: variantInput.price,
+      },
+      user.id
+    );
+    if (variantInput.ingredients.length > 0) {
+      await recipeService.saveRecipe(product.id, variantInput.ingredients, user.id, variant.id);
+    }
+  }
   revalidatePath("/products");
   revalidatePath("/pos");
   revalidatePath("/inventory");
@@ -222,6 +325,7 @@ export async function getProductsPageDataAction() {
     categories,
     featureFlags,
     recipeProductIds,
+    recipeKeys,
     ingredients,
   ] =
     await Promise.all([
@@ -229,22 +333,44 @@ export async function getProductsPageDataAction() {
     productService.listCategories(),
     getFeatureFlags(),
     recipeService.listProductIdsWithRecipes(),
+    recipeService.listRecipeKeys(),
     recipeService.listIngredients(),
   ]);
   const variantMap = await catalogRepo.listVariantsForProducts(
     rows.map(({ product }) => product.id)
   );
   const recipeSet = new Set(recipeProductIds);
+  const baseRecipeSet = new Set(
+    recipeKeys.filter((key) => key.variantId == null).map((key) => key.productId)
+  );
+  const variantRecipeSet = new Set(
+    recipeKeys
+      .filter((key) => key.variantId != null)
+      .map((key) => `${key.productId}::${key.variantId}`)
+  );
   return {
     organization: org,
     categories,
     ingredients,
     recipesEnabled: featureFlags.recipes === true,
-    products: rows.map(({ product, category }) => ({
-      product,
-      category,
-      hasRecipe: recipeSet.has(product.id),
-      variantCount: (variantMap.get(product.id) ?? []).filter((v) => v.is_active).length,
-    })),
+    products: rows.map(({ product, category }) => {
+      const activeVariants = (variantMap.get(product.id) ?? []).filter((v) => v.is_active);
+      const missingRecipeVariantCount =
+        recipeService.canProductHaveRecipe(product) && !baseRecipeSet.has(product.id)
+          ? activeVariants.filter(
+              (variant) => !variantRecipeSet.has(`${product.id}::${variant.id}`)
+            ).length
+          : 0;
+      return {
+        product,
+        category,
+        hasRecipe: recipeSet.has(product.id),
+        variantCount: activeVariants.length,
+        missingRecipeVariantCount,
+        variantPrices: activeVariants.map((variant) =>
+          variantService.resolveVariantPrice(product.base_price, variant)
+        ),
+      };
+    }),
   };
 }

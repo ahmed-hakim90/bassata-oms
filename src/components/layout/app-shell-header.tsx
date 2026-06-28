@@ -18,6 +18,7 @@ import { selectLabelById } from "@/lib/select-label";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import type { FeatureFlag } from "@/lib/constants";
 import type { Store } from "@/lib/types";
+import { useTranslation } from "@/lib/i18n/use-translation";
 
 interface AppShellHeaderProps {
   userName: string;
@@ -32,6 +33,7 @@ export function AppShellHeader({
   activeStoreId,
   featureFlags,
 }: AppShellHeaderProps) {
+  const { t } = useTranslation();
   const [pending, startTransition] = useTransition();
   const selectedId = activeStoreId ?? stores[0]?.id;
 
@@ -39,7 +41,7 @@ export function AppShellHeader({
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl md:px-6">
       <p className="truncate text-sm text-muted-foreground md:hidden">{userName}</p>
       <p className="hidden truncate text-sm text-muted-foreground md:block">
-        Signed in as <span className="font-medium text-foreground">{userName}</span>
+        {t("Signed in as")} <span className="font-medium text-foreground">{userName}</span>
       </p>
       <div className="flex shrink-0 items-center gap-2">
         <ThemeToggle darkModeEnabled={featureFlags?.dark_mode !== false} />
@@ -54,7 +56,7 @@ export function AppShellHeader({
             }}
           >
             <SelectTrigger className="h-8 max-w-[11rem] rounded-full sm:max-w-[14rem]" disabled={pending}>
-              <SelectValue placeholder="Select store">
+              <SelectValue placeholder={t("Select store")}>
                 {(value) => selectLabelById(stores, value, (s) => s.name)}
               </SelectValue>
             </SelectTrigger>
@@ -74,20 +76,20 @@ export function AppShellHeader({
             "hidden rounded-full sm:inline-flex"
           )}
         >
-          Account
+          {t("Account")}
         </Link>
         <Link
           href="/pos/start"
           className={cn(buttonVariants({ size: "sm" }), "rounded-full shadow-sm")}
         >
           <ShoppingCart className="size-4" />
-          <span className="hidden sm:inline">Open POS</span>
-          <span className="sm:hidden">POS</span>
+          <span className="hidden sm:inline">{t("Open POS")}</span>
+          <span className="sm:hidden">{t("POS")}</span>
         </Link>
         <form action={logoutAction}>
           <Button type="submit" variant="outline" size="sm" className="rounded-full">
             <LogOut className="size-4" />
-            <span className="hidden sm:inline">Sign out</span>
+            <span className="hidden sm:inline">{t("Sign out")}</span>
           </Button>
         </form>
       </div>

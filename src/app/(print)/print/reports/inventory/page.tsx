@@ -13,21 +13,21 @@ export default async function PrintInventoryReportPage({
   return (
     <PrintableDocument
       branding={data.context}
-      title="Inventory Report"
+      title="تقرير المخزون"
       dateRange={data.context.filterSummary}
       generatedBy={data.context.generatedBy}
       generatedAt={data.context.generatedAt}
     >
       <p className="mb-4 text-sm">
-        Valuation: {formatCurrency(data.kpi.valuationEstimate, data.currency)} · Low stock:{" "}
-        {data.kpi.lowStockCount} · Near expiry: {data.nearExpiry.length}
+        التقييم: {formatCurrency(data.kpi.valuationEstimate, data.currency)} · مخزون منخفض:{" "}
+        {data.kpi.lowStockCount} · قريب من الانتهاء: {data.nearExpiry.length}
       </p>
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-2 text-start">Product</th>
-            <th className="py-2 text-end">Qty</th>
-            <th className="py-2 text-end">Value</th>
+            <th className="py-2 text-start">المنتج</th>
+            <th className="py-2 text-end">الكمية</th>
+            <th className="py-2 text-end">القيمة</th>
           </tr>
         </thead>
         <tbody>

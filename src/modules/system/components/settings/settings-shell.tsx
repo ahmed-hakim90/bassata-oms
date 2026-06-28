@@ -154,14 +154,14 @@ export function SettingsShell({
   return (
     <>
       <PageHeader
-        title="Settings"
-        description="Store profile, POS, expenses, users, and system configuration"
+        title="الإعدادات"
+        description="بيانات المتجر، الكاشير، المصروفات، المستخدمون، وإعدادات النظام"
       />
       <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col space-y-6">
         <div className="min-w-0 space-y-3 rounded-xl border border-border/60 p-3 sm:p-4">
           <Input
-            aria-label="Search settings"
-            placeholder="Search settings..."
+            aria-label="بحث في الإعدادات"
+            placeholder="ابحث في الإعدادات..."
             value={settingsQuery}
             onChange={(event) => setSettingsQuery(event.target.value)}
           />
@@ -180,7 +180,7 @@ export function SettingsShell({
               </TabsList>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No settings match your search.
+                لا توجد إعدادات مطابقة للبحث.
               </p>
             )}
           </div>

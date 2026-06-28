@@ -5,6 +5,7 @@ import { requireFeature, requirePermissionOrRole, getValidatedActiveStoreId } fr
 import {
   bulkImportProducts,
   parseProductsXlsx,
+  type ParsedImportResult,
   type ProductImportRow,
 } from "../services/import.service";
 import {
@@ -22,14 +23,18 @@ export async function parseProductsFileAction(base64: string) {
   );
 }
 
-export async function importProductsAction(rows: ProductImportRow[]) {
+export async function importProductsAction(input: ProductImportRow[] | ParsedImportResult) {
   await requireFeature("imports_exports");
+  if (!Array.isArray(input) && input.recipes.length > 0) {
+    await requireFeature("recipes");
+    await requirePermissionOrRole("recipe_manage", ["owner", "manager"]);
+  }
   const user = await requirePermissionOrRole("imports_exports", ["owner", "manager"]);
   const storeId = await getValidatedActiveStoreId();
-  const result = await bulkImportProducts(rows, user.id, storeId);
+  const result = await bulkImportProducts(input, user.id, storeId);
   revalidatePath("/products");
   revalidatePath("/inventory");
-  revalidatePath("/products");
+  revalidatePath("/reports");
   return result;
 }
 

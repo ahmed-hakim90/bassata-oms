@@ -18,11 +18,11 @@ export default function ShellError({
   return (
     <div className="space-y-4">
       <ErrorStateBlock
-        title="Could not load this screen"
-        description="Please retry. If the issue persists, contact your administrator."
+        title="تعذر تحميل هذه الشاشة"
+        description="حاول مرة أخرى. إذا استمرت المشكلة، تواصل مع مسؤول النظام."
       />
       <div>
-        <Button onClick={() => unstable_retry()}>Try again</Button>
+        <Button onClick={() => unstable_retry()}>حاول مرة أخرى</Button>
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ export default async function PrintCustomerStatementPage({
   return (
     <PrintableDocument
       branding={branding}
-      title="Customer Statement"
+      title="كشف حساب عميل"
       subtitle={statement.customerName}
       dateRange={query.from && query.to ? `${query.from} → ${query.to}` : undefined}
       generatedBy={user.name}

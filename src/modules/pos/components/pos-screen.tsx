@@ -186,7 +186,7 @@ export function PosScreen({
     const match = barcodeEnabled ? findPosProductByBarcode(initialProducts, trimmed) : null;
 
     if (!match && products.length !== 1) {
-      toast.error("Product not found");
+      toast.error("المنتج غير موجود");
       return;
     }
 
@@ -202,7 +202,7 @@ export function PosScreen({
   function handleComplete(payments: PaymentSplit[]) {
     const checkoutPaymentMethod = payments[0]?.method ?? paymentMethod;
     if (payments.some((payment) => payment.method === "credit") && !customer) {
-      toast.error("Select a customer for credit sale");
+      toast.error("اختر عميلًا للبيع الآجل");
       return;
     }
     const needsDiscountOverride = requiresManagerDiscountOverride(
@@ -212,13 +212,13 @@ export function PosScreen({
     const needsExpiredSessionOverride =
       readinessState === "session_expired" && canManagerOverride;
     if (needsDiscountOverride && !canManagerOverride) {
-      toast.error("Owner or manager override required for this discount");
+      toast.error("هذا الخصم يحتاج موافقة المالك أو المدير");
       return;
     }
     const overrideReason = needsDiscountOverride || needsExpiredSessionOverride
       ? window.prompt(
-          "Manager override reason",
-          needsExpiredSessionOverride ? "Approved expired session sale" : "Approved discount"
+          "سبب موافقة المدير",
+          needsExpiredSessionOverride ? "تمت الموافقة على بيع بعد انتهاء الجلسة" : "تمت الموافقة على الخصم"
         )?.trim()
       : undefined;
     if ((needsDiscountOverride || needsExpiredSessionOverride) && !overrideReason) return;
@@ -261,9 +261,9 @@ export function PosScreen({
         }
         clearCart();
         setPaymentOpen(false);
-        toast.success(`Order ${result.orderNumber} completed`);
+        toast.success(`تم إتمام الطلب ${result.orderNumber}`);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Checkout failed");
+        toast.error(error instanceof Error ? error.message : "فشل إتمام البيع");
       }
     });
   }
@@ -278,15 +278,15 @@ export function PosScreen({
   }
 
   function handleOpenCashDrawer() {
-    const reason = window.prompt("Manager override reason", "Manual cash drawer open")?.trim();
+    const reason = window.prompt("سبب موافقة المدير", "فتح درج النقدية يدويًا")?.trim();
     if (!reason) return;
     startTransition(async () => {
       try {
         await openCashDrawerAction(reason);
         openCashDrawerHook();
-        toast.success("Cash drawer opened");
+        toast.success("تم فتح درج النقدية");
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not open cash drawer");
+        toast.error(error instanceof Error ? error.message : "تعذر فتح درج النقدية");
       }
     });
   }
@@ -295,9 +295,9 @@ export function PosScreen({
     if (!lastReceipt) return;
     try {
       await printReceiptViaUsb(lastReceipt);
-      toast.success("Receipt sent to USB printer");
+      toast.success("تم إرسال الإيصال لطابعة USB");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not print receipt");
+      toast.error(error instanceof Error ? error.message : "تعذرت طباعة الإيصال");
     }
   }
 
@@ -310,7 +310,7 @@ export function PosScreen({
     if (!lastReceipt) return;
     const url = buildWhatsAppReceiptUrl(lastReceipt);
     if (!url) {
-      toast.error("Customer phone number is not valid for WhatsApp");
+      toast.error("رقم هاتف العميل غير صالح لواتساب");
       return;
     }
     window.open(url, "_blank", "noopener,noreferrer");
@@ -324,7 +324,7 @@ export function PosScreen({
           <PosReadinessBanner state={readinessState} />
           {currentUserName ? (
             <span className="rounded-lg border border-border/60 bg-background/70 px-3 py-1 text-sm text-muted-foreground">
-              User: <span className="font-medium text-foreground">{currentUserName}</span>
+              المستخدم: <span className="font-medium text-foreground">{currentUserName}</span>
             </span>
           ) : null}
         </div>
@@ -341,7 +341,7 @@ export function PosScreen({
             onClick={() => setOnlineOrdersOpen(true)}
           >
             <ClipboardList className="mr-2 size-4" />
-            Online Orders
+            طلبات الأونلاين
             {activeOnlineOrdersCount > 0 ? (
               <span className="ms-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
                 {activeOnlineOrdersCount}
@@ -356,7 +356,7 @@ export function PosScreen({
               disabled={pending}
               onClick={handleOpenCashDrawer}
             >
-              Open Drawer
+              فتح الدرج
             </Button>
           ) : null}
           {canAddSessionExpense && storeId && cashierId && sessionId ? (
@@ -372,7 +372,7 @@ export function PosScreen({
               trigger={
                 <Button variant="outline" size="sm" className="h-11 rounded-xl px-4 text-sm">
                   <Wallet className="mr-2 size-4" />
-                  Add Expense
+                  إضافة مصروف
                 </Button>
               }
             />
@@ -398,20 +398,20 @@ export function PosScreen({
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={barcodeEnabled ? "Search or scan barcode…" : "Search products…"}
+                placeholder={barcodeEnabled ? "ابحث أو امسح الباركود…" : "ابحث عن منتجات…"}
                 className="h-11 rounded-xl pl-10 text-base"
                 autoComplete="off"
               />
             </div>
             <Button type="submit" variant="outline" className="h-11 rounded-xl px-5">
-              Add
+              إضافة
             </Button>
           </form>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl bg-muted/45 p-3 pb-24 ring-1 ring-border/60 sm:p-4 xl:pb-4">
             <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] lg:grid-cols-[repeat(auto-fit,minmax(190px,1fr))] xl:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
               {products.length === 0 && (
                 <div className="col-span-full flex min-h-48 items-center justify-center rounded-2xl bg-card/80 px-4 text-center text-sm text-muted-foreground ring-1 ring-border">
-                  No products found
+                  لا توجد منتجات
                 </div>
               )}
               {products.map((product) => (
@@ -437,12 +437,12 @@ export function PosScreen({
           {(readinessState === "ready" || readinessState === "session_warning") &&
             !hasActiveSession && (
             <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
-              Open a cashier session to checkout
+              افتح جلسة كاشير لإتمام البيع
             </p>
           )}
           {readinessState === "session_expired" && (
             <p className="mt-2 text-center text-xs text-destructive">
-              Close shift to continue selling
+              أغلق الوردية لمتابعة البيع
             </p>
           )}
         </aside>
@@ -467,12 +467,12 @@ export function PosScreen({
               {(readinessState === "ready" || readinessState === "session_warning") &&
                 !hasActiveSession && (
                 <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
-                  Open a cashier session to checkout
+                  افتح جلسة كاشير لإتمام البيع
                 </p>
               )}
               {readinessState === "session_expired" && (
                 <p className="mt-2 text-center text-xs text-destructive">
-                  Close shift to continue selling
+                  أغلق الوردية لمتابعة البيع
                 </p>
               )}
             </div>
@@ -502,7 +502,7 @@ export function PosScreen({
             <DialogHeader className="border-b border-border/70 px-4 py-3">
               <DialogTitle className="flex items-center gap-2 pe-8">
                 <ClipboardList className="size-5 text-primary" />
-                Online Orders
+                طلبات الأونلاين
               </DialogTitle>
             </DialogHeader>
             <div className="max-h-[calc(92dvh-56px)] overflow-y-auto p-2">
@@ -543,11 +543,11 @@ export function PosScreen({
         <span className="flex min-w-0 items-center gap-2">
           <ShoppingCart className="size-5" />
           <span className="truncate">
-            Cart · {cartItemCount} {cartItemCount === 1 ? "item" : "items"}
+            السلة · {cartItemCount} {cartItemCount === 1 ? "صنف" : "أصناف"}
           </span>
         </span>
         <span className="font-semibold tabular-nums">
-          {cartTotal === 0 ? "Open" : formatCurrency(cartTotal)}
+          {cartTotal === 0 ? "فتح" : formatCurrency(cartTotal)}
         </span>
       </Button>
 
@@ -555,9 +555,9 @@ export function PosScreen({
         <div className="print:hidden rounded-2xl border bg-background/95 p-3 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="text-sm font-semibold">Order {lastReceipt.orderNumber} completed</p>
+              <p className="text-sm font-semibold">تم إتمام الطلب {lastReceipt.orderNumber}</p>
               <p className="text-xs text-muted-foreground">
-                Print the thermal receipt or send it to the customer on WhatsApp.
+                اطبع الإيصال الحراري أو أرسله للعميل على واتساب.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -568,7 +568,7 @@ export function PosScreen({
                 onClick={handleUsbPrintReceipt}
               >
                 <Printer className="size-4" />
-                USB print
+                طباعة USB
               </Button>
               <Button
                 type="button"
@@ -588,7 +588,7 @@ export function PosScreen({
                 className="h-10 rounded-xl"
                 onClick={handleBrowserPrintReceipt}
               >
-                Browser print
+                طباعة المتصفح
               </Button>
             </div>
           </div>

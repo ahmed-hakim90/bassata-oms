@@ -50,6 +50,11 @@ export function VariantEditor({
     setVariants(rows);
   }
 
+  function nextVariantSku() {
+    const base = product.sku || product.name.replace(/\s+/g, "-").toUpperCase();
+    return `${base}-${variants.length + 1}`;
+  }
+
   useEffect(() => {
     let cancelled = false;
     void listVariantsAction(product.id)
@@ -65,25 +70,27 @@ export function VariantEditor({
   }, [product.id]);
 
   function handleCreate() {
-    if (!draft.name.trim() || !draft.sku.trim()) {
-      toast.error("Name and SKU are required");
+    const price = Number(draft.price) || 0;
+    if (!draft.name.trim() || price <= 0) {
+      toast.error("Name and price are required");
       return;
     }
     startTransition(async () => {
       try {
+        const sku = draft.sku.trim() || nextVariantSku();
         await createVariantAction(product.id, {
           name: draft.name.trim(),
-          sku: draft.sku.trim(),
-          barcode: draft.barcode.trim(),
+          sku,
+          barcode: draft.barcode.trim() || sku,
           price_delta: 0,
-          price: draft.price ? Number(draft.price) : null,
+          price,
           image_url: draft.image_url.trim() || null,
           is_active: true,
           variant_kind: draft.variant_kind,
           quantity_value: draft.quantity_value ? Number(draft.quantity_value) : null,
           quantity_unit: draft.quantity_unit,
-          price_mode: draft.price_mode,
-          fixed_price: draft.fixed_price ? Number(draft.fixed_price) : null,
+          price_mode: "fixed_price",
+          fixed_price: price,
         });
         setDraft({
           name: "",
@@ -94,7 +101,7 @@ export function VariantEditor({
           variant_kind: "standard",
           quantity_value: "",
           quantity_unit: "kg",
-          price_mode: "calculate_from_unit_price",
+          price_mode: "fixed_price",
           fixed_price: "",
         });
         await reload();
@@ -146,10 +153,11 @@ export function VariantEditor({
             />
           </div>
           <div className="grid gap-1">
-            <Label>SKU</Label>
+            <Label>SKU (optional)</Label>
             <Input
               value={draft.sku}
               onChange={(e) => setDraft((d) => ({ ...d, sku: e.target.value }))}
+              placeholder={nextVariantSku()}
             />
           </div>
           <div className="grid gap-1">
@@ -281,7 +289,13 @@ export function VariantEditor({
                     defaultValue={variant.price ?? ""}
                     onBlur={(e) => {
                       const price = e.target.value ? Number(e.target.value) : null;
-                      if (price !== variant.price) handleUpdate(variant.id, { price });
+                      if (price !== variant.price) {
+                        handleUpdate(variant.id, {
+                          price,
+                          fixed_price: price,
+                          price_mode: price != null ? "fixed_price" : variant.price_mode,
+                        });
+                      }
                     }}
                   />
                 </div>

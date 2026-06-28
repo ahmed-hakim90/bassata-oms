@@ -41,11 +41,11 @@ export default async function InventoryPage({
   const healthScore =
     totalSkus > 0 ? Math.max(0, Math.round(100 - (lowCount / totalSkus) * 100)) : 100;
   const healthLabel =
-    healthScore >= 80 ? "Healthy" : healthScore >= 50 ? "Attention" : "Critical";
+    healthScore >= 80 ? "سليم" : healthScore >= 50 ? "يحتاج متابعة" : "حرج";
 
   return (
     <InventoryHub
-      storeName={store?.name ?? "Store"}
+      storeName={store?.name ?? "الفرع"}
       healthScore={healthScore}
       healthLabel={healthLabel}
       lowCount={lowCount}

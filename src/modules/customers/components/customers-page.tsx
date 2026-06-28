@@ -43,9 +43,9 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
         setCustomers([customer, ...customers]);
         setShowCreate(false);
         setForm({ name: "", phone: "", email: "" });
-        toast.success("Customer created");
+        toast.success("تم إنشاء العميل");
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed");
+        toast.error(e instanceof Error ? e.message : "فشل التنفيذ");
       }
     });
   };
@@ -53,11 +53,11 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
   return (
     <>
       <PageHeader
-        title="Customers"
-        description="Relationships, history, and loyalty"
+        title="العملاء"
+        description="العلاقات والسجل والولاء"
         action={
           <Button onClick={() => setShowCreate(true)}>
-            <Plus className="size-4" /> Add Customer
+            <Plus className="size-4" /> إضافة عميل
           </Button>
         }
       />
@@ -67,16 +67,16 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or phone..."
+          placeholder="ابحث بالاسم أو الهاتف..."
           className="pl-10"
         />
       </div>
 
       {filtered.length === 0 ? (
-        <OperationalCard title="No customers found">
+        <OperationalCard title="لا توجد عملاء">
           <div className="flex flex-col items-center py-12">
             <Users className="mb-4 size-12 text-muted-foreground" />
-            <Button onClick={() => setShowCreate(true)}>Add Customer</Button>
+            <Button onClick={() => setShowCreate(true)}>إضافة عميل</Button>
           </div>
         </OperationalCard>
       ) : (
@@ -92,9 +92,9 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
                   <div className="text-right">
                     <p className="font-semibold">{formatCurrency(c.total_spent)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {c.visit_count} visits
+                      {c.visit_count} زيارة
                       {c.account_balance > 0
-                        ? ` · ${formatCurrency(c.account_balance)} owed`
+                        ? ` · ${formatCurrency(c.account_balance)} مستحق`
                         : ""}
                     </p>
                   </div>
@@ -108,25 +108,25 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="rounded-3xl">
           <DialogHeader>
-            <DialogTitle>New Customer</DialogTitle>
+            <DialogTitle>عميل جديد</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>الاسم</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Phone</Label>
+              <Label>الهاتف</Label>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>البريد الإلكتروني</Label>
               <Input
                 type="email"
                 value={form.email}
@@ -134,7 +134,7 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
               />
             </div>
             <Button onClick={create} disabled={pending}>
-              Create
+              إنشاء
             </Button>
           </div>
         </DialogContent>

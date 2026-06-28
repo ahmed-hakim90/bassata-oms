@@ -135,3 +135,7 @@ export async function listIngredients() {
 export async function listProductIdsWithRecipes() {
   return recipeRepo.listProductIdsWithRecipes();
 }
+
+export async function listRecipeKeys() {
+  return recipeRepo.listRecipeKeys();
+}

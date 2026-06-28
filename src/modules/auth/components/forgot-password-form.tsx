@@ -15,7 +15,7 @@ export function ForgotPasswordForm() {
     <div className="w-full max-w-md space-y-8 rounded-3xl border border-border/60 bg-card/80 p-8 shadow-xl backdrop-blur-xl">
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Reset your password</p>
+        <p className="mt-2 text-sm text-muted-foreground">إعادة تعيين كلمة المرور</p>
       </div>
 
       {state?.success ? (
@@ -23,19 +23,19 @@ export function ForgotPasswordForm() {
       ) : (
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">البريد الإلكتروني</Label>
             <Input id="email" name="email" type="email" required autoComplete="email" />
           </div>
           {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
           <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "Sending…" : "Send reset link"}
+            {pending ? "جاري الإرسال…" : "إرسال رابط إعادة التعيين"}
           </Button>
         </form>
       )}
 
       <p className="text-center text-sm">
         <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
-          Back to sign in
+          الرجوع لتسجيل الدخول
         </Link>
       </p>
     </div>

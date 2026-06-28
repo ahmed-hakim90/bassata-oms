@@ -29,7 +29,7 @@ export default async function PrintSupplierStatementPage({
   return (
     <PrintableDocument
       branding={branding}
-      title="Supplier Statement"
+      title="كشف حساب مورد"
       subtitle={statement.supplier.name}
       dateRange={query.from && query.to ? `${query.from} → ${query.to}` : undefined}
       generatedBy={user.name}

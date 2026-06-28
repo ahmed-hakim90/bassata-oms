@@ -17,36 +17,36 @@ import {
 } from "@/modules/onboarding/schemas/onboarding.schema";
 
 const STEPS = [
-  "Company",
-  "First Branch",
-  "Owner Account",
-  "Business Type",
-  "Features",
-  "Default Settings",
-  "Initial Setup",
+  "الشركة",
+  "أول فرع",
+  "حساب المالك",
+  "نوع النشاط",
+  "الخصائص",
+  "الإعدادات الافتراضية",
+  "التجهيز الأولي",
 ] as const;
 
 const FEATURE_LABELS: Record<OnboardingFeatureKey, string> = {
-  recipes: "Recipes & costing",
-  variants: "Variants",
-  purchases: "Purchases",
-  transfers: "Transfers",
-  waste: "Waste tracking",
-  stock_count: "Stock count",
-  loyalty: "Loyalty program",
-  customer_accounts: "Customer accounts",
-  credit_sales: "Credit sales",
-  imports_exports: "Imports/exports",
-  barcode_scanner: "Barcode scanner",
+  recipes: "الوصفات والتكلفة",
+  variants: "الخيارات",
+  purchases: "المشتريات",
+  transfers: "التحويلات",
+  waste: "تتبع الهالك",
+  stock_count: "جرد المخزون",
+  loyalty: "برنامج الولاء",
+  customer_accounts: "حسابات العملاء",
+  credit_sales: "البيع الآجل",
+  imports_exports: "الاستيراد والتصدير",
+  barcode_scanner: "قارئ الباركود",
 };
 
 const DEFAULT_FEATURES = Object.fromEntries(
   ONBOARDING_FEATURE_KEYS.map((key) => [key, key !== "credit_sales"])
 ) as Record<OnboardingFeatureKey, boolean>;
 const BUSINESS_TYPE_LABELS: Record<BusinessActivityType, string> = {
-  cafe: "Cafe / takeaway",
-  ice_cream: "Ice cream",
-  juice_bar: "Juice bar",
+  cafe: "كافيه / تيك أواي",
+  ice_cream: "آيس كريم",
+  juice_bar: "عصائر",
 };
 
 export function OnboardingWizard() {
@@ -115,7 +115,7 @@ export function OnboardingWizard() {
   function handleLogoChange(file: File | null) {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Logo must be 5 MB or smaller.");
+      toast.error("يجب أن يكون الشعار 5 ميجابايت أو أقل.");
       return;
     }
     const reader = new FileReader();
@@ -128,31 +128,31 @@ export function OnboardingWizard() {
   function validateStep(): string | null {
     switch (step) {
       case 0:
-        if (organization.name.trim().length < 2) return "Organization name is required.";
-        if (!organization.country.trim()) return "Country is required.";
+        if (organization.name.trim().length < 2) return "اسم المؤسسة مطلوب.";
+        if (!organization.country.trim()) return "الدولة مطلوبة.";
         if (organization.taxRate < 0 || organization.taxRate > 100)
-          return "Tax rate must be between 0 and 100.";
+          return "نسبة الضريبة يجب أن تكون بين 0 و100.";
         return null;
       case 1:
-        if (store.name.trim().length < 2) return "Store name is required.";
-        if (!store.address.trim()) return "Store address is required.";
+        if (store.name.trim().length < 2) return "اسم الفرع مطلوب.";
+        if (!store.address.trim()) return "عنوان الفرع مطلوب.";
         return null;
       case 2:
-        if (owner.name.trim().length < 2) return "Owner name is required.";
-        if (!owner.email.includes("@")) return "Valid owner email is required.";
-        if (owner.password.length < 8) return "Password must be at least 8 characters.";
+        if (owner.name.trim().length < 2) return "اسم المالك مطلوب.";
+        if (!owner.email.includes("@")) return "بريد المالك الصحيح مطلوب.";
+        if (owner.password.length < 8) return "كلمة المرور يجب ألا تقل عن 8 أحرف.";
         return null;
       case 5:
         if (
           defaultSettings.sessionRules.warnAfterHours >
           defaultSettings.sessionRules.maxOpenHours
         ) {
-          return "Session warning hours cannot exceed max open hours.";
+          return "ساعات تحذير الجلسة لا يمكن أن تتجاوز أقصى ساعات الفتح.";
         }
         return null;
       case 6:
         if (initialSetup.createFirstPosDevice && !initialSetup.firstPosDeviceName.trim()) {
-          return "POS device name is required when device creation is enabled.";
+          return "اسم جهاز الكاشير مطلوب عند تفعيل إنشاء الجهاز.";
         }
         return null;
       default:
@@ -189,9 +189,9 @@ export function OnboardingWizard() {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome to {APP_NAME}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">مرحبًا بك في {APP_NAME}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Set up your company in seven steps
+          جهّز شركتك في سبع خطوات
         </p>
       </div>
 
@@ -213,33 +213,33 @@ export function OnboardingWizard() {
       </div>
 
       {step === 0 && (
-        <OperationalCard title="Organization info">
+        <OperationalCard title="بيانات المؤسسة">
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label>Organization name</Label>
+              <Label>اسم المؤسسة</Label>
               <Input
                 value={organization.name}
                 onChange={(e) => setOrganization({ ...organization, name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Logo</Label>
+              <Label>الشعار</Label>
               <Input type="file" accept="image/*" onChange={(e) => handleLogoChange(e.target.files?.[0] ?? null)} />
               {organization.logoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={organization.logoUrl} alt="Logo preview" className="mt-2 h-16 w-16 rounded-lg object-cover" />
+                <img src={organization.logoUrl} alt="معاينة الشعار" className="mt-2 h-16 w-16 rounded-lg object-cover" />
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Currency</Label>
+                <Label>العملة</Label>
                 <Input
                   value={organization.currency}
                   onChange={(e) => setOrganization({ ...organization, currency: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Timezone</Label>
+                <Label>المنطقة الزمنية</Label>
                 <Input
                   value={organization.timezone}
                   onChange={(e) => setOrganization({ ...organization, timezone: e.target.value })}
@@ -247,7 +247,7 @@ export function OnboardingWizard() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Country</Label>
+              <Label>الدولة</Label>
               <Input
                 value={organization.country}
                 onChange={(e) => setOrganization({ ...organization, country: e.target.value })}
@@ -255,7 +255,7 @@ export function OnboardingWizard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Tax rate (%)</Label>
+                <Label>نسبة الضريبة (%)</Label>
                 <Input
                   type="number"
                   min={0}
@@ -268,7 +268,7 @@ export function OnboardingWizard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Tax behavior</Label>
+                <Label>طريقة الضريبة</Label>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={organization.taxInclusive}
@@ -294,22 +294,22 @@ export function OnboardingWizard() {
       )}
 
       {step === 1 && (
-        <OperationalCard title="First store">
+        <OperationalCard title="أول فرع">
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label>Store name</Label>
+              <Label>اسم الفرع</Label>
               <Input value={store.name} onChange={(e) => setStore({ ...store, name: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Address</Label>
+              <Label>العنوان</Label>
               <Textarea value={store.address} onChange={(e) => setStore({ ...store, address: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Phone</Label>
+              <Label>الهاتف</Label>
               <Input value={store.phone} onChange={(e) => setStore({ ...store, phone: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Store timezone</Label>
+              <Label>المنطقة الزمنية للفرع</Label>
               <Input
                 value={store.timezone}
                 onChange={(e) => setStore({ ...store, timezone: e.target.value })}
@@ -320,14 +320,14 @@ export function OnboardingWizard() {
       )}
 
       {step === 2 && (
-        <OperationalCard title="Owner account">
+        <OperationalCard title="حساب المالك">
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>الاسم</Label>
               <Input value={owner.name} onChange={(e) => setOwner({ ...owner, name: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>البريد الإلكتروني</Label>
               <Input
                 type="email"
                 value={owner.email}
@@ -336,7 +336,7 @@ export function OnboardingWizard() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Password</Label>
+              <Label>كلمة المرور</Label>
               <Input
                 type="password"
                 value={owner.password}
@@ -348,7 +348,7 @@ export function OnboardingWizard() {
       )}
 
       {step === 3 && (
-        <OperationalCard title="Business type">
+        <OperationalCard title="نوع النشاط">
           <div className="grid gap-3 sm:grid-cols-2">
             {BUSINESS_ACTIVITY_TYPES.map((type) => (
               <label key={type} className="flex items-center gap-2 rounded-md border p-3 text-sm">
@@ -366,7 +366,7 @@ export function OnboardingWizard() {
       )}
 
       {step === 4 && (
-        <OperationalCard title="Features">
+        <OperationalCard title="الخصائص">
           <div className="grid gap-3 sm:grid-cols-2">
             {ONBOARDING_FEATURE_KEYS.map((key) => (
               <label key={key} className="flex items-center gap-2 text-sm">
@@ -384,10 +384,10 @@ export function OnboardingWizard() {
       )}
 
       {step === 5 && (
-        <OperationalCard title="Default settings">
+        <OperationalCard title="الإعدادات الافتراضية">
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label>Receipt header</Label>
+              <Label>بداية الإيصال</Label>
               <Textarea
                 value={defaultSettings.receiptHeader}
                 onChange={(e) =>
@@ -396,7 +396,7 @@ export function OnboardingWizard() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Receipt footer</Label>
+              <Label>نهاية الإيصال</Label>
               <Textarea
                 value={defaultSettings.receiptFooter}
                 onChange={(e) =>
@@ -449,7 +449,7 @@ export function OnboardingWizard() {
             </label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Session max open hours</Label>
+                <Label>أقصى ساعات فتح الجلسة</Label>
                 <Input
                   type="number"
                   min={1}
@@ -467,7 +467,7 @@ export function OnboardingWizard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Session warning hours</Label>
+                <Label>ساعات تحذير الجلسة</Label>
                 <Input
                   type="number"
                   min={1}
@@ -505,7 +505,7 @@ export function OnboardingWizard() {
       )}
 
       {step === 6 && (
-        <OperationalCard title="Initial setup">
+        <OperationalCard title="التجهيز الأولي">
           <div className="grid gap-3">
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
@@ -563,7 +563,7 @@ export function OnboardingWizard() {
             </label>
             {initialSetup.createFirstPosDevice && (
               <div className="space-y-2">
-                <Label>POS device name</Label>
+                <Label>اسم جهاز الكاشير</Label>
                 <Input
                   value={initialSetup.firstPosDeviceName}
                   onChange={(e) =>
@@ -586,7 +586,7 @@ export function OnboardingWizard() {
           </Button>
         ) : (
           <Button type="button" onClick={submit} disabled={pending}>
-            {pending ? "Setting up..." : "Complete setup"}
+            {pending ? "جاري التجهيز..." : "إكمال التجهيز"}
           </Button>
         )}
       </div>

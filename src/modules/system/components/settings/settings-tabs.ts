@@ -13,11 +13,11 @@ export const SETTINGS_TAB_IDS = [
 export type SettingsTabId = (typeof SETTINGS_TAB_IDS)[number];
 
 export const SETTINGS_GROUPS = [
-  "Store",
-  "POS",
-  "Inventory",
-  "Security",
-  "Advanced",
+  "المتجر",
+  "الكاشير",
+  "المخزون",
+  "الأمان",
+  "متقدم",
 ] as const;
 export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
 
@@ -30,52 +30,52 @@ export const SETTINGS_TABS: {
 }[] = [
   {
     id: "business",
-    label: "Store",
+    label: "المتجر",
     permissions: ["settings_manage"],
-    group: "Store",
-    searchTerms: ["store", "company", "branding", "logo", "currency"],
+    group: "المتجر",
+    searchTerms: ["store", "company", "branding", "logo", "currency", "متجر", "شركة", "شعار", "عملة"],
   },
   {
     id: "branches",
-    label: "Branches & Devices",
+    label: "الفروع والأجهزة",
     permissions: ["settings_manage"],
-    group: "Store",
-    searchTerms: ["branches", "stores", "devices", "terminals"],
+    group: "المتجر",
+    searchTerms: ["branches", "stores", "devices", "terminals", "فروع", "أجهزة", "كاشير"],
   },
   {
     id: "pos",
-    label: "POS, Receipts & Payments",
+    label: "الكاشير والإيصالات والدفع",
     permissions: ["settings_manage", "session_settings_manage"],
-    group: "POS",
-    searchTerms: ["pos", "sessions", "receipts", "payments"],
+    group: "الكاشير",
+    searchTerms: ["pos", "sessions", "receipts", "payments", "كاشير", "جلسات", "إيصالات", "دفع"],
   },
   {
     id: "expenses",
-    label: "Units, Transfers & Expenses",
+    label: "الوحدات والتحويلات والمصروفات",
     permissions: ["settings_manage", "cost_center_manage"],
-    group: "Inventory",
-    searchTerms: ["units", "transfers", "expenses", "categories"],
+    group: "المخزون",
+    searchTerms: ["units", "transfers", "expenses", "categories", "وحدات", "تحويلات", "مصروفات", "تصنيفات"],
   },
   {
     id: "users",
-    label: "Users, Roles & Permissions",
+    label: "المستخدمون والأدوار والصلاحيات",
     permissions: ["user_manage"],
-    group: "Security",
-    searchTerms: ["users", "roles", "permissions", "security"],
+    group: "الأمان",
+    searchTerms: ["users", "roles", "permissions", "security", "مستخدمين", "أدوار", "صلاحيات", "أمان"],
   },
   {
     id: "features",
-    label: "Feature Flags",
+    label: "خصائص النظام",
     permissions: ["settings_manage"],
-    group: "Advanced",
-    searchTerms: ["feature flags", "flags", "toggles"],
+    group: "متقدم",
+    searchTerms: ["feature flags", "flags", "toggles", "خصائص", "مفاتيح", "تفعيل"],
   },
   {
     id: "audit",
-    label: "Audit",
+    label: "سجل المراجعة",
     permissions: ["audit_view"],
-    group: "Advanced",
-    searchTerms: ["audit", "logs"],
+    group: "متقدم",
+    searchTerms: ["audit", "logs", "مراجعة", "سجلات"],
   },
 ];
 

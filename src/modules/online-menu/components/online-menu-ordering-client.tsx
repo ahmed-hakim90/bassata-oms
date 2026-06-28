@@ -50,6 +50,29 @@ function variantLabel(item: OnlineMenuItem, variant: OnlineMenuVariant | null) {
   return variant ? `${item.name} - ${variant.name}` : item.name;
 }
 
+function getMenuItemDisplayPrice(item: OnlineMenuItem, currency: string) {
+  const variantPrices = item.variants
+    .map((variant) => variant.price)
+    .filter((price) => Number.isFinite(price))
+    .sort((a, b) => a - b);
+  const minVariantPrice = variantPrices[0];
+  const maxVariantPrice = variantPrices.at(-1);
+  const hasVariantPrice = minVariantPrice != null && maxVariantPrice != null;
+
+  return {
+    label: hasVariantPrice
+      ? maxVariantPrice > minVariantPrice
+        ? "من أقل سعر"
+        : "سعر الأحجام"
+      : null,
+    amount: hasVariantPrice ? minVariantPrice : item.price,
+    range:
+      hasVariantPrice && maxVariantPrice > minVariantPrice
+        ? ` إلى ${formatMoney(maxVariantPrice, currency)}`
+        : "",
+  };
+}
+
 interface OnlineMenuOrderingClientProps {
   slug: string;
   menu: OnlineMenuData;
@@ -152,11 +175,17 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
             <section key={group.id} className="space-y-3">
               <h2 className="px-1 text-xl font-semibold">{group.name}</h2>
               <div className="grid grid-cols-2 gap-3">
-                {group.items.map((item) => (
-                  <article
-                    key={item.id}
-                    className="overflow-hidden rounded-3xl border border-border/70 bg-card/90 shadow-sm"
-                  >
+                {group.items.map((item) => {
+                  const displayPrice = getMenuItemDisplayPrice(
+                    item,
+                    menu.organization.currency
+                  );
+
+                  return (
+                    <article
+                      key={item.id}
+                      className="overflow-hidden rounded-3xl border border-border/70 bg-card/90 shadow-sm"
+                    >
                     <div className="relative flex aspect-[4/3] min-h-36 items-center justify-center bg-primary/10">
                       {item.imageUrl ? (
                         <Image
@@ -189,9 +218,19 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                             </p>
                           ) : null}
                         </div>
-                        <p className="shrink-0 font-semibold text-primary">
-                          {formatMoney(item.price, menu.organization.currency)}
-                        </p>
+                        <div className="shrink-0 text-end">
+                          {displayPrice.label ? (
+                            <p className="text-xs text-muted-foreground">{displayPrice.label}</p>
+                          ) : null}
+                          <p className="font-semibold text-primary">
+                            {formatMoney(displayPrice.amount, menu.organization.currency)}
+                            {displayPrice.range ? (
+                              <span className="text-xs font-normal text-muted-foreground">
+                                {displayPrice.range}
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
                       </div>
 
                       {item.variants.length > 0 ? (
@@ -221,8 +260,9 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                         </Button>
                       )}
                     </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             </section>
           ))

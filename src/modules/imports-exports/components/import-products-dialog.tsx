@@ -18,8 +18,17 @@ import {
   importProductsAction,
   parseProductsFileAction,
 } from "../actions/import-export.actions";
-import type { ProductImportRow } from "../services/import.service";
+import type { ParsedImportResult } from "../services/import.service";
 import { toast } from "sonner";
+
+type ImportStage =
+  | "idle"
+  | "reading"
+  | "parsing"
+  | "ready"
+  | "importing"
+  | "imported"
+  | "template";
 
 function downloadBase64(base64: string, filename: string) {
   const link = document.createElement("a");
@@ -49,49 +58,97 @@ export function ImportProductsDialog({
   onOpenChange,
   onImported,
 }: ImportProductsDialogProps) {
-  const [rows, setRows] = useState<ProductImportRow[]>([]);
+  const [parsed, setParsed] = useState<ParsedImportResult | null>(null);
   const [errors, setErrors] = useState<{ row: number; field: string; message: string }[]>([]);
+  const [warnings, setWarnings] = useState<{ row: number; field: string; message: string }[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [stage, setStage] = useState<ImportStage>("idle");
+  const [progress, setProgress] = useState(0);
   const [pending, startTransition] = useTransition();
+
+  const progressLabel =
+    stage === "reading"
+      ? "Reading spreadsheet"
+      : stage === "parsing"
+        ? "Checking products, variants, and recipes"
+        : stage === "ready"
+          ? "Ready to import"
+          : stage === "importing"
+            ? "Importing products"
+            : stage === "imported"
+              ? "Import completed"
+              : stage === "template"
+                ? "Preparing template"
+                : "";
 
   async function handleFile(file: File | null) {
     if (!file) return;
     setFileName(file.name);
+    setParsed(null);
+    setErrors([]);
+    setWarnings([]);
+    setStage("reading");
+    setProgress(15);
     const buffer = await file.arrayBuffer();
+    setProgress(35);
     const base64 = arrayBufferToBase64(buffer);
+    setStage("parsing");
+    setProgress(55);
     startTransition(async () => {
       try {
-        const parsed = await parseProductsFileAction(base64);
-        setRows(parsed.rows);
-        setErrors(parsed.errors);
+        const result = await parseProductsFileAction(base64);
+        setParsed(result);
+        setErrors(result.errors);
+        setWarnings(result.warnings);
+        setStage("ready");
+        setProgress(100);
       } catch {
+        setStage("idle");
+        setProgress(0);
         toast.error("Could not parse spreadsheet");
       }
     });
   }
 
   async function handleImport() {
-    if (rows.length === 0) return;
+    if (!parsed || parsed.rows.length === 0) return;
+    setStage("importing");
+    setProgress(65);
     startTransition(async () => {
       try {
-        const result = await importProductsAction(rows);
+        const result = await importProductsAction(parsed);
+        setProgress(100);
+        setStage("imported");
         toast.success(
-          `Imported ${result.imported.length}, updated ${result.updated.length}, skipped ${result.skipped}`
+          `Imported ${result.imported.length}, updated ${result.updated.length}, variants ${result.variantsImported.length + result.variantsUpdated.length}, recipes ${result.recipeGroupsImported}`
         );
         onOpenChange(false);
-        setRows([]);
+        setParsed(null);
         setErrors([]);
+        setWarnings([]);
         setFileName(null);
+        setProgress(0);
+        setStage("idle");
         onImported?.();
       } catch {
+        setStage("ready");
+        setProgress(100);
         toast.error("Import failed");
       }
     });
   }
 
   async function handleTemplate() {
-    const { base64, filename } = await exportProductsTemplateAction();
-    downloadBase64(base64, filename);
+    setStage("template");
+    setProgress(45);
+    try {
+      const { base64, filename } = await exportProductsTemplateAction();
+      setProgress(100);
+      downloadBase64(base64, filename);
+    } finally {
+      setStage(parsed ? "ready" : "idle");
+      setProgress(parsed ? 100 : 0);
+    }
   }
 
   return (
@@ -100,13 +157,12 @@ export function ImportProductsDialog({
         <DialogHeader>
           <DialogTitle>Import products</DialogTitle>
           <DialogDescription>
-            Upload an XLSX file with the simple product definition: name, category, definition,
-            price, and optional SKU/barcode.
+            Upload menu items without recipes, then add ingredients and sizes later from product edit.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
-          <Button variant="outline" type="button" onClick={handleTemplate}>
+          <Button variant="outline" type="button" onClick={handleTemplate} disabled={pending}>
             <Download className="size-4" />
             Download simple Excel template
           </Button>
@@ -119,19 +175,47 @@ export function ImportProductsDialog({
                 type="file"
                 accept=".xlsx,.xls"
                 className="sr-only"
+                disabled={pending}
                 onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
               />
             </label>
             {fileName ? <p className="text-xs text-muted-foreground">{fileName}</p> : null}
             <p className="max-w-sm text-xs text-muted-foreground">
-              Use definition values like menu_item, ingredient, service, or their Arabic labels.
-              SKU can be blank and will be generated automatically.
+              Use Products for items and ingredients, Variants for sizes and prices, and Recipes
+              only when you want inventory deduction and accurate profit.
             </p>
           </GlassPanel>
 
-          {rows.length > 0 ? (
+          {stage !== "idle" ? (
+            <div className="grid gap-2" aria-live="polite">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{progressLabel}</span>
+                <span className="tabular-nums">{progress}%</span>
+              </div>
+              <div
+                className="h-2 overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress}
+                aria-label={progressLabel}
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {parsed ? (
             <div className="flex flex-wrap items-center gap-2">
-              <StatusPill label={`${rows.length} rows`} variant="info" />
+              <StatusPill label={`${parsed.rows.length} products`} variant="info" />
+              <StatusPill label={`${parsed.variants.length} variants`} variant="info" />
+              <StatusPill label={`${parsed.recipes.length} recipe lines`} variant="info" />
+              {warnings.length > 0 ? (
+                <StatusPill label={`${warnings.length} warnings`} variant="warning" />
+              ) : null}
               {errors.length > 0 ? (
                 <StatusPill label={`${errors.length} issues`} variant="warning" />
               ) : (
@@ -149,6 +233,16 @@ export function ImportProductsDialog({
               ))}
             </ul>
           ) : null}
+
+          {warnings.length > 0 ? (
+            <ul className="max-h-32 overflow-auto text-xs text-muted-foreground">
+              {warnings.slice(0, 8).map((warning, i) => (
+                <li key={`${warning.row}-${warning.field}-${i}`}>
+                  Row {warning.row} · {warning.field}: {warning.message}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         <DialogFooter className="px-0 pb-0">
@@ -156,10 +250,10 @@ export function ImportProductsDialog({
             Cancel
           </Button>
           <Button
-            disabled={pending || rows.length === 0 || errors.length > 0}
+            disabled={pending || !parsed || parsed.rows.length === 0 || errors.length > 0}
             onClick={handleImport}
           >
-            Import {rows.length > 0 ? rows.length : ""} rows
+            Import {parsed ? parsed.rows.length : ""} products
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,5 +1,6 @@
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as inventoryRepo from "@/lib/repositories/inventory.repository";
+import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -41,6 +42,10 @@ export async function getStockLevel(
 
 export async function adjustStock(input: AdjustStockInput): Promise<InventoryMovement | null> {
   await assertPeriodOpen(input.storeId);
+  const warehouse = await warehouseRepo.getWarehouse(input.warehouseId);
+  if (!warehouse || warehouse.store_id !== input.storeId || !warehouse.is_active) {
+    throw new Error("Warehouse does not belong to the selected store");
+  }
   const product = await catalogRepo.getProduct(input.productId);
   if (!product?.track_inventory) return null;
 

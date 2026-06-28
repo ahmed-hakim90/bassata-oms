@@ -24,27 +24,27 @@ export function OrderDetail({ order }: OrderDetailProps) {
   }
 
   function handleVoid() {
-    if (!confirm("Void this order and restore stock?")) return;
+    if (!confirm("إلغاء هذا الطلب واسترجاع المخزون؟")) return;
     startTransition(async () => {
       try {
         await voidOrderAction(order.id);
-        toast.success("Order voided");
+        toast.success("تم إلغاء الطلب");
         window.location.reload();
       } catch {
-        toast.error("Could not void order");
+        toast.error("تعذر إلغاء الطلب");
       }
     });
   }
 
   function handleRefund() {
-    if (!confirm("Refund this order and restore stock?")) return;
+    if (!confirm("استرداد هذا الطلب واسترجاع المخزون؟")) return;
     startTransition(async () => {
       try {
         await refundOrderAction(order.id);
-        toast.success("Order refunded");
+        toast.success("تم رد الطلب");
         window.location.reload();
       } catch {
-        toast.error("Could not refund order");
+        toast.error("تعذر رد الطلب");
       }
     });
   }
@@ -63,7 +63,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="size-4" />
-            Print
+            طباعة
           </Button>
           {order.status === "completed" && (
             <>
@@ -73,7 +73,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 disabled={pending}
                 onClick={handleRefund}
               >
-                Refund
+                رد
               </Button>
               <Button
                 variant="destructive"
@@ -81,7 +81,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 disabled={pending}
                 onClick={handleVoid}
               >
-                Void
+                إلغاء
               </Button>
             </>
           )}
@@ -102,7 +102,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
         <CardContent className="space-y-4">
           {order.customerName && (
             <p className="text-sm">
-              <span className="text-muted-foreground">Customer: </span>
+              <span className="text-muted-foreground">العميل: </span>
               {order.customerName}
             </p>
           )}
@@ -121,22 +121,22 @@ export function OrderDetail({ order }: OrderDetailProps) {
           <Separator />
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">الإجمالي الفرعي</span>
               <span>{formatCurrency(order.subtotal)}</span>
             </div>
             {order.discount > 0 && (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Discount</span>
+                <span className="text-muted-foreground">الخصم</span>
                 <span>-{formatCurrency(order.discount)}</span>
               </div>
             )}
             <div className="flex justify-between text-base font-semibold">
-              <span>Total</span>
+              <span>الإجمالي</span>
               <span>{formatCurrency(order.total)}</span>
             </div>
             {order.status === "refunded" && (
               <div className="flex justify-between text-sm text-destructive">
-                <span>Refunded</span>
+                <span>مسترد</span>
                 <span>-{formatCurrency(order.total)}</span>
               </div>
             )}
@@ -151,7 +151,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
             ))}
           </div>
           <p className="text-center text-xs text-muted-foreground print:mt-8">
-            Thank you for visiting CafeFlow!
+            شكرًا لزيارتك CafeFlow!
           </p>
         </CardContent>
       </Card>

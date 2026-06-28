@@ -91,8 +91,8 @@ export function ReportsDashboard({
   return (
     <>
       <div className="mb-2">
-        <h2 className="text-lg font-semibold">Executive overview</h2>
-        <p className="text-sm text-muted-foreground">{`KPIs across ${days} days`}</p>
+        <h2 className="text-lg font-semibold">نظرة تنفيذية</h2>
+        <p className="text-sm text-muted-foreground">{`مؤشرات الأداء خلال ${days} يوم`}</p>
       </div>
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <div className="flex gap-2">
@@ -138,7 +138,7 @@ export function ReportsDashboard({
             className="h-9 w-36 rounded-full"
           />
           <Button type="submit" size="sm" variant="outline" className="rounded-full">
-            Custom range
+            فترة مخصصة
           </Button>
         </form>
         <select
@@ -153,7 +153,7 @@ export function ReportsDashboard({
             router.push(`/reports?${params.toString()}`);
           }}
         >
-          <option value="all">All stores</option>
+          <option value="all">كل الفروع</option>
           {stores.map((store) => (
             <option key={store.id} value={store.id}>
               {store.name}
@@ -177,21 +177,21 @@ export function ReportsDashboard({
                 link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${file.base64}`;
                 link.download = file.filename;
                 link.click();
-                toast.success("Report exported");
+                toast.success("تم تصدير التقرير");
               } catch {
-                toast.error("Export failed");
+                toast.error("فشل التصدير");
               }
             });
           }}
         >
           <Download className="size-4" />
-          Export
+          تصدير
         </Button>
       </div>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Revenue"
+          label="الإيراد"
           value={formatCurrency(sales.totalRevenue, currency)}
           icon={<DollarSign className="size-5" />}
           trend="up"
@@ -199,17 +199,17 @@ export function ReportsDashboard({
         {showCosts ? (
           <>
             <KpiCard
-              label="COGS"
+              label="تكلفة البضاعة"
               value={formatCurrency(sales.totalCost, currency)}
               icon={<Package className="size-5" />}
             />
             <KpiCard
-              label="Gross profit"
+              label="إجمالي الربح"
               value={formatCurrency(sales.grossProfit, currency)}
               icon={<TrendingUp className="size-5" />}
             />
             <KpiCard
-              label="Avg margin"
+              label="متوسط الهامش"
               value={`${sales.avgMargin.toFixed(1)}%`}
               icon={<Users className="size-5" />}
             />
@@ -217,17 +217,17 @@ export function ReportsDashboard({
         ) : (
           <>
             <KpiCard
-              label="Orders"
+              label="الطلبات"
               value={String(sales.orderCount)}
               icon={<TrendingUp className="size-5" />}
             />
             <KpiCard
-              label="Inventory Value"
+              label="قيمة المخزون"
               value={formatCurrency(inventory.valuationEstimate, currency)}
               icon={<Package className="size-5" />}
             />
             <KpiCard
-              label="Open Sessions"
+              label="الجلسات المفتوحة"
               value={String(sessions.openSessions)}
               icon={<Users className="size-5" />}
             />
@@ -236,7 +236,7 @@ export function ReportsDashboard({
       </div>
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-2">
-        <OperationalCard title="Revenue Trend">
+        <OperationalCard title="اتجاه الإيراد">
           <div className="h-64">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -258,13 +258,13 @@ export function ReportsDashboard({
               </ResponsiveContainer>
             ) : (
               <div className="flex h-full items-center justify-center text-muted-foreground">
-                No sales data yet — complete POS orders to see trends
+                لا توجد بيانات مبيعات بعد - أكمل طلبات الكاشير لعرض الاتجاهات
               </div>
             )}
           </div>
         </OperationalCard>
 
-        <OperationalCard title="Revenue by Store">
+        <OperationalCard title="الإيراد حسب الفرع">
           <div className="h-64 min-w-0">
             {sales.revenueByStore.some((s) => s.revenue > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -286,9 +286,9 @@ export function ReportsDashboard({
           </div>
         </OperationalCard>
 
-        <OperationalCard title="Top Products">
+        <OperationalCard title="أفضل المنتجات">
           {sales.topProducts.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">No data yet</p>
+            <p className="py-8 text-center text-muted-foreground">لا توجد بيانات بعد</p>
           ) : (
             <ul className="space-y-3">
               {sales.topProducts.map((p, i) => (
@@ -322,7 +322,7 @@ export function ReportsDashboard({
         </OperationalCard>
 
         {sales.topVariants.length > 0 ? (
-          <OperationalCard title="Top Variants">
+          <OperationalCard title="أفضل الخيارات">
             <ul className="space-y-3">
               {sales.topVariants.map((v, i) => (
                 <li key={`${v.productName}-${v.name}`} className="flex items-center gap-4">
@@ -333,7 +333,7 @@ export function ReportsDashboard({
                     <p className="font-medium">
                       {v.productName} — {v.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">{v.quantity} sold</p>
+                    <p className="text-xs text-muted-foreground">{v.quantity} مباع</p>
                   </div>
                   <span className="font-semibold">{formatCurrency(v.revenue, currency)}</span>
                 </li>
@@ -343,7 +343,7 @@ export function ReportsDashboard({
         ) : null}
 
         {showCosts && profitability.length > 0 ? (
-          <OperationalCard title="Product Profitability">
+          <OperationalCard title="ربحية المنتجات">
             <ul className="max-h-64 space-y-2 overflow-y-auto">
               {profitability.slice(0, 10).map((row) => (
                 <li
@@ -360,27 +360,27 @@ export function ReportsDashboard({
           </OperationalCard>
         ) : null}
 
-        <OperationalCard title="Inventory Health">
+        <OperationalCard title="صحة المخزون">
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-2xl bg-muted/50 p-4 text-center">
               <p className="text-2xl font-semibold">{inventory.totalUnits}</p>
-              <p className="text-xs text-muted-foreground">Total Units</p>
+              <p className="text-xs text-muted-foreground">إجمالي الوحدات</p>
             </div>
             <div className="rounded-2xl bg-amber-500/10 p-4 text-center">
               <p className="text-2xl font-semibold text-amber-700 dark:text-amber-300">
                 {inventory.lowStockCount}
               </p>
-              <p className="text-xs text-muted-foreground">Low Stock</p>
+              <p className="text-xs text-muted-foreground">مخزون منخفض</p>
             </div>
             <div className="rounded-2xl bg-red-500/10 p-4 text-center">
               <p className="text-2xl font-semibold text-red-700 dark:text-red-300">
                 {inventory.outOfStockCount}
               </p>
-              <p className="text-xs text-muted-foreground">Out of Stock</p>
+              <p className="text-xs text-muted-foreground">غير متوفر</p>
             </div>
             <div className="rounded-2xl bg-muted/50 p-4 text-center">
               <p className="text-2xl font-semibold">{inventory.totalSkus}</p>
-              <p className="text-xs text-muted-foreground">SKUs Tracked</p>
+              <p className="text-xs text-muted-foreground">أكواد متتبعة</p>
             </div>
           </div>
         </OperationalCard>
@@ -388,35 +388,35 @@ export function ReportsDashboard({
 
       {showCosts && accounting ? (
         <>
-          <h2 className="mb-4 mt-10 text-xl font-semibold">Accounting</h2>
+          <h2 className="mb-4 mt-10 text-xl font-semibold">الحسابات</h2>
           <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
-              label="Total expenses"
+              label="إجمالي المصروفات"
               value={formatCurrency(accounting.profit.totalExpenses, currency)}
               icon={<DollarSign className="size-5" />}
             />
             <KpiCard
-              label="Waste cost"
+              label="تكلفة الهالك"
               value={formatCurrency(accounting.profit.wasteCost, currency)}
               icon={<Package className="size-5" />}
             />
             <KpiCard
-              label="Est. net profit"
+              label="صافي الربح المتوقع"
               value={formatCurrency(accounting.profit.estimatedNetProfit, currency)}
               icon={<TrendingUp className="size-5" />}
             />
             <KpiCard
-              label="Refunds"
+              label="المرتجعات"
               value={formatCurrency(accounting.profit.refunds, currency)}
               icon={<Users className="size-5" />}
             />
           </div>
 
           <div className="grid min-w-0 gap-6 lg:grid-cols-2">
-            <OperationalCard title="Expenses by Cost Center">
+            <OperationalCard title="المصروفات حسب مركز التكلفة">
               <div className="h-64">
                 {accounting.expensesByStore.length > 0 ? (
-                  <OperationalCard title="Expenses by store">
+                  <OperationalCard title="المصروفات حسب الفرع">
                     <ul className="space-y-2">
                       {accounting.expensesByStore.map((s) => (
                         <li key={s.storeId} className="flex justify-between text-sm">
@@ -456,7 +456,7 @@ export function ReportsDashboard({
               </div>
             </OperationalCard>
 
-            <OperationalCard title="Expenses by Category">
+            <OperationalCard title="المصروفات حسب التصنيف">
               <div className="h-64">
                 {accounting.expensesByCategoryTrend.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -471,8 +471,8 @@ export function ReportsDashboard({
                             : formatCurrency(Number(v), currency)
                         }
                       />
-                      <Bar dataKey="amount" fill="#7C3AED" radius={[8, 8, 0, 0]} name="Current" />
-                      <Bar dataKey="priorAmount" fill="#94A3B8" radius={[8, 8, 0, 0]} name="Prior" />
+                      <Bar dataKey="amount" fill="#7C3AED" radius={[8, 8, 0, 0]} name="الحالي" />
+                      <Bar dataKey="priorAmount" fill="#94A3B8" radius={[8, 8, 0, 0]} name="السابق" />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : accounting.expensesByCategory.length > 0 ? (
@@ -506,11 +506,11 @@ export function ReportsDashboard({
               )}
             </OperationalCard>
 
-            <OperationalCard title="Top Expenses">
+            <OperationalCard title="أعلى المصروفات">
               <ul className="space-y-2 text-sm">
                 {accounting.topExpenses.highestCostCenter && (
                   <li className="flex justify-between">
-                    <span>Highest cost center</span>
+                    <span>أعلى مركز تكلفة</span>
                     <span className="font-medium">
                       {accounting.topExpenses.highestCostCenter.name} —{" "}
                       {formatCurrency(accounting.topExpenses.highestCostCenter.amount, currency)}
@@ -519,7 +519,7 @@ export function ReportsDashboard({
                 )}
                 {accounting.topExpenses.highestCategory && (
                   <li className="flex justify-between">
-                    <span>Highest category</span>
+                    <span>أعلى تصنيف</span>
                     <span className="font-medium">
                       {accounting.topExpenses.highestCategory.name} —{" "}
                       {formatCurrency(accounting.topExpenses.highestCategory.amount, currency)}
@@ -528,7 +528,7 @@ export function ReportsDashboard({
                 )}
                 {accounting.topExpenses.highestSingle && (
                   <li className="flex justify-between">
-                    <span>Largest single expense</span>
+                    <span>أكبر مصروف منفرد</span>
                     <span className="font-medium">
                       {accounting.topExpenses.highestSingle.title} —{" "}
                       {formatCurrency(accounting.topExpenses.highestSingle.amount, currency)}
@@ -538,7 +538,7 @@ export function ReportsDashboard({
               </ul>
             </OperationalCard>
 
-            <OperationalCard title="Highest Waste">
+            <OperationalCard title="أعلى هالك">
               <ul className="max-h-64 space-y-2 overflow-y-auto text-sm">
                 {accounting.highestWaste.slice(0, 5).map((w) => (
                   <li key={w.productId} className="flex justify-between gap-2">
@@ -547,12 +547,12 @@ export function ReportsDashboard({
                   </li>
                 ))}
                 {accounting.highestWaste.length === 0 && (
-                  <p className="text-muted-foreground">No waste recorded</p>
+                  <p className="text-muted-foreground">لا توجد هالك مسجل</p>
                 )}
               </ul>
             </OperationalCard>
 
-            <OperationalCard title="Session Expenses" className="lg:col-span-2">
+            <OperationalCard title="مصروفات الجلسات" className="lg:col-span-2">
               <ul className="max-h-48 space-y-2 overflow-y-auto text-sm">
                 {accounting.sessionExpenses.slice(0, 10).map((s) => (
                   <li key={s.sessionId} className="flex justify-between border-b border-border/50 pb-2">
@@ -561,14 +561,14 @@ export function ReportsDashboard({
                   </li>
                 ))}
                 {accounting.sessionExpenses.length === 0 && (
-                  <p className="text-muted-foreground">No session expenses</p>
+                  <p className="text-muted-foreground">لا توجد مصروفات جلسات</p>
                 )}
               </ul>
             </OperationalCard>
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <OperationalCard title="Highest Profit Products">
+            <OperationalCard title="أعلى منتجات ربحًا">
               <ul className="space-y-2 text-sm">
                 {accounting.productRankings.highestProfit.slice(0, 5).map((p) => (
                   <li key={p.productId} className="flex justify-between gap-2">
@@ -580,12 +580,12 @@ export function ReportsDashboard({
                   </li>
                 ))}
                 {accounting.productRankings.highestProfit.length === 0 && (
-                  <p className="text-muted-foreground">No product data yet</p>
+                  <p className="text-muted-foreground">لا توجد بيانات منتجات بعد</p>
                 )}
               </ul>
             </OperationalCard>
 
-            <OperationalCard title="Highest Cost Products">
+            <OperationalCard title="أعلى منتجات تكلفة">
               <ul className="space-y-2 text-sm">
                 {accounting.productRankings.highestCost.slice(0, 5).map((p) => (
                   <li key={p.productId} className="flex justify-between gap-2">
@@ -596,7 +596,7 @@ export function ReportsDashboard({
                   </li>
                 ))}
                 {accounting.productRankings.highestCost.length === 0 && (
-                  <p className="text-muted-foreground">No product data yet</p>
+                  <p className="text-muted-foreground">لا توجد بيانات منتجات بعد</p>
                 )}
               </ul>
             </OperationalCard>
@@ -606,10 +606,10 @@ export function ReportsDashboard({
 
       {customerAccounts ? (
         <section className="mt-10 space-y-4">
-          <h2 className="text-xl font-semibold">Customer accounts</h2>
+          <h2 className="text-xl font-semibold">حسابات العملاء</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
-              label="Outstanding AR"
+              label="أرصدة العملاء المستحقة"
               value={formatCurrency(customerAccounts.aging.total, currency)}
             />
             <KpiCard
@@ -625,10 +625,10 @@ export function ReportsDashboard({
               value={formatCurrency(customerAccounts.aging.buckets.over90, currency)}
             />
           </div>
-          <OperationalCard title="Outstanding balances">
+          <OperationalCard title="الأرصدة المستحقة">
             <ul className="space-y-2 text-sm">
               {customerAccounts.outstanding.length === 0 ? (
-                <li className="text-muted-foreground">No open balances</li>
+                <li className="text-muted-foreground">لا توجد أرصدة مفتوحة</li>
               ) : (
                 customerAccounts.outstanding.map((c) => (
                   <li key={c.id} className="flex justify-between gap-2">

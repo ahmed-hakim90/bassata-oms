@@ -51,11 +51,11 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
     startTransition(async () => {
       try {
         await createCostCenterAction(centerForm);
-        toast.success("Cost center created");
+        toast.success("تم إنشاء مركز التكلفة");
         setShowCenterForm(false);
         setCenterForm({ name: "", code: "", type: "other" });
       } catch {
-        toast.error("Could not create cost center");
+        toast.error("تعذر إنشاء مركز التكلفة");
       }
     });
   }
@@ -68,11 +68,11 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
           name: newCategory.name,
           requires_inventory_item: newCategory.requires_inventory_item,
         });
-        toast.success("Category created");
+        toast.success("تم إنشاء التصنيف");
         setCategoryForm(null);
         setNewCategory({ name: "", requires_inventory_item: false });
       } catch {
-        toast.error("Could not create category");
+        toast.error("تعذر إنشاء التصنيف");
       }
     });
   }
@@ -87,10 +87,10 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
     startTransition(async () => {
       try {
         await updateCostCenterAction(editCenter.id, editForm);
-        toast.success("Cost center updated");
+        toast.success("تم تحديث مركز التكلفة");
         setEditCenter(null);
       } catch {
-        toast.error("Could not update cost center");
+        toast.error("تعذر تحديث مركز التكلفة");
       }
     });
   }
@@ -100,34 +100,34 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
       {embedded ? (
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="font-medium">Cost centers</p>
+            <p className="font-medium">مراكز التكلفة</p>
             <p className="text-sm text-muted-foreground">
-              Centers and categories for the selected branch
+              المراكز والتصنيفات للفرع المحدد
             </p>
           </div>
           <Button className="w-full rounded-xl sm:w-auto" onClick={() => setShowCenterForm(true)}>
             <Plus className="mr-2 size-4" />
-            Add center
+            إضافة مركز
           </Button>
         </div>
       ) : (
         <PageHeader
-          title="Cost Centers"
-          description="Define accounting centers and expense categories"
+          title="مراكز التكلفة"
+          description="تعريف المراكز المحاسبية وتصنيفات المصروفات"
           action={
             <Button className="rounded-xl" onClick={() => setShowCenterForm(true)}>
               <Plus className="mr-2 size-4" />
-              Add center
+              إضافة مركز
             </Button>
           }
         />
       )}
 
       {showCenterForm && (
-        <OperationalCard title="New cost center" className="mb-6">
+        <OperationalCard title="مركز تكلفة جديد" className="mb-6">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>الاسم</Label>
               <Input
                 value={centerForm.name}
                 onChange={(e) => setCenterForm({ ...centerForm, name: e.target.value })}
@@ -135,7 +135,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               />
             </div>
             <div className="space-y-2">
-              <Label>Code</Label>
+              <Label>الكود</Label>
               <Input
                 value={centerForm.code}
                 onChange={(e) => setCenterForm({ ...centerForm, code: e.target.value.toUpperCase() })}
@@ -143,7 +143,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               />
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>النوع</Label>
               <select
                 value={centerForm.type}
                 onChange={(e) =>
@@ -161,20 +161,20 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <Button className="rounded-xl" disabled={pending} onClick={saveCenter}>
-              Save
+              حفظ
             </Button>
             <Button variant="outline" className="rounded-xl" onClick={() => setShowCenterForm(false)}>
-              Cancel
+              إلغاء
             </Button>
           </div>
         </OperationalCard>
       )}
 
       {editCenter && (
-        <OperationalCard title={`Edit ${editCenter.name}`} className="mb-6">
+        <OperationalCard title={`تعديل ${editCenter.name}`} className="mb-6">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>الاسم</Label>
               <Input
                 value={editForm.name}
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
@@ -182,7 +182,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               />
             </div>
             <div className="space-y-2">
-              <Label>Code</Label>
+              <Label>الكود</Label>
               <Input
                 value={editForm.code}
                 onChange={(e) =>
@@ -192,7 +192,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               />
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>النوع</Label>
               <select
                 value={editForm.type}
                 onChange={(e) =>
@@ -210,10 +210,10 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <Button className="rounded-xl" disabled={pending} onClick={saveEdit}>
-              Save
+              حفظ
             </Button>
             <Button variant="outline" className="rounded-xl" onClick={() => setEditCenter(null)}>
-              Cancel
+              إلغاء
             </Button>
           </div>
         </OperationalCard>
@@ -230,9 +230,9 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               description={`${center.code} · ${center.type}`}
               action={
                 <div className="flex items-center gap-2">
-                  <StatusPill label={center.is_active ? "Active" : "Inactive"} variant={center.is_active ? "success" : "default"} />
+                  <StatusPill label={center.is_active ? "نشط" : "غير نشط"} variant={center.is_active ? "success" : "default"} />
                   <Button variant="ghost" size="sm" onClick={() => openEdit(center)}>
-                    Edit
+                    تعديل
                   </Button>
                   <Button
                     variant="ghost"
@@ -243,7 +243,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
                       })
                     }
                   >
-                    Toggle
+                    تبديل
                   </Button>
                   <Button
                     variant="ghost"
@@ -260,7 +260,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               {isOpen && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-muted-foreground">Categories</p>
+                    <p className="text-sm font-medium text-muted-foreground">التصنيفات</p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -268,13 +268,13 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
                       onClick={() => setCategoryForm(center.id)}
                     >
                       <Plus className="mr-1 size-3" />
-                      Add category
+                      إضافة تصنيف
                     </Button>
                   </div>
                   {categoryForm === center.id && (
                     <div className="rounded-xl bg-muted/30 p-4 space-y-3">
                       <Input
-                        placeholder="Category name"
+                        placeholder="اسم التصنيف"
                         value={newCategory.name}
                         onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                         className="rounded-xl"
@@ -286,32 +286,32 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
                             setNewCategory({ ...newCategory, requires_inventory_item: Boolean(v) })
                           }
                         />
-                        Requires inventory item
+                        يتطلب صنف مخزون
                       </label>
                       <div className="flex gap-2">
                         <Button size="sm" className="rounded-xl" disabled={pending} onClick={() => saveCategory(center.id)}>
-                          Save
+                          حفظ
                         </Button>
                         <Button size="sm" variant="outline" className="rounded-xl" onClick={() => setCategoryForm(null)}>
-                          Cancel
+                          إلغاء
                         </Button>
                       </div>
                     </div>
                   )}
                   <ul className="divide-y divide-border rounded-xl bg-card text-card-foreground ring-1 ring-border">
                     {centerCategories.length === 0 ? (
-                      <li className="px-4 py-3 text-sm text-muted-foreground">No categories yet</li>
+                      <li className="px-4 py-3 text-sm text-muted-foreground">لا توجد تصنيفات بعد</li>
                     ) : (
                       centerCategories.map((cat) => (
                         <li key={cat.id} className="flex items-center justify-between px-4 py-3">
                           <div>
                             <p className="font-medium">{cat.name}</p>
                             {cat.requires_inventory_item && (
-                              <p className="text-xs text-muted-foreground">Inventory required</p>
+                              <p className="text-xs text-muted-foreground">المخزون مطلوب</p>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <StatusPill label={cat.is_active ? "Active" : "Inactive"} variant={cat.is_active ? "success" : "default"} />
+                            <StatusPill label={cat.is_active ? "نشط" : "غير نشط"} variant={cat.is_active ? "success" : "default"} />
                             <Button
                               variant="ghost"
                               size="sm"
@@ -321,7 +321,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
                                 })
                               }
                             >
-                              Toggle
+                              تبديل
                             </Button>
                           </div>
                         </li>

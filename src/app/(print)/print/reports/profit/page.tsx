@@ -10,18 +10,18 @@ export default async function PrintProfitReportPage({
   const params = await searchParams;
   const data = await getProfitReportPageData(params);
   const rows = [
-    ["Revenue", data.profit.revenue],
-    ["COGS", data.profit.cogs],
-    ["Gross profit", data.profit.grossProfit],
-    ["Expenses", data.profit.totalExpenses],
-    ["Waste cost", data.profit.wasteCost],
-    ["Net profit", data.profit.estimatedNetProfit],
+    ["الإيراد", data.profit.revenue],
+    ["تكلفة البضاعة", data.profit.cogs],
+    ["إجمالي الربح", data.profit.grossProfit],
+    ["المصروفات", data.profit.totalExpenses],
+    ["تكلفة الهالك", data.profit.wasteCost],
+    ["صافي الربح", data.profit.estimatedNetProfit],
   ] as const;
 
   return (
     <PrintableDocument
       branding={data.context}
-      title="Profit Report"
+      title="تقرير الأرباح"
       dateRange={data.context.filterSummary}
       generatedBy={data.context.generatedBy}
       generatedAt={data.context.generatedAt}

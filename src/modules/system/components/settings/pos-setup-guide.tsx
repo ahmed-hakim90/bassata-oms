@@ -4,26 +4,26 @@ import Link from "next/link";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 
 const steps = [
-  { text: "Add or select a branch below and save branch details." },
-  { text: "Confirm an active default warehouse exists for the branch." },
-  { text: "Add a POS device under the same branch card." },
+  { text: "أضف فرعًا أو اختر فرعًا موجودًا بالأسفل واحفظ بياناته." },
+  { text: "تأكد من وجود مخزن افتراضي نشط للفرع." },
+  { text: "أضف جهاز كاشير داخل بطاقة نفس الفرع." },
   {
-    text: "Pair the terminal at /device/pair with a one-time code, or click Register this browser on the device row.",
+    text: "اربط الجهاز من /device/pair بكود استخدام واحد، أو اضغط تسجيل هذا المتصفح من صف الجهاز.",
     href: "/device/pair",
   },
   {
-    text: "Create cashiers in Settings → Users & Roles with branch access, password (8+ chars), and optional device restrictions.",
+    text: "أنشئ حسابات الكاشير من الإعدادات ← المستخدمون والأدوار مع صلاحية الفرع وكلمة مرور 8 أحرف أو أكثر وقيود أجهزة اختيارية.",
     href: "/settings?tab=users",
   },
-  { text: "Cashier signs in at /login with email and password." },
-  { text: "Cashier selects branch if they have more than one.", href: "/pos/start" },
-  { text: "Cashier opens a session from Sessions.", href: "/sessions" },
-  { text: "Sell on POS.", href: "/pos" },
+  { text: "يسجل الكاشير الدخول من /login بالبريد الإلكتروني وكلمة المرور." },
+  { text: "يختار الكاشير الفرع إذا كان لديه أكثر من فرع.", href: "/pos/start" },
+  { text: "يفتح الكاشير جلسة من صفحة الجلسات.", href: "/sessions" },
+  { text: "ابدأ البيع من شاشة الكاشير.", href: "/pos" },
 ];
 
 export function PosSetupGuide() {
   return (
-    <OperationalCard title="POS go-live checklist">
+    <OperationalCard title="قائمة تجهيز الكاشير للتشغيل">
       <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
         {steps.map((step, i) => (
           <li key={i}>

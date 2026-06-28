@@ -12,7 +12,7 @@ export default async function PrintSessionsReportPage({
   return (
     <PrintableDocument
       branding={data.context}
-      title="Sessions Report"
+      title="تقرير الجلسات"
       dateRange={data.context.filterSummary}
       generatedBy={data.context.generatedBy}
       generatedAt={data.context.generatedAt}
@@ -21,10 +21,10 @@ export default async function PrintSessionsReportPage({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-2 text-start">Cashier</th>
-            <th className="py-2 text-start">Store</th>
-            <th className="py-2 text-end">Variance</th>
-            <th className="py-2 text-start">Status</th>
+            <th className="py-2 text-start">الكاشير</th>
+            <th className="py-2 text-start">الفرع</th>
+            <th className="py-2 text-end">الفرق</th>
+            <th className="py-2 text-start">الحالة</th>
           </tr>
         </thead>
         <tbody>

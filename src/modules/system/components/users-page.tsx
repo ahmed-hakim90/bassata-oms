@@ -97,9 +97,9 @@ export function UsersPage({
           ...edits[id],
           deviceIds: edits[id]?.restrictDevices ? edits[id]?.deviceIds : [],
         });
-        toast.success("User updated");
+        toast.success("تم تحديث المستخدم");
       } catch {
-        toast.error("Could not update user");
+        toast.error("تعذر تحديث المستخدم");
       }
     });
   };
@@ -111,9 +111,9 @@ export function UsersPage({
           ...form,
           deviceIds: form.restrictDevices ? form.deviceIds : undefined,
         });
-        toast.success("User created");
+        toast.success("تم إنشاء المستخدم");
       } catch (error) {
-        toast.error(errorMessage(error, "Failed to create user"));
+        toast.error(errorMessage(error, "فشل إنشاء المستخدم"));
       }
     });
   };
@@ -122,21 +122,21 @@ export function UsersPage({
     <>
       {embedded ? null : (
         <PageHeader
-          title="Users & Roles"
-          description="Manage team access and cashier PINs"
+          title="المستخدمون والأدوار"
+          description="إدارة صلاحيات الفريق وأرقام PIN للكاشير"
         />
       )}
 
       <Tabs defaultValue="team" className="min-w-0 space-y-6">
         <div className="-mx-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex h-auto min-w-max flex-nowrap justify-start gap-1 sm:min-w-0 sm:flex-wrap">
-            <TabsTrigger value="team">Team</TabsTrigger>
-            <TabsTrigger value="create">Create user</TabsTrigger>
-            <TabsTrigger value="stores">Store access</TabsTrigger>
-            <TabsTrigger value="pin">PIN reset</TabsTrigger>
-            <TabsTrigger value="passwords">Password reset</TabsTrigger>
-            <TabsTrigger value="roles">Role & status</TabsTrigger>
-            {permissionsData ? <TabsTrigger value="permissions">Permissions</TabsTrigger> : null}
+            <TabsTrigger value="team">الفريق</TabsTrigger>
+            <TabsTrigger value="create">إنشاء مستخدم</TabsTrigger>
+            <TabsTrigger value="stores">صلاحيات الفروع</TabsTrigger>
+            <TabsTrigger value="pin">إعادة ضبط PIN</TabsTrigger>
+            <TabsTrigger value="passwords">إعادة ضبط كلمة المرور</TabsTrigger>
+            <TabsTrigger value="roles">الدور والحالة</TabsTrigger>
+            {permissionsData ? <TabsTrigger value="permissions">الصلاحيات</TabsTrigger> : null}
           </TabsList>
         </div>
 
@@ -159,7 +159,7 @@ export function UsersPage({
                 <div className="flex flex-wrap gap-2">
                   <StatusPill label={roleLabel(u.role as UserRole)} variant="info" />
                   <StatusPill
-                    label={u.is_active ? "active" : "inactive"}
+                    label={u.is_active ? "نشط" : "غير نشط"}
                     variant={u.is_active ? "success" : "draft"}
                   />
                 </div>
@@ -169,17 +169,17 @@ export function UsersPage({
         </TabsContent>
 
         <TabsContent value="create">
-          <OperationalCard title="Create user">
+          <OperationalCard title="إنشاء مستخدم">
             <div className="grid max-w-lg gap-4">
               <div className="space-y-2">
-                <Label>Name</Label>
+                <Label>الاسم</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>البريد الإلكتروني</Label>
                 <Input
                   type="email"
                   value={form.email}
@@ -187,7 +187,7 @@ export function UsersPage({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Temporary Password</Label>
+                <Label>كلمة مرور مؤقتة</Label>
                 <Input
                   type="password"
                   value={form.password}
@@ -196,7 +196,7 @@ export function UsersPage({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Role</Label>
+                <Label>الدور</Label>
                 <Select
                   value={form.role}
                   onValueChange={(v) =>
@@ -228,7 +228,7 @@ export function UsersPage({
                 </div>
               )}
               <div className="space-y-2">
-                <Label>Store Access</Label>
+                <Label>صلاحيات الفروع</Label>
                 <div className="grid gap-2 rounded-xl border border-border/60 p-3">
                   {stores.map((store) => (
                     <label key={store.id} className="flex items-center gap-2 text-sm">
@@ -260,7 +260,7 @@ export function UsersPage({
                         })
                       }
                     />
-                    Restrict to specific POS devices
+                    تقييد المستخدم على أجهزة كاشير محددة
                   </label>
                   {form.restrictDevices ? (
                     <div className="grid gap-2 rounded-xl border border-border/60 p-3">
@@ -284,20 +284,20 @@ export function UsersPage({
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Empty means all devices in allowed branches.
+                      تركها فارغة يعني السماح بكل الأجهزة داخل الفروع المسموحة.
                     </p>
                   )}
                 </div>
               )}
               <Button onClick={create} disabled={pending}>
-                Create User
+                إنشاء مستخدم
               </Button>
             </div>
           </OperationalCard>
         </TabsContent>
 
         <TabsContent value="stores">
-          <OperationalCard title="Store access by user">
+          <OperationalCard title="صلاحيات الفروع حسب المستخدم">
             <div className="space-y-6">
               {users.map((u) => (
                 <div key={u.id} className="border-b border-border/60 pb-4 last:border-0">
@@ -331,7 +331,7 @@ export function UsersPage({
                     disabled={pending}
                     onClick={() => saveUser(u.id)}
                   >
-                    Save store access
+                    حفظ صلاحيات الفروع
                   </Button>
                 </div>
               ))}
@@ -340,10 +340,10 @@ export function UsersPage({
         </TabsContent>
 
         <TabsContent value="pin">
-          <OperationalCard title="Cashier PIN reset">
+          <OperationalCard title="إعادة ضبط PIN للكاشير">
             <div className="space-y-4">
               {users.filter((u) => u.role === "cashier").length === 0 ? (
-                <p className="text-sm text-muted-foreground">No cashier accounts.</p>
+                <p className="text-sm text-muted-foreground">لا توجد حسابات كاشير.</p>
               ) : (
                 users
                   .filter((u) => u.role === "cashier")
@@ -351,7 +351,7 @@ export function UsersPage({
                     <div key={u.id} className="flex max-w-md flex-wrap items-center gap-2">
                       <span className="min-w-[8rem] text-sm font-medium">{u.name}</span>
                       <Input
-                        placeholder="New PIN (4–8 digits)"
+                        placeholder="PIN جديد (4-8 أرقام)"
                         maxLength={8}
                         className="max-w-[10rem]"
                         value={pinReset[u.id] ?? ""}
@@ -368,14 +368,14 @@ export function UsersPage({
                             try {
                               await resetUserPinAction(u.id, pinReset[u.id]);
                               setPinReset({ ...pinReset, [u.id]: "" });
-                              toast.success("PIN reset");
+                              toast.success("تمت إعادة ضبط PIN");
                             } catch {
-                              toast.error("Could not reset PIN");
+                              toast.error("تعذرت إعادة ضبط PIN");
                             }
                           });
                         }}
                       >
-                        Reset PIN
+                        إعادة ضبط PIN
                       </Button>
                     </div>
                   ))
@@ -385,13 +385,13 @@ export function UsersPage({
         </TabsContent>
 
         <TabsContent value="passwords">
-          <OperationalCard title="Reset login password">
+          <OperationalCard title="إعادة ضبط كلمة مرور الدخول">
             <p className="mb-4 text-sm text-muted-foreground">
-              Sets a new password for the user&apos;s email login. Share it securely.
+              يعيّن كلمة مرور جديدة لدخول المستخدم بالبريد الإلكتروني. شاركها معه بطريقة آمنة.
             </p>
             <div className="space-y-4">
               {users.filter((u) => u.auth_user_id).length === 0 ? (
-                <p className="text-sm text-muted-foreground">No users with login accounts.</p>
+                <p className="text-sm text-muted-foreground">لا يوجد مستخدمون لديهم حسابات دخول.</p>
               ) : (
                 users
                   .filter((u) => u.auth_user_id)
@@ -400,7 +400,7 @@ export function UsersPage({
                       <span className="min-w-[8rem] text-sm font-medium">{u.name}</span>
                       <Input
                         type="password"
-                        placeholder="New password (8+ chars)"
+                        placeholder="كلمة مرور جديدة (8 أحرف أو أكثر)"
                         className="max-w-[14rem]"
                         value={passwordReset[u.id] ?? ""}
                         onChange={(e) =>
@@ -416,14 +416,14 @@ export function UsersPage({
                             try {
                               await resetUserPasswordAction(u.id, passwordReset[u.id]!);
                               setPasswordReset({ ...passwordReset, [u.id]: "" });
-                              toast.success("Password reset");
+                              toast.success("تمت إعادة ضبط كلمة المرور");
                             } catch {
-                              toast.error("Could not reset password");
+                              toast.error("تعذرت إعادة ضبط كلمة المرور");
                             }
                           });
                         }}
                       >
-                        Reset password
+                        إعادة ضبط كلمة المرور
                       </Button>
                     </div>
                   ))
@@ -433,7 +433,7 @@ export function UsersPage({
         </TabsContent>
 
         <TabsContent value="roles">
-          <OperationalCard title="Role and status">
+          <OperationalCard title="الدور والحالة">
             <div className="space-y-6">
               {users.map((u) => (
                 <div
@@ -495,7 +495,7 @@ export function UsersPage({
                           })
                         }
                       />
-                      Active
+                      نشط
                     </label>
                     <Button
                       type="button"
@@ -504,7 +504,7 @@ export function UsersPage({
                       disabled={pending}
                       onClick={() => saveUser(u.id)}
                     >
-                      Save
+                      حفظ
                     </Button>
                     <Button
                       type="button"
@@ -515,14 +515,14 @@ export function UsersPage({
                         startTransition(async () => {
                           try {
                             await deactivateUserAction(u.id);
-                            toast.success("User deactivated");
+                            toast.success("تم تعطيل المستخدم");
                           } catch {
-                            toast.error("Could not deactivate user");
+                            toast.error("تعذر تعطيل المستخدم");
                           }
                         });
                       }}
                     >
-                      Deactivate
+                      تعطيل
                     </Button>
                   </div>
                 </div>

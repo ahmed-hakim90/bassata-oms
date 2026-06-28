@@ -68,14 +68,14 @@ export function SalesReportView({
   const printHref = `/print/reports/sales${printQs ? `?${printQs}` : ""}`;
 
   const columns: ColumnDef<Order>[] = [
-    { header: "Order", accessorKey: "order_number" },
+    { header: "الطلب", accessorKey: "order_number" },
     {
-      header: "Total",
+      header: "الإجمالي",
       cell: ({ row }) => formatCurrency(row.original.total, currency),
     },
-    { header: "Status", accessorKey: "status" },
+    { header: "الحالة", accessorKey: "status" },
     {
-      header: "Date",
+      header: "التاريخ",
       cell: ({ row }) => new Date(row.original.created_at).toLocaleString(),
     },
   ];
@@ -87,8 +87,8 @@ export function SalesReportView({
 
   return (
     <ReportPage
-      title="Sales Report"
-      description="Revenue, orders, and payment performance"
+      title="تقرير المبيعات"
+      description="الإيراد والطلبات وأداء الدفع"
       actions={
         <ExportButtonGroup
           printHref={canPrint ? printHref : undefined}
@@ -105,9 +105,9 @@ export function SalesReportView({
                   ) as Record<string, string>
                 );
                 downloadBase64Excel(result.base64, result.filename);
-                toast.success("Excel exported");
+                toast.success("تم تصدير Excel");
               } catch {
-                toast.error("Export failed");
+                toast.error("فشل التصدير");
               }
             });
           }}
@@ -124,24 +124,24 @@ export function SalesReportView({
       <ReportKpiGrid
         items={[
           {
-            label: "Revenue",
+            label: "الإيراد",
             value: formatCurrency(summary?.totalRevenue ?? 0, currency),
             icon: <DollarSign className="size-5" />,
           },
           {
-            label: "Orders",
+            label: "الطلبات",
             value: String(summary?.orderCount ?? 0),
             icon: <Receipt className="size-5" />,
           },
           {
-            label: "Average order",
+            label: "متوسط الطلب",
             value: formatCurrency(summary?.avgOrderValue ?? 0, currency),
             icon: <TrendingUp className="size-5" />,
           },
         ]}
       />
 
-      <ReportChartSection title="Revenue by day">
+      <ReportChartSection title="الإيراد حسب اليوم">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -154,7 +154,7 @@ export function SalesReportView({
       </ReportChartSection>
 
       <ReportTable
-        title="Recent orders"
+        title="آخر الطلبات"
         columns={columns}
         data={orders}
         page={filters.page}

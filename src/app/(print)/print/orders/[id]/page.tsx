@@ -19,7 +19,7 @@ export default async function PrintOrderInvoicePage({
   return (
     <PrintableDocument
       branding={branding}
-      title="Sales Invoice"
+      title="فاتورة مبيعات"
       subtitle={order.order_number}
       dateRange={formatDateTime(order.created_at)}
       generatedBy={user.name}
@@ -28,10 +28,10 @@ export default async function PrintOrderInvoicePage({
       <table className="mb-4 w-full border-collapse text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-2 text-start">Item</th>
-            <th className="py-2 text-end">Qty</th>
-            <th className="py-2 text-end">Price</th>
-            <th className="py-2 text-end">Total</th>
+            <th className="py-2 text-start">الصنف</th>
+            <th className="py-2 text-end">الكمية</th>
+            <th className="py-2 text-end">السعر</th>
+            <th className="py-2 text-end">الإجمالي</th>
           </tr>
         </thead>
         <tbody>
@@ -50,12 +50,12 @@ export default async function PrintOrderInvoicePage({
         </tbody>
       </table>
       <div className="text-end text-sm">
-        <p>Subtotal: {formatCurrency(order.subtotal, branding.currency)}</p>
+        <p>الإجمالي الفرعي: {formatCurrency(order.subtotal, branding.currency)}</p>
         {order.discount > 0 ? (
-          <p>Discount: -{formatCurrency(order.discount, branding.currency)}</p>
+          <p>الخصم: -{formatCurrency(order.discount, branding.currency)}</p>
         ) : null}
         <p className="text-base font-bold">
-          Total: {formatCurrency(order.total, branding.currency)}
+          الإجمالي: {formatCurrency(order.total, branding.currency)}
         </p>
       </div>
     </PrintableDocument>

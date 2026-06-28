@@ -12,8 +12,8 @@ export default async function MovementsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Movements"
-        description={`Stock history — ${store?.name ?? "Store"}`}
+        title="الحركات"
+        description={`سجل المخزون - ${store?.name ?? "الفرع"}`}
       />
       <MovementTimeline movements={movements} />
     </div>

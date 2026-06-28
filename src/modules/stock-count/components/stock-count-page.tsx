@@ -48,10 +48,10 @@ export function StockCountPage({
     startTransition(async () => {
       try {
         await startCountAction(warehouseId);
-        toast.success("Stock count started");
+        toast.success("تم بدء الجرد");
         router.refresh();
       } catch {
-        toast.error("Failed to start count");
+        toast.error("فشل بدء الجرد");
       }
     });
   };
@@ -59,14 +59,14 @@ export function StockCountPage({
   return (
     <>
       <PageHeader
-        title="Stock Count"
-        description="Cycle counts and variance adjustments"
+        title="جرد المخزون"
+        description="جرد دوري وتسويات الفروقات"
         action={
           !activeCount && (
             <div className="flex flex-wrap gap-2">
               <Select value={warehouseId} onValueChange={(v) => setWarehouseId(v ?? "")}>
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Warehouse">
+                  <SelectValue placeholder="المخزن">
                     {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                   </SelectValue>
                 </SelectTrigger>
@@ -79,7 +79,7 @@ export function StockCountPage({
                 </SelectContent>
               </Select>
               <Button onClick={startCount} disabled={pending || !warehouseId}>
-                <Play className="size-4" /> Start Count
+                <Play className="size-4" /> بدء الجرد
               </Button>
             </div>
           )
@@ -93,13 +93,13 @@ export function StockCountPage({
           onComplete={() => router.refresh()}
         />
       ) : (
-        <OperationalCard title="Past Counts">
+        <OperationalCard title="جرد سابق">
           {counts.length === 0 ? (
             <div className="flex flex-col items-center py-12 text-center">
               <ClipboardList className="mb-4 size-12 text-muted-foreground" />
-              <p className="text-muted-foreground">No stock counts yet</p>
+              <p className="text-muted-foreground">لا توجد جردات بعد</p>
               <Button className="mt-4" onClick={startCount} disabled={pending || !warehouseId}>
-                Start First Count
+                بدء أول جرد
               </Button>
             </div>
           ) : (
@@ -108,11 +108,11 @@ export function StockCountPage({
                 <li key={c.id} className="flex items-center justify-between py-3">
                   <div>
                     <p className="font-medium">
-                      Count {c.id.slice(-6).toUpperCase()}
+                      جرد {c.id.slice(-6).toUpperCase()}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {formatDateTime(c.started_at)}
-                      {c.completed_at && ` · Completed ${formatDateTime(c.completed_at)}`}
+                      {c.completed_at && ` · مكتمل ${formatDateTime(c.completed_at)}`}
                     </p>
                   </div>
                   <StatusPill

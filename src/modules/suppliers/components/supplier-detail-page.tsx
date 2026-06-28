@@ -26,10 +26,10 @@ import { RecordPaymentDialog } from "./record-payment-dialog";
 import { EditSupplierDialog } from "./edit-supplier-dialog";
 
 const TYPE_LABELS: Record<SupplierStatementTransactionType, string> = {
-  purchase: "Purchase",
-  purchase_void: "Invoice void",
-  payment: "Payment",
-  payment_void: "Payment void",
+  purchase: "شراء",
+  purchase_void: "إلغاء فاتورة",
+  payment: "دفعة",
+  payment_void: "إلغاء دفعة",
 };
 
 function todayDateString(): string {
@@ -68,8 +68,6 @@ export function SupplierDetailPage({
   const [pending, startTransition] = useTransition();
 
   const hasDateFilter = Boolean(from || to);
-  const kpiScope = hasDateFilter ? "Period" : "Statement";
-
   const refreshStatement = (range?: { from?: string; to?: string }) => {
     startTransition(async () => {
       const result = await getSupplierStatementAction(statement.supplier.id, range);
@@ -112,7 +110,7 @@ export function SupplierDetailPage({
         toast.error(result.error);
         return;
       }
-      toast.success("Payment voided");
+      toast.success("تم إلغاء الدفعة");
       setVoidPaymentId(null);
       router.refresh();
       refreshStatement(statementRange(from, to));
@@ -132,17 +130,17 @@ export function SupplierDetailPage({
     <>
       <PageHeader
         title={supplier.name}
-        description={supplier.contact_info || "Supplier account statement"}
+        description={supplier.contact_info || "كشف حساب المورد"}
         action={
           <div className="flex flex-wrap gap-2">
             {canEditSupplier ? (
               <Button variant="outline" onClick={() => setShowEdit(true)}>
-                <Pencil className="size-4" /> Edit
+                <Pencil className="size-4" /> تعديل
               </Button>
             ) : null}
             {canManagePayments ? (
               <Button onClick={() => setShowPayment(true)}>
-                <Plus className="size-4" /> Record Payment
+                <Plus className="size-4" /> تسجيل دفعة
               </Button>
             ) : null}
             <ExportButtonGroup
@@ -156,9 +154,9 @@ export function SupplierDetailPage({
                       statementRange(from, to)
                     );
                     downloadBase64Excel(result.base64, result.filename);
-                    toast.success("Excel exported");
+                    toast.success("تم تصدير Excel");
                   } catch {
-                    toast.error("Export failed");
+                    toast.error("فشل التصدير");
                   }
                 });
               }}
@@ -169,82 +167,82 @@ export function SupplierDetailPage({
 
       <p className="mb-4 text-sm text-muted-foreground">
         <Link href="/inventory/suppliers" className="text-primary hover:underline">
-          ← All suppliers
+          ← كل الموردين
         </Link>
         {" · "}
         <Link href="/inventory/purchases" className="text-primary hover:underline">
-          Purchases
+          المشتريات
         </Link>
       </p>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Balance due"
+          label="الرصيد المستحق"
           value={formatCurrency(kpis.balance, currency)}
           icon={<Landmark className="size-5" />}
         />
         <KpiCard
-          label={`${kpiScope} purchases`}
+          label={`${hasDateFilter ? "الفترة" : "الكشف"} - المشتريات`}
           value={formatCurrency(kpis.purchased, currency)}
         />
-        <KpiCard label={`${kpiScope} payments`} value={formatCurrency(kpis.paid, currency)} />
+        <KpiCard label={`${hasDateFilter ? "الفترة" : "الكشف"} - الدفعات`} value={formatCurrency(kpis.paid, currency)} />
         <KpiCard
-          label="Opening balance"
+          label="رصيد افتتاحي"
           value={formatCurrency(statement.openingBalance, currency)}
         />
       </div>
 
-      <OperationalCard title="Date range" className="mb-6">
+      <OperationalCard title="نطاق التاريخ" className="mb-6">
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-2">
-            <Label>From</Label>
+            <Label>من</Label>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>To</Label>
+            <Label>إلى</Label>
             <Input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              placeholder={from ? "Defaults to today" : undefined}
+              placeholder={from ? "الافتراضي اليوم" : undefined}
             />
           </div>
           <Button onClick={applyFilter} disabled={pending}>
-            Apply
+            تطبيق
           </Button>
           <Button variant="outline" onClick={clearFilter} disabled={pending}>
-            Clear
+            مسح
           </Button>
         </div>
         {from && !to ? (
           <p className="mt-2 text-xs text-muted-foreground">
-            End date defaults to today when only From is set.
+            تاريخ النهاية يكون اليوم تلقائيًا عند تحديد تاريخ البداية فقط.
           </p>
         ) : null}
       </OperationalCard>
 
       <OperationalCard
-        title="Account statement"
-        description={`Closing balance ${formatCurrency(statement.closingBalance, currency)}`}
+        title="كشف الحساب"
+        description={`الرصيد الختامي ${formatCurrency(statement.closingBalance, currency)}`}
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 pr-4">Date</th>
-                <th className="py-2 pr-4">Type</th>
-                <th className="py-2 pr-4">Reference</th>
-                <th className="py-2 pr-4">Description</th>
-                <th className="py-2 pr-4 text-right">Debit</th>
-                <th className="py-2 pr-4 text-right">Credit</th>
-                <th className="py-2 text-right">Balance</th>
+                <th className="py-2 pr-4">التاريخ</th>
+                <th className="py-2 pr-4">النوع</th>
+                <th className="py-2 pr-4">المرجع</th>
+                <th className="py-2 pr-4">الوصف</th>
+                <th className="py-2 pr-4 text-right">مدين</th>
+                <th className="py-2 pr-4 text-right">دائن</th>
+                <th className="py-2 text-right">الرصيد</th>
                 {canManagePayments ? <th className="py-2 pl-2" /> : null}
               </tr>
             </thead>
             <tbody>
               <tr className="border-b bg-muted/30">
                 <td className="py-2 pr-4 text-muted-foreground" colSpan={4}>
-                  Opening balance
+                  رصيد افتتاحي
                 </td>
                 <td className="py-2 pr-4 text-right" />
                 <td className="py-2 pr-4 text-right" />
@@ -353,9 +351,9 @@ export function SupplierDetailPage({
       <ConfirmActionDialog
         open={voidPaymentId !== null}
         onOpenChange={(open) => !open && setVoidPaymentId(null)}
-        title="Void payment"
-        description="This reverses the payment on the supplier statement. The payment row will remain as a void entry."
-        confirmLabel="Void payment"
+        title="إلغاء الدفعة"
+        description="سيتم عكس الدفعة في كشف حساب المورد وسيبقى سطر الدفعة كحركة ملغية."
+        confirmLabel="إلغاء الدفعة"
         destructive
         onConfirm={confirmVoidPayment}
       />

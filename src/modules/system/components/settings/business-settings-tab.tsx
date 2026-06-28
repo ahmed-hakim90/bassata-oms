@@ -39,20 +39,20 @@ export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
 
   return (
     <div className="space-y-6">
-      <OperationalCard title="Store profile">
+      <OperationalCard title="بيانات المتجر">
         <div className="grid max-w-lg gap-4">
           <div className="space-y-2">
-            <Label>Store name</Label>
+            <Label>اسم المتجر</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <Label>Logo</Label>
+            <Label>الشعار</Label>
             {logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="Store logo" className="mb-2 h-16 w-16 rounded-lg object-cover" />
+              <img src={logoUrl} alt="شعار المتجر" className="mb-2 h-16 w-16 rounded-lg object-cover" />
             )}
             <Input
               type="file"
@@ -66,30 +66,30 @@ export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
                     fd.set("logo", file);
                     const url = await uploadOrganizationLogoAction(fd);
                     setLogoUrl(url);
-                    toast.success("Logo uploaded");
+                    toast.success("تم رفع الشعار");
                   } catch (error) {
-                    toast.error(error instanceof Error ? error.message : "Upload failed");
+                    toast.error(error instanceof Error ? error.message : "فشل الرفع");
                   }
                 });
               }}
             />
           </div>
           <div className="space-y-2">
-            <Label>Phone</Label>
+            <Label>الهاتف</Label>
             <Input
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <Label>Address</Label>
+            <Label>العنوان</Label>
             <Input
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <Label>Country</Label>
+            <Label>الدولة</Label>
             <Input
               value={form.country}
               onChange={(e) => setForm({ ...form, country: e.target.value })}
@@ -97,14 +97,14 @@ export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Currency</Label>
+              <Label>العملة</Label>
               <Input
                 value={form.currency}
                 onChange={(e) => setForm({ ...form, currency: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Timezone</Label>
+              <Label>المنطقة الزمنية</Label>
               <Input
                 value={form.timezone}
                 onChange={(e) => setForm({ ...form, timezone: e.target.value })}
@@ -112,7 +112,7 @@ export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
             </div>
           </div>
           <div className="space-y-2 border-t border-border/60 pt-4">
-            <Label>App language</Label>
+            <Label>لغة النظام</Label>
             <div className="flex flex-wrap items-center gap-2">
               <Languages className="size-4 text-muted-foreground" />
               <div className="inline-flex rounded-md border border-border/70 bg-muted p-1">
@@ -144,14 +144,14 @@ export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
                     phone: form.phone,
                     address: form.address,
                   });
-                  toast.success("Store settings saved");
+                  toast.success("تم حفظ إعدادات المتجر");
                 } catch {
-                  toast.error("Failed to save");
+                  toast.error("فشل الحفظ");
                 }
               })
             }
           >
-            Save store settings
+            حفظ إعدادات المتجر
           </Button>
         </div>
       </OperationalCard>

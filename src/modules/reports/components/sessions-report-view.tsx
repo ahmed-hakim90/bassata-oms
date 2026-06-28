@@ -45,17 +45,17 @@ export function SessionsReportView({
   const printHref = `/print/reports/sessions${printQs ? `?${printQs}` : ""}`;
 
   const columns: ColumnDef<SessionKpi["recentSessions"][number]>[] = [
-    { header: "Cashier", accessorKey: "cashierName" },
-    { header: "Store", accessorKey: "storeName" },
-    { header: "Opened", accessorKey: "openedAt" },
+    { header: "الكاشير", accessorKey: "cashierName" },
+    { header: "الفرع", accessorKey: "storeName" },
+    { header: "تم الفتح", accessorKey: "openedAt" },
     {
-      header: "Variance",
+      header: "الفرق",
       cell: ({ row }) =>
         row.original.variance != null
           ? formatCurrency(row.original.variance, currency)
           : "—",
     },
-    { header: "Status", accessorKey: "status" },
+    { header: "الحالة", accessorKey: "status" },
     {
       header: "",
       cell: ({ row }) => (
@@ -63,7 +63,7 @@ export function SessionsReportView({
           href={`/print/sessions/${row.original.id}/closing`}
           className="text-sm text-primary hover:underline"
         >
-          Closing
+          الإغلاق
         </Link>
       ),
     },
@@ -71,8 +71,8 @@ export function SessionsReportView({
 
   return (
     <ReportPage
-      title="Sessions Report"
-      description="Cashier shifts, variance, and reconciliation"
+      title="تقرير الجلسات"
+      description="ورديات الكاشير والفروقات والتسوية"
       actions={
         <ExportButtonGroup
           printHref={canPrint ? printHref : undefined}
@@ -89,9 +89,9 @@ export function SessionsReportView({
                   ) as Record<string, string>
                 );
                 downloadBase64Excel(result.base64, result.filename);
-                toast.success("Excel exported");
+                toast.success("تم تصدير Excel");
               } catch {
-                toast.error("Export failed");
+                toast.error("فشل التصدير");
               }
             });
           }}
@@ -103,21 +103,21 @@ export function SessionsReportView({
     >
       <ReportKpiGrid
         items={[
-          { label: "Open sessions", value: String(kpi.openSessions), icon: <Clock className="size-5" /> },
-          { label: "Closed sessions", value: String(kpi.closedSessions), icon: <Users className="size-5" /> },
+          { label: "الجلسات المفتوحة", value: String(kpi.openSessions), icon: <Clock className="size-5" /> },
+          { label: "الجلسات المغلقة", value: String(kpi.closedSessions), icon: <Users className="size-5" /> },
           {
-            label: "Total variance",
+            label: "إجمالي الفرق",
             value: formatCurrency(kpi.totalVariance, currency),
             icon: <AlertTriangle className="size-5" />,
           },
           {
-            label: "Avg variance",
+            label: "متوسط الفرق",
             value: formatCurrency(kpi.avgVariance, currency),
             icon: <AlertTriangle className="size-5" />,
           },
         ]}
       />
-      <ReportTable title="Recent sessions" columns={columns} data={kpi.recentSessions} />
+      <ReportTable title="آخر الجلسات" columns={columns} data={kpi.recentSessions} />
     </ReportPage>
   );
 }

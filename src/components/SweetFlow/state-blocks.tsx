@@ -25,7 +25,7 @@ export function EmptyStateBlock({
   );
 }
 
-export function LoadingStateBlock({ label = "Loading..." }: { label?: string }) {
+export function LoadingStateBlock({ label = "جاري التحميل..." }: { label?: string }) {
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-8 text-center text-sm text-muted-foreground">
       {label}
@@ -34,7 +34,7 @@ export function LoadingStateBlock({ label = "Loading..." }: { label?: string }) 
 }
 
 export function ErrorStateBlock({
-  title = "Something went wrong",
+  title = "حدث خطأ ما",
   description,
 }: {
   title?: string;

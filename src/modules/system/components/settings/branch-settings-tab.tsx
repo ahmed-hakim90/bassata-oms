@@ -95,7 +95,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
     <div className="space-y-6">
       <PosSetupGuide />
 
-      <OperationalCard title="Stores">
+      <OperationalCard title="الفروع">
         <div className="grid gap-6">
           {stores.map((store) => {
             const storeWarehouses = warehouses.filter((w) => w.store_id === store.id);
@@ -111,7 +111,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="truncate text-base font-semibold">{store.name}</p>
-                    <p className="text-xs text-muted-foreground">Branch · warehouses · POS devices</p>
+                    <p className="text-xs text-muted-foreground">فرع · مخازن · أجهزة كاشير</p>
                   </div>
                   {onlineMenuHref ? (
                     <Button
@@ -122,20 +122,20 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                       nativeButton={false}
                       render={<a href={onlineMenuHref} target="_blank" rel="noopener noreferrer" />}
                     >
-                      Open online menu
+                      فتح منيو الأونلاين
                     </Button>
                   ) : null}
                 </div>
                 {onlineMenuHref ? (
                   <p className="break-words rounded-lg bg-muted/70 px-3 py-2 text-xs text-muted-foreground">
-                    Public menu URL:{" "}
+                    رابط المنيو العام:{" "}
                     <span className="font-mono text-foreground break-all">{onlineMenuHref}</span>
                   </p>
                 ) : null}
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Store name</Label>
+                    <Label className="text-xs text-muted-foreground">اسم الفرع</Label>
                     <Input
                       value={storeEdits[store.id]?.name ?? store.name}
                       onChange={(e) =>
@@ -150,7 +150,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Code</Label>
+                    <Label className="text-xs text-muted-foreground">الكود</Label>
                     <Input
                       value={storeEdits[store.id]?.code ?? store.code}
                       onChange={(e) =>
@@ -165,7 +165,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                     />
                   </div>
                   <div className="space-y-1 md:col-span-2">
-                    <Label className="text-xs text-muted-foreground">Address</Label>
+                    <Label className="text-xs text-muted-foreground">العنوان</Label>
                     <Input
                       value={storeEdits[store.id]?.address ?? store.address}
                       onChange={(e) =>
@@ -180,7 +180,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Phone</Label>
+                    <Label className="text-xs text-muted-foreground">الهاتف</Label>
                     <Input
                       value={storeEdits[store.id]?.phone ?? store.phone}
                       onChange={(e) =>
@@ -195,10 +195,10 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Timezone</Label>
+                    <Label className="text-xs text-muted-foreground">المنطقة الزمنية</Label>
                     <Input
                       value={storeEdits[store.id]?.timezone ?? store.timezone ?? ""}
-                      placeholder="Inherit org timezone if empty"
+                      placeholder="استخدم منطقة المؤسسة لو تركته فارغًا"
                       onChange={(e) =>
                         setStoreEdits({
                           ...storeEdits,
@@ -224,7 +224,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                       })
                     }
                   />
-                  Active branch
+                  فرع نشط
                 </label>
                 <Button
                   type="button"
@@ -235,20 +235,20 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                     startTransition(async () => {
                       try {
                         await updateStoreAction(store.id, storeEdits[store.id]);
-                        toast.success("Branch updated");
+                        toast.success("تم تحديث الفرع");
                       } catch (error) {
                         toast.error(
-                          error instanceof Error ? error.message : "Failed to update branch"
+                          error instanceof Error ? error.message : "فشل تحديث الفرع"
                         );
                       }
                     });
                   }}
                 >
-                  Save branch
+                  حفظ الفرع
                 </Button>
 
                 <div className="border-t border-border/60 pt-4">
-                  <p className="mb-3 text-sm font-medium">Warehouses</p>
+                  <p className="mb-3 text-sm font-medium">المخازن</p>
                   <div className="grid gap-3 md:grid-cols-2">
                     {storeWarehouses.map((warehouse) => (
                       <div
@@ -289,7 +289,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               })
                             }
                           />
-                          Active
+                          نشط
                         </label>
                         <div className="flex flex-wrap gap-2">
                           <Button
@@ -304,14 +304,14 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                     warehouse.id,
                                     warehouseEdits[warehouse.id]
                                   );
-                                  toast.success("Warehouse updated");
+                                  toast.success("تم تحديث المخزن");
                                 } catch {
-                                  toast.error("Failed to update warehouse");
+                                  toast.error("فشل تحديث المخزن");
                                 }
                               });
                             }}
                           >
-                            Save
+                            حفظ
                           </Button>
                           <Button
                             type="button"
@@ -324,14 +324,14 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               startTransition(async () => {
                                 try {
                                   await setDefaultWarehouseAction(store.id, warehouse.id);
-                                  toast.success("Default warehouse updated");
+                                  toast.success("تم تحديث المخزن الافتراضي");
                                 } catch {
-                                  toast.error("Failed to update default warehouse");
+                                  toast.error("فشل تحديث المخزن الافتراضي");
                                 }
                               });
                             }}
                           >
-                            {warehouse.is_default ? "Default" : "Make default"}
+                            {warehouse.is_default ? "افتراضي" : "اجعله افتراضي"}
                           </Button>
                         </div>
                       </div>
@@ -339,7 +339,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   </div>
                   <div className="mt-3 flex max-w-md flex-col gap-2 sm:flex-row">
                     <Input
-                      placeholder="Warehouse name"
+                      placeholder="اسم المخزن"
                       value={warehouseAdds[store.id] ?? ""}
                       onChange={(e) =>
                         setWarehouseAdds({ ...warehouseAdds, [store.id]: e.target.value })
@@ -357,25 +357,24 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                           try {
                             await createWarehouseAction({ storeId: store.id, name });
                             setWarehouseAdds({ ...warehouseAdds, [store.id]: "" });
-                            toast.success("Warehouse created");
+                            toast.success("تم إنشاء المخزن");
                           } catch {
-                            toast.error("Failed to create warehouse");
+                            toast.error("فشل إنشاء المخزن");
                           }
                         });
                       }}
                     >
-                      Add warehouse
+                      إضافة مخزن
                     </Button>
                   </div>
                 </div>
 
                 <div className="border-t border-border/60 pt-4">
-                  <p className="mb-3 text-sm font-medium">POS devices</p>
+                  <p className="mb-3 text-sm font-medium">أجهزة الكاشير</p>
                   <div className="grid gap-3 md:grid-cols-2">
                     {storeDevices.length === 0 ? (
                       <p className="rounded-lg border border-dashed border-border/60 p-3 text-sm text-muted-foreground md:col-span-2">
-                        No devices registered for this branch yet. Add one below to generate a
-                        pairing code.
+                        لا توجد أجهزة مسجلة لهذا الفرع بعد. أضف جهازًا بالأسفل لإنشاء كود اقتران.
                       </p>
                     ) : (
                       storeDevices.map((device) => (
@@ -384,7 +383,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                           className="grid gap-2 rounded-lg border border-border/60 p-3"
                         >
                           <Input
-                            placeholder="Device name"
+                            placeholder="اسم الجهاز"
                             value={deviceEdits[device.id]?.name ?? device.name}
                             onChange={(e) =>
                               setDeviceEdits({
@@ -410,29 +409,29 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                     });
                                     syncDeviceEdit(updated);
                                     refreshSettings();
-                                    toast.success("Device updated");
+                                    toast.success("تم تحديث الجهاز");
                                   } catch (error) {
                                     toast.error(
                                       error instanceof Error
                                         ? error.message
-                                        : "Failed to update device"
+                                        : "فشل تحديث الجهاز"
                                     );
                                   }
                                 });
                               }}
                             />
-                            Active
+                            نشط
                           </label>
                           {device.last_seen_at ? (
                             <p className="text-xs text-muted-foreground">
-                              Last seen: {new Date(device.last_seen_at).toLocaleString()}
+                              آخر ظهور: {new Date(device.last_seen_at).toLocaleString()}
                             </p>
                           ) : (
-                            <p className="text-xs text-muted-foreground">Not paired yet</p>
+                            <p className="text-xs text-muted-foreground">لم يتم الاقتران بعد</p>
                           )}
                           {pairingCodes[device.id] ? (
                             <p className="break-words rounded-md bg-muted px-2 py-1 font-mono text-sm tracking-widest">
-                              Code: {pairingCodes[device.id]} (15 min)
+                              الكود: {pairingCodes[device.id]} (15 دقيقة)
                             </p>
                           ) : null}
                           <div className="flex flex-wrap gap-2">
@@ -450,18 +449,18 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                     });
                                     syncDeviceEdit(updated);
                                     refreshSettings();
-                                    toast.success("Device updated");
+                                    toast.success("تم تحديث الجهاز");
                                   } catch (error) {
                                     toast.error(
                                       error instanceof Error
                                         ? error.message
-                                        : "Failed to update device"
+                                        : "فشل تحديث الجهاز"
                                     );
                                   }
                                 });
                               }}
                             >
-                              Save
+                              حفظ
                             </Button>
                             <Button
                               type="button"
@@ -476,14 +475,14 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                     );
                                     setPairingCodes({ ...pairingCodes, [device.id]: code });
                                     await navigator.clipboard.writeText(code);
-                                    toast.success("Pairing code copied");
+                                    toast.success("تم نسخ كود الاقتران");
                                   } catch {
-                                    toast.error("Failed to generate code");
+                                    toast.error("فشل إنشاء الكود");
                                   }
                                 });
                               }}
                             >
-                              Pairing code
+                              كود الاقتران
                             </Button>
                             <Button
                               type="button"
@@ -495,14 +494,14 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                   const result = await registerBrowserDeviceAction(device.id);
                                   if (result.success) {
                                     refreshSettings();
-                                    toast.success("This browser is registered");
+                                    toast.success("تم تسجيل هذا المتصفح");
                                   } else {
-                                    toast.error(result.error ?? "Registration failed");
+                                    toast.error(result.error ?? "فشل التسجيل");
                                   }
                                 });
                               }}
                             >
-                              Register this browser
+                              تسجيل هذا المتصفح
                             </Button>
                             <Button
                               type="button"
@@ -511,7 +510,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               disabled={pending}
                               onClick={() => setDeviceToDelete(device.id)}
                             >
-                              Delete
+                              حذف
                             </Button>
                           </div>
                         </div>
@@ -520,7 +519,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   </div>
                   <div className="mt-3 flex max-w-md flex-col gap-2 sm:flex-row">
                     <Input
-                      placeholder="Register name"
+                      placeholder="اسم جهاز الكاشير"
                       value={deviceAdds[store.id] ?? ""}
                       onChange={(e) =>
                         setDeviceAdds({ ...deviceAdds, [store.id]: e.target.value })
@@ -546,16 +545,16 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                             setPairingCodes({ ...pairingCodes, [created.id]: code });
                             await navigator.clipboard.writeText(code);
                             refreshSettings();
-                            toast.success("Device created — pairing code copied");
+                            toast.success("تم إنشاء الجهاز ونسخ كود الاقتران");
                           } catch (error) {
                             toast.error(
-                              error instanceof Error ? error.message : "Failed to create device"
+                              error instanceof Error ? error.message : "فشل إنشاء الجهاز"
                             );
                           }
                         });
                       }}
                     >
-                      Add device
+                      إضافة جهاز
                     </Button>
                   </div>
                 </div>
@@ -564,48 +563,48 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
           })}
 
           <div className="grid max-w-xl gap-3 rounded-xl border border-dashed border-border/60 p-4">
-            <p className="text-sm font-medium">Add branch</p>
+            <p className="text-sm font-medium">إضافة فرع</p>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Store name</Label>
+                <Label>اسم الفرع</Label>
                 <Input
                   value={storeForm.name}
                   onChange={(e) => setStoreForm({ ...storeForm, name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Code</Label>
+                <Label>الكود</Label>
                 <Input
                   value={storeForm.code}
                   onChange={(e) => setStoreForm({ ...storeForm, code: e.target.value })}
-                  placeholder="Auto-generated if empty"
+                  placeholder="يتم إنشاؤه تلقائيًا لو تُرك فارغًا"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Address</Label>
+                <Label>العنوان</Label>
                 <Input
                   value={storeForm.address}
                   onChange={(e) => setStoreForm({ ...storeForm, address: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Phone</Label>
+                <Label>الهاتف</Label>
                 <Input
                   value={storeForm.phone}
                   onChange={(e) => setStoreForm({ ...storeForm, phone: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Timezone</Label>
+                <Label>المنطقة الزمنية</Label>
                 <Input
                   value={storeForm.timezone}
                   onChange={(e) => setStoreForm({ ...storeForm, timezone: e.target.value })}
-                  placeholder="Optional"
+                  placeholder="اختياري"
                 />
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              A default warehouse named &quot;Main warehouse&quot; is created automatically.
+              سيتم إنشاء مخزن افتراضي باسم &quot;المخزن الرئيسي&quot; تلقائيًا.
             </p>
             <Button
               type="button"
@@ -616,14 +615,14 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   try {
                     await createStoreAction(storeForm);
                     setStoreForm({ name: "", code: "", address: "", phone: "", timezone: "" });
-                    toast.success("Branch created");
+                    toast.success("تم إنشاء الفرع");
                   } catch {
-                    toast.error("Failed to create branch");
+                    toast.error("فشل إنشاء الفرع");
                   }
                 });
               }}
             >
-              Add branch
+              إضافة فرع
             </Button>
           </div>
         </div>
@@ -634,9 +633,9 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
         onOpenChange={(open) => {
           if (!open) setDeviceToDelete(null);
         }}
-        title="Delete this device?"
-        description="This action cannot be undone."
-        confirmLabel="Delete device"
+        title="حذف هذا الجهاز؟"
+        description="لا يمكن التراجع عن هذا الإجراء."
+        confirmLabel="حذف الجهاز"
         destructive
         onConfirm={async () => {
           if (!deviceToDelete) return;
@@ -649,9 +648,9 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
               return next;
             });
             refreshSettings();
-            toast.success("Device deleted");
+            toast.success("تم حذف الجهاز");
           } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Failed to delete device");
+            toast.error(error instanceof Error ? error.message : "فشل حذف الجهاز");
           }
         }}
       />

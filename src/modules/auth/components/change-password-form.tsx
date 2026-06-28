@@ -11,10 +11,10 @@ export function ChangePasswordForm() {
   const [state, formAction, pending] = useActionState(changePasswordAction, null);
 
   return (
-    <OperationalCard title="Password" description="Update your sign-in password">
+    <OperationalCard title="كلمة المرور" description="حدّث كلمة مرور تسجيل الدخول">
       <form action={formAction} className="max-w-md space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="password">New password</Label>
+          <Label htmlFor="password">كلمة المرور الجديدة</Label>
           <Input
             id="password"
             name="password"
@@ -25,7 +25,7 @@ export function ChangePasswordForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
           <Input
             id="confirmPassword"
             name="confirmPassword"
@@ -40,7 +40,7 @@ export function ChangePasswordForm() {
           <p className="text-sm text-muted-foreground">{state.message}</p>
         )}
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Update password"}
+          {pending ? "جاري الحفظ…" : "تحديث كلمة المرور"}
         </Button>
       </form>
     </OperationalCard>

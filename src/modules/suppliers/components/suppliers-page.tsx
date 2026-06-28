@@ -45,7 +45,7 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
 
   const create = () => {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error("الاسم مطلوب");
       return;
     }
     startTransition(async () => {
@@ -71,29 +71,29 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
       ]);
       setShowCreate(false);
       setForm({ name: "", contact_info: "" });
-      toast.success("Supplier created");
+      toast.success("تم إنشاء المورد");
     });
   };
 
   return (
     <>
       <PageHeader
-        title="Suppliers"
-        description="Vendor balances and account statements"
+        title="الموردون"
+        description="أرصدة الموردين وكشوف الحساب"
         action={
           <Button onClick={() => setShowCreate(true)}>
-            <Plus className="size-4" /> Add Supplier
+            <Plus className="size-4" /> إضافة مورد
           </Button>
         }
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label="Total payables"
+          label="إجمالي المستحقات"
           value={formatCurrency(totalPayables, currency)}
           icon={<Landmark className="size-5" />}
         />
-        <KpiCard label="Suppliers" value={String(summaries.length)} />
+        <KpiCard label="الموردون" value={String(summaries.length)} />
       </div>
 
       <div className="relative mb-6 max-w-md">
@@ -101,16 +101,16 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search suppliers..."
+          placeholder="ابحث عن موردين..."
           className="pl-10"
         />
       </div>
 
       {filtered.length === 0 ? (
-        <OperationalCard title="No suppliers found">
+        <OperationalCard title="لا يوجد موردون">
           <div className="flex flex-col items-center py-12">
             <Landmark className="mb-4 size-12 text-muted-foreground" />
-            <Button onClick={() => setShowCreate(true)}>Add Supplier</Button>
+            <Button onClick={() => setShowCreate(true)}>إضافة مورد</Button>
           </div>
         </OperationalCard>
       ) : (
@@ -125,17 +125,17 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
                       <p className="truncate text-sm text-muted-foreground">{s.contact_info}</p>
                     ) : null}
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {s.invoiceCount} received invoice{s.invoiceCount === 1 ? "" : "s"}
+                      {s.invoiceCount} فاتورة مستلمة
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-semibold">{formatCurrency(s.balanceDue, currency)}</p>
-                    <p className="text-xs text-muted-foreground">balance due</p>
+                    <p className="text-xs text-muted-foreground">رصيد مستحق</p>
                   </div>
                 </div>
                 {s.lastActivityAt ? (
                   <p className="mt-3 text-xs text-muted-foreground">
-                    Last activity {formatDateTime(s.lastActivityAt)}
+                    آخر نشاط {formatDateTime(s.lastActivityAt)}
                   </p>
                 ) : null}
               </OperationalCard>
@@ -147,26 +147,26 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="rounded-3xl">
           <DialogHeader>
-            <DialogTitle>New Supplier</DialogTitle>
+            <DialogTitle>مورد جديد</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>الاسم</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Contact</Label>
+              <Label>بيانات التواصل</Label>
               <Input
                 value={form.contact_info}
                 onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
-                placeholder="Email or phone"
+                placeholder="البريد أو الهاتف"
               />
             </div>
             <Button onClick={create} disabled={pending}>
-              Create
+              إنشاء
             </Button>
           </div>
         </DialogContent>

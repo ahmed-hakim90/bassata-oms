@@ -33,8 +33,8 @@ import type {
 } from "@/lib/types";
 import { suggestInventoryExpenseDefaults } from "@/modules/accounting/utils/expense-suggest";
 
-const STEPS = ["Type", "Category", "Amount", "Payment", "Confirm"] as const;
-const SESSION_STEPS = ["Type", "Category", "Amount", "Confirm"] as const;
+const STEPS = ["النوع", "التصنيف", "المبلغ", "الدفع", "التأكيد"] as const;
+const SESSION_STEPS = ["النوع", "التصنيف", "المبلغ", "التأكيد"] as const;
 const STEP_IDS = [0, 1, 2, 3, 4] as const;
 const SESSION_STEP_IDS = [0, 1, 2, 4] as const;
 
@@ -138,29 +138,29 @@ export function ExpenseWizard({
   function handleSubmit() {
     const value = computedAmount;
     if (!categoryId || !costCenterId) {
-      toast.error("Select cost center and category");
+      toast.error("اختار مركز التكلفة والتصنيف");
       return;
     }
     if (expenseType === "inventory") {
       if (sessionMode && expenseSettings?.allow_inventory_purchase_from_session === false) {
-        toast.error("Inventory purchase from session is disabled");
+        toast.error("شراء المخزون من الجلسة غير مفعل");
         return;
       }
       if (!productId) {
-        toast.error("Select inventory item");
+        toast.error("اختار صنف مخزون");
         return;
       }
       if ((parseFloat(quantity) || 0) <= 0) {
-        toast.error("Enter a valid quantity");
+        toast.error("اكتب كمية صحيحة");
         return;
       }
       if ((parseFloat(unitCost) || 0) <= 0) {
-        toast.error("Enter a valid unit cost");
+        toast.error("اكتب تكلفة وحدة صحيحة");
         return;
       }
     }
     if (value <= 0) {
-      toast.error("Enter a valid amount");
+      toast.error("اكتب مبلغ صحيح");
       return;
     }
 
@@ -173,7 +173,7 @@ export function ExpenseWizard({
           expense_category_id: categoryId,
           inventory_item_id: expenseType === "inventory" ? productId || null : null,
           supplier_id: supplierId || null,
-          title: title || (expenseType === "inventory" ? "Inventory purchase" : "Expense"),
+          title: title || (expenseType === "inventory" ? "شراء مخزون" : "مصروف"),
           amount: value,
           quantity: expenseType === "inventory" ? parseFloat(quantity) : null,
           unit_cost: expenseType === "inventory" ? parseFloat(unitCost) : null,
@@ -194,30 +194,30 @@ export function ExpenseWizard({
             payment_method: payload.payment_method,
             expense_source: payload.expense_source,
           });
-          toast.success("Expense updated");
+          toast.success("تم تحديث المصروف");
         } else {
           await createExpenseAction(payload, { isSessionExpense: sessionMode || Boolean(sessionId) });
-          toast.success("Expense added");
+          toast.success("تم إضافة المصروف");
         }
         setOpen(false);
         resetForm();
         onDone?.();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not save expense");
+        toast.error(error instanceof Error ? error.message : "تعذر حفظ المصروف");
       }
     });
   }
 
   function handleDelete() {
-    if (!expense || !confirm("Delete this expense?")) return;
+    if (!expense || !confirm("حذف هذا المصروف؟")) return;
     startTransition(async () => {
       try {
         await deleteExpenseAction(expense.id);
-        toast.success("Expense deleted");
+        toast.success("تم حذف المصروف");
         setOpen(false);
         onDone?.();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not delete expense");
+        toast.error(error instanceof Error ? error.message : "تعذر حذف المصروف");
       }
     });
   }
@@ -242,7 +242,7 @@ export function ExpenseWizard({
             className="rounded-xl justify-start"
             onClick={() => selectExpenseType("general")}
           >
-            General expense
+            مصروف عام
           </Button>
           <Button
             type="button"
@@ -251,7 +251,7 @@ export function ExpenseWizard({
             disabled={inventoryPurchaseDisabled}
             onClick={() => selectExpenseType("inventory")}
           >
-            Inventory purchase
+            شراء مخزون
           </Button>
         </div>
       )}
@@ -259,7 +259,7 @@ export function ExpenseWizard({
       {currentStep === 1 && (
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label>Cost center</Label>
+            <Label>مركز التكلفة</Label>
             <select
               value={costCenterId}
               onChange={(e) => {
@@ -276,13 +276,13 @@ export function ExpenseWizard({
             </select>
           </div>
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label>التصنيف</Label>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
             >
-              <option value="">Select category</option>
+              <option value="">اختار التصنيف</option>
               {filteredCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -296,11 +296,11 @@ export function ExpenseWizard({
       {currentStep === 2 && expenseType === "general" && (
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label>Title</Label>
+            <Label>العنوان</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl" />
           </div>
           <div className="space-y-2">
-            <Label>Amount</Label>
+            <Label>المبلغ</Label>
             <Input
               type="number"
               min={0}
@@ -316,13 +316,13 @@ export function ExpenseWizard({
       {currentStep === 2 && expenseType === "inventory" && (
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label>Inventory item</Label>
+            <Label>صنف المخزون</Label>
             <select
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
               className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
             >
-              <option value="">Select item</option>
+              <option value="">اختار الصنف</option>
               {trackableProducts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -332,7 +332,7 @@ export function ExpenseWizard({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Quantity</Label>
+              <Label>الكمية</Label>
               <Input
                 type="number"
                 min={0}
@@ -342,7 +342,7 @@ export function ExpenseWizard({
               />
             </div>
             <div className="space-y-2">
-              <Label>Unit cost</Label>
+              <Label>تكلفة الوحدة</Label>
               <Input
                 type="number"
                 min={0}
@@ -355,13 +355,13 @@ export function ExpenseWizard({
           </div>
           {suppliers.length > 0 && (
             <div className="space-y-2">
-              <Label>Supplier (optional)</Label>
+              <Label>المورد (اختياري)</Label>
               <select
                 value={supplierId}
                 onChange={(e) => setSupplierId(e.target.value)}
                 className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
               >
-                <option value="">None</option>
+                <option value="">لا يوجد</option>
                 {suppliers.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -370,14 +370,14 @@ export function ExpenseWizard({
               </select>
             </div>
           )}
-          <p className="text-sm text-muted-foreground">Total: {computedAmount.toFixed(2)}</p>
+          <p className="text-sm text-muted-foreground">الإجمالي: {computedAmount.toFixed(2)}</p>
         </div>
       )}
 
       {currentStep === 3 && !sessionMode && (
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label>Payment source</Label>
+            <Label>مصدر الدفع</Label>
             <select
               value={expenseSource}
               onChange={(e) => setExpenseSource(e.target.value as ExpenseSource)}
@@ -391,7 +391,7 @@ export function ExpenseWizard({
             </select>
           </div>
           <div className="space-y-2">
-            <Label>Payment method</Label>
+            <Label>طريقة الدفع</Label>
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value as ExpensePaymentMethod)}
@@ -409,13 +409,13 @@ export function ExpenseWizard({
 
       {currentStep === 4 && (
         <div className="space-y-3 text-sm">
-          <p><span className="text-muted-foreground">Type:</span> {expenseType}</p>
-          <p><span className="text-muted-foreground">Amount:</span> {computedAmount.toFixed(2)}</p>
+          <p><span className="text-muted-foreground">النوع:</span> {expenseType}</p>
+          <p><span className="text-muted-foreground">المبلغ:</span> {computedAmount.toFixed(2)}</p>
           {!sessionMode && (
-            <p><span className="text-muted-foreground">Source:</span> {expenseSource} / {paymentMethod}</p>
+            <p><span className="text-muted-foreground">المصدر:</span> {expenseSource} / {paymentMethod}</p>
           )}
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>ملاحظات</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="rounded-xl" rows={2} />
           </div>
         </div>
@@ -433,7 +433,7 @@ export function ExpenseWizard({
           </Button>
         ) : (
           <Button type="button" className="flex-1 rounded-xl" disabled={pending} onClick={handleSubmit}>
-            {expense ? "Update" : "Confirm"}
+            {expense ? "تحديث" : "تأكيد"}
           </Button>
         )}
         {expense && step === visibleSteps.length - 1 && (
@@ -460,7 +460,7 @@ export function ExpenseWizard({
       )}
       <DialogContent className="rounded-2xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{expense ? "Edit expense" : "Add expense"}</DialogTitle>
+          <DialogTitle>{expense ? "تعديل مصروف" : "إضافة مصروف"}</DialogTitle>
         </DialogHeader>
         {content}
       </DialogContent>

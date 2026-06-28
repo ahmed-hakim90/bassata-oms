@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { Category, MeasurementUnit, Product } from "@/lib/types";
 import { MEASUREMENT_UNITS } from "@/lib/constants";
 import { formatUnit } from "@/lib/units";
@@ -16,14 +16,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
-import { createCafeIngredientAction } from "@/modules/products/actions/product.actions";
+import {
+  createCafeIngredientAction,
+  updateCafeIngredientAction,
+} from "@/modules/products/actions/product.actions";
 import { toast } from "sonner";
 
 type CafeIngredientDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: Category[];
-  ingredients: Product[];
+  ingredient?: Product | null;
   onSaved?: () => void;
 };
 
@@ -31,28 +34,20 @@ export function CafeIngredientDialog({
   open,
   onOpenChange,
   categories,
-  ingredients,
+  ingredient,
   onSaved,
 }: CafeIngredientDialogProps) {
   const [pending, startTransition] = useTransition();
-  const defaultCategoryId = useMemo(
-    () =>
-      ingredients[0]?.category_id ??
-      categories.find((category) =>
-        /مكون|مكونات|ingredient|inventory|مخزون/i.test(category.name)
-      )?.id ??
-      categories[0]?.id ??
-      "",
-    [categories, ingredients]
-  );
-  const [form, setForm] = useState({
-    name: "",
-    unit: "piece" as MeasurementUnit,
-    unit_cost: "",
-  });
+  const isEdit = Boolean(ingredient);
+  const [form, setForm] = useState(() => ({
+    name: ingredient?.name ?? "",
+    category_id: ingredient?.category_id ?? "",
+    unit: ingredient?.unit ?? ("piece" as MeasurementUnit),
+    unit_cost: ingredient ? String(ingredient.last_unit_cost ?? 0) : "",
+  }));
 
   function reset() {
-    setForm({ name: "", unit: "piece", unit_cost: "" });
+    setForm({ name: "", category_id: "", unit: "piece", unit_cost: "" });
   }
 
   function handleSave() {
@@ -61,20 +56,26 @@ export function CafeIngredientDialog({
       toast.error("Ingredient name is required");
       return;
     }
-    if (!defaultCategoryId) {
-      toast.error("Add an ingredient category first");
+    if (!form.category_id) {
+      toast.error("Choose a category first");
       return;
     }
 
     startTransition(async () => {
       try {
-        await createCafeIngredientAction({
+        const payload = {
           name,
-          category_id: defaultCategoryId,
+          category_id: form.category_id,
           unit: form.unit,
           unit_cost: Number(form.unit_cost) || 0,
-        });
-        toast.success("Ingredient added");
+        };
+        if (ingredient) {
+          await updateCafeIngredientAction(ingredient.id, payload);
+          toast.success("Ingredient updated");
+        } else {
+          await createCafeIngredientAction(payload);
+          toast.success("Ingredient added");
+        }
         reset();
         onOpenChange(false);
         onSaved?.();
@@ -94,8 +95,12 @@ export function CafeIngredientDialog({
     >
       <StandardModalContent
         size="md"
-        title="New ingredient"
-        description="Add a reusable cafe ingredient with simple defaults."
+        title={isEdit ? "Edit ingredient" : "New ingredient"}
+        description={
+          isEdit
+            ? "Update ingredient category, unit, and unit cost."
+            : "Add a reusable cafe ingredient with simple defaults."
+        }
       >
         <div className="grid gap-4">
           <div className="space-y-2">
@@ -108,6 +113,30 @@ export function CafeIngredientDialog({
                 setForm((current) => ({ ...current, name: event.target.value }))
               }
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select
+              value={form.category_id}
+              onValueChange={(value) =>
+                setForm((current) => ({ ...current, category_id: value ?? "" }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose ingredient category">
+                  {(value) =>
+                    categories.find((category) => category.id === value)?.name ?? null
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id} label={category.name}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
@@ -155,7 +184,7 @@ export function CafeIngredientDialog({
               Cancel
             </Button>
             <Button type="button" disabled={pending} onClick={handleSave}>
-              {pending ? "Saving..." : "Add ingredient"}
+              {pending ? "Saving..." : isEdit ? "Save ingredient" : "Add ingredient"}
             </Button>
           </DialogFooter>
         </div>

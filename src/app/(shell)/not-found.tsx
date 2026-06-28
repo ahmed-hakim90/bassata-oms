@@ -3,10 +3,10 @@ import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 export default function ShellNotFound() {
   return (
     <EmptyStateBlock
-      title="Page not found"
-      description="The page you are looking for does not exist or is not available for your access level."
+      title="الصفحة غير موجودة"
+      description="الصفحة التي تبحث عنها غير موجودة أو غير متاحة لمستوى صلاحيتك."
       ctaHref="/"
-      ctaLabel="Go to dashboard"
+      ctaLabel="الذهاب للوحة التحكم"
     />
   );
 }

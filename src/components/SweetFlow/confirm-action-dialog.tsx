@@ -26,7 +26,7 @@ export function ConfirmActionDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel = "تأكيد",
   destructive = false,
   onConfirm,
 }: ConfirmActionDialogProps) {
@@ -51,7 +51,7 @@ export function ConfirmActionDialog({
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Cancel
+            إلغاء
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}

@@ -117,7 +117,7 @@ export function TransferForm({
         fromWarehouseName: warehouses.find((w) => w.id === fromWarehouseId)?.name ?? "",
         toWarehouseName: warehouses.find((w) => w.id === toWarehouseId)?.name ?? "",
       });
-      toast.success("Transfer draft created");
+      toast.success("تم إنشاء مسودة التحويل");
     });
   };
 
@@ -136,7 +136,7 @@ export function TransferForm({
       refreshTransfer(transfer.id);
       setProductId("");
       setQuantity(1);
-      toast.success("Line added");
+      toast.success("تم إضافة السطر");
     });
   };
 
@@ -181,7 +181,7 @@ export function TransferForm({
         return;
       }
       refreshTransfer(transfer.id);
-      toast.success("Transfer sent");
+      toast.success("تم إرسال التحويل");
     });
   };
 
@@ -193,7 +193,7 @@ export function TransferForm({
         toast.error(result.error);
         return;
       }
-      toast.success("Transfer received");
+      toast.success("تم استلام التحويل");
       onComplete();
     });
   };
@@ -205,7 +205,7 @@ export function TransferForm({
       toast.error(result.error);
       throw new Error(result.error);
     }
-    toast.success("Transfer deleted");
+    toast.success("تم حذف التحويل");
     onComplete();
   };
 
@@ -238,7 +238,7 @@ export function TransferForm({
         fromWarehouseName: fromWarehouse?.name ?? transfer.fromWarehouseName,
         toWarehouseName: toWarehouse?.name ?? transfer.toWarehouseName,
       });
-      toast.success("Stores updated");
+      toast.success("تم تحديث الفروع");
     });
   };
 
@@ -249,24 +249,24 @@ export function TransferForm({
       toast.error(result.error);
       throw new Error(result.error);
     }
-    toast.success("Transfer cancelled — stock reversed");
+    toast.success("تم إلغاء التحويل - تم عكس المخزون");
     onComplete();
   };
 
   if (loading) {
     return (
-      <OperationalCard title="Loading transfer…">
-        <p className="text-sm text-muted-foreground">Please wait</p>
+      <OperationalCard title="جاري تحميل التحويل…">
+        <p className="text-sm text-muted-foreground">برجاء الانتظار</p>
       </OperationalCard>
     );
   }
 
   if (!transfer) {
     return (
-      <OperationalCard title="New Transfer">
+      <OperationalCard title="تحويل جديد">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>From Store</Label>
+            <Label>من فرع</Label>
             <Select
               value={fromStoreId}
               onValueChange={(v) => {
@@ -290,7 +290,7 @@ export function TransferForm({
             </Select>
             <Select value={fromWarehouseId} onValueChange={(v) => setFromWarehouseId(v ?? "")}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="From warehouse">
+                <SelectValue placeholder="من مخزن">
                   {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                 </SelectValue>
               </SelectTrigger>
@@ -304,7 +304,7 @@ export function TransferForm({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>To Store</Label>
+            <Label>إلى فرع</Label>
             <Select
               value={toStoreId}
               onValueChange={(v) => {
@@ -328,7 +328,7 @@ export function TransferForm({
             </Select>
             <Select value={toWarehouseId} onValueChange={(v) => setToWarehouseId(v ?? "")}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="To warehouse">
+                <SelectValue placeholder="إلى مخزن">
                   {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                 </SelectValue>
               </SelectTrigger>
@@ -347,7 +347,7 @@ export function TransferForm({
           onClick={createDraft}
           disabled={pending || !fromWarehouseId || !toWarehouseId || fromWarehouseId === toWarehouseId}
         >
-          Create Transfer
+          إنشاء تحويل
         </Button>
       </OperationalCard>
     );
@@ -363,12 +363,12 @@ export function TransferForm({
     <div className="space-y-6">
       <OperationalCard
         title={`${transfer.fromStoreName} / ${transfer.fromWarehouseName} → ${transfer.toStoreName} / ${transfer.toWarehouseName}`}
-        description={`Status: ${transfer.status}`}
+        description={`الحالة: ${transfer.status}`}
       >
         {isDraft && (
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>From Store</Label>
+              <Label>من فرع</Label>
               <Select
                 value={fromStoreId}
                 onValueChange={(v) => {
@@ -406,7 +406,7 @@ export function TransferForm({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>To Store</Label>
+              <Label>إلى فرع</Label>
               <div className="flex gap-2">
                 <Select
                   value={toStoreId}
@@ -455,7 +455,7 @@ export function TransferForm({
                       toWarehouseId === transfer.to_warehouse_id)
                   }
                 >
-                  Save
+                  حفظ
                 </Button>
               </div>
             </div>
@@ -465,7 +465,7 @@ export function TransferForm({
           <div className="flex flex-wrap gap-2">
             <Select value={productId} onValueChange={(v) => setProductId(v ?? "")}>
               <SelectTrigger className="min-w-48">
-                <SelectValue placeholder="Product">
+                <SelectValue placeholder="المنتج">
                   {(value) => selectLabelById(products, value, (p) => p.name)}
                 </SelectValue>
               </SelectTrigger>
@@ -485,7 +485,7 @@ export function TransferForm({
               className="w-24"
             />
             <Button onClick={addLine} disabled={pending || !productId}>
-              <Plus className="size-4" /> Add
+              <Plus className="size-4" /> إضافة
             </Button>
           </div>
         )}
@@ -509,7 +509,7 @@ export function TransferForm({
                     }}
                   />
                 ) : (
-                  <span className="font-medium">{line.quantity_sent} units</span>
+                  <span className="font-medium">{line.quantity_sent} وحدة</span>
                 )}
                 {isDraft && (
                   <Button
@@ -529,38 +529,38 @@ export function TransferForm({
           {isDraft && (
             <>
               <Button onClick={send} disabled={pending || transfer.lines.length === 0}>
-                Send Transfer <ArrowRight className="size-4" />
+                إرسال التحويل <ArrowRight className="size-4" />
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => setConfirmDelete(true)}
                 disabled={pending}
               >
-                Delete Draft
+                حذف المسودة
               </Button>
             </>
           )}
           {isSent && (
             <>
               <Button onClick={receive} disabled={pending}>
-                Receive at Destination
+                الاستلام في الوجهة
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setConfirmVoid(true)}
                 disabled={pending}
               >
-                Cancel Send
+                إلغاء الإرسال
               </Button>
             </>
           )}
           {canVoid && isReceived && (
             <Button variant="outline" onClick={() => setConfirmVoid(true)} disabled={pending}>
-              Void Transfer
+              إلغاء التحويل
             </Button>
           )}
           <Button variant="outline" onClick={onComplete}>
-            {isCancelled ? "Back" : "Done"}
+            {isCancelled ? "رجوع" : "تم"}
           </Button>
         </div>
       </OperationalCard>
@@ -568,9 +568,9 @@ export function TransferForm({
       <ConfirmActionDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title="Delete draft transfer?"
-        description="This permanently removes the transfer and all lines. No stock has been moved yet."
-        confirmLabel="Delete"
+        title="حذف مسودة التحويل؟"
+        description="سيتم حذف التحويل وكل البنود نهائيًا. لم يتم تحريك أي مخزون بعد."
+        confirmLabel="حذف"
         destructive
         onConfirm={handleDeleteDraft}
       />
@@ -578,9 +578,9 @@ export function TransferForm({
       <ConfirmActionDialog
         open={confirmVoid}
         onOpenChange={setConfirmVoid}
-        title={isSent ? "Cancel sent transfer?" : "Void received transfer?"}
-        description="Stock levels will be reversed to undo this transfer. This cannot be undone."
-        confirmLabel="Void & reverse stock"
+        title={isSent ? "إلغاء تحويل مرسل؟" : "إلغاء تحويل مستلم؟"}
+        description="سيتم عكس مستويات المخزون لإلغاء هذا التحويل. لا يمكن التراجع عن ذلك."
+        confirmLabel="إلغاء وعكس المخزون"
         destructive
         onConfirm={handleVoid}
       />

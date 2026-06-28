@@ -1,7 +1,6 @@
 export type AppLanguage = "en" | "ar";
 
 export const languageOptions: { value: AppLanguage; label: string }[] = [
-  { value: "en", label: "English" },
   { value: "ar", label: "العربية" },
 ];
 
@@ -302,8 +301,10 @@ export const arTranslations: Record<string, string> = {
   "A manager or owner must unlock this register before recording expenses.": "لازم مدير أو مالك يفتح الجهاز قبل تسجيل المصروفات.",
   Accept: "قبول",
   "Access denied": "الدخول مرفوض",
+  Account: "الحساب",
   "Account statement": "كشف الحساب",
   Actions: "الإجراءات",
+  Administration: "الإدارة",
   "Active inventory items": "أصناف مخزون نشطة",
   "Active items": "أصناف نشطة",
   "Active Members": "أعضاء نشطين",
@@ -689,6 +690,9 @@ export const arTranslations: Record<string, string> = {
   "Forgot password?": "نسيت كلمة المرور؟",
   "Signing in…": "جاري تسجيل الدخول…",
   "Order #": "طلب رقم",
+  Overview: "نظرة عامة",
+  "Barcode Labels": "ملصقات الباركود",
+  Stock: "المخزون",
   "Unnamed product": "منتج بدون اسم",
   Hold: "تعليق",
   each: "للوحدة",

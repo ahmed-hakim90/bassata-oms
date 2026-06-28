@@ -13,15 +13,15 @@ export default async function PrintExpensesReportPage({
   return (
     <PrintableDocument
       branding={data.context}
-      title="Expenses Report"
+      title="تقرير المصروفات"
       dateRange={data.context.filterSummary}
       generatedBy={data.context.generatedBy}
       generatedAt={data.context.generatedAt}
     >
       <p className="mb-4 text-lg font-semibold">
-        Total: {formatCurrency(data.total, data.currency)}
+        الإجمالي: {formatCurrency(data.total, data.currency)}
       </p>
-      <h3 className="mb-2 font-medium">By cost center</h3>
+      <h3 className="mb-2 font-medium">حسب مركز التكلفة</h3>
       <table className="mb-6 w-full text-sm">
         <tbody>
           {data.byCenter.map((row) => (
@@ -32,7 +32,7 @@ export default async function PrintExpensesReportPage({
           ))}
         </tbody>
       </table>
-      <h3 className="mb-2 font-medium">By category</h3>
+      <h3 className="mb-2 font-medium">حسب التصنيف</h3>
       <table className="w-full text-sm">
         <tbody>
           {data.byCategory.map((row) => (

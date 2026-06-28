@@ -15,12 +15,12 @@ export function ResetPasswordForm() {
     <div className="w-full max-w-md space-y-8 rounded-3xl border border-border/60 bg-card/80 p-8 shadow-xl backdrop-blur-xl">
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Choose a new password</p>
+        <p className="mt-2 text-sm text-muted-foreground">اختر كلمة مرور جديدة</p>
       </div>
 
       <form action={formAction} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="password">New password</Label>
+          <Label htmlFor="password">كلمة المرور الجديدة</Label>
           <Input
             id="password"
             name="password"
@@ -31,7 +31,7 @@ export function ResetPasswordForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
           <Input
             id="confirmPassword"
             name="confirmPassword"
@@ -43,13 +43,13 @@ export function ResetPasswordForm() {
         </div>
         {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
         <Button type="submit" className="w-full" disabled={pending}>
-          {pending ? "Saving…" : "Update password"}
+          {pending ? "جاري الحفظ…" : "تحديث كلمة المرور"}
         </Button>
       </form>
 
       <p className="text-center text-sm">
         <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
-          Back to sign in
+          الرجوع لتسجيل الدخول
         </Link>
       </p>
     </div>

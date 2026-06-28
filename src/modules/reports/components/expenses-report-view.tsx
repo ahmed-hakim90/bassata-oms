@@ -45,8 +45,8 @@ export function ExpensesReportView({
 
   return (
     <ReportPage
-      title="Expenses Report"
-      description="Cost center and category breakdown"
+      title="تقرير المصروفات"
+      description="تفصيل مراكز التكلفة والتصنيفات"
       actions={
         <ExportButtonGroup
           printHref={canPrint ? printHref : undefined}
@@ -63,9 +63,9 @@ export function ExpensesReportView({
                   ) as Record<string, string>
                 );
                 downloadBase64Excel(result.base64, result.filename);
-                toast.success("Excel exported");
+                toast.success("تم تصدير Excel");
               } catch {
-                toast.error("Export failed");
+                toast.error("فشل التصدير");
               }
             });
           }}
@@ -75,10 +75,10 @@ export function ExpensesReportView({
     >
       <ReportKpiGrid
         columns={2}
-        items={[{ label: "Total expenses", value: formatCurrency(total, currency), icon: <Wallet className="size-5" /> }]}
+        items={[{ label: "إجمالي المصروفات", value: formatCurrency(total, currency), icon: <Wallet className="size-5" /> }]}
       />
       <div className="grid gap-4 lg:grid-cols-2">
-        <OperationalCard title="By cost center">
+        <OperationalCard title="حسب مركز التكلفة">
           <ul className="space-y-2 text-sm">
             {byCenter.map((row) => (
               <li key={row.name} className="flex justify-between">
@@ -88,7 +88,7 @@ export function ExpensesReportView({
             ))}
           </ul>
         </OperationalCard>
-        <OperationalCard title="By category">
+        <OperationalCard title="حسب التصنيف">
           <ul className="space-y-2 text-sm">
             {byCategory.map((row) => (
               <li key={row.name} className="flex justify-between">

@@ -53,8 +53,8 @@ export function PurchasesPage({
     return (
       <>
         <PageHeader
-          title={activeEditingId ? "Purchase Invoice" : "Receive Purchase"}
-          description={activeEditingId ? "View or edit invoice" : "Scan items and receive into inventory"}
+          title={activeEditingId ? "فاتورة شراء" : "استلام مشتريات"}
+          description={activeEditingId ? "عرض أو تعديل الفاتورة" : "امسح الأصناف واستلمها في المخزون"}
         />
         <PurchaseForm
           suppliers={suppliers}
@@ -76,18 +76,18 @@ export function PurchasesPage({
   return (
     <>
       <PageHeader
-        title="Purchases"
-        description="Receive supplier invoices and update stock"
+        title="المشتريات"
+        description="استلام فواتير الموردين وتحديث المخزون"
         action={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/inventory/suppliers"
               className={cn(buttonVariants({ variant: "outline" }))}
             >
-              Manage suppliers
+              إدارة الموردين
             </Link>
             <Button onClick={() => setCreating(true)}>
-              <Plus className="size-4" /> New Purchase
+              <Plus className="size-4" /> شراء جديد
             </Button>
           </div>
         }
@@ -95,15 +95,15 @@ export function PurchasesPage({
 
       {purchases.length === 0 ? (
         <OperationalCard
-          title="No purchases yet"
-          description="Create your first purchase invoice to receive stock"
+          title="لا توجد مشتريات بعد"
+          description="أنشئ أول فاتورة شراء لاستلام المخزون"
         >
           <div className="flex flex-col items-center py-12 text-center">
             <div className="mb-4 flex size-16 items-center justify-center rounded-3xl bg-primary/10 text-primary">
               <Truck className="size-8" />
             </div>
             <Button onClick={() => setCreating(true)}>
-              <Plus className="size-4" /> New Purchase
+              <Plus className="size-4" /> شراء جديد
             </Button>
           </div>
         </OperationalCard>
@@ -119,7 +119,7 @@ export function PurchasesPage({
                     <StatusPill label={p.status} variant={statusVariant[p.status]} />
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {p.supplierName} · {p.warehouseName} · {p.lines.length} items ·{" "}
+                    {p.supplierName} · {p.warehouseName} · {p.lines.length} أصناف ·{" "}
                     {formatDateTime(p.created_at)}
                   </p>
                 </div>
@@ -129,7 +129,7 @@ export function PurchasesPage({
                   </p>
                   <Button variant="outline" onClick={() => setEditingId(p.id)}>
                     <Pencil className="size-4" />
-                    Open
+                    فتح
                   </Button>
                 </div>
               </div>

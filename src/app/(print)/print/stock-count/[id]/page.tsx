@@ -23,8 +23,8 @@ export default async function PrintStockCountPage({
   return (
     <PrintableDocument
       branding={branding}
-      title="Stock Count Report"
-      subtitle={`Count ${count.id.slice(0, 8)}`}
+      title="تقرير جرد المخزون"
+      subtitle={`جرد ${count.id.slice(0, 8)}`}
       dateRange={count.started_at}
       generatedBy={user.name}
       generatedAt={new Date().toISOString()}
@@ -32,10 +32,10 @@ export default async function PrintStockCountPage({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-2 text-start">Product</th>
-            <th className="py-2 text-end">System</th>
-            <th className="py-2 text-end">Counted</th>
-            <th className="py-2 text-end">Variance</th>
+            <th className="py-2 text-start">المنتج</th>
+            <th className="py-2 text-end">النظام</th>
+            <th className="py-2 text-end">المعدود</th>
+            <th className="py-2 text-end">الفرق</th>
           </tr>
         </thead>
         <tbody>

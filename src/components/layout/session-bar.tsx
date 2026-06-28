@@ -43,9 +43,9 @@ export async function SessionBar() {
         </>
       ) : null}
       <span className="mx-2 text-muted-foreground">·</span>
-      Session open — {cashier?.name ?? "Cashier"}
+      جلسة مفتوحة - {cashier?.name ?? "الكاشير"}
       {cashierId && user && cashierId !== user.id ? (
-        <span className="text-muted-foreground"> (switched)</span>
+        <span className="text-muted-foreground"> (تم التبديل)</span>
       ) : null}
     </div>
   );

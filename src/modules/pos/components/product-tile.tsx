@@ -22,6 +22,19 @@ interface ProductTileProps {
 export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
   const badgeLabel = BADGE_LABELS[product.stockBadge];
   const outOfStock = product.stockBadge === "out";
+  const variantPrices = product.variants
+    .map((variant) => variant.price)
+    .filter((price) => Number.isFinite(price))
+    .sort((a, b) => a - b);
+  const minVariantPrice = variantPrices[0];
+  const maxVariantPrice = variantPrices.at(-1);
+  const showVariantPrice =
+    product.hasVariants && minVariantPrice != null && maxVariantPrice != null;
+  const displayPrice = showVariantPrice ? minVariantPrice : product.base_price;
+  const priceRange =
+    showVariantPrice && maxVariantPrice > minVariantPrice
+      ? ` إلى ${formatCurrency(maxVariantPrice)}`
+      : "";
 
   return (
     <button
@@ -72,9 +85,19 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
           {product.name}
         </p>
         <p className="text-sm text-muted-foreground">{product.categoryName}</p>
-        <p className="mt-auto text-lg font-semibold tabular-nums text-card-foreground">
-          {formatCurrency(product.base_price)}
-        </p>
+        <div className="mt-auto">
+          {showVariantPrice ? (
+            <p className="text-xs text-muted-foreground">
+              {priceRange ? "من أقل سعر" : "سعر الأحجام"}
+            </p>
+          ) : null}
+          <p className="text-lg font-semibold tabular-nums text-card-foreground">
+            {formatCurrency(displayPrice)}
+            {priceRange ? (
+              <span className="text-xs font-normal text-muted-foreground">{priceRange}</span>
+            ) : null}
+          </p>
+        </div>
       </div>
     </button>
   );

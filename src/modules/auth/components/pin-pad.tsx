@@ -43,7 +43,7 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
           setError(null);
           onSuccess?.(result.cashierId);
         } else {
-          setError(result.error ?? "Incorrect PIN.");
+          setError(result.error ?? "رقم PIN غير صحيح.");
           setPin("");
         }
       });
@@ -83,7 +83,7 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
         <p className="text-center text-sm text-destructive">{error}</p>
       ) : (
         <p className="text-center text-sm text-muted-foreground">
-          {pending ? "Verifying…" : "Enter your 4-digit PIN"}
+          {pending ? "جاري التحقق…" : "أدخل رقم PIN المكوّن من 4 أرقام"}
         </p>
       )}
 
@@ -99,7 +99,7 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
                 onClick={clearPin}
                 className="h-16 rounded-[var(--radius-button)] text-sm font-medium"
               >
-                Clear
+                مسح
               </Button>
             );
           }
@@ -112,7 +112,7 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
                 disabled={pending}
                 onClick={removeDigit}
                 className="h-16 rounded-[var(--radius-button)]"
-                aria-label="Delete"
+                aria-label="حذف"
               >
                 <Delete className="size-5" />
               </Button>

@@ -35,6 +35,9 @@ export async function checkoutAction(input: {
   const payments = input.payments?.length
     ? input.payments
     : [{ method: input.paymentMethod, amount: 0 }];
+  if (payments[0]?.method && payments[0].method !== input.paymentMethod) {
+    throw new Error("Payment method does not match payment details");
+  }
   const usesCredit = payments.some((payment) => payment.method === "credit");
 
   if (usesCredit) {
