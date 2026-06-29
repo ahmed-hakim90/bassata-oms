@@ -8,6 +8,7 @@ import { getPageAccessDenial } from "@/lib/auth/page-access";
 import { requireStoreAccess } from "@/lib/auth/guards";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
 import { getFeatureFlags } from "@/modules/system/services/settings.service";
+import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import { redirect } from "next/navigation";
 
@@ -18,11 +19,12 @@ export default async function ShellLayout({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const [featureFlags, allStores, cookieStoreId, permissions] = await Promise.all([
+  const [featureFlags, allStores, cookieStoreId, permissions, posReadiness] = await Promise.all([
     getFeatureFlags(),
     storeRepo.listStores(),
     getActiveStoreId(),
     getEffectivePermissions(user),
+    getPosReadiness(),
   ]);
   const stores =
     user.role === "owner" || user.role === "manager"
@@ -50,6 +52,7 @@ export default async function ShellLayout({
       stores={stores}
       activeStoreId={activeStoreId}
       permissions={permissions}
+      posReadinessState={posReadiness.state}
     >
       {denial ? (
         <AccessDenied title={denial.title} description={denial.description} />

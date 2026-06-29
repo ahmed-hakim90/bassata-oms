@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppShellHeader } from "@/components/layout/app-shell-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { SessionBar } from "@/components/layout/session-bar";
+import type { PosReadinessState } from "@/lib/auth/pos-readiness";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface AppShellProps {
   stores?: Store[];
   activeStoreId?: string | null;
   permissions?: Set<PermissionKey>;
+  posReadinessState?: PosReadinessState;
 }
 
 export function AppShell({
@@ -24,6 +26,7 @@ export function AppShell({
   stores = [],
   activeStoreId = null,
   permissions = new Set(),
+  posReadinessState,
 }: AppShellProps) {
   return (
     <div className="flex h-full bg-background">
@@ -37,6 +40,7 @@ export function AppShell({
           stores={stores}
           activeStoreId={activeStoreId}
           featureFlags={featureFlags}
+          posReadinessState={posReadinessState}
         />
         <SessionBar />
         <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-24 md:p-6 md:pb-6">
