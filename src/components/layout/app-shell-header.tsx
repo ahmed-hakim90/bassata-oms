@@ -41,6 +41,7 @@ export function AppShellHeader({
   const [pending, startTransition] = useTransition();
   const selectedId = activeStoreId ?? stores[0]?.id;
   const canOpenSessionFromHeader = posReadinessState === "no_session";
+  const needsCashierBeforeSession = posReadinessState === "cashier_required";
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl md:px-6">
@@ -96,6 +97,15 @@ export function AppShellHeader({
               </>
             }
           />
+        ) : needsCashierBeforeSession ? (
+          <Link
+            href="/pos"
+            className={cn(buttonVariants({ size: "sm" }), "rounded-full shadow-sm")}
+          >
+            <ShoppingCart className="size-4" />
+            <span className="hidden sm:inline">{t("Select cashier")}</span>
+            <span className="sm:hidden">{t("Cashier")}</span>
+          </Link>
         ) : (
           <Link
             href="/pos/start"

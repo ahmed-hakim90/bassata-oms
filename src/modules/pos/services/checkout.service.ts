@@ -100,7 +100,10 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     }
   }
 
-  const inventoryPolicy = await getInventoryPolicySettings();
+  const [inventoryPolicy, preventNegativeStock] = await Promise.all([
+    getInventoryPolicySettings(),
+    isFeatureEnabled("prevent_negative_stock"),
+  ]);
   const warehouse = await warehouseRepo.getDefaultWarehouse(input.storeId);
   const warehouseId = warehouse?.id ?? null;
   const allBatches = warehouseId ? await inventoryRepo.listInventoryBatches(input.storeId, warehouseId) : [];
@@ -121,7 +124,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     if (productBatches.length === 0) continue;
 
     const expired = productBatches.some((batch) => batch.expiry_date && new Date(batch.expiry_date) < today);
-    if (expired && (product.expiry_policy ?? "block_sale") === "block_sale") {
+    if (preventNegativeStock && expired && (product.expiry_policy ?? "block_sale") === "block_sale") {
       throw new Error(`مخزون ${line.name} منتهي الصلاحية وممنوع بيعه حسب السياسة`);
     }
 

@@ -24,6 +24,7 @@ import {
 import { registerBrowserDeviceAction } from "@/modules/auth/actions/device.actions";
 import type { Store, Warehouse } from "@/lib/types";
 import { PosSetupGuide } from "@/modules/system/components/settings/pos-setup-guide";
+import { BranchQrDownloadCard } from "@/modules/system/components/settings/branch-qr-download-card";
 
 function storeEditDefaults(store: Store) {
   return {
@@ -151,10 +152,19 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   ) : null}
                 </div>
                 {onlineMenuHref ? (
-                  <p className="break-words rounded-lg bg-muted/70 px-3 py-2 text-xs text-muted-foreground">
-                    رابط المنيو العام:{" "}
-                    <span className="font-mono text-foreground break-all">{onlineMenuHref}</span>
-                  </p>
+                  <div className="grid gap-3">
+                    <p className="break-words rounded-lg bg-muted/70 px-3 py-2 text-xs text-muted-foreground">
+                      رابط المنيو العام:{" "}
+                      <span className="font-mono text-foreground break-all">{onlineMenuHref}</span>
+                    </p>
+                    <BranchQrDownloadCard
+                      storeName={store.name}
+                      storeCode={store.code}
+                      address={store.address}
+                      phone={store.phone}
+                      onlineMenuHref={onlineMenuHref}
+                    />
+                  </div>
                 ) : null}
 
                 <div className="grid gap-3 md:grid-cols-2">

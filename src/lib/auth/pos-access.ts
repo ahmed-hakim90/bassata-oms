@@ -91,7 +91,15 @@ export async function resolvePosAccess(
 
   await deviceRepo.touchDeviceSeen(device.id);
 
-  const activeCashierId = await getActiveCashierId(storeId, device.id, user);
+  let activeCashierId = await getActiveCashierId(storeId, device.id, user);
+  if (!activeCashierId && user.role === "cashier") {
+    const allowed = await deviceRepo.cashierCanUseDevice(user.id, storeId, device.id);
+    if (!allowed) {
+      throw new PosAccessError("You are not allowed on this device", "access_denied");
+    }
+    await setActiveCashierId(user.id, { storeId, deviceId: device.id });
+    activeCashierId = user.id;
+  }
   if (!activeCashierId) {
     throw new PosAccessError("Cashier PIN required", "cashier_required");
   }

@@ -405,7 +405,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   payment_card: true,
   payment_wallet: true,
   payment_other: true,
-  prevent_negative_stock: true,
+  prevent_negative_stock: false,
   session_expenses: true,
   refunds: false,
   stock_count: true,

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireCatalogRead, requireFeature, requirePermissionOrRole } from "@/lib/auth/guards";
 import { getOrgId } from "@/lib/repositories/organization.repository";
+import { getDb } from "@/lib/repositories/client";
+import { writeAuditLog } from "@/lib/services/audit.service";
 import type { MeasurementUnit } from "@/lib/types";
 import type { CategoryInput, ProductInput } from "../services/product.service";
 import * as productService from "../services/product.service";
@@ -46,6 +48,49 @@ export async function updateProductAction(id: string, input: Partial<ProductInpu
   const product = await productService.updateProduct(id, input, user.id);
   revalidatePath("/products");
   return product;
+}
+
+export async function bulkDisableMenuInventoryTrackingAction() {
+  const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
+  const orgId = await getOrgId();
+  const db = await getDb();
+
+  const { data: products, error } = await db
+    .from("products")
+    .update({
+      is_active: true,
+      track_inventory: false,
+      inventory_tracking_mode: "none",
+      expiry_tracking_enabled: false,
+    })
+    .eq("org_id", orgId)
+    .eq("product_type", "finished")
+    .select("id");
+
+  if (error) throw new Error(error.message);
+
+  const productIds = (products ?? []).map((product) => product.id);
+  if (productIds.length > 0) {
+    const { error: variantsError } = await db
+      .from("product_variants")
+      .update({ is_active: true })
+      .in("product_id", productIds);
+    if (variantsError) throw new Error(variantsError.message);
+  }
+
+  await writeAuditLog({
+    orgId,
+    userId: user.id,
+    action: "product.bulk_untracked",
+    entityType: "product",
+    entityId: orgId,
+    metadata: { count: productIds.length },
+  });
+
+  revalidatePath("/products");
+  revalidatePath("/pos");
+  revalidatePath("/menu", "layout");
+  return { count: productIds.length };
 }
 
 export async function uploadProductImageAction(productId: string, formData: FormData) {

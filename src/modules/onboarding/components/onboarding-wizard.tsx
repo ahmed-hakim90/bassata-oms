@@ -87,7 +87,7 @@ export function OnboardingWizard() {
     },
     receiptHeader: "",
     receiptFooter: "",
-    preventNegativeStock: true,
+    preventNegativeStock: false,
     defaultTaxBehavior: "inclusive" as "inclusive" | "exclusive",
     sessionRules: {
       maxOpenHours: 24,

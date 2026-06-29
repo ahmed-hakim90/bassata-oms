@@ -13,7 +13,10 @@ import { CafeMenuItemDialog } from "./cafe-menu-item-dialog";
 import { CafeIngredientDialog } from "./cafe-ingredient-dialog";
 import { CategoryManagerDialog } from "./category-manager-dialog";
 import { ImportProductsDialog } from "@/modules/imports-exports/components/import-products-dialog";
-import { deleteProductAction } from "../actions/product.actions";
+import {
+  bulkDisableMenuInventoryTrackingAction,
+  deleteProductAction,
+} from "../actions/product.actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -128,6 +131,26 @@ export function ProductsPage({
     });
   }
 
+  function handleBulkDisableTracking() {
+    if (
+      !confirm(
+        "سيتم تفعيل كل أصناف المنيو وجعلها غير متتبعة للمخزون. المكونات لن تتأثر. هل تريد المتابعة؟"
+      )
+    ) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await bulkDisableMenuInventoryTrackingAction();
+        toast.success(`تم تحديث ${result.count} صنف منيو`);
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "تعذر تحديث الأصناف");
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -138,6 +161,9 @@ export function ProductsPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={pending} onClick={handleBulkDisableTracking}>
+            تفعيل الأصناف وإلغاء تتبع المخزون
+          </Button>
           <Button variant="outline" onClick={() => setCategoryDialogOpen(true)}>
             <Tags className="size-4" />
             التصنيفات

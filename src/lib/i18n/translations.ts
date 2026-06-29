@@ -229,6 +229,7 @@ export const arTranslations: Record<string, string> = {
   "Scan barcode or search product — Enter to add": "امسح الباركود أو ابحث عن منتج - Enter للإضافة",
   "Scan or type barcode...": "امسح أو اكتب الباركود...",
   "Select category": "اختار التصنيف",
+  "Select cashier": "اختيار الكاشير",
   "Select item": "اختار الصنف",
   "Select store": "اختار الفرع",
   "Select supplier": "اختار المورد",
