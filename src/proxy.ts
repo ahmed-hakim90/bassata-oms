@@ -58,7 +58,7 @@ export async function proxy(request: NextRequest) {
     (pathname.startsWith("/sessions") && hasAuthSession);
 
   if (hasAuthSession && needsDevice && !(await hasValidRegisteredDeviceCookie(request))) {
-    if (!pathname.startsWith("/device/pair") && !pathname.startsWith("/pos/start")) {
+    if (!pathname.startsWith("/device/pair") && !pathname.startsWith("/pos")) {
       const pairUrl = new URL("/device/pair", request.url);
       pairUrl.searchParams.set("from", pathname);
       return NextResponse.redirect(pairUrl);

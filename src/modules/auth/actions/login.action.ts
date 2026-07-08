@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { STORE_COOKIE, CASHIER_COOKIE } from "@/lib/auth/session";
-import { getRegisteredDeviceContext } from "@/lib/auth/session";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -70,15 +69,8 @@ export async function loginAction(
     metadata: { email: appUser.email, role: appUser.role },
   });
 
-  if (appUser.role === "cashier") {
-    const deviceCtx = await getRegisteredDeviceContext();
-    if (appUser.store_ids.length > 1) {
-      redirect("/pos/start");
-    }
-    if (!deviceCtx) {
-      redirect("/device/pair?from=/pos");
-    }
-    redirect("/pos/resume");
+  if (appUser.role === "cashier" || appUser.role === "owner" || appUser.role === "manager") {
+    redirect("/pos");
   }
 
   redirect("/");

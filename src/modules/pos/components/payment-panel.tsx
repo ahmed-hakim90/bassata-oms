@@ -20,6 +20,8 @@ interface PaymentPanelProps {
   disabled?: boolean;
   loyaltyRedemptionRate?: number | null;
   minimumLoyaltyRedeemPoints?: number;
+  /** Use a fixed total instead of the POS cart (e.g. online order checkout). */
+  fixedTotal?: number | null;
 }
 
 export function PaymentPanel({
@@ -32,6 +34,7 @@ export function PaymentPanel({
   disabled,
   loyaltyRedemptionRate = null,
   minimumLoyaltyRedeemPoints = 0,
+  fixedTotal = null,
 }: PaymentPanelProps) {
   const { t } = useTranslation();
   const cart = usePosStore((s) => s.cart);
@@ -45,12 +48,14 @@ export function PaymentPanel({
   const setPaymentSplits = usePosStore((s) => s.setPaymentSplits);
   const [splitMode, setSplitMode] = useState(false);
   const [splits, setSplits] = useState<PaymentSplit[]>([]);
-  const subtotal = getCartSubtotal(cart);
-  const totalBeforeRedemption = getCartTotal(cart, discountAmount);
-  const redemptionAmount = loyaltyRedemption?.amount ?? 0;
+  const useFixedTotal = fixedTotal !== null && fixedTotal !== undefined;
+  const subtotal = useFixedTotal ? fixedTotal : getCartSubtotal(cart);
+  const totalBeforeRedemption = useFixedTotal ? fixedTotal : getCartTotal(cart, discountAmount);
+  const redemptionAmount = useFixedTotal ? 0 : loyaltyRedemption?.amount ?? 0;
   const total = Math.max(0, totalBeforeRedemption - redemptionAmount);
 
   const loyaltyAvailable =
+    !useFixedTotal &&
     Boolean(customer) &&
     loyaltyRedemptionRate !== null &&
     loyaltyRedemptionRate > 0 &&
@@ -109,7 +114,7 @@ export function PaymentPanel({
   const canComplete =
     !disabled &&
     !loading &&
-    cart.length > 0 &&
+    (useFixedTotal ? total > 0 : cart.length > 0) &&
     methods.length > 0 &&
     (!splitMode || (Math.abs(splitTotal - total) < 0.01 && !creditSelected));
 
@@ -129,7 +134,9 @@ export function PaymentPanel({
     const payments = splitMode
       ? splits
       : [{ method: paymentMethod, amount: total }];
-    setPaymentSplits(payments);
+    if (!useFixedTotal) {
+      setPaymentSplits(payments);
+    }
     onComplete(payments);
   }
 
@@ -168,7 +175,7 @@ export function PaymentPanel({
           </p>
         ) : null}
 
-        {loyaltyAvailable ? (
+        {!useFixedTotal && loyaltyAvailable ? (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-400/30 dark:bg-amber-400/10">
             <div className="flex items-center justify-between gap-2">
               <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">

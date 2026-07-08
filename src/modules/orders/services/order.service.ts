@@ -123,6 +123,7 @@ export interface OrderWithDetails extends Order {
   items: OrderItemWithName[];
   payments: OrderPayment[];
   customerName: string | null;
+  customerPhone: string | null;
   storeName: string;
 }
 
@@ -152,6 +153,7 @@ export async function getOrder(orderId: string): Promise<OrderWithDetails | null
     })),
     payments,
     customerName: customer?.name ?? null,
+    customerPhone: customer?.phone ?? null,
     storeName: store?.name ?? "Store",
   };
 }

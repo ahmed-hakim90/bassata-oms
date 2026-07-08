@@ -39,7 +39,14 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/format";
 import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
 import { WeightAmountModal } from "@/modules/pos/components/weight-amount-modal";
-import { PosCashierPinGate } from "@/modules/pos/components/pos-cashier-pin-gate";
+import { PosDeviceGate } from "@/modules/pos/components/pos-device-gate";
+import { PosStoreGate } from "@/modules/pos/components/pos-store-gate";
+import { PosAccessDenied } from "@/modules/pos/components/pos-access-denied";
+import { PosCloseSessionDialog } from "@/modules/pos/components/pos-close-session-dialog";
+import { QuickOpenSessionButton } from "@/modules/sessions/components/quick-open-session-button";
+import type { Device } from "@/lib/repositories/device.repository";
+import type { SessionReconciliation } from "@/modules/sessions/services/reconciliation.service";
+import type { CashierSession, Expense, Store } from "@/lib/types";
 import { OnlineOrdersPageClient } from "@/modules/online-orders/components/online-orders-page";
 import type {
   OnlineOrderWithItems,
@@ -69,6 +76,14 @@ interface PosScreenProps {
   receiptBranding: ReportBranding;
   onlineOrders?: OnlineOrderWithItems[];
   onlineOrderProducts?: StaffOnlineProductOption[];
+  stores?: Store[];
+  activeSession?: CashierSession | null;
+  sessionReconciliation?: SessionReconciliation | null;
+  sessionExpenses?: Expense[];
+  cashierName?: string | null;
+  costCenterMap?: Map<string, string>;
+  expenseCategoryMap?: Map<string, string>;
+  storeDevices?: Device[];
 }
 
 export function PosScreen({
@@ -94,6 +109,14 @@ export function PosScreen({
   receiptBranding,
   onlineOrders = [],
   onlineOrderProducts = [],
+  stores = [],
+  activeSession = null,
+  sessionReconciliation = null,
+  sessionExpenses = [],
+  cashierName = null,
+  costCenterMap,
+  expenseCategoryMap,
+  storeDevices = [],
 }: PosScreenProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -268,14 +291,52 @@ export function PosScreen({
     });
   }
 
-  if (readinessState === "cashier_required") {
+  if (readinessState === "no_device") {
+    return <PosDeviceGate devices={storeDevices} />;
+  }
+
+  if (readinessState === "store_required" || readinessState === "store_mismatch") {
     return (
-      <PosCashierPinGate
-        currentUserName={currentUserName}
-        onSuccess={() => router.refresh()}
+      <PosStoreGate
+        stores={stores}
+        activeStoreId={storeId}
+        title={readinessState === "store_mismatch" ? "تغيير الفرع" : "اختيار الفرع"}
+        description={
+          readinessState === "store_mismatch"
+            ? "هذا الجهاز مربوط بفرع مختلف. اختر الفرع الصحيح للمتابعة."
+            : "اختر الفرع الذي ستعمل عليه في نقطة البيع."
+        }
       />
     );
   }
+
+  if (
+    readinessState === "access_denied" ||
+    readinessState === "role_denied" ||
+    readinessState === "device_inactive"
+  ) {
+    return <PosAccessDenied state={readinessState} />;
+  }
+
+  const sessionBannerAction =
+    readinessState === "no_session" ? (
+      <QuickOpenSessionButton size="sm" label="ابدأ البيع" />
+    ) : activeSession && sessionReconciliation ? (
+      <PosCloseSessionDialog
+        session={activeSession}
+        reconciliation={sessionReconciliation}
+        sessionExpenses={sessionExpenses}
+        cashierName={cashierName ?? "الكاشير"}
+        costCenterMap={costCenterMap}
+        categoryMap={expenseCategoryMap}
+        triggerVariant={readinessState === "session_expired" ? "destructive" : "outline"}
+        triggerChildren={
+          readinessState === "session_expired" || readinessState === "session_warning"
+            ? "إغلاق الوردية"
+            : "إغلاق الجلسة"
+        }
+      />
+    ) : null;
 
   function handleOpenCashDrawer() {
     const reason = window.prompt("سبب موافقة المدير", "فتح درج النقدية يدويًا")?.trim();
@@ -321,16 +382,29 @@ export function PosScreen({
     <div className="print:hidden flex h-dvh max-h-dvh flex-col gap-3 overflow-hidden p-3 lg:gap-4 lg:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <PosReadinessBanner state={readinessState} />
+          <PosReadinessBanner state={readinessState} action={sessionBannerAction} />
           {currentUserName ? (
             <span className="rounded-lg border border-border/60 bg-background/70 px-3 py-1 text-sm text-muted-foreground">
               المستخدم: <span className="font-medium text-foreground">{currentUserName}</span>
             </span>
           ) : null}
         </div>
-        {readinessState !== "login_required" ? (
-          <PosPinSwitch />
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {readinessState === "ready" && hasActiveSession && activeSession && sessionReconciliation ? (
+            <PosCloseSessionDialog
+              session={activeSession}
+              reconciliation={sessionReconciliation}
+              sessionExpenses={sessionExpenses}
+              cashierName={cashierName ?? "الكاشير"}
+              costCenterMap={costCenterMap}
+              categoryMap={expenseCategoryMap}
+              triggerSize="sm"
+              triggerClassName="rounded-full"
+              triggerChildren="إغلاق الجلسة"
+            />
+          ) : null}
+          {readinessState !== "login_required" ? <PosPinSwitch /> : null}
+        </div>
       </div>
       {hasActiveSession ? (
         <div className="flex flex-wrap justify-end gap-2">
@@ -506,7 +580,13 @@ export function PosScreen({
               </DialogTitle>
             </DialogHeader>
             <div className="max-h-[calc(92dvh-56px)] overflow-y-auto p-2">
-              <OnlineOrdersPageClient orders={onlineOrders} products={onlineOrderProducts} compact />
+              <OnlineOrdersPageClient
+                orders={onlineOrders}
+                products={onlineOrderProducts}
+                compact
+                enabledPaymentMethods={enabledPaymentMethods}
+                receiptBranding={receiptBranding}
+              />
             </div>
           </DialogContent>
         </Dialog>

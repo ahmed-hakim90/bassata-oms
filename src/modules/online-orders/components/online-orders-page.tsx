@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
@@ -24,10 +23,17 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
+  getOnlineOrderReceiptPayloadAction,
   invoiceOnlineOrderAction,
   updateOnlineOrderDetailsAction,
   updateOnlineOrderStatusAction,
 } from "@/modules/online-orders/actions/online-order.actions";
+import { PaymentPanel } from "@/modules/pos/components/payment-panel";
+import { ReceiptModal } from "@/modules/pos/components/receipt-modal";
+import { buildReceiptPayloadFromOnlineOrder } from "@/modules/pos/utils/receipt-payload";
+import type { ReceiptPayload } from "@/modules/pos/services/receipt-format.service";
+import type { ReportBranding } from "@/modules/reports/core/report-context";
+import type { PaymentMethod, PaymentSplit } from "@/lib/types";
 import type {
   OnlineOrderWithItems,
   StaffOnlineProductOption,
@@ -121,12 +127,16 @@ interface OnlineOrdersPageClientProps {
   orders: OnlineOrderWithItems[];
   products: StaffOnlineProductOption[];
   compact?: boolean;
+  enabledPaymentMethods?: PaymentMethod[];
+  receiptBranding?: ReportBranding | null;
 }
 
 export function OnlineOrdersPageClient({
   orders,
   products,
   compact = false,
+  enabledPaymentMethods = ["cash", "card", "wallet", "other"],
+  receiptBranding = null,
 }: OnlineOrdersPageClientProps) {
   if (orders.length === 0) {
     return (
@@ -162,7 +172,14 @@ export function OnlineOrdersPageClient({
       ) : null}
 
       {orders.map((order) => (
-        <OnlineOrderCard key={order.id} order={order} products={products} compact={compact} />
+        <OnlineOrderCard
+          key={order.id}
+          order={order}
+          products={products}
+          compact={compact}
+          enabledPaymentMethods={enabledPaymentMethods}
+          receiptBranding={receiptBranding}
+        />
       ))}
     </div>
   );
@@ -172,13 +189,20 @@ function OnlineOrderCard({
   order,
   products,
   compact,
+  enabledPaymentMethods,
+  receiptBranding,
 }: {
   order: OnlineOrderWithItems;
   products: StaffOnlineProductOption[];
   compact: boolean;
+  enabledPaymentMethods: PaymentMethod[];
+  receiptBranding: ReportBranding | null;
 }) {
   const [draft, setDraft] = useState<Draft>(() => makeDraft(order));
   const [isEditingItems, setIsEditingItems] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receipt, setReceipt] = useState<ReceiptPayload | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const isLocked = order.status === "cancelled" || order.status === "invoiced";
@@ -250,11 +274,28 @@ function OnlineOrderCard({
     });
   }
 
-  function invoice() {
+  function openPayment() {
+    setPaymentOpen(true);
+  }
+
+  function completeInvoice(payments: PaymentSplit[]) {
     startTransition(async () => {
       try {
-        const result = await invoiceOnlineOrderAction(order.id);
+        const result = await invoiceOnlineOrderAction(order.id, payments);
         toast.success(`تم إنشاء الريسيت ${result.order_number}`);
+        setPaymentOpen(false);
+        if (receiptBranding) {
+          setReceipt(
+            buildReceiptPayloadFromOnlineOrder({
+              order,
+              branding: receiptBranding,
+              orderNumber: result.order_number,
+              payments,
+              total: result.total,
+            })
+          );
+          setReceiptOpen(true);
+        }
         router.refresh();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "تعذر إنشاء الريسيت");
@@ -262,7 +303,20 @@ function OnlineOrderCard({
     });
   }
 
+  function viewReceipt() {
+    startTransition(async () => {
+      try {
+        const payload = await getOnlineOrderReceiptPayloadAction(order.id);
+        setReceipt(payload);
+        setReceiptOpen(true);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "تعذر عرض الريسيت");
+      }
+    });
+  }
+
   return (
+    <>
     <Card className={cn("border-border/70 bg-card/95 shadow-sm", compact ? "gap-2 rounded-2xl py-2" : "rounded-3xl")}>
       <CardHeader
         className={cn(
@@ -317,8 +371,8 @@ function OnlineOrderCard({
               variant="outline"
               size={compact ? "sm" : "default"}
               className="rounded-xl"
-              nativeButton={false}
-              render={<Link href={`/print/receipts/${order.order_id}`} />}
+              disabled={isPending}
+              onClick={viewReceipt}
             >
               <FileText className="size-4" />
               عرض الريسيت
@@ -329,7 +383,7 @@ function OnlineOrderCard({
             size={compact ? "sm" : "default"}
             className="rounded-xl"
             disabled={isPending || isLocked}
-            onClick={invoice}
+            onClick={openPayment}
           >
             <ReceiptText className="size-4" />
             عمل ريسيت
@@ -534,5 +588,21 @@ function OnlineOrderCard({
         </aside>
       </CardContent>
     </Card>
+
+    <PaymentPanel
+      open={paymentOpen}
+      onClose={() => setPaymentOpen(false)}
+      onComplete={completeInvoice}
+      enabledMethods={enabledPaymentMethods}
+      customerName={draft.customerName || null}
+      loading={isPending}
+      fixedTotal={draftTotal || order.total}
+    />
+    <ReceiptModal
+      open={receiptOpen}
+      onOpenChange={setReceiptOpen}
+      receipt={receipt}
+    />
+    </>
   );
 }

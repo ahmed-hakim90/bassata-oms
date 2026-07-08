@@ -18,6 +18,8 @@
     "db:reset-demo": "npm run db:reset-production",
     "db:push": "supabase db push",
     "db:seed-auth": "node scripts/seed-auth.mjs",
+    "db:reset-user-password": "node scripts/reset-user-password.mjs",
+    "db:wipe-operational": "node scripts/wipe-operational-data.mjs",
     "smoke:check": "node scripts/smoke-check.mjs",
     "verify:post-006": "node scripts/verify-post-006.mjs",
     "verify:p0-security": "node scripts/verify-p0-security.mjs",

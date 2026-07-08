@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import { preparePosEnvironment } from "@/lib/auth/prepare-pos-environment";
 import { getValidatedActiveStoreId } from "@/lib/auth/guards";
-import { findOpenSessionForUser } from "@/lib/auth/resume-pos-session";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import { PosScreen } from "@/modules/pos/components/pos-screen";
 import {
@@ -22,22 +21,28 @@ import {
 } from "@/modules/online-orders/services/online-order.service";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
+import { calcExpectedCash } from "@/modules/sessions/services/reconciliation.service";
+import { listExpenses } from "@/modules/expenses/services/expense.service";
+import * as storeRepo from "@/lib/repositories/store.repository";
+import * as userRepo from "@/lib/repositories/user.repository";
+import * as deviceRepo from "@/lib/repositories/device.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import type { PaymentMethod } from "@/lib/types";
 
 export default async function PosPage() {
   const user = await getCurrentUser();
-  const storeId = await getValidatedActiveStoreId();
-
   if (user && (user.role === "owner" || user.role === "manager" || user.role === "cashier")) {
-    const openSession = await findOpenSessionForUser(user);
-    if (openSession && openSession.storeId !== storeId) {
-      redirect("/pos/resume");
-    }
+    await preparePosEnvironment(user);
   }
 
+  const storeId = await getValidatedActiveStoreId();
+
   const readiness = await getPosReadiness();
+  const storeDevices =
+    readiness.state === "no_device"
+      ? (await deviceRepo.listDevices(storeId)).filter((device) => device.is_active)
+      : [];
   const categories = await getCategoriesForPOS();
   const products = await getProductsForPOS(storeId);
   const session =
@@ -62,6 +67,8 @@ export default async function PosPage() {
     receiptBranding,
     onlineOrders,
     onlineOrderProducts,
+    allStores,
+    users,
   ] = await Promise.all([
     listCostCenters(storeId),
     listExpenseCategories(),
@@ -69,8 +76,21 @@ export default async function PosPage() {
     getReportBranding(storeId),
     listOnlineOrdersWithItems(storeId),
     listStaffOnlineProductOptions(),
+    storeRepo.listStores(),
+    userRepo.listUsers(),
   ]);
   const inventoryProducts = allProducts.filter((p) => p.track_inventory);
+  const stores =
+    user?.role === "owner" || user?.role === "manager"
+      ? allStores
+      : allStores.filter((store) => user?.store_ids.includes(store.id) ?? false);
+  const costCenterMap = new Map(costCenters.map((center) => [center.id, center.name]));
+  const expenseCategoryMap = new Map(expenseCategories.map((category) => [category.id, category.name]));
+  const userMap = new Map(users.map((entry) => [entry.id, entry.name]));
+
+  const [sessionReconciliation, sessionExpenses] = session
+    ? await Promise.all([calcExpectedCash(session.id), listExpenses(storeId, session.id)])
+    : [null, []];
 
   const loyaltyRule = flags.loyalty ? await getLoyaltyRule() : null;
   const loyaltyRedemptionRate =
@@ -110,6 +130,14 @@ export default async function PosPage() {
       receiptBranding={receiptBranding}
       onlineOrders={onlineOrders}
       onlineOrderProducts={onlineOrderProducts}
+      stores={stores}
+      activeSession={session}
+      sessionReconciliation={sessionReconciliation}
+      sessionExpenses={sessionExpenses}
+      cashierName={session ? userMap.get(session.cashier_id) ?? null : null}
+      costCenterMap={costCenterMap}
+      expenseCategoryMap={expenseCategoryMap}
+      storeDevices={storeDevices}
     />
   );
 }

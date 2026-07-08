@@ -16,7 +16,6 @@ import {
 import { cn } from "@/lib/utils";
 import { selectLabelById } from "@/lib/select-label";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { OpenSessionDialog } from "@/modules/sessions/components/open-session-dialog";
 import type { FeatureFlag } from "@/lib/constants";
 import type { Store } from "@/lib/types";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness";
@@ -41,7 +40,6 @@ export function AppShellHeader({
   const [pending, startTransition] = useTransition();
   const selectedId = activeStoreId ?? stores[0]?.id;
   const canOpenSessionFromHeader = posReadinessState === "no_session";
-  const needsCashierBeforeSession = posReadinessState === "cashier_required";
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl md:px-6">
@@ -85,30 +83,17 @@ export function AppShellHeader({
           {t("Account")}
         </Link>
         {canOpenSessionFromHeader ? (
-          <OpenSessionDialog
-            redirectTo="/pos"
-            triggerSize="sm"
-            triggerClassName="rounded-full shadow-sm"
-            triggerChildren={
-              <>
-                <ShoppingCart className="size-4" />
-                <span className="hidden sm:inline">{t("Open session")}</span>
-                <span className="sm:hidden">{t("Open session")}</span>
-              </>
-            }
-          />
-        ) : needsCashierBeforeSession ? (
           <Link
             href="/pos"
             className={cn(buttonVariants({ size: "sm" }), "rounded-full shadow-sm")}
           >
             <ShoppingCart className="size-4" />
-            <span className="hidden sm:inline">{t("Select cashier")}</span>
-            <span className="sm:hidden">{t("Cashier")}</span>
+            <span className="hidden sm:inline">{t("Open session")}</span>
+            <span className="sm:hidden">{t("Open session")}</span>
           </Link>
         ) : (
           <Link
-            href="/pos/start"
+            href="/pos"
             className={cn(buttonVariants({ size: "sm" }), "rounded-full shadow-sm")}
           >
             <ShoppingCart className="size-4" />

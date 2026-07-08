@@ -56,7 +56,7 @@ export async function pairDeviceWithCodeAction(code: string): Promise<DeviceActi
 
 export async function registerBrowserDeviceAction(deviceId: string): Promise<DeviceActionResult> {
   try {
-    const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
+    const user = await requirePermissionOrRole("pos_access", ["owner", "manager", "cashier"]);
     const device = await deviceRepo.getDevice(deviceId);
     if (!device || !device.is_active) {
       return { success: false, error: "Device not found or inactive" };

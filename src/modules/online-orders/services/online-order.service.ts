@@ -436,6 +436,8 @@ export async function invoiceOnlineOrder(input: {
   cashierId: string;
   storeId: string;
   userId: string;
+  deviceId?: string | null;
+  payments: { method: import("@/lib/types").PaymentMethod; amount: number }[];
 }) {
   const order = await getOnlineOrderWithItems(input.onlineOrderId);
   if (!order) throw new Error("Online order not found");
@@ -450,18 +452,36 @@ export async function invoiceOnlineOrder(input: {
     phone: order.customer_phone,
   });
 
-  const result = await orderRepo.completeUnpaidCheckoutRpc({
-    storeId: input.storeId,
-    sessionId: input.sessionId,
-    cashierId: input.cashierId,
-    customerId,
-    discount: 0,
-    lines: order.items.map((item) => ({
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-      quantity: item.quantity,
-    })),
-  });
+  const lines = order.items.map((item) => ({
+    product_id: item.product_id,
+    variant_id: item.variant_id,
+    quantity: item.quantity,
+  }));
+  const paymentMethod = input.payments[0]?.method ?? "cash";
+
+  const result =
+    input.payments.length > 1
+      ? await orderRepo.completeCheckoutSplitRpc({
+          storeId: input.storeId,
+          sessionId: input.sessionId,
+          cashierId: input.cashierId,
+          customerId,
+          paymentMethod,
+          discount: 0,
+          lines,
+          payments: input.payments,
+          deviceId: input.deviceId ?? null,
+        })
+      : await orderRepo.completeCheckoutRpc({
+          storeId: input.storeId,
+          sessionId: input.sessionId,
+          cashierId: input.cashierId,
+          customerId,
+          paymentMethod,
+          discount: 0,
+          lines,
+          deviceId: input.deviceId ?? null,
+        });
 
   await onlineOrderRepo.updateOnlineOrder(order.id, {
     status: "invoiced",

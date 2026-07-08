@@ -287,7 +287,7 @@ export const NAV_GROUPS = [
   {
     label: "Sales",
     items: [
-      { label: "POS", href: "/pos/start", icon: "ShoppingCart" },
+      { label: "POS", href: "/pos", icon: "ShoppingCart" },
       { label: "POS Devices", href: "/devices", icon: "MonitorSmartphone" },
       { label: "Orders", href: "/orders", icon: "Receipt" },
       { label: "Online Orders", href: "/online-orders", icon: "Receipt" },

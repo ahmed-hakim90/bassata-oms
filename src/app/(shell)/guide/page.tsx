@@ -148,7 +148,7 @@ export default function GuidePage() {
             الورديات
           </Link>
           <Link
-            href="/pos/start"
+            href="/pos"
             className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-2 text-sm font-medium hover:bg-muted"
           >
             <ShoppingCart className="size-4" />

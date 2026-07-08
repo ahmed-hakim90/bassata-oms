@@ -70,7 +70,7 @@ export function MobileNav({
     (group) => group.items
   );
   const allowedItems = new Set<string>(allItems.map((item) => item.href));
-  const priority = ["/", "/pos/start", "/products", "/inventory", "/settings"];
+  const priority = ["/", "/pos", "/products", "/inventory", "/settings"];
   const mobileItems = priority
     .filter((href) => allowedItems.has(href))
     .map((href) => allItems.find((item) => item.href === href))

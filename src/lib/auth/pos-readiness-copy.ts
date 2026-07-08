@@ -38,14 +38,10 @@ export const POS_READINESS_COPY: Record<
     title: "Wrong store",
     description:
       "This browser is paired to a different branch than the active store. Select that branch or pair this browser again for the current branch.",
-    href: "/pos/start",
-    cta: "Select store",
   },
   store_required: {
     title: "Select store",
     description: "Choose which branch you are working at.",
-    href: "/pos/start",
-    cta: "Select store",
   },
   access_denied: {
     title: "Access denied",
@@ -61,23 +57,17 @@ export const POS_READINESS_COPY: Record<
     description: "Your role cannot use the register. Sign in as owner, manager, or cashier.",
   },
   no_session: {
-    title: "No active session",
-    description: "Open your cashier session before selling.",
-    href: "/sessions",
-    cta: "Open session",
+    title: "ابدأ الوردية",
+    description: "اضغط «ابدأ البيع» مرة واحدة ثم تقدر تبيع.",
   },
   session_warning: {
     title: "Shift ending soon",
     description: "This session is approaching the maximum open duration. Close the shift soon.",
-    href: "/sessions",
-    cta: "Close shift",
   },
   session_expired: {
     title: "Close shift to continue",
     description:
       "This session exceeded the allowed open duration. Sales are blocked until you close the shift.",
-    href: "/sessions",
-    cta: "Close shift",
   },
   ready: {
     title: "Ready",

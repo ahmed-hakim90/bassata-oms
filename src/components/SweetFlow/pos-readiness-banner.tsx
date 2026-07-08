@@ -26,9 +26,10 @@ const icons: Partial<
 
 interface PosReadinessBannerProps {
   state: PosReadinessState;
+  action?: React.ReactNode;
 }
 
-export function PosReadinessBanner({ state }: PosReadinessBannerProps) {
+export function PosReadinessBanner({ state, action }: PosReadinessBannerProps) {
   if (state === "ready" || state === "cashier_required") return null;
 
   const copy = POS_READINESS_COPY[state];
@@ -72,7 +73,9 @@ export function PosReadinessBanner({ state }: PosReadinessBannerProps) {
           </p>
         </div>
       </div>
-      {copy.href && copy.cta ? (
+      {action ? (
+        <div className="shrink-0">{action}</div>
+      ) : copy.href && copy.cta ? (
         <Link
           href={copy.href}
           className={cn(
