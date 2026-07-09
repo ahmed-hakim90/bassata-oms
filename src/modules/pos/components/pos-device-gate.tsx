@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { registerBrowserDeviceAction } from "@/modules/auth/actions/device.actions";
@@ -15,7 +14,6 @@ interface PosDeviceGateProps {
 }
 
 export function PosDeviceGate({ devices = [] }: PosDeviceGateProps) {
-  const router = useRouter();
   const [showPairingCode, setShowPairingCode] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -24,7 +22,8 @@ export function PosDeviceGate({ devices = [] }: PosDeviceGateProps) {
       const result = await registerBrowserDeviceAction(deviceId);
       if (result.success) {
         toast.success("تم ربط هذا المتصفح بالكاشير");
-        router.refresh();
+        // Full navigation so new device/store cookies are applied before /pos renders.
+        window.location.assign("/pos");
         return;
       }
       toast.error(result.error ?? "تعذر ربط الجهاز");

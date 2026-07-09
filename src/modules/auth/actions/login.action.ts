@@ -69,7 +69,7 @@ export async function loginAction(
     metadata: { email: appUser.email, role: appUser.role },
   });
 
-  if (appUser.role === "cashier" || appUser.role === "owner" || appUser.role === "manager") {
+  if (appUser.role === "cashier") {
     redirect("/pos");
   }
 

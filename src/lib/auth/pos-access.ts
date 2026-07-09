@@ -34,8 +34,14 @@ export interface PosAccessContext {
 }
 
 export async function resolvePosAccess(
-  options: { requireCashierRole?: boolean; clearInvalidCashier?: boolean } = {}
+  options: {
+    requireCashierRole?: boolean;
+    clearInvalidCashier?: boolean;
+    /** Only server actions/route handlers may persist cashier cookies. */
+    persistCookies?: boolean;
+  } = {}
 ): Promise<PosAccessContext> {
+  const persistCookies = options.persistCookies ?? false;
   let user: AppUser;
   try {
     user = await requireAuth();
@@ -99,7 +105,9 @@ export async function resolvePosAccess(
         throw new PosAccessError("You are not allowed on this device", "access_denied");
       }
     }
-    await setActiveCashierId(user.id, { storeId, deviceId: device.id });
+    if (persistCookies) {
+      await setActiveCashierId(user.id, { storeId, deviceId: device.id });
+    }
     activeCashierId = user.id;
   }
 
@@ -110,7 +118,7 @@ export async function resolvePosAccess(
       device.id
     );
     if (!targetAllowed) {
-      if (options.clearInvalidCashier) {
+      if (options.clearInvalidCashier && persistCookies) {
         await setActiveCashierId(null);
       }
       throw new PosAccessError("Switched cashier not allowed on this device", "access_denied");
@@ -128,7 +136,11 @@ export async function resolvePosAccess(
 export async function requirePosAccess(
   options: { requireCashierRole?: boolean } = {}
 ): Promise<PosAccessContext> {
-  const ctx = await resolvePosAccess({ ...options, clearInvalidCashier: true });
+  const ctx = await resolvePosAccess({
+    ...options,
+    clearInvalidCashier: true,
+    persistCookies: true,
+  });
   return ctx;
 }
 

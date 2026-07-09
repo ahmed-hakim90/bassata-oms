@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { pairDeviceWithCodeAction } from "@/modules/auth/actions/device.actions";
@@ -10,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function DevicePairForm({ returnTo }: { returnTo?: string }) {
-  const router = useRouter();
   const from = returnTo?.startsWith("/") ? returnTo : "/pos";
   const [code, setCode] = useState("");
   const [pending, startTransition] = useTransition();
@@ -20,7 +18,7 @@ export function DevicePairForm({ returnTo }: { returnTo?: string }) {
       const result = await pairDeviceWithCodeAction(code);
       if (result.success) {
         toast.success("تم اقتران الجهاز");
-        router.push(from.startsWith("/") ? from : "/pos");
+        window.location.assign(from.startsWith("/") ? from : "/pos");
       } else {
         toast.error(result.error ?? "فشل الاقتران");
       }
