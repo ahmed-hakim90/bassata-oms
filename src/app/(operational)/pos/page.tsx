@@ -1,4 +1,3 @@
-import { preparePosEnvironment } from "@/lib/auth/prepare-pos-environment";
 import { getValidatedActiveStoreId } from "@/lib/auth/guards";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import { PosScreen } from "@/modules/pos/components/pos-screen";
@@ -32,10 +31,6 @@ import type { PaymentMethod } from "@/lib/types";
 
 export default async function PosPage() {
   const user = await getCurrentUser();
-  if (user && (user.role === "owner" || user.role === "manager" || user.role === "cashier")) {
-    await preparePosEnvironment(user);
-  }
-
   const storeId = await getValidatedActiveStoreId();
 
   const readiness = await getPosReadiness();
