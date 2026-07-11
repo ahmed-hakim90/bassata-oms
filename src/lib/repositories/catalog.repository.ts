@@ -32,16 +32,26 @@ export async function listProducts(options?: {
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
+  const products = await getProductsByIds([id]);
+  return products.get(id) ?? null;
+}
+
+export async function getProductsByIds(ids: string[]): Promise<Map<string, Product>> {
+  const map = new Map<string, Product>();
+  if (ids.length === 0) return map;
   const db = await getDb();
   const orgId = await getOrgId();
   const { data, error } = await db
     .from("products")
     .select("*")
-    .eq("id", id)
     .eq("org_id", orgId)
-    .maybeSingle();
-  if (error) throwDbError(error, "getProduct");
-  return data ? mapProduct(data) : null;
+    .in("id", ids);
+  if (error) throwDbError(error, "getProductsByIds");
+  for (const row of data ?? []) {
+    const product = mapProduct(row);
+    map.set(product.id, product);
+  }
+  return map;
 }
 
 export async function createProduct(
@@ -162,7 +172,14 @@ export async function listVariants(productId: string): Promise<ProductVariant[]>
     .eq("product_id", productId)
     .eq("products.org_id", orgId);
   if (error) throwDbError(error, "listVariants");
-  return (data ?? []).map(mapVariant).sort((a, b) => a.name.localeCompare(b.name));
+  return (data ?? [])
+    .map((row) => {
+      const { products: _products, ...variant } = row as typeof row & {
+        products?: { org_id: string };
+      };
+      return mapVariant(variant);
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function listVariantsForProducts(
@@ -179,7 +196,10 @@ export async function listVariantsForProducts(
     .eq("products.org_id", orgId);
   if (error) throwDbError(error, "listVariantsForProducts");
   for (const row of data ?? []) {
-    const variant = mapVariant(row);
+    const { products: _products, ...variantRow } = row as typeof row & {
+      products?: { org_id: string };
+    };
+    const variant = mapVariant(variantRow);
     const list = map.get(variant.product_id) ?? [];
     list.push(variant);
     map.set(variant.product_id, list);

@@ -120,14 +120,29 @@ export async function cashierCanUseDevice(
 }
 
 export async function getUserDeviceIds(userId: string): Promise<string[]> {
+  const map = await getDeviceIdsForUsers([userId]);
+  return map.get(userId) ?? [];
+}
+
+export async function getDeviceIdsForUsers(
+  userIds: string[]
+): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (userIds.length === 0) return map;
+  for (const id of userIds) map.set(id, []);
   const db = await getDb();
   const { data, error } = await db
     .from("user_device_access")
-    .select("device_id")
-    .eq("user_id", userId)
+    .select("user_id, device_id")
+    .in("user_id", userIds)
     .eq("is_active", true);
-  if (error) throwDbError(error, "getUserDeviceIds");
-  return (data ?? []).map((r) => r.device_id);
+  if (error) throwDbError(error, "getDeviceIdsForUsers");
+  for (const row of data ?? []) {
+    const list = map.get(row.user_id) ?? [];
+    list.push(row.device_id);
+    map.set(row.user_id, list);
+  }
+  return map;
 }
 
 export async function setUserDeviceAccess(userId: string, deviceIds: string[]): Promise<void> {

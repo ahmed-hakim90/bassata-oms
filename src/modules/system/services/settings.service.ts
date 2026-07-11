@@ -1,3 +1,4 @@
+import { cache } from "react";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import {
@@ -43,13 +44,13 @@ export async function upsertSetting(
   return setting;
 }
 
-export async function getFeatureFlags(): Promise<Record<FeatureFlag, boolean>> {
+export const getFeatureFlags = cache(async (): Promise<Record<FeatureFlag, boolean>> => {
   const setting = await getSetting("feature_flags");
   return {
     ...DEFAULT_FEATURE_FLAGS,
     ...(setting?.value ?? {}),
   } as Record<FeatureFlag, boolean>;
-}
+});
 
 export async function isFeatureEnabled(flag: FeatureFlag): Promise<boolean> {
   const flags = await getFeatureFlags();

@@ -29,6 +29,28 @@ export async function getOnlineOrderItems(orderId: string): Promise<OnlineOrderI
   return (data ?? []).map(mapOnlineOrderItem);
 }
 
+export async function listOnlineOrderItemsForOrders(
+  orderIds: string[]
+): Promise<Map<string, OnlineOrderItem[]>> {
+  const map = new Map<string, OnlineOrderItem[]>();
+  if (orderIds.length === 0) return map;
+  for (const id of orderIds) map.set(id, []);
+  const db = await getDb();
+  const { data, error } = await db
+    .from("online_order_items")
+    .select("*")
+    .in("online_order_id", orderIds)
+    .order("created_at", { ascending: true });
+  if (error) throwDbError(error, "listOnlineOrderItemsForOrders");
+  for (const row of data ?? []) {
+    const item = mapOnlineOrderItem(row);
+    const list = map.get(item.online_order_id) ?? [];
+    list.push(item);
+    map.set(item.online_order_id, list);
+  }
+  return map;
+}
+
 export async function updateOnlineOrder(
   id: string,
   input: Partial<

@@ -17,60 +17,57 @@ export const POS_READINESS_COPY: Record<
   { title: string; description: string; href?: string; cta?: string }
 > = {
   login_required: {
-    title: "Sign in required",
-    description: "Sign in with your cashier, manager, or owner account.",
+    title: "يلزم تسجيل الدخول",
+    description: "سجّل الدخول بحساب كاشير أو مدير أو مالك.",
     href: "/login",
-    cta: "Sign in",
+    cta: "تسجيل الدخول",
   },
   no_device: {
-    title: "Device not registered",
+    title: "الجهاز غير مربوط",
     description:
-      "This browser/domain is not paired as a POS device. Pair once from Settings → Devices, then keep using the same URL on this register.",
+      "هذا المتصفح مش مربوط كجهاز كاشير. اربطه مرة من الإعدادات ← الأجهزة، واستخدم نفس الرابط على الجهاز ده.",
     href: "/device/pair",
-    cta: "Pair device",
+    cta: "ربط الجهاز",
   },
   device_inactive: {
-    title: "Device inactive",
-    description:
-      "This register exists but is disabled or missing. Ask a manager to reactivate it in Settings → Devices.",
+    title: "الجهاز غير نشط",
+    description: "الجهاز موجود بس متعطّل. اطلب من المدير تفعيله من الإعدادات ← الأجهزة.",
   },
   store_mismatch: {
-    title: "Wrong store",
+    title: "فرع غير مطابق",
     description:
-      "This browser is paired to a different branch than the active store. Select that branch or pair this browser again for the current branch.",
+      "المتصفح مربوط بفرع مختلف عن الفرع النشط. اختار الفرع الصحيح أو اربط الجهاز تاني للفرع الحالي.",
   },
   store_required: {
-    title: "Select store",
-    description: "Choose which branch you are working at.",
+    title: "اختيار الفرع",
+    description: "اختار الفرع اللي هتشتغل عليه.",
   },
   access_denied: {
-    title: "Access denied",
-    description:
-      "Your user is not allowed to use POS on this store or device. Ask a manager to review store and device access.",
+    title: "غير مسموح",
+    description: "حسابك مش مسموح يستخدم نقطة البيع على الفرع أو الجهاز ده. راجع الصلاحيات مع المدير.",
   },
   cashier_required: {
-    title: "Cashier PIN required",
-    description: "Enter cashier PIN on this device before selling.",
+    title: "مطلوب PIN الكاشير",
+    description: "أدخل رقم PIN الكاشير على الجهاز قبل البيع.",
   },
   role_denied: {
-    title: "POS not available",
-    description: "Your role cannot use the register. Sign in as owner, manager, or cashier.",
+    title: "نقطة البيع غير متاحة",
+    description: "دورك الحالي مش بيسمح باستخدام الكاشير. سجّل دخول كمالك أو مدير أو كاشير.",
   },
   no_session: {
     title: "ابدأ الوردية",
     description: "اضغط «ابدأ البيع» مرة واحدة ثم تقدر تبيع.",
   },
   session_warning: {
-    title: "Shift ending soon",
-    description: "This session is approaching the maximum open duration. Close the shift soon.",
+    title: "الوردية قربت تخلص",
+    description: "الجلسة قربت توصل للحد الأقصى. اقفلها قريب.",
   },
   session_expired: {
-    title: "Close shift to continue",
-    description:
-      "This session exceeded the allowed open duration. Sales are blocked until you close the shift.",
+    title: "اقفل الوردية للمتابعة",
+    description: "الجلسة عدّت المدة المسموحة. البيع متوقف لحد ما تقفل الوردية.",
   },
   ready: {
-    title: "Ready",
-    description: "You can sell on this register.",
+    title: "جاهز",
+    description: "تقدر تبيع على الجهاز ده.",
   },
 };

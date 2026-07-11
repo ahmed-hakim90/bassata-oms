@@ -13,6 +13,7 @@ import type {
   StaffOnlineOrderInput,
 } from "@/modules/online-orders/services/online-order.service";
 import type { OnlineOrderStatus, PaymentSplit } from "@/lib/types";
+import type { FeatureFlag } from "@/lib/constants";
 import { getOrder } from "@/modules/orders/services/order.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
 import { buildReceiptPayloadFromOrder } from "@/modules/pos/utils/receipt-payload";
@@ -51,8 +52,29 @@ export async function invoiceOnlineOrderAction(
   const user = await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
   const ctx = await requirePosAccess();
   const session = await getActiveSessionForPos(ctx);
-  if (!session) throw new Error("Active cashier session required");
-  if (!payments.length) throw new Error("Payment required");
+  if (!session) throw new Error("جلسة كاشير نشطة مطلوبة");
+  if (!payments.length) throw new Error("الدفع مطلوب");
+
+  const normalized = payments
+    .map((payment) => ({
+      method: payment.method,
+      amount: Math.round((Number(payment.amount) || 0) * 100) / 100,
+    }))
+    .filter((payment) => payment.amount > 0);
+  if (!normalized.length) throw new Error("أدخل مبلغ دفع صالحاً");
+
+  const usesCredit = normalized.some((payment) => payment.method === "credit");
+  const { requireFeature } = await import("@/lib/auth/guards");
+  for (const payment of normalized) {
+    if (payment.method === "credit") {
+      await requireFeature("credit_sales");
+    } else {
+      await requireFeature(`payment_${payment.method}` as FeatureFlag);
+    }
+  }
+  if (usesCredit) {
+    await requirePermissionOrRole("customer_credit_sale", ["owner", "manager", "cashier"]);
+  }
 
   const result = await invoiceOnlineOrder({
     onlineOrderId: orderId,
@@ -61,7 +83,7 @@ export async function invoiceOnlineOrderAction(
     storeId: ctx.storeId,
     userId: user.id,
     deviceId: ctx.deviceId,
-    payments,
+    payments: normalized,
   });
 
   revalidatePath("/online-orders");

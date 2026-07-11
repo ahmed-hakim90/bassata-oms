@@ -39,7 +39,6 @@ export async function DashboardPage() {
     const cost = productCostMap.get(level.product_id) ?? 0;
     return total + level.quantity * cost;
   }, 0);
-  const grossProfit = Math.max(stats.todaySales - stats.todaySales * 0.62, 0);
   const nearExpiryCount = batches.filter(
     (batch) => Boolean(batch.expiry_date) && !batch.is_expired && batch.remaining_quantity > 0
   ).length;
@@ -82,10 +81,7 @@ export async function DashboardPage() {
           label="مبيعات اليوم"
           value={formatCurrency(stats.todaySales, org.currency)}
         />
-        <KpiCard
-          label="تقدير صافي الربح"
-          value={formatCurrency(grossProfit, org.currency)}
-        />
+        <KpiCard label="طلبات اليوم" value={String(stats.todayOrders)} />
         <KpiCard label="قيمة المخزون" value={formatCurrency(inventoryValue, org.currency)} />
         <KpiCard label="الجلسات المفتوحة" value={String(activeSessions.length)} />
         <KpiCard label="مخزون منخفض" value={String(lowStock.length)} />

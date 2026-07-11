@@ -1,0 +1,27 @@
+---
+description: Settings hub and admin configuration pattern
+globs: "**/*settings*/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Settings Pattern
+
+## Hub
+
+One settings shell with tabs (business, branches, users, features, integrations, audit…). Avoid scattering equivalent screens without redirects.
+
+## Rules
+
+- Tab content loads only what it needs
+- Mutations permission-gated on server
+- `revalidatePath` the settings route after saves
+- Success/error toasts
+- Dangerous settings need confirm + clear copy of impact
+
+## Users / roles
+
+Manage users inside settings when that is the product convention; keep standalone `/users` as redirect if legacy links exist.
+
+## Feature flags
+
+Toggle via server actions; never trust client-only flags for security boundaries.

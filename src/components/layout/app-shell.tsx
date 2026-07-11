@@ -43,7 +43,7 @@ export function AppShell({
           posReadinessState={posReadinessState}
         />
         <SessionBar />
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-24 md:p-6 md:pb-6">
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6">
           {children}
         </main>
       </div>

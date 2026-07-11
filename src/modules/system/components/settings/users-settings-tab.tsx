@@ -9,6 +9,7 @@ interface UsersSettingsTabProps {
   stores: Store[];
   devices: { id: string; store_id: string; name: string; is_active: boolean; last_seen_at: string | null }[];
   userDeviceIds: Record<string, string[]>;
+  actorRole: UserRole;
   permissionsData: {
     permissions: Permission[];
     matrix: Record<UserRole, PermissionKey[]>;

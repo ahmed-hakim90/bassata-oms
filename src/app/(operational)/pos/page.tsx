@@ -30,23 +30,48 @@ import * as permissionRepo from "@/lib/repositories/permission.repository";
 import type { PaymentMethod } from "@/lib/types";
 
 export default async function PosPage() {
-  const user = await getCurrentUser();
-  const storeId = await getValidatedActiveStoreId();
+  const [user, storeId, readiness] = await Promise.all([
+    getCurrentUser(),
+    getValidatedActiveStoreId(),
+    getPosReadiness(),
+  ]);
 
-  const readiness = await getPosReadiness();
-  const storeDevices =
+  const [
+    storeDevices,
+    categories,
+    products,
+    session,
+    flags,
+    expenseSettings,
+    sessionSettings,
+    costCenters,
+    expenseCategories,
+    allProducts,
+    receiptBranding,
+    onlineOrders,
+    onlineOrderProducts,
+    allStores,
+  ] = await Promise.all([
     readiness.state === "no_device"
-      ? (await deviceRepo.listDevices(storeId)).filter((device) => device.is_active)
-      : [];
-  const categories = await getCategoriesForPOS();
-  const products = await getProductsForPOS(storeId);
-  const session =
+      ? deviceRepo.listDevices(storeId).then((devices) => devices.filter((d) => d.is_active))
+      : Promise.resolve([] as Awaited<ReturnType<typeof deviceRepo.listDevices>>),
+    getCategoriesForPOS(),
+    getProductsForPOS(storeId),
     readiness.cashierId && readiness.state !== "login_required"
-      ? await getActiveSession(storeId, readiness.cashierId)
-      : null;
-  const flags = await getFeatureFlags();
-  const expenseSettings = await getExpenseSettings();
-  const sessionSettings = await getSessionSettings();
+      ? getActiveSession(storeId, readiness.cashierId)
+      : Promise.resolve(null),
+    getFeatureFlags(),
+    getExpenseSettings(),
+    getSessionSettings(),
+    listCostCenters(storeId),
+    listExpenseCategories(),
+    catalogRepo.listProducts(),
+    getReportBranding(storeId),
+    listOnlineOrdersWithItems(storeId),
+    listStaffOnlineProductOptions(),
+    storeRepo.listStores(),
+  ]);
+
   const enabledPaymentMethods: PaymentMethod[] = [
     flags.payment_cash ? "cash" : null,
     flags.payment_card ? "card" : null,
@@ -55,51 +80,48 @@ export default async function PosPage() {
     flags.credit_sales ? "credit" : null,
   ].filter((method): method is PaymentMethod => Boolean(method));
 
-  const [
-    costCenters,
-    expenseCategories,
-    allProducts,
-    receiptBranding,
-    onlineOrders,
-    onlineOrderProducts,
-    allStores,
-    users,
-  ] = await Promise.all([
-    listCostCenters(storeId),
-    listExpenseCategories(),
-    catalogRepo.listProducts(),
-    getReportBranding(storeId),
-    listOnlineOrdersWithItems(storeId),
-    listStaffOnlineProductOptions(),
-    storeRepo.listStores(),
-    userRepo.listUsers(),
-  ]);
   const inventoryProducts = allProducts.filter((p) => p.track_inventory);
   const stores =
     user?.role === "owner" || user?.role === "manager"
       ? allStores
       : allStores.filter((store) => user?.store_ids.includes(store.id) ?? false);
   const costCenterMap = new Map(costCenters.map((center) => [center.id, center.name]));
-  const expenseCategoryMap = new Map(expenseCategories.map((category) => [category.id, category.name]));
-  const userMap = new Map(users.map((entry) => [entry.id, entry.name]));
+  const expenseCategoryMap = new Map(
+    expenseCategories.map((category) => [category.id, category.name])
+  );
 
-  const [sessionReconciliation, sessionExpenses] = session
-    ? await Promise.all([calcExpectedCash(session.id), listExpenses(storeId, session.id)])
-    : [null, []];
+  const [
+    sessionReconciliation,
+    sessionExpenses,
+    loyaltyRule,
+    canAddSessionExpensePerm,
+    canCollectPaymentPerm,
+    cashier,
+  ] = await Promise.all([
+    session ? calcExpectedCash(session.id) : Promise.resolve(null),
+    session ? listExpenses(storeId, session.id) : Promise.resolve([]),
+    flags.loyalty ? getLoyaltyRule() : Promise.resolve(null),
+    flags.session_expenses &&
+    expenseSettings.cashier_can_add_session_expense &&
+    Boolean(session)
+      ? permissionRepo.hasPermission("session_expense_create")
+      : Promise.resolve(false),
+    user?.role === "owner" || user?.role === "manager"
+      ? Promise.resolve(true)
+      : permissionRepo.hasPermission("customer_payment_receive"),
+    session ? userRepo.getUser(session.cashier_id) : Promise.resolve(null),
+  ]);
 
-  const loyaltyRule = flags.loyalty ? await getLoyaltyRule() : null;
   const loyaltyRedemptionRate =
     loyaltyRule?.is_active && loyaltyRule.redemption_rate > 0
       ? loyaltyRule.redemption_rate
       : null;
-  const minimumLoyaltyRedeemPoints =
-    loyaltyRule?.is_active ? loyaltyRule.minimum_redeem_points : 0;
+  const minimumLoyaltyRedeemPoints = loyaltyRule?.is_active
+    ? loyaltyRule.minimum_redeem_points
+    : 0;
 
-  const canAddSessionExpense =
-    flags.session_expenses &&
-    expenseSettings.cashier_can_add_session_expense &&
-    Boolean(session) &&
-    (await permissionRepo.hasPermission("session_expense_create"));
+  const canAddSessionExpense = Boolean(canAddSessionExpensePerm);
+  const canCollectPayment = Boolean(canCollectPaymentPerm);
 
   return (
     <PosScreen
@@ -118,6 +140,7 @@ export default async function PosPage() {
       canAddSessionExpense={canAddSessionExpense}
       featureFlags={flags}
       canManagerOverride={user?.role === "owner" || user?.role === "manager"}
+      canCollectPayment={canCollectPayment}
       managerDiscountOverrideAmount={sessionSettings.manager_discount_override_amount}
       currentUserName={user?.name ?? null}
       loyaltyRedemptionRate={loyaltyRedemptionRate}
@@ -129,7 +152,7 @@ export default async function PosPage() {
       activeSession={session}
       sessionReconciliation={sessionReconciliation}
       sessionExpenses={sessionExpenses}
-      cashierName={session ? userMap.get(session.cashier_id) ?? null : null}
+      cashierName={cashier?.name ?? null}
       costCenterMap={costCenterMap}
       expenseCategoryMap={expenseCategoryMap}
       storeDevices={storeDevices}

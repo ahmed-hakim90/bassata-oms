@@ -1,0 +1,33 @@
+---
+description: Form pattern — labels, sections, validation, footers
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Form Pattern
+
+## Structure
+
+- Visible labels on every field (placeholder ≠ label)
+- Group with sections / grids (`FormSection`, `FormGrid`, `SweetFormField`)
+- Primary actions in a footer with clear separation (border-top)
+- Destructive secondary actions visually separated
+
+## Validation
+
+- Zod schema at boundary (action or client+server)
+- Field-level errors; focus first invalid field when practical
+- Disable submit while pending
+
+## Complexity ladder
+
+| Complexity | Approach |
+|------------|----------|
+| Simple dialog | Controlled state + `useTransition` |
+| Auth | `useActionState` + form action |
+| Complex multi-field | RHF + Zod |
+| Multi-step | Wizard with explicit steps + back/next |
+
+## Mobile
+
+Inputs must not force horizontal overflow; modals must fit viewport (no taller-than-screen traps without scroll).

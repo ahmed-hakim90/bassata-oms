@@ -54,6 +54,7 @@ export function InventoryReportView({
     { header: "المنتج", accessorKey: "productName" },
     { header: "الكمية", accessorKey: "quantity" },
     {
+      id: "totalValue",
       header: "القيمة",
       cell: ({ row }) => formatCurrency(row.original.totalValue, currency),
     },

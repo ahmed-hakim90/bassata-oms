@@ -20,16 +20,24 @@ export async function SessionBar() {
     return null;
   }
 
-  const user = await getCurrentUser();
-  const deviceCtx = await getRegisteredDeviceContext();
+  const [user, deviceCtx] = await Promise.all([
+    getCurrentUser(),
+    getRegisteredDeviceContext(),
+  ]);
+
   const cashierId =
     user && deviceCtx?.storeId === storeId
       ? await getActiveCashierId(storeId, deviceCtx.deviceId, user)
       : null;
-  const session = cashierId ? await getActiveSession(storeId, cashierId) : null;
-  const store = await storeRepo.getStore(storeId);
-  const cashier = cashierId ? await userRepo.getUser(cashierId) : null;
-  const device = deviceCtx?.deviceId ? await deviceRepo.getDevice(deviceCtx.deviceId) : null;
+
+  const [session, store, cashier, device] = await Promise.all([
+    cashierId ? getActiveSession(storeId, cashierId) : Promise.resolve(null),
+    storeRepo.getStore(storeId),
+    cashierId ? userRepo.getUser(cashierId) : Promise.resolve(null),
+    deviceCtx?.deviceId
+      ? deviceRepo.getDevice(deviceCtx.deviceId)
+      : Promise.resolve(null),
+  ]);
 
   if (!session) return null;
 

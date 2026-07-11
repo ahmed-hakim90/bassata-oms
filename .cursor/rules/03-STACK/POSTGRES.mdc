@@ -1,0 +1,26 @@
+---
+description: Postgres modeling and query standards
+globs: "**/supabase/**/*.{sql,ts}"
+alwaysApply: false
+---
+
+# Postgres Standards
+
+## Modeling
+
+- Explicit constraints (PK, FK, unique, checks)
+- Timestamps (`created_at` / `updated_at`) as project convention
+- Soft delete when domain needs history/recovery
+- Indexes for real filter/sort/search paths
+- Multi-tenant columns (`org_id`, etc.) on tenant data
+
+## Queries
+
+- Select only needed columns when performance matters
+- Paginate large sets
+- Prefer RPC for complex authorized operations when the repo already uses it
+- Never bypass tenancy filters
+
+## Migrations
+
+Additive, reviewable, named clearly. Do not edit old applied migrations casually on shared environments.

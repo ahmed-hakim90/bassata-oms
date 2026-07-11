@@ -72,6 +72,7 @@ export interface SettingsShellProps {
     stores: Store[];
     devices: { id: string; store_id: string; name: string; is_active: boolean; last_seen_at: string | null }[];
     userDeviceIds: Record<string, string[]>;
+    actorRole: UserRole;
     permissionsData: {
       permissions: Permission[];
       matrix: Record<UserRole, PermissionKey[]>;
@@ -151,6 +152,7 @@ export function SettingsShell({
       return haystack.includes(query);
     });
   }, [settingsQuery, visibleTabs]);
+
   return (
     <>
       <PageHeader
@@ -158,16 +160,16 @@ export function SettingsShell({
         description="بيانات المتجر، الكاشير، المصروفات، المستخدمون، وإعدادات النظام"
       />
       <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col space-y-6">
-        <div className="min-w-0 space-y-3 rounded-xl border border-border/60 p-3 sm:p-4">
+        <div className="min-w-0 space-y-3 rounded-2xl border border-border/60 p-3 sm:p-4">
           <Input
             aria-label="بحث في الإعدادات"
             placeholder="ابحث في الإعدادات..."
             value={settingsQuery}
             onChange={(event) => setSettingsQuery(event.target.value)}
           />
-          <div className="-mx-3 min-w-0 overflow-x-auto px-3 pb-2 [scrollbar-gutter:stable] sm:-mx-4 sm:px-4">
+          <div className="-mx-3 min-w-0 overflow-x-auto px-3 pb-1 [scrollbar-gutter:stable] sm:-mx-4 sm:px-4">
             {filteredTabs.length > 0 ? (
-              <TabsList className="flex h-auto w-max min-w-max flex-nowrap justify-start gap-1 rounded-xl bg-muted/60 px-2 py-3">
+              <TabsList className="inline-flex h-auto w-max min-w-max flex-nowrap justify-start gap-1 rounded-xl bg-muted/60 px-2 py-2">
                 {filteredTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.id}

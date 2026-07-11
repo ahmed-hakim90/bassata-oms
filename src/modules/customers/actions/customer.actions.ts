@@ -93,6 +93,19 @@ export async function recordCustomerPaymentAction(input: {
   });
   revalidatePath("/customers");
   revalidatePath(`/customers/${input.customerId}`);
+  revalidatePath("/pos");
+}
+
+export async function listOutstandingCustomersAction() {
+  await requirePermissionOrRole("customer_payment_receive", [
+    "owner",
+    "manager",
+    "cashier",
+  ]);
+  const { getOutstandingBalances } = await import(
+    "@/modules/customers/services/customer-account.service"
+  );
+  return getOutstandingBalances();
 }
 
 export async function getCustomerAccountsReportData() {

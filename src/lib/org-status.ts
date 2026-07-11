@@ -1,6 +1,7 @@
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function isOrganizationSuspended(orgId: string): Promise<boolean> {
+export const isOrganizationSuspended = cache(async (orgId: string): Promise<boolean> => {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("organizations")
@@ -9,4 +10,4 @@ export async function isOrganizationSuspended(orgId: string): Promise<boolean> {
     .maybeSingle();
   if (error || !data) return false;
   return data.status === "suspended";
-}
+});

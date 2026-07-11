@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { SupplierListSummary } from "@/lib/types";
@@ -97,22 +98,31 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
       </div>
 
       <div className="relative mb-6 max-w-md">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="ابحث عن موردين..."
-          className="pl-10"
+          className="ps-10"
         />
       </div>
 
       {filtered.length === 0 ? (
-        <OperationalCard title="لا يوجد موردون">
-          <div className="flex flex-col items-center py-12">
-            <Landmark className="mb-4 size-12 text-muted-foreground" />
-            <Button onClick={() => setShowCreate(true)}>إضافة مورد</Button>
-          </div>
-        </OperationalCard>
+        <div className="space-y-4">
+          <EmptyStateBlock
+            title={search.trim() ? "لا نتائج" : "لا يوجد موردون"}
+            description={
+              search.trim()
+                ? "جرّب اسم مورد مختلف."
+                : "أضف موردًا لتتبع المشتريات والمستحقات."
+            }
+          />
+          {!search.trim() ? (
+            <div className="flex justify-center">
+              <Button onClick={() => setShowCreate(true)}>إضافة مورد</Button>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((s) => (

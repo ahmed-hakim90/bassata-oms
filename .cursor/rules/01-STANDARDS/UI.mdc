@@ -1,0 +1,47 @@
+---
+description: UI visual standards — hierarchy, spacing, consistency, RTL
+globs: "**/*.{tsx,jsx,css}"
+alwaysApply: false
+---
+
+# UI Standards
+
+Interfaces must feel professional, modern, simple, predictable, and consistent.
+
+## Hierarchy
+
+Every screen must make obvious: primary action, secondary actions, important info, supporting info, danger actions.
+
+## Page chrome
+
+- Clear page title (+ short description when needed)
+- Primary CTA in a predictable place
+- Consistent margins and spacing scale (no random values)
+- Balanced whitespace — crowded UI is a bug
+
+## Typography & color
+
+- Use the design system type scale and semantic colors only
+- Color has meaning: primary, success, warning, danger, muted
+- Never invent one-off font sizes or hex values when tokens exist
+
+## Components
+
+- Prefer existing design-system / shadcn primitives
+- Do not introduce a second visual language
+- Cards only when they contain interaction or a clear content unit — not decoration
+- Status via pills/badges with semantic colors
+
+## RTL (mandatory for Arabic products)
+
+- Root layout is `dir="rtl"` / `lang="ar"` unless the project says otherwise
+- Mirror layout, not only text — swap column widths and start/end spacing
+- Keep LTR islands for phones, emails, codes, URLs (`dir="ltr"`)
+
+## Dark mode
+
+Design contrast intentionally. Do not ship washed-out or inverted accidents.
+
+## Density
+
+Ops/ERP UIs: clear and efficient. Marketing/landing: brand-led (see project rules). Never mix the two aesthetics on the same surface.

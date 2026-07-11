@@ -1,0 +1,30 @@
+---
+description: Documentation standards — why, decisions, when to write
+globs: "**/*.{ts,tsx,md}"
+alwaysApply: false
+---
+
+# Documentation Standards
+
+Good code explains itself. Great code explains **why**.
+
+## Document
+
+- Architecture decisions and trade-offs
+- Non-obvious business rules
+- Public module APIs / manifests when the repo uses them
+- Runbooks for deploy, migrations, smoke tests
+
+## Do not document
+
+- What the next line obviously does
+- Stale comments that drift from code
+- Duplicate README walls for every tiny change
+
+## Comments
+
+Prefer clear naming. Comment only intent, constraints, or dangers.
+
+## Agent rule persistence
+
+When the user says ثبتها / “don’t make me say this again”, encode the correction into `.cursor/rules` — not a chat-only apology.

@@ -1,0 +1,29 @@
+---
+description: Security standards — authz, validation, secrets, tenancy
+globs: "**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# Security Standards
+
+Treat every input and request as hostile.
+
+## Always
+
+- Authenticate session
+- Authorize permission/role **on the server** for every mutation and sensitive read
+- Validate with schemas (Zod) at boundaries
+- Scope data by org/tenant/store — never trust client-sent org IDs alone
+- Sanitize/escape output where XSS is possible
+
+## Never trust
+
+Client body, query params, headers, cookies contents as authorization proof, or hidden form fields for permissions.
+
+## Secrets
+
+No secrets in client bundles. Service-role keys only on server. Never commit `.env` credentials.
+
+## Destructive / admin
+
+Confirm intent in UI; enforce again on server. Audit sensitive changes when the domain requires it.

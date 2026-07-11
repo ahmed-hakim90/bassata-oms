@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { Category, MeasurementUnit, Product } from "@/lib/types";
+import type { Category, MeasurementUnit, Product, ProductVariant } from "@/lib/types";
 import { MEASUREMENT_UNITS } from "@/lib/constants";
 import { selectLabelById } from "@/lib/select-label";
 import { formatUnit } from "@/lib/units";
@@ -41,6 +41,7 @@ type CafeMenuItemDialogProps = {
   categories: Category[];
   ingredients: Product[];
   product?: Product | null;
+  initialVariants?: ProductVariant[];
   currency: string;
   recipesEnabled: boolean;
   existingSkus: string[];
@@ -85,6 +86,7 @@ function CafeMenuItemDialogContent({
   categories,
   ingredients,
   product,
+  initialVariants = [],
   currency,
   recipesEnabled,
   existingSkus,
@@ -186,7 +188,7 @@ function CafeMenuItemDialogContent({
 
   function handleSave() {
     if (!draft.name.trim() || !draft.category_id) {
-      toast.error("Name and category are required");
+      toast.error("الاسم والتصنيف مطلوبان");
       return;
     }
     const validVariants = isEdit
@@ -204,13 +206,13 @@ function CafeMenuItemDialogContent({
           .filter((variant) => variant.name && variant.price > 0);
 
     if (!isEdit && validVariants.length === 0) {
-      toast.error("Add at least one size and price");
+      toast.error("أضف حجمًا واحدًا على الأقل مع السعر");
       return;
     }
     const hasRecipeLines =
       validVariants.some((variant) => variant.ingredients.length > 0);
     if (!recipesEnabled && hasRecipeLines) {
-      toast.error("Recipes are disabled");
+      toast.error("الوصفات غير مفعّلة");
       return;
     }
 
@@ -231,11 +233,11 @@ function CafeMenuItemDialogContent({
           formData.append("image", imageFile);
           await uploadProductImageAction(savedProduct.id, formData);
         });
-        toast.success(isEdit ? "Menu item updated" : "Menu item created");
+        toast.success(isEdit ? "تم تحديث صنف المنيو" : "تم إنشاء صنف المنيو");
         onOpenChange(false);
         onSaved?.();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not save menu item");
+        toast.error(error instanceof Error ? error.message : "تعذر حفظ صنف المنيو");
       }
     });
   }
@@ -243,11 +245,11 @@ function CafeMenuItemDialogContent({
   function handleCreateIngredient() {
     const name = newIngredient.name.trim();
     if (!name) {
-      toast.error("Ingredient name is required");
+      toast.error("اسم المكون مطلوب");
       return;
     }
     if (!newIngredient.category_id) {
-      toast.error("Choose an ingredient category first");
+      toast.error("اختار تصنيف المكون أولًا");
       return;
     }
 
@@ -298,9 +300,9 @@ function CafeMenuItemDialogContent({
           });
         });
         setNewIngredient({ name: "", category_id: "", unit: "piece", unit_cost: "" });
-        toast.success("Ingredient added");
+        toast.success("تمت إضافة المكون");
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not add ingredient");
+        toast.error(error instanceof Error ? error.message : "تعذر إضافة المكون");
       }
     });
   }
@@ -308,34 +310,34 @@ function CafeMenuItemDialogContent({
   return (
       <StandardModalContent
         size="xl"
-        title={isEdit ? "Edit menu item" : "New menu item"}
+        title={isEdit ? "تعديل صنف المنيو" : "صنف منيو جديد"}
         description={
           isEdit
-            ? "Update item details, sizes, prices, and optional size recipes."
-            : "Create the item, then add sizes and prices. Ingredients are optional."
+            ? "حدّث التفاصيل والأحجام والأسعار والوصفات الاختيارية."
+            : "أنشئ الصنف ثم أضف الأحجام والأسعار. المكونات اختيارية."
         }
       >
         <div className="grid gap-5">
           {!recipesEnabled ? (
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              Recipes are disabled. Enable recipes before saving menu item ingredients.
+              الوصفات غير مفعّلة. فعّل الوصفات قبل حفظ مكونات أصناف المنيو.
             </div>
           ) : null}
 
           <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <SweetFormField id="menu_item_name" label="Item name">
+                <SweetFormField id="menu_item_name" label="اسم الصنف">
                   <Input
                     id="menu_item_name"
                     value={draft.name}
                     onChange={(event) =>
                       setDraft((current) => ({ ...current, name: event.target.value }))
                     }
-                    placeholder="Cappuccino"
+                    placeholder="كابتشينو"
                   />
                 </SweetFormField>
-                <SweetFormField id="menu_item_category" label="Category">
+                <SweetFormField id="menu_item_category" label="التصنيف">
                   <Select
                     value={draft.category_id}
                     onValueChange={(value) =>
@@ -343,7 +345,7 @@ function CafeMenuItemDialogContent({
                     }
                   >
                     <SelectTrigger id="menu_item_category">
-                      <SelectValue placeholder="Choose category">
+                      <SelectValue placeholder="اختار التصنيف">
                         {(value) => selectLabelById(categories, value, (category) => category.name)}
                       </SelectValue>
                     </SelectTrigger>
@@ -393,9 +395,9 @@ function CafeMenuItemDialogContent({
                   </p>
                 </div>
                 <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm">
-                  <p className="font-medium">Automatic setup</p>
+                  <p className="font-medium">إعداد تلقائي</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    SKU, barcode, POS visibility, and stock deduction are configured automatically.
+                    SKU والباركود وظهور نقطة البيع وخصم المخزون تُضبط تلقائيًا.
                   </p>
                 </div>
               </div>
@@ -434,10 +436,10 @@ function CafeMenuItemDialogContent({
 
               <div className="grid gap-3 rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 sm:grid-cols-[1fr_180px_130px_120px_auto]">
                 <div className="grid gap-1">
-                  <Label className="text-xs">New ingredient</Label>
+                  <Label className="text-xs">مكون جديد</Label>
                   <Input
                     value={newIngredient.name}
-                    placeholder="Milk, sugar, espresso beans..."
+                    placeholder="حليب، سكر، بن إسبريسو..."
                     onChange={(event) =>
                       setNewIngredient((current) => ({
                         ...current,
@@ -447,7 +449,7 @@ function CafeMenuItemDialogContent({
                   />
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-xs">Category</Label>
+                  <Label className="text-xs">التصنيف</Label>
                   <Select
                     value={newIngredient.category_id}
                     onValueChange={(value) =>
@@ -458,7 +460,7 @@ function CafeMenuItemDialogContent({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Choose category">
+                      <SelectValue placeholder="اختار التصنيف">
                         {(value) => selectLabelById(categories, value, (category) => category.name)}
                       </SelectValue>
                     </SelectTrigger>
@@ -472,7 +474,7 @@ function CafeMenuItemDialogContent({
                   </Select>
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-xs">Unit</Label>
+                  <Label className="text-xs">الوحدة</Label>
                   <Select
                     value={newIngredient.unit}
                     onValueChange={(value) =>
@@ -497,7 +499,7 @@ function CafeMenuItemDialogContent({
                   </Select>
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-xs">Unit cost</Label>
+                  <Label className="text-xs">تكلفة الوحدة</Label>
                   <Input
                     type="number"
                     min={0}
@@ -521,7 +523,7 @@ function CafeMenuItemDialogContent({
                     onClick={handleCreateIngredient}
                   >
                     <Plus className="size-4" />
-                    Add
+                    إضافة
                   </Button>
                 </div>
               </div>
@@ -562,7 +564,7 @@ function CafeMenuItemDialogContent({
                         />
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-xs">Barcode</Label>
+                        <Label className="text-xs">باركود</Label>
                         <Input
                           value={variant.barcode ?? ""}
                           onChange={(event) =>
@@ -575,6 +577,7 @@ function CafeMenuItemDialogContent({
                           type="button"
                           variant="ghost"
                           size="icon"
+                          aria-label="حذف الحجم"
                           disabled={variantDrafts.length <= 1}
                           onClick={() =>
                             setVariantDrafts((current) =>
@@ -584,7 +587,7 @@ function CafeMenuItemDialogContent({
                             )
                           }
                         >
-                          <Trash2 className="size-4" />
+                          <Trash2 className="size-4" aria-hidden />
                         </Button>
                       </div>
                     </div>
@@ -628,7 +631,7 @@ function CafeMenuItemDialogContent({
                           className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-[1fr_120px_140px_auto]"
                         >
                           <div className="grid gap-1">
-                            <Label className="text-xs">Ingredient</Label>
+                            <Label className="text-xs">المكون</Label>
                             <Select
                               value={line.ingredient_product_id}
                               onValueChange={(value) =>
@@ -640,7 +643,7 @@ function CafeMenuItemDialogContent({
                               }
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Select ingredient">
+                                <SelectValue placeholder="اختار المكون">
                                   {(value) =>
                                     selectLabelById(
                                       availableIngredients,
@@ -664,7 +667,7 @@ function CafeMenuItemDialogContent({
                             </Select>
                           </div>
                           <div className="grid gap-1">
-                            <Label className="text-xs">Qty</Label>
+                            <Label className="text-xs">الكمية</Label>
                             <Input
                               type="number"
                               min={0}
@@ -678,7 +681,7 @@ function CafeMenuItemDialogContent({
                             />
                           </div>
                           <div className="grid gap-1">
-                            <Label className="text-xs">Unit</Label>
+                            <Label className="text-xs">الوحدة</Label>
                             <Select
                               value={line.unit}
                               onValueChange={(value) =>
@@ -708,10 +711,11 @@ function CafeMenuItemDialogContent({
                               type="button"
                               variant="ghost"
                               size="icon"
+                              aria-label="حذف المكون"
                               disabled={variant.ingredients.length <= 1}
                               onClick={() => removeVariantLine(variantIndex, lineIndex)}
                             >
-                              <Trash2 className="size-4" />
+                              <Trash2 className="size-4" aria-hidden />
                             </Button>
                           </div>
                         </div>
@@ -733,26 +737,23 @@ function CafeMenuItemDialogContent({
               </div>
               <VariantEditor
                 product={product}
+                initialVariants={initialVariants}
                 currency={currency}
                 recipesEnabled={recipesEnabled}
               />
             </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground">
-              بعد حفظ صنف المنيو لأول مرة، افتحه للتعديل لإضافة الأحجام والأسعار.
-            </div>
-          )}
+          ) : null}
 
           <DialogFooter className="gap-2 px-0 pb-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              إلغاء
             </Button>
             <Button
               type="button"
               onClick={handleSave}
               disabled={pending}
             >
-              {pending ? "Saving..." : isEdit ? "Save menu item" : "Create menu item"}
+              {pending ? "جاري الحفظ…" : isEdit ? "حفظ الصنف" : "إنشاء الصنف"}
             </Button>
           </DialogFooter>
         </div>

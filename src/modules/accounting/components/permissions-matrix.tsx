@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { ROLES, type UserRole } from "@/lib/constants";
+import { ROLE_LABELS, ROLES, type UserRole } from "@/lib/constants";
 import type { Permission, PermissionKey } from "@/lib/types";
 import { updateRolePermissionsAction } from "@/modules/accounting/actions/permission.actions";
 
@@ -32,9 +32,9 @@ export function PermissionsMatrix({ permissions, matrix: initialMatrix }: Permis
     startTransition(async () => {
       try {
         await updateRolePermissionsAction(selectedRole, matrix[selectedRole] ?? []);
-        toast.success("Permissions updated");
+        toast.success("تم تحديث الصلاحيات");
       } catch {
-        toast.error("Could not save permissions");
+        toast.error("تعذر حفظ الصلاحيات");
       }
     });
   }
@@ -45,35 +45,40 @@ export function PermissionsMatrix({ permissions, matrix: initialMatrix }: Permis
   }, {});
 
   return (
-    <OperationalCard title="Role permissions" description="Owner-only — customize access per role">
+    <OperationalCard
+      title="صلاحيات الأدوار"
+      description="للمالك فقط — خصّص الوصول حسب الدور"
+    >
       <div className="mb-4 flex flex-wrap gap-2">
         {ROLES.filter((r) => r !== "owner").map((role) => (
           <Button
             key={role}
             size="sm"
             variant={selectedRole === role ? "default" : "outline"}
-            className="rounded-full capitalize"
+            className="rounded-full"
             onClick={() => setSelectedRole(role)}
           >
-            {role}
+            {ROLE_LABELS[role]}
           </Button>
         ))}
       </div>
       <div className="space-y-6">
         {Object.entries(grouped).map(([group, perms]) => (
           <div key={group}>
-            <p className="mb-2 text-sm font-medium capitalize">{group}</p>
+            <p className="mb-2 text-sm font-medium">{group}</p>
             <ul className="space-y-2">
               {perms.map((p) => (
-                <li key={p.key} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={rolePerms.has(p.key as PermissionKey)}
-                    onCheckedChange={() => togglePermission(p.key as PermissionKey)}
-                  />
-                  <div>
-                    <p className="text-sm font-medium">{p.label}</p>
-                    <p className="text-xs text-muted-foreground">{p.description}</p>
-                  </div>
+                <li key={p.key}>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <Checkbox
+                      checked={rolePerms.has(p.key as PermissionKey)}
+                      onCheckedChange={() => togglePermission(p.key as PermissionKey)}
+                    />
+                    <div>
+                      <p className="text-sm font-medium">{p.label}</p>
+                      <p className="text-xs text-muted-foreground">{p.description}</p>
+                    </div>
+                  </label>
                 </li>
               ))}
             </ul>
@@ -81,7 +86,7 @@ export function PermissionsMatrix({ permissions, matrix: initialMatrix }: Permis
         ))}
       </div>
       <Button className="mt-6 rounded-xl" disabled={pending} onClick={save}>
-        Save {selectedRole} permissions
+        حفظ صلاحيات {ROLE_LABELS[selectedRole]}
       </Button>
     </OperationalCard>
   );

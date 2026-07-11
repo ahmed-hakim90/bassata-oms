@@ -1,0 +1,25 @@
+---
+description: Next.js App Router conventions for Hakimo apps
+globs: "**/app/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Next.js Standards
+
+Preferred product stack: **Next.js 16 App Router**.
+
+## Critical
+
+This Next.js may differ from training data. Before using unfamiliar APIs, read `node_modules/next/dist/docs/` and heed `AGENTS.md`.
+
+## Conventions
+
+- `app/**/page.tsx` stays thin — data + module page component
+- Route groups for shells: `(auth)`, `(shell)`, operational, print, public
+- Prefer Server Components by default; client only for interactivity
+- Mutations via server actions; `revalidatePath` after writes
+- Session edge gate via project’s `proxy.ts` / middleware — follow the repo
+
+## Do not
+
+Invent Pages Router patterns, outdated middleware APIs, or parallel data-fetch styles that fight the module architecture.

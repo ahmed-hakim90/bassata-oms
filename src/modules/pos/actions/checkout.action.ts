@@ -1,10 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireFeature, requirePermissionOrRole } from "@/lib/auth/guards";
-import { requirePosAccess } from "@/lib/auth/pos-access";
+import { requireFeatures, requirePermissionOrRole } from "@/lib/auth/guards";
+import { requirePosAccess, getActiveSessionForPos } from "@/lib/auth/pos-access";
 import { completeCheckout } from "@/modules/pos/services/checkout.service";
-import { getActiveSessionForPos } from "@/lib/auth/pos-access";
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
 import { getSessionSettings } from "@/modules/system/services/settings.service";
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
@@ -31,42 +30,46 @@ export async function checkoutAction(input: {
 }) {
   const user = await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
   const ctx = await requirePosAccess();
-  await requireFeature("inventory_deduction");
-  const payments = input.payments?.length
+  const payments = (input.payments?.length
     ? input.payments
-    : [{ method: input.paymentMethod, amount: 0 }];
-  if (payments[0]?.method && payments[0].method !== input.paymentMethod) {
-    throw new Error("Payment method does not match payment details");
+    : [{ method: input.paymentMethod, amount: 0 }]
+  ).filter((payment) => payment.amount > 0);
+  if (!payments.length) {
+    throw new Error("أدخل مبلغ دفع صالحاً");
   }
+  const paymentMethod = payments[0]?.method ?? input.paymentMethod;
   const usesCredit = payments.some((payment) => payment.method === "credit");
 
+  const featureChecks: FeatureFlag[] = ["inventory_deduction"];
+  for (const payment of payments) {
+    featureChecks.push(
+      payment.method === "credit"
+        ? "credit_sales"
+        : (`payment_${payment.method}` as FeatureFlag)
+    );
+  }
+  if ((input.discount ?? 0) > 0) featureChecks.push("customer_discounts");
+  if ((input.loyaltyPoints ?? 0) > 0) featureChecks.push("loyalty");
+  await requireFeatures([...new Set(featureChecks)]);
+
   if (usesCredit) {
-    await requireFeature("credit_sales");
     await requirePermissionOrRole("customer_credit_sale", ["owner", "manager", "cashier"]);
     if (!input.customer) {
-      throw new Error("Select a customer for credit sale");
-    }
-  } else {
-    for (const payment of payments) {
-      await requireFeature(`payment_${payment.method}` as FeatureFlag);
+      throw new Error("اختر عميلًا للبيع الآجل");
     }
   }
-  if ((input.discount ?? 0) > 0) {
-    await requireFeature("customer_discounts");
-  }
-  if ((input.loyaltyPoints ?? 0) > 0) {
-    await requireFeature("loyalty");
-    if (!input.customer) {
-      throw new Error("اختر عميلاً لاستبدال نقاط الولاء");
-    }
+  if ((input.loyaltyPoints ?? 0) > 0 && !input.customer) {
+    throw new Error("اختر عميلاً لاستبدال نقاط الولاء");
   }
 
-  const session = await getActiveSessionForPos(ctx);
+  const [session, settings] = await Promise.all([
+    getActiveSessionForPos(ctx),
+    getSessionSettings(),
+  ]);
   if (!session) {
-    throw new Error("Active cashier session required");
+    throw new Error("جلسة كاشير نشطة مطلوبة");
   }
 
-  const settings = await getSessionSettings();
   const discount = input.discount ?? 0;
   const overrideThreshold = settings.manager_discount_override_amount;
   if (requiresManagerDiscountOverride(discount, overrideThreshold)) {
@@ -124,8 +127,8 @@ export async function checkoutAction(input: {
     deviceId: ctx.deviceId,
     cart: input.cart,
     customer: input.customer,
-    paymentMethod: input.paymentMethod,
-    payments: input.payments,
+    paymentMethod,
+    payments,
     salesMode: input.salesMode ?? "retail",
     discount: input.discount ?? 0,
     loyaltyPoints: input.loyaltyPoints,
@@ -134,7 +137,6 @@ export async function checkoutAction(input: {
     },
   });
 
-  revalidatePath("/");
   revalidatePath("/orders");
   revalidatePath("/pos");
 

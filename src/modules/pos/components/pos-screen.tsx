@@ -3,15 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ClipboardList, MessageCircle, Printer, Search, ShoppingCart, Wallet } from "lucide-react";
+import { Banknote, ClipboardList, Search, ShoppingCart, Wallet } from "lucide-react";
 import { CategoryRail } from "@/modules/pos/components/category-rail";
 import { CartPanel } from "@/modules/pos/components/cart-panel";
-import { PaymentPanel } from "@/modules/pos/components/payment-panel";
 import { ProductTile } from "@/modules/pos/components/product-tile";
 import { VariantPickerDialog } from "@/modules/pos/components/variant-picker-dialog";
 import {
   openCashDrawerHook,
-  ReceiptPrint,
   triggerReceiptPrint,
 } from "@/modules/pos/components/receipt-print";
 import { checkoutAction } from "@/modules/pos/actions/checkout.action";
@@ -43,6 +41,10 @@ import { PosDeviceGate } from "@/modules/pos/components/pos-device-gate";
 import { PosStoreGate } from "@/modules/pos/components/pos-store-gate";
 import { PosAccessDenied } from "@/modules/pos/components/pos-access-denied";
 import { PosCloseSessionDialog } from "@/modules/pos/components/pos-close-session-dialog";
+import { ManagerOverrideDialog } from "@/modules/pos/components/manager-override-dialog";
+import { PosCreditCheckoutDialog } from "@/modules/pos/components/pos-credit-checkout-dialog";
+import { PosCollectFlowDialog } from "@/modules/pos/components/pos-collect-flow-dialog";
+import { PosReceiptSuccessDialog } from "@/modules/pos/components/pos-receipt-success-dialog";
 import { QuickOpenSessionButton } from "@/modules/sessions/components/quick-open-session-button";
 import type { Device } from "@/lib/repositories/device.repository";
 import type { SessionReconciliation } from "@/modules/sessions/services/reconciliation.service";
@@ -69,6 +71,7 @@ interface PosScreenProps {
   canAddSessionExpense?: boolean;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   canManagerOverride?: boolean;
+  canCollectPayment?: boolean;
   managerDiscountOverrideAmount?: number | null;
   currentUserName?: string | null;
   loyaltyRedemptionRate?: number | null;
@@ -102,6 +105,7 @@ export function PosScreen({
   canAddSessionExpense = false,
   featureFlags = {},
   canManagerOverride = false,
+  canCollectPayment = false,
   managerDiscountOverrideAmount = null,
   currentUserName = null,
   loyaltyRedemptionRate = null,
@@ -119,9 +123,10 @@ export function PosScreen({
   storeDevices = [],
 }: PosScreenProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [creditOpen, setCreditOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [onlineOrdersOpen, setOnlineOrdersOpen] = useState(false);
+  const [collectOpen, setCollectOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pickerProduct, setPickerProduct] = useState<POSProduct | null>(null);
   const [lastReceipt, setLastReceipt] = useState<ReceiptPayload | null>(null);
@@ -131,10 +136,17 @@ export function PosScreen({
   const cart = usePosStore((s) => s.cart);
   const customer = usePosStore((s) => s.customer);
   const paymentMethod = usePosStore((s) => s.paymentMethod);
+  const setPaymentMethod = usePosStore((s) => s.setPaymentMethod);
   const discountAmount = usePosStore((s) => s.discountAmount);
   const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
   const salesMode = usePosStore((s) => s.salesMode);
   const [weightProduct, setWeightProduct] = useState<POSProduct | null>(null);
+  const [overrideDialog, setOverrideDialog] = useState<{
+    kind: "checkout" | "cash_drawer";
+    title: string;
+    defaultReason: string;
+    payments?: PaymentSplit[];
+  } | null>(null);
   const router = useRouter();
 
   const barcodeEnabled = featureFlags.barcode_scanner !== false;
@@ -222,29 +234,14 @@ export function PosScreen({
     setSearchTerm("");
   }
 
-  function handleComplete(payments: PaymentSplit[]) {
+  function runCheckout(payments: PaymentSplit[], overrideReason?: string) {
     const checkoutPaymentMethod = payments[0]?.method ?? paymentMethod;
-    if (payments.some((payment) => payment.method === "credit") && !customer) {
-      toast.error("اختر عميلًا للبيع الآجل");
-      return;
-    }
     const needsDiscountOverride = requiresManagerDiscountOverride(
       discountAmount,
       managerDiscountOverrideAmount
     );
     const needsExpiredSessionOverride =
       readinessState === "session_expired" && canManagerOverride;
-    if (needsDiscountOverride && !canManagerOverride) {
-      toast.error("هذا الخصم يحتاج موافقة المالك أو المدير");
-      return;
-    }
-    const overrideReason = needsDiscountOverride || needsExpiredSessionOverride
-      ? window.prompt(
-          "سبب موافقة المدير",
-          needsExpiredSessionOverride ? "تمت الموافقة على بيع بعد انتهاء الجلسة" : "تمت الموافقة على الخصم"
-        )?.trim()
-      : undefined;
-    if ((needsDiscountOverride || needsExpiredSessionOverride) && !overrideReason) return;
     startTransition(async () => {
       const receiptCart = [...cart];
       const receiptCustomer = customer ? { name: customer.name, phone: customer.phone } : null;
@@ -260,10 +257,13 @@ export function PosScreen({
           salesMode,
           discount: discountAmount,
           loyaltyPoints: loyaltyRedemption?.points,
-          override: needsDiscountOverride
-            ? { discount: true, reason: overrideReason }
-            : needsExpiredSessionOverride
-              ? { expiredSession: true, reason: overrideReason }
+          override:
+            needsDiscountOverride || needsExpiredSessionOverride
+              ? {
+                  discount: needsDiscountOverride || undefined,
+                  expiredSession: needsExpiredSessionOverride || undefined,
+                  reason: overrideReason,
+                }
               : undefined,
         });
         if (cashDrawerEnabled && payments.some((payment) => payment.method === "cash")) {
@@ -283,12 +283,48 @@ export function PosScreen({
           });
         }
         clearCart();
-        setPaymentOpen(false);
+        setCreditOpen(false);
         toast.success(`تم إتمام الطلب ${result.orderNumber}`);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "فشل إتمام البيع");
       }
     });
+  }
+
+  function handleComplete(payments: PaymentSplit[]) {
+    if (payments.some((payment) => payment.method === "credit") && !customer) {
+      toast.error("اختر عميلًا للبيع الآجل");
+      return;
+    }
+    const needsDiscountOverride = requiresManagerDiscountOverride(
+      discountAmount,
+      managerDiscountOverrideAmount
+    );
+    const needsExpiredSessionOverride =
+      readinessState === "session_expired" && canManagerOverride;
+    if (needsDiscountOverride && !canManagerOverride) {
+      toast.error("هذا الخصم يحتاج موافقة المالك أو المدير");
+      return;
+    }
+    if (needsDiscountOverride || needsExpiredSessionOverride) {
+      const both = needsDiscountOverride && needsExpiredSessionOverride;
+      setOverrideDialog({
+        kind: "checkout",
+        title: both
+          ? "موافقة بيع بعد انتهاء الجلسة مع خصم"
+          : needsExpiredSessionOverride
+            ? "موافقة بيع بعد انتهاء الجلسة"
+            : "موافقة المدير على الخصم",
+        defaultReason: both
+          ? "تمت الموافقة على بيع بخصم بعد انتهاء الجلسة"
+          : needsExpiredSessionOverride
+            ? "تمت الموافقة على بيع بعد انتهاء الجلسة"
+            : "تمت الموافقة على الخصم",
+        payments,
+      });
+      return;
+    }
+    runCheckout(payments);
   }
 
   if (readinessState === "no_device") {
@@ -300,6 +336,7 @@ export function PosScreen({
       <PosStoreGate
         stores={stores}
         activeStoreId={storeId}
+        readinessState={readinessState}
         title={readinessState === "store_mismatch" ? "تغيير الفرع" : "اختيار الفرع"}
         description={
           readinessState === "store_mismatch"
@@ -339,8 +376,14 @@ export function PosScreen({
     ) : null;
 
   function handleOpenCashDrawer() {
-    const reason = window.prompt("سبب موافقة المدير", "فتح درج النقدية يدويًا")?.trim();
-    if (!reason) return;
+    setOverrideDialog({
+      kind: "cash_drawer",
+      title: "فتح درج النقدية",
+      defaultReason: "فتح درج النقدية يدويًا",
+    });
+  }
+
+  function confirmCashDrawer(reason: string) {
     startTransition(async () => {
       try {
         await openCashDrawerAction(reason);
@@ -380,15 +423,83 @@ export function PosScreen({
   return (
     <>
     <div className="print:hidden flex h-dvh max-h-dvh flex-col gap-3 overflow-hidden p-3 lg:gap-4 lg:p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5">
+        <div className="flex shrink-0 items-center gap-2">
           <PosReadinessBanner state={readinessState} action={sessionBannerAction} />
           {currentUserName ? (
-            <span className="rounded-lg border border-border/60 bg-background/70 px-3 py-1 text-sm text-muted-foreground">
-              المستخدم: <span className="font-medium text-foreground">{currentUserName}</span>
+            <span className="hidden rounded-lg border border-border/60 bg-background/70 px-3 py-1.5 text-sm text-muted-foreground sm:inline-flex">
+              المستخدم: <span className="ms-1 font-medium text-foreground">{currentUserName}</span>
             </span>
           ) : null}
         </div>
+
+        {hasActiveSession ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 min-w-0 flex-1 justify-center gap-1.5 rounded-xl border-sky-200 bg-sky-50 px-2.5 text-sm font-semibold text-sky-800 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/20"
+              onClick={() => setOnlineOrdersOpen(true)}
+            >
+              <ClipboardList className="size-4 shrink-0" />
+              <span className="truncate">الأونلاين</span>
+              {activeOnlineOrdersCount > 0 ? (
+                <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[11px] text-white dark:bg-sky-400 dark:text-sky-950">
+                  {activeOnlineOrdersCount}
+                </span>
+              ) : null}
+            </Button>
+            {canCollectPayment ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 min-w-0 flex-1 justify-center gap-1.5 rounded-xl border-emerald-200 bg-emerald-50 px-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
+                onClick={() => setCollectOpen(true)}
+              >
+                <Banknote className="size-4 shrink-0" />
+                <span className="truncate">تحصيل</span>
+              </Button>
+            ) : null}
+            {canAddSessionExpense && storeId && cashierId && sessionId ? (
+              <div className="min-w-0 flex-1 [&_button]:h-10 [&_button]:w-full">
+                <ExpenseWizard
+                  storeId={storeId}
+                  sessionId={sessionId}
+                  userId={cashierId}
+                  costCenters={costCenters}
+                  categories={expenseCategories}
+                  products={inventoryProducts}
+                  expenseSettings={expenseSettings}
+                  sessionMode
+                  trigger={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="justify-center gap-1.5 rounded-xl border-rose-200 bg-rose-50 px-2.5 text-sm font-semibold text-rose-800 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:bg-rose-500/20"
+                    >
+                      <Wallet className="size-4 shrink-0" />
+                      <span className="truncate">مصروف</span>
+                    </Button>
+                  }
+                />
+              </div>
+            ) : null}
+            {cashDrawerEnabled && canManagerOverride ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 min-w-0 flex-1 justify-center gap-1.5 rounded-xl border-violet-200 bg-violet-50 px-2.5 text-sm font-semibold text-violet-800 hover:bg-violet-100 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-500/20"
+                disabled={pending}
+                onClick={handleOpenCashDrawer}
+              >
+                <span className="truncate">الدرج</span>
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1" />
+        )}
+
         <div className="flex shrink-0 items-center gap-2">
           {readinessState === "ready" && hasActiveSession && activeSession && sessionReconciliation ? (
             <PosCloseSessionDialog
@@ -406,53 +517,6 @@ export function PosScreen({
           {readinessState !== "login_required" ? <PosPinSwitch /> : null}
         </div>
       </div>
-      {hasActiveSession ? (
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-11 rounded-xl px-4 text-sm"
-            onClick={() => setOnlineOrdersOpen(true)}
-          >
-            <ClipboardList className="mr-2 size-4" />
-            طلبات الأونلاين
-            {activeOnlineOrdersCount > 0 ? (
-              <span className="ms-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-                {activeOnlineOrdersCount}
-              </span>
-            ) : null}
-          </Button>
-          {cashDrawerEnabled && canManagerOverride ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-11 rounded-xl px-4 text-sm"
-              disabled={pending}
-              onClick={handleOpenCashDrawer}
-            >
-              فتح الدرج
-            </Button>
-          ) : null}
-          {canAddSessionExpense && storeId && cashierId && sessionId ? (
-            <ExpenseWizard
-              storeId={storeId}
-              sessionId={sessionId}
-              userId={cashierId}
-              costCenters={costCenters}
-              categories={expenseCategories}
-              products={inventoryProducts}
-              expenseSettings={expenseSettings}
-              sessionMode
-              trigger={
-                <Button variant="outline" size="sm" className="h-11 rounded-xl px-4 text-sm">
-                  <Wallet className="mr-2 size-4" />
-                  إضافة مصروف
-                </Button>
-              }
-            />
-          ) : null}
-        </div>
-      ) : null}
       <div className="flex min-h-0 flex-1 gap-3 lg:gap-4">
         <section className="flex min-w-0 flex-1 flex-col gap-3">
           <CategoryRail
@@ -468,12 +532,13 @@ export function PosScreen({
             }}
           >
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder={barcodeEnabled ? "ابحث أو امسح الباركود…" : "ابحث عن منتجات…"}
-                className="h-11 rounded-xl pl-10 text-base"
+                aria-label={barcodeEnabled ? "بحث أو مسح باركود" : "بحث عن منتجات"}
+                className="h-11 rounded-xl ps-10 text-base"
                 autoComplete="off"
               />
             </div>
@@ -501,24 +566,43 @@ export function PosScreen({
 
         <aside className="hidden min-h-0 w-[min(420px,32vw)] shrink-0 flex-col xl:flex">
           <CartPanel
-            onCheckout={() => setPaymentOpen(true)}
-            checkoutDisabled={checkoutBlocked || cart.length === 0}
+            onCheckout={(method) => {
+              if (!method) return;
+              setPaymentMethod(method);
+              if (method === "credit") {
+                setCreditOpen(true);
+                return;
+              }
+              const total = Math.max(
+                0,
+                getCartTotal(cart, discountAmount) - (loyaltyRedemption?.amount ?? 0)
+              );
+              handleComplete([{ method, amount: total }]);
+            }}
+            checkoutDisabled={checkoutBlocked || cart.length === 0 || pending}
             discountsEnabled={discountsEnabled}
             loyaltyEnabled={loyaltyEnabled}
+            enabledPaymentMethods={enabledPaymentMethods}
             loyaltyRedemptionRate={loyaltyRedemptionRate}
             minimumLoyaltyRedeemPoints={minimumLoyaltyRedeemPoints}
           />
-          {(readinessState === "ready" || readinessState === "session_warning") &&
-            !hasActiveSession && (
-            <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
-              افتح جلسة كاشير لإتمام البيع
-            </p>
-          )}
-          {readinessState === "session_expired" && (
-            <p className="mt-2 text-center text-xs text-destructive">
-              أغلق الوردية لمتابعة البيع
-            </p>
-          )}
+          {checkoutBlocked ? (
+            <div className="mt-3 space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-center">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                {readinessState === "session_expired"
+                  ? "أغلق الوردية لمتابعة البيع"
+                  : readinessState === "no_session"
+                    ? "افتح جلسة كاشير لإتمام البيع"
+                    : "أكمل تجهيز نقطة البيع قبل الدفع"}
+              </p>
+              {readinessState === "no_session" ? (
+                <QuickOpenSessionButton className="w-full" label="ابدأ البيع الآن" />
+              ) : null}
+              {readinessState === "session_expired" && sessionBannerAction ? (
+                <div className="flex justify-center">{sessionBannerAction}</div>
+              ) : null}
+            </div>
+          ) : null}
         </aside>
 
         <Sheet open={cartOpen} onOpenChange={setCartOpen}>
@@ -528,41 +612,60 @@ export function PosScreen({
           >
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <CartPanel
-                onCheckout={() => {
+                onCheckout={(method) => {
+                  if (!method) return;
+                  setPaymentMethod(method);
+                  if (method === "credit") {
+                    setCartOpen(false);
+                    setCreditOpen(true);
+                    return;
+                  }
+                  const total = Math.max(
+                    0,
+                    getCartTotal(cart, discountAmount) - (loyaltyRedemption?.amount ?? 0)
+                  );
                   setCartOpen(false);
-                  setPaymentOpen(true);
+                  handleComplete([{ method, amount: total }]);
                 }}
-                checkoutDisabled={checkoutBlocked || cart.length === 0}
+                checkoutDisabled={checkoutBlocked || cart.length === 0 || pending}
                 discountsEnabled={discountsEnabled}
                 loyaltyEnabled={loyaltyEnabled}
+                enabledPaymentMethods={enabledPaymentMethods}
                 loyaltyRedemptionRate={loyaltyRedemptionRate}
                 minimumLoyaltyRedeemPoints={minimumLoyaltyRedeemPoints}
               />
-              {(readinessState === "ready" || readinessState === "session_warning") &&
-                !hasActiveSession && (
-                <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
-                  افتح جلسة كاشير لإتمام البيع
-                </p>
-              )}
-              {readinessState === "session_expired" && (
-                <p className="mt-2 text-center text-xs text-destructive">
-                  أغلق الوردية لمتابعة البيع
-                </p>
-              )}
+              {checkoutBlocked ? (
+                <div className="space-y-3 border-t border-border/60 p-4 text-center">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                    {readinessState === "session_expired"
+                      ? "أغلق الوردية لمتابعة البيع"
+                      : readinessState === "no_session"
+                        ? "افتح جلسة كاشير لإتمام البيع"
+                        : "أكمل تجهيز نقطة البيع قبل الدفع"}
+                  </p>
+                  {readinessState === "no_session" ? (
+                    <QuickOpenSessionButton className="w-full" label="ابدأ البيع الآن" />
+                  ) : null}
+                  {readinessState === "session_expired" && sessionBannerAction ? (
+                    <div className="flex justify-center">{sessionBannerAction}</div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </SheetContent>
         </Sheet>
 
-        <PaymentPanel
-          open={paymentOpen}
-          onClose={() => setPaymentOpen(false)}
-          onComplete={handleComplete}
+        <PosCreditCheckoutDialog
+          open={creditOpen}
+          onOpenChange={setCreditOpen}
+          total={Math.max(
+            0,
+            getCartTotal(cart, discountAmount) - (loyaltyRedemption?.amount ?? 0)
+          )}
+          customer={customer}
           enabledMethods={enabledPaymentMethods}
-          customerName={customer?.name ?? null}
           loading={pending}
-          disabled={readinessState === "session_expired" && !canManagerOverride}
-          loyaltyRedemptionRate={loyaltyEnabled ? loyaltyRedemptionRate : null}
-          minimumLoyaltyRedeemPoints={minimumLoyaltyRedeemPoints}
+          onConfirm={handleComplete}
         />
 
         <VariantPickerDialog
@@ -590,6 +693,9 @@ export function PosScreen({
             </div>
           </DialogContent>
         </Dialog>
+        {canCollectPayment ? (
+          <PosCollectFlowDialog open={collectOpen} onOpenChange={setCollectOpen} />
+        ) : null}
       <WeightAmountModal
         open={Boolean(weightProduct)}
         onOpenChange={(open) => {
@@ -631,52 +737,37 @@ export function PosScreen({
         </span>
       </Button>
 
-      {lastReceipt && receiptEnabled ? (
-        <div className="print:hidden rounded-2xl border bg-background/95 p-3 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">تم إتمام الطلب {lastReceipt.orderNumber}</p>
-              <p className="text-xs text-muted-foreground">
-                اطبع الإيصال الحراري أو أرسله للعميل على واتساب.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                className="h-10 rounded-xl"
-                onClick={handleUsbPrintReceipt}
-              >
-                <Printer className="size-4" />
-                طباعة USB
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 rounded-xl"
-                onClick={handleSendWhatsAppReceipt}
-                disabled={!lastReceipt.customer?.phone}
-              >
-                <MessageCircle className="size-4" />
-                WhatsApp
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-10 rounded-xl"
-                onClick={handleBrowserPrintReceipt}
-              >
-                طباعة المتصفح
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
     </div>
-    {lastReceipt && receiptEnabled ? <ReceiptPrint receipt={lastReceipt} /> : null}
+      {lastReceipt && receiptEnabled ? (
+        <PosReceiptSuccessDialog
+          open={Boolean(lastReceipt)}
+          receipt={lastReceipt}
+          onOpenChange={(open) => {
+            if (!open) setLastReceipt(null);
+          }}
+          onUsbPrint={handleUsbPrintReceipt}
+          onBrowserPrint={handleBrowserPrintReceipt}
+          onWhatsApp={handleSendWhatsAppReceipt}
+        />
+      ) : null}
+    <ManagerOverrideDialog
+      open={Boolean(overrideDialog)}
+      onOpenChange={(open) => {
+        if (!open) setOverrideDialog(null);
+      }}
+      title={overrideDialog?.title ?? "موافقة المدير"}
+      defaultReason={overrideDialog?.defaultReason ?? ""}
+      onConfirm={(reason) => {
+        if (!overrideDialog) return;
+        if (overrideDialog.kind === "cash_drawer") {
+          confirmCashDrawer(reason);
+          return;
+        }
+        if (overrideDialog.payments) {
+          runCheckout(overrideDialog.payments, reason);
+        }
+      }}
+    />
     </>
   );
 }

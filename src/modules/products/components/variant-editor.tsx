@@ -22,15 +22,17 @@ interface VariantEditorProps {
   product: Product;
   currency: string;
   recipesEnabled?: boolean;
+  initialVariants?: ProductVariant[];
 }
 
 export function VariantEditor({
   product,
   currency,
   recipesEnabled = false,
+  initialVariants = [],
 }: VariantEditorProps) {
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [variants, setVariants] = useState<ProductVariant[]>(initialVariants);
+  const [loading, setLoading] = useState(initialVariants.length === 0);
   const [pending, startTransition] = useTransition();
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState({
@@ -62,18 +64,27 @@ export function VariantEditor({
       .then((rows) => {
         if (!cancelled) setVariants(rows);
       })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error ? error.message : "تعذر تحميل أحجام المنتج"
+          );
+        }
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
+    // Seed from page data; refresh from server once per product open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialVariants is mount seed only
   }, [product.id]);
 
   function handleCreate() {
     const price = Number(draft.price) || 0;
     if (!draft.name.trim() || price <= 0) {
-      toast.error("Name and price are required");
+      toast.error("الاسم والسعر مطلوبان");
       return;
     }
     startTransition(async () => {
@@ -107,9 +118,9 @@ export function VariantEditor({
         });
         await reload();
         setAddOpen(false);
-        toast.success("Variant created");
+        toast.success("تم إنشاء الحجم");
       } catch {
-        toast.error("Could not create variant");
+        toast.error("تعذر إنشاء الحجم");
       }
     });
   }
@@ -120,7 +131,7 @@ export function VariantEditor({
         await updateVariantAction(id, patch);
         await reload();
       } catch {
-        toast.error("Could not update variant");
+        toast.error("تعذر تحديث الحجم");
       }
     });
   }
@@ -130,9 +141,9 @@ export function VariantEditor({
       try {
         await deleteVariantAction(id);
         await reload();
-        toast.success("Variant deleted");
+        toast.success("تم حذف الحجم");
       } catch {
-        toast.error("Could not delete variant");
+        toast.error("تعذر حذف الحجم");
       }
     });
   }

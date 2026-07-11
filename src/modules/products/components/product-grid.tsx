@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Package } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, ProductVariant } from "@/lib/types";
 import { GlassPanel } from "@/components/SweetFlow/glass-panel";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ export interface ProductGridItem {
   product: Product;
   category: Category | null;
   hasRecipe?: boolean;
+  variants?: ProductVariant[];
   variantCount?: number;
   missingRecipeVariantCount?: number;
   variantPrices?: number[];
@@ -23,7 +24,7 @@ interface ProductGridProps {
   currency?: string;
   priceMode?: "sale" | "cost";
   showEdit?: boolean;
-  onEdit: (product: Product) => void;
+  onEdit: (item: ProductGridItem) => void;
   onDelete: (product: Product) => void;
 }
 
@@ -50,6 +51,7 @@ export function ProductGrid({
         product,
         category,
         hasRecipe,
+        variants = [],
         variantCount = 0,
         missingRecipeVariantCount = 0,
         variantPrices = [],
@@ -171,7 +173,22 @@ export function ProductGrid({
 
               <div className="flex gap-2 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100">
                 {showEdit ? (
-                  <Button size="sm" variant="outline" className="flex-1" onClick={() => onEdit(product)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() =>
+                      onEdit({
+                        product,
+                        category,
+                        hasRecipe,
+                        variantCount,
+                        missingRecipeVariantCount,
+                        variantPrices,
+                        variants,
+                      })
+                    }
+                  >
                     تعديل
                   </Button>
                 ) : null}

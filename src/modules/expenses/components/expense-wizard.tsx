@@ -34,9 +34,20 @@ import type {
 import { suggestInventoryExpenseDefaults } from "@/modules/accounting/utils/expense-suggest";
 
 const STEPS = ["النوع", "التصنيف", "المبلغ", "الدفع", "التأكيد"] as const;
-const SESSION_STEPS = ["النوع", "التصنيف", "المبلغ", "التأكيد"] as const;
 const STEP_IDS = [0, 1, 2, 3, 4] as const;
-const SESSION_STEP_IDS = [0, 1, 2, 4] as const;
+
+const EXPENSE_SOURCE_LABELS: Record<ExpenseSource, string> = {
+  session_cash: "كاش الجلسة",
+  external: "خارجي",
+  purchase: "مشتريات",
+};
+
+const EXPENSE_PAYMENT_LABELS: Record<ExpensePaymentMethod, string> = {
+  cash: "كاش",
+  card: "بطاقة",
+  wallet: "محفظة",
+  other: "أخرى",
+};
 
 interface ExpenseWizardProps {
   storeId: string;
@@ -99,8 +110,18 @@ export function ExpenseWizard({
   const inventoryPurchaseDisabled =
     trackableProducts.length === 0 ||
     (sessionMode && expenseSettings?.allow_inventory_purchase_from_session === false);
-  const visibleSteps = sessionMode ? SESSION_STEPS : STEPS;
-  const visibleStepIds = sessionMode ? SESSION_STEP_IDS : STEP_IDS;
+  const inventoryDefaults = useMemo(
+    () =>
+      expenseSettings
+        ? suggestInventoryExpenseDefaults(categories, expenseSettings)
+        : null,
+    [categories, expenseSettings]
+  );
+  /** Inventory purchase uses accounting defaults — cashier shouldn't pick cost centers. */
+  const hideAccountingFields =
+    expenseType === "inventory" && Boolean(inventoryDefaults);
+  const visibleSteps = STEPS;
+  const visibleStepIds = STEP_IDS;
   const currentStep = visibleStepIds[step] ?? 0;
   const computedAmount = useMemo(() => {
     if (expenseType === "inventory") {
@@ -114,12 +135,9 @@ export function ExpenseWizard({
   function selectExpenseType(type: "general" | "inventory") {
     if (type === "inventory" && inventoryPurchaseDisabled) return;
     setExpenseType(type);
-    if (type === "inventory" && expenseSettings) {
-      const suggested = suggestInventoryExpenseDefaults(categories, expenseSettings);
-      if (suggested) {
-        setCostCenterId(suggested.costCenterId);
-        setCategoryId(suggested.categoryId);
-      }
+    if (type === "inventory" && inventoryDefaults) {
+      setCostCenterId(inventoryDefaults.costCenterId);
+      setCategoryId(inventoryDefaults.categoryId);
     }
   }
 
@@ -222,7 +240,184 @@ export function ExpenseWizard({
     });
   }
 
-  const content = (
+  const sessionContent = (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">مصروف من درج الجلسة (كاش).</p>
+      {!inventoryPurchaseDisabled ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            type="button"
+            variant={expenseType === "general" ? "default" : "outline"}
+            className="rounded-xl justify-start"
+            onClick={() => selectExpenseType("general")}
+          >
+            مصروف عام
+          </Button>
+          <Button
+            type="button"
+            variant={expenseType === "inventory" ? "default" : "outline"}
+            className="rounded-xl justify-start"
+            onClick={() => selectExpenseType("inventory")}
+          >
+            شراء مخزون
+          </Button>
+        </div>
+      ) : null}
+      {expenseType === "inventory" ? (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="session-expense-product">صنف المخزون</Label>
+            <select
+              id="session-expense-product"
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+              className="flex h-11 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+            >
+              <option value="">اختار الصنف</option>
+              {trackableProducts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="session-expense-qty">الكمية</Label>
+              <Input
+                id="session-expense-qty"
+                type="number"
+                min={0}
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="session-expense-unit-cost">تكلفة الوحدة</Label>
+              <Input
+                id="session-expense-unit-cost"
+                type="number"
+                min={0}
+                step="0.01"
+                value={unitCost}
+                onChange={(e) => setUnitCost(e.target.value)}
+                className="h-11 rounded-xl"
+              />
+            </div>
+          </div>
+          {suppliers.length > 0 ? (
+            <div className="space-y-2">
+              <Label htmlFor="session-expense-supplier">المورد (اختياري)</Label>
+              <select
+                id="session-expense-supplier"
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+                className="flex h-11 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">لا يوجد</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          <p className="text-sm text-muted-foreground">
+            الإجمالي: {computedAmount.toFixed(2)}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="session-expense-title">العنوان</Label>
+            <Input
+              id="session-expense-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="rounded-xl"
+              placeholder="مثال: توصيل / أدوات نظافة"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="session-expense-amount">المبلغ</Label>
+            <Input
+              id="session-expense-amount"
+              type="number"
+              min={0}
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="h-11 rounded-xl text-base"
+            />
+          </div>
+        </>
+      )}
+      {!hideAccountingFields ? (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="session-expense-center">مركز التكلفة</Label>
+            <select
+              id="session-expense-center"
+              value={costCenterId}
+              onChange={(e) => {
+                setCostCenterId(e.target.value);
+                setCategoryId("");
+              }}
+              className="flex h-11 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+            >
+              {costCenters.filter((c) => c.is_active).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="session-expense-category">التصنيف</Label>
+            <select
+              id="session-expense-category"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="flex h-11 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+            >
+              <option value="">اختار التصنيف</option>
+              {filteredCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </>
+      ) : null}
+      <div className="space-y-2">
+        <Label htmlFor="session-expense-notes">ملاحظة (اختياري)</Label>
+        <Textarea
+          id="session-expense-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="rounded-xl"
+          rows={2}
+        />
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button type="button" className="flex-1 rounded-xl" disabled={pending} onClick={handleSubmit}>
+          {expense ? "تحديث" : "حفظ المصروف"}
+        </Button>
+        {expense ? (
+          <Button type="button" variant="destructive" className="rounded-xl" disabled={pending} onClick={handleDelete}>
+            حذف
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const content = sessionMode ? (
+    sessionContent
+  ) : (
     <div className="space-y-4">
       <div className="flex gap-1">
         {visibleSteps.map((label, i) => (
@@ -256,7 +451,7 @@ export function ExpenseWizard({
         </div>
       )}
 
-      {currentStep === 1 && (
+      {currentStep === 1 && !hideAccountingFields && (
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>مركز التكلفة</Label>
@@ -385,7 +580,7 @@ export function ExpenseWizard({
             >
               {EXPENSE_SOURCES.map((s) => (
                 <option key={s} value={s}>
-                  {s.replace("_", " ")}
+                  {EXPENSE_SOURCE_LABELS[s]}
                 </option>
               ))}
             </select>
@@ -399,7 +594,7 @@ export function ExpenseWizard({
             >
               {EXPENSE_PAYMENT_METHODS.map((m) => (
                 <option key={m} value={m}>
-                  {m}
+                  {EXPENSE_PAYMENT_LABELS[m]}
                 </option>
               ))}
             </select>
@@ -409,10 +604,16 @@ export function ExpenseWizard({
 
       {currentStep === 4 && (
         <div className="space-y-3 text-sm">
-          <p><span className="text-muted-foreground">النوع:</span> {expenseType}</p>
+          <p>
+            <span className="text-muted-foreground">النوع:</span>{" "}
+            {expenseType === "inventory" ? "شراء مخزون" : "مصروف عام"}
+          </p>
           <p><span className="text-muted-foreground">المبلغ:</span> {computedAmount.toFixed(2)}</p>
           {!sessionMode && (
-            <p><span className="text-muted-foreground">المصدر:</span> {expenseSource} / {paymentMethod}</p>
+            <p>
+              <span className="text-muted-foreground">المصدر:</span>{" "}
+              {EXPENSE_SOURCE_LABELS[expenseSource]} / {EXPENSE_PAYMENT_LABELS[paymentMethod]}
+            </p>
           )}
           <div className="space-y-2">
             <Label>ملاحظات</Label>
@@ -423,13 +624,38 @@ export function ExpenseWizard({
 
       <div className="flex gap-2 pt-2">
         {step > 0 && (
-          <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep(step - 1)}>
-            Back
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => {
+              const prev = step - 1;
+              // Skip accounting step when going back from amount if inventory defaults apply
+              if (visibleStepIds[prev] === 1 && hideAccountingFields) {
+                setStep(Math.max(0, prev - 1));
+                return;
+              }
+              setStep(prev);
+            }}
+          >
+            رجوع
           </Button>
         )}
         {step < visibleSteps.length - 1 ? (
-          <Button type="button" className="flex-1 rounded-xl" onClick={() => setStep(step + 1)}>
-            Next
+          <Button
+            type="button"
+            className="flex-1 rounded-xl"
+            onClick={() => {
+              const next = step + 1;
+              // Skip accounting step when inventory defaults are already applied
+              if (visibleStepIds[next] === 1 && hideAccountingFields) {
+                setStep(Math.min(visibleSteps.length - 1, next + 1));
+                return;
+              }
+              setStep(next);
+            }}
+          >
+            متابعة
           </Button>
         ) : (
           <Button type="button" className="flex-1 rounded-xl" disabled={pending} onClick={handleSubmit}>
@@ -438,7 +664,7 @@ export function ExpenseWizard({
         )}
         {expense && step === visibleSteps.length - 1 && (
           <Button type="button" variant="destructive" className="rounded-xl" disabled={pending} onClick={handleDelete}>
-            Delete
+            حذف
           </Button>
         )}
       </div>
@@ -455,7 +681,7 @@ export function ExpenseWizard({
         <DialogTrigger render={trigger} />
       ) : (
         <DialogTrigger render={<Button className="rounded-xl" />}>
-          Add expense
+          إضافة مصروف
         </DialogTrigger>
       )}
       <DialogContent className="rounded-2xl sm:max-w-md">

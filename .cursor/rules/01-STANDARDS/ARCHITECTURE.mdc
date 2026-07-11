@@ -1,0 +1,37 @@
+---
+description: Architecture standards — modules, layers, boundaries
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Architecture Standards
+
+Architecture drives implementation — not the reverse.
+
+## Default Hakimo shape (Next apps)
+
+```
+app/          → thin routes only
+modules|features/<domain>/
+  actions/    → "use server" auth + orchestration + revalidate
+  services/   → business rules
+  components/ → UI
+lib/repositories/ → DB access
+```
+
+Adapt to the repo's existing names (`modules` vs `features` vs DDD layers) — never invent a parallel structure.
+
+## Boundaries
+
+- UI does not embed SQL/business rules
+- Actions do not become god-files of queries
+- Repositories map DB ↔ domain; services own rules + audit
+- Shared UI lives in design-system / `components/ui` — domain UI stays in the module
+
+## Change control
+
+Ask before changing folder architecture, auth model, or multi-tenant boundaries.
+
+## Multi-surface products
+
+Separate shells when needed: admin, operational (POS/field), auth, public (QR/menu). Do not force one layout on all.

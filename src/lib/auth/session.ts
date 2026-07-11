@@ -1,7 +1,8 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { createSignedCookieValue, readSignedCookieValue } from "@/lib/auth/signed-cookie";
+import { getAuthUserId } from "@/lib/auth/auth-user";
 import { isOrganizationSuspended } from "@/lib/org-status";
 import type { AppUser } from "@/lib/types";
 
@@ -14,16 +15,14 @@ export const CASHIER_COOKIE = "sf_active_cashier";
 const DEVICE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const CASHIER_COOKIE_MAX_AGE = 60 * 60 * 12;
 
-export async function getCurrentUser(): Promise<AppUser | null> {
-  const db = await createClient();
-  const {
-    data: { user: authUser },
-  } = await db.auth.getUser();
-  if (!authUser) return null;
-  const appUser = await userRepo.getUserByAuthId(authUser.id);
+/** Deduped per request — auth + users row + org status. */
+export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
+  const authUserId = await getAuthUserId();
+  if (!authUserId) return null;
+  const appUser = await userRepo.getUserByAuthId(authUserId);
   if (appUser && (await isOrganizationSuspended(appUser.org_id))) return null;
   return appUser;
-}
+});
 
 export async function getActiveStoreId(): Promise<string | null> {
   const cookieStore = await cookies();

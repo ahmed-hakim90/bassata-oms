@@ -1,0 +1,33 @@
+---
+description: SweetFlow business rules the agent must not invent around
+alwaysApply: true
+---
+
+# Business Rules — SweetFlow
+
+## Auth & access
+
+- Every mutation: `requireAuth` / `requirePermissionOrRole` / `requireFeature` as appropriate
+- Cashier lands on **POS**, not admin dashboard
+- POS/device flows may require paired device cookie — do not remove checks
+- Page access denied → `AccessDenied`, not a silent empty page
+
+## Data integrity
+
+- Never invent tables, columns, permissions, or feature flags
+- Prefer existing services/repos; write audit logs when the domain already audits
+- Soft rules around stock, purchasing, and sessions — read the service before changing math
+
+## UX copy
+
+- Operator UI: clear Egyptian/ops Arabic
+- No fake demo KPIs or placeholder business data in production pages
+- Confirm destructive stock/purchase/user actions
+
+## Settings
+
+Unified `/settings?tab=…` hub. `/users` redirects to settings users tab — keep that convention.
+
+## Public menu
+
+`/menu` stays publicly accessible. Do not require auth for customer QR browsing.

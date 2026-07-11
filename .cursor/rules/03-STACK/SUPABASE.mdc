@@ -1,0 +1,28 @@
+---
+description: Supabase client, RLS, and storage conventions
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Supabase Standards
+
+## Clients
+
+- Server cookie client for RSC/actions
+- Browser client only when required
+- Service-role / admin client only on server for privileged ops
+
+## Data access
+
+Prefer repository helpers (`getDb()`, typed queries). Always scope by org/tenant. Map rows through shared mappers when they exist.
+
+## Schema
+
+- Migrations live in `supabase/migrations/`
+- Never invent tables/columns — inspect `database.types.ts` / schema first
+- After schema changes: apply migration before claiming done (`db push` / project workflow)
+- Regenerate types when the project script expects it (`db:types`)
+
+## RLS
+
+Assume RLS is on. Application guards + RLS — not one or the other. Verify policies when touching sensitive tables.

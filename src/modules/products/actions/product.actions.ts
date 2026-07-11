@@ -465,6 +465,7 @@ export async function getProductsPageDataAction() {
         product,
         category,
         hasRecipe: recipeSet.has(product.id),
+        variants: activeVariants,
         variantCount: activeVariants.length,
         missingRecipeVariantCount,
         variantPrices: activeVariants.map((variant) =>

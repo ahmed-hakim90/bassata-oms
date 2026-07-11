@@ -327,15 +327,19 @@ export async function getOnlineOrderWithItems(id: string): Promise<OnlineOrderWi
 
 export async function listOnlineOrdersWithItems(storeId?: string): Promise<OnlineOrderWithItems[]> {
   const orders = await onlineOrderRepo.listOnlineOrders(storeId);
-  return Promise.all(
-    orders.map(async (order) => {
-      const [items, store] = await Promise.all([
-        onlineOrderRepo.getOnlineOrderItems(order.id),
-        storeRepo.getStore(order.store_id),
-      ]);
-      return { ...order, items, storeName: store?.name ?? "Store" };
-    })
-  );
+  if (orders.length === 0) return [];
+
+  const [itemsByOrder, stores] = await Promise.all([
+    onlineOrderRepo.listOnlineOrderItemsForOrders(orders.map((order) => order.id)),
+    storeRepo.listStores(),
+  ]);
+  const storeNameById = new Map(stores.map((store) => [store.id, store.name]));
+
+  return orders.map((order) => ({
+    ...order,
+    items: itemsByOrder.get(order.id) ?? [],
+    storeName: storeNameById.get(order.store_id) ?? "Store",
+  }));
 }
 
 export async function listStaffOnlineProductOptions(): Promise<StaffOnlineProductOption[]> {
@@ -447,41 +451,80 @@ export async function invoiceOnlineOrder(input: {
 
   const store = await storeRepo.getStore(input.storeId);
   if (!store) throw new Error("Store not found");
-  const customerId = await findOnlineOrderCustomerId({
-    orgId: store.org_id,
-    phone: order.customer_phone,
-  });
 
   const lines = order.items.map((item) => ({
     product_id: item.product_id,
     variant_id: item.variant_id,
     quantity: item.quantity,
   }));
-  const paymentMethod = input.payments[0]?.method ?? "cash";
+  const roundMoney = (value: number) => Math.round(value * 100) / 100;
+  const payments = input.payments
+    .map((payment) => ({
+      method: payment.method,
+      amount: roundMoney(Number(payment.amount) || 0),
+    }))
+    .filter((payment) => payment.amount > 0);
+  if (!payments.length) {
+    throw new Error("أدخل مبلغ دفع صالحاً");
+  }
+  const paymentMethod = payments[0]?.method ?? "cash";
 
-  const result =
-    input.payments.length > 1
-      ? await orderRepo.completeCheckoutSplitRpc({
-          storeId: input.storeId,
-          sessionId: input.sessionId,
-          cashierId: input.cashierId,
-          customerId,
-          paymentMethod,
-          discount: 0,
-          lines,
-          payments: input.payments,
-          deviceId: input.deviceId ?? null,
-        })
-      : await orderRepo.completeCheckoutRpc({
-          storeId: input.storeId,
-          sessionId: input.sessionId,
-          cashierId: input.cashierId,
-          customerId,
-          paymentMethod,
-          discount: 0,
-          lines,
-          deviceId: input.deviceId ?? null,
-        });
+  const customerId = await findOnlineOrderCustomerId({
+    orgId: store.org_id,
+    phone: order.customer_phone,
+  });
+  const usesCredit = payments.some((payment) => payment.method === "credit");
+  if (usesCredit && !customerId) {
+    throw new Error("البيع الآجل يحتاج رقم هاتف عميل مسجّل");
+  }
+
+  let result;
+  try {
+    result =
+      payments.length > 1
+        ? await orderRepo.completeCheckoutSplitRpc({
+            storeId: input.storeId,
+            sessionId: input.sessionId,
+            cashierId: input.cashierId,
+            customerId,
+            paymentMethod,
+            discount: 0,
+            lines,
+            payments,
+            deviceId: input.deviceId ?? null,
+          })
+        : await orderRepo.completeCheckoutRpc({
+            storeId: input.storeId,
+            sessionId: input.sessionId,
+            cashierId: input.cashierId,
+            customerId,
+            paymentMethod,
+            discount: 0,
+            lines,
+            deviceId: input.deviceId ?? null,
+          });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Split payments must equal order total")) {
+      throw new Error("مبالغ الدفع المقسّم لا تطابق إجمالي الفاتورة");
+    }
+    if (message.includes("Credit cannot be mixed with split payments")) {
+      throw new Error("لا يمكن خلط البيع الآجل مع الدفع المقسّم");
+    }
+    if (message.includes("Only one credit payment line is allowed")) {
+      throw new Error("سطر آجل واحد فقط في الفاتورة");
+    }
+    if (message.includes("Credit limit exceeded")) {
+      throw new Error("تم تجاوز حد الائتمان للعميل");
+    }
+    if (message.includes("Customer required for credit sale")) {
+      throw new Error("اختر عميلًا للبيع الآجل");
+    }
+    if (message.includes("Payment amount must be greater than zero")) {
+      throw new Error("مبلغ الدفع يجب أن يكون أكبر من صفر");
+    }
+    throw error;
+  }
 
   await onlineOrderRepo.updateOnlineOrder(order.id, {
     status: "invoiced",

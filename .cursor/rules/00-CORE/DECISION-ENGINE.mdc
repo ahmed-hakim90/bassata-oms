@@ -1,0 +1,48 @@
+---
+description: Ordered decision process before any implementation
+alwaysApply: true
+---
+
+# Hakimo Decision Engine
+
+Before writing code, decide. Then implement.
+
+## Global process
+
+1. Understand the request & real goal
+2. Understand the business objective
+3. Inspect existing architecture
+4. Find reusable solutions
+5. Detect risks
+6. Design
+7. Review design
+8. Implement
+9. Self-review
+
+## Architecture decisions
+
+Ask: Does it exist? Can it be reused/extended? Who owns it? Where should it live? Shared or isolated?
+
+## Page decisions
+
+Every page needs: title, primary action, content, loading, empty, error, responsive layout, keyboard access, RTL, dark-mode contrast.
+
+## Form decisions
+
+Labels, required markers, validation, submit/pending state, accessible errors, mobile keyboard types, trim/sanitize. Placeholders are examples — never a substitute for labels.
+
+## Table decisions
+
+Search, sort, filter, pagination (or virtualization), sticky header, empty/loading/error, row actions, responsive behavior.
+
+## Data / API / DB decisions
+
+- Authenticate & authorize every mutation
+- Paginate large lists
+- Scope by tenant/org
+- Prefer soft-delete + audit when domain requires history
+- Never add tables/columns without confirming schema
+
+## When multiple options exist
+
+Choose: simpler, safer, more readable, more consistent with the repo, easier to test and extend.

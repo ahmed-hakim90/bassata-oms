@@ -1,11 +1,16 @@
+import { cache } from "react";
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapUser } from "@/lib/repositories/mappers";
 import { getOrgId } from "@/lib/repositories/organization.repository";
-import { getUserStoreIds, setUserStoreAccess } from "@/lib/repositories/store.repository";
+import {
+  getStoreIdsForUsers,
+  getUserStoreIds,
+  setUserStoreAccess,
+} from "@/lib/repositories/store.repository";
 import type { AppUser } from "@/lib/types";
 import type { UserRole } from "@/lib/constants";
 
-export async function getUserByAuthId(authUserId: string): Promise<AppUser | null> {
+export const getUserByAuthId = cache(async (authUserId: string): Promise<AppUser | null> => {
   const db = await getDb();
   const { data, error } = await db
     .from("users")
@@ -16,7 +21,7 @@ export async function getUserByAuthId(authUserId: string): Promise<AppUser | nul
   if (!data) return null;
   const storeIds = await getUserStoreIds(data.id);
   return mapUser(data, storeIds);
-}
+});
 
 export async function getUser(id: string): Promise<AppUser | null> {
   const db = await getDb();
@@ -38,12 +43,11 @@ export async function listUsers(): Promise<AppUser[]> {
   const orgId = await getOrgId();
   const { data, error } = await db.from("users").select("*").eq("org_id", orgId);
   if (error) throwDbError(error, "listUsers");
-  const users: AppUser[] = [];
-  for (const row of data ?? []) {
-    const storeIds = await getUserStoreIds(row.id);
-    users.push(mapUser(row, storeIds));
-  }
-  return users.sort((a, b) => a.name.localeCompare(b.name));
+  const rows = data ?? [];
+  const storeIdsByUser = await getStoreIdsForUsers(rows.map((row) => row.id));
+  return rows
+    .map((row) => mapUser(row, storeIdsByUser.get(row.id) ?? []))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function createUser(input: {

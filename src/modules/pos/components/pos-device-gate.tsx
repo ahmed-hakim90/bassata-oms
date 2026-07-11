@@ -7,6 +7,7 @@ import { registerBrowserDeviceAction } from "@/modules/auth/actions/device.actio
 import { DevicePairForm } from "@/modules/auth/components/device-pair-form";
 import { Button } from "@/components/ui/button";
 import { PosPinSwitch } from "@/modules/pos/components/pos-pin-switch";
+import { PosSetupStepper } from "@/modules/pos/components/pos-setup-stepper";
 import type { Device } from "@/lib/repositories/device.repository";
 
 interface PosDeviceGateProps {
@@ -37,6 +38,7 @@ export function PosDeviceGate({ devices = [] }: PosDeviceGateProps) {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-8">
+        <PosSetupStepper state="no_device" className="mb-2" />
         <div className="w-full max-w-md space-y-6 rounded-2xl border bg-card p-6 shadow-lg">
           <div className="space-y-2 text-center">
             <Smartphone className="mx-auto size-10 text-primary" />

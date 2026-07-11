@@ -40,9 +40,19 @@ export function ReportTable<T>({
   emptyMessage = "No data for this period",
 }: ReportTableProps<T>) {
   const { t } = useTranslation();
+  const normalizedColumns = columns.map((column, index) => {
+    if (column.id || ("accessorKey" in column && column.accessorKey)) {
+      return column;
+    }
+    const header = column.header;
+    if (typeof header === "string" && header.length > 0) {
+      return { ...column, id: header };
+    }
+    return { ...column, id: `col_${index}` };
+  });
   const table = useReactTable({
     data,
-    columns,
+    columns: normalizedColumns,
     getCoreRowModel: getCoreRowModel(),
   });
   const totalPages = total ? Math.ceil(total / pageSize) : 1;

@@ -1,0 +1,39 @@
+---
+description: CRUD list + create/edit patterns used across Hakimo apps
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# CRUD Pattern
+
+## Default surface
+
+**List-first**: searchable table or card grid + primary “Create” CTA.
+
+| Action | UI |
+|--------|-----|
+| Create / Edit master record | Modal / dialog (`*FormDialog`, `StandardModal`, `EntityFormDialog`) |
+| Quick create beside list | Narrow side panel (~20–24rem); table stays primary |
+| Multiple entity tables on one page | Tabs — never stack unrelated tables |
+| Delete / irreversible | Confirm dialog |
+| Import | Upload → parse → preview table → confirm |
+
+## Server flow
+
+```
+UI → action (guard + revalidate) → service (rules) → repository (DB)
+```
+
+## Client feedback
+
+- `useTransition` / pending disables submit
+- Toast success/error (sonner) OR `{ ok }` result handling — match the module
+- Revalidate list paths after writes
+
+## URL state (when repo already uses it)
+
+`?create=` / `?edit=id` for deep-linkable dialogs. Follow local convention; don’t invent a second state system.
+
+## Empty states
+
+Real empty copy + CTA. Never seed fake demo rows in production UI.

@@ -258,3 +258,46 @@ export async function listRecipeKeys(): Promise<
     variantId: r.variant_id,
   }));
 }
+
+/** One round-trip for all recipe lines keyed by `${productId}:${variantId ?? ""}`. */
+export async function listAllRecipeLinesByProductKey(): Promise<
+  Map<string, ProductRecipeLine[]>
+> {
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const { data: recipes, error: recipesError } = await db
+    .from("product_recipes")
+    .select("id, product_id, variant_id")
+    .eq("org_id", orgId);
+  if (recipesError) throwDbError(recipesError, "listAllRecipeLinesByProductKey.recipes");
+
+  const result = new Map<string, ProductRecipeLine[]>();
+  const recipeRows = recipes ?? [];
+  if (recipeRows.length === 0) return result;
+
+  const recipeIdToKey = new Map<string, string>();
+  for (const recipe of recipeRows) {
+    const key = `${recipe.product_id}:${recipe.variant_id ?? ""}`;
+    recipeIdToKey.set(recipe.id, key);
+    result.set(key, []);
+  }
+
+  const { data: lines, error: linesError } = await db
+    .from("product_recipe_lines")
+    .select("*")
+    .in(
+      "recipe_id",
+      recipeRows.map((r) => r.id)
+    )
+    .order("sort_order");
+  if (linesError) throwDbError(linesError, "listAllRecipeLinesByProductKey.lines");
+
+  for (const row of lines ?? []) {
+    const key = recipeIdToKey.get(row.recipe_id);
+    if (!key) continue;
+    const list = result.get(key) ?? [];
+    list.push(mapRecipeLine(row));
+    result.set(key, list);
+  }
+  return result;
+}

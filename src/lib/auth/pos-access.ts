@@ -39,6 +39,8 @@ export async function resolvePosAccess(
     clearInvalidCashier?: boolean;
     /** Only server actions/route handlers may persist cashier cookies. */
     persistCookies?: boolean;
+    /** Heartbeat write — skip on read-only chrome/page readiness checks. */
+    touchSeen?: boolean;
   } = {}
 ): Promise<PosAccessContext> {
   const persistCookies = options.persistCookies ?? false;
@@ -95,7 +97,9 @@ export async function resolvePosAccess(
     }
   }
 
-  await deviceRepo.touchDeviceSeen(device.id);
+  if (options.touchSeen !== false) {
+    await deviceRepo.touchDeviceSeen(device.id);
+  }
 
   let activeCashierId = await getActiveCashierId(storeId, device.id, user);
   if (!activeCashierId) {
@@ -140,13 +144,14 @@ export async function requirePosAccess(
     ...options,
     clearInvalidCashier: true,
     persistCookies: true,
+    touchSeen: true,
   });
   return ctx;
 }
 
 export async function getPosAccessOrNull(): Promise<PosAccessContext | null> {
   try {
-    return await resolvePosAccess({ clearInvalidCashier: true });
+    return await resolvePosAccess({ clearInvalidCashier: true, touchSeen: false });
   } catch (e) {
     if (e instanceof PosAccessError) return null;
     throw e;

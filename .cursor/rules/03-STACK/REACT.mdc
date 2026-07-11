@@ -1,0 +1,22 @@
+---
+description: React 19 conventions for Hakimo apps
+globs: "**/*.{tsx,jsx}"
+alwaysApply: false
+---
+
+# React Standards
+
+## Defaults
+
+- Function components only
+- React 19 patterns as used in the repo (`useActionState`, `useTransition`, etc.)
+- Do not add `useMemo` / `useCallback` by default unless the project already relies on them or a measured problem exists
+- Extract hooks for reused stateful logic; keep domain components readable
+
+## Client boundaries
+
+`"use client"` only where needed (forms, tables with client state, stores). Do not mark entire trees client for convenience.
+
+## State
+
+Prefer server data + URL/search params. Use Zustand / React Query only as the project already does — don’t introduce a second global state library.

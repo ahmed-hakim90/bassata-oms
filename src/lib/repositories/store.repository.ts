@@ -1,15 +1,16 @@
+import { cache } from "react";
 import { asJson, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapStore } from "@/lib/repositories/mappers";
 import type { Store } from "@/lib/types";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 
-export async function listStores(): Promise<Store[]> {
+export const listStores = cache(async (): Promise<Store[]> => {
   const db = await getDb();
   const orgId = await getOrgId();
   const { data, error } = await db.from("stores").select("*").eq("org_id", orgId);
   if (error) throwDbError(error, "listStores");
   return (data ?? []).map(mapStore);
-}
+});
 
 export async function getStore(id: string): Promise<Store | null> {
   const db = await getDb();
@@ -78,16 +79,31 @@ export async function updateStore(
 }
 
 export async function getUserStoreIds(userId: string): Promise<string[]> {
+  const map = await getStoreIdsForUsers([userId]);
+  return map.get(userId) ?? [];
+}
+
+export async function getStoreIdsForUsers(
+  userIds: string[]
+): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (userIds.length === 0) return map;
+  for (const id of userIds) map.set(id, []);
   const db = await getDb();
   const orgId = await getOrgId();
   const { data, error } = await db
     .from("user_store_access")
-    .select("store_id, stores!inner(org_id), users!inner(org_id)")
-    .eq("user_id", userId)
+    .select("user_id, store_id, stores!inner(org_id), users!inner(org_id)")
+    .in("user_id", userIds)
     .eq("stores.org_id", orgId)
     .eq("users.org_id", orgId);
-  if (error) throwDbError(error, "getUserStoreIds");
-  return (data ?? []).map((r) => r.store_id);
+  if (error) throwDbError(error, "getStoreIdsForUsers");
+  for (const row of data ?? []) {
+    const list = map.get(row.user_id) ?? [];
+    list.push(row.store_id);
+    map.set(row.user_id, list);
+  }
+  return map;
 }
 
 export async function setUserStoreAccess(userId: string, storeIds: string[]): Promise<void> {

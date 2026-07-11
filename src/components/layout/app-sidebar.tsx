@@ -109,14 +109,14 @@ export function AppSidebar({
         <Button
           variant="ghost"
           size="icon-sm"
-          className={cn("ml-auto", sidebarCollapsed && "mx-auto")}
+          className={cn("ms-auto", sidebarCollapsed && "mx-auto")}
           onClick={toggleSidebar}
           aria-label={sidebarCollapsed ? t("Expand sidebar") : t("Collapse sidebar")}
         >
           {sidebarCollapsed ? (
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-4 rtl:rotate-180" />
           ) : (
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-4 rtl:rotate-180" />
           )}
         </Button>
       </div>

@@ -92,7 +92,10 @@ export function ReceiptPrint({ receipt }: ReceiptPrintProps) {
 }
 
 export function triggerReceiptPrint() {
-  window.print();
+  // Ensure receipt print styles apply after the current paint.
+  requestAnimationFrame(() => {
+    window.setTimeout(() => window.print(), 50);
+  });
 }
 
 export function openCashDrawerHook() {

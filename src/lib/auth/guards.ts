@@ -1,16 +1,14 @@
 import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
 import * as sessionRepo from "@/lib/repositories/session.repository";
-import * as userRepo from "@/lib/repositories/user.repository";
 import type { AppUser } from "@/lib/types";
 import type { UserRole } from "@/lib/constants";
 import type { FeatureFlag, PermissionKey } from "@/lib/constants";
-import { isFeatureEnabled } from "@/modules/system/services/settings.service";
+import { getFeatureFlags, isFeatureEnabled } from "@/modules/system/services/settings.service";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
-import { isOrganizationSuspended } from "@/lib/org-status";
 import {
   CASHIER_COOKIE,
+  getCurrentUser,
   REGISTERED_DEVICE_COOKIE,
   STORE_COOKIE,
 } from "@/lib/auth/session";
@@ -26,16 +24,9 @@ export class AuthError extends Error {
 }
 
 export async function requireAuth(): Promise<AppUser> {
-  const db = await createClient();
-  const {
-    data: { user: authUser },
-  } = await db.auth.getUser();
-  if (!authUser) throw new AuthError("Not authenticated", 401);
-  const appUser = await userRepo.getUserByAuthId(authUser.id);
-  if (!appUser || !appUser.is_active) throw new AuthError("User not found or inactive", 401);
-  if (await isOrganizationSuspended(appUser.org_id)) {
-    throw new AuthError("Company is suspended", 403);
-  }
+  const appUser = await getCurrentUser();
+  if (!appUser) throw new AuthError("Not authenticated", 401);
+  if (!appUser.is_active) throw new AuthError("User not found or inactive", 401);
   return appUser;
 }
 
@@ -50,6 +41,17 @@ export async function requireRole(roles: UserRole[]): Promise<AppUser> {
 export async function requireFeature(flag: FeatureFlag): Promise<void> {
   if (!(await isFeatureEnabled(flag))) {
     throw new AuthError(`Feature disabled: ${flag}`, 403);
+  }
+}
+
+/** One flags load for multiple checks (avoids repeat settings reads in hot paths). */
+export async function requireFeatures(flags: FeatureFlag[]): Promise<void> {
+  if (flags.length === 0) return;
+  const enabled = await getFeatureFlags();
+  for (const flag of flags) {
+    if (enabled[flag] === false) {
+      throw new AuthError(`Feature disabled: ${flag}`, 403);
+    }
   }
 }
 

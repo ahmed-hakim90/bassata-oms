@@ -92,21 +92,27 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     tier_id: line.tierId ?? null,
   }));
 
+  const productIds = [...new Set(input.cart.map((line) => line.productId))];
+  const [variantMap, productMap, inventoryPolicy, preventNegativeStock, warehouse] =
+    await Promise.all([
+      catalogRepo.listVariantsForProducts(productIds),
+      catalogRepo.getProductsByIds(productIds),
+      getInventoryPolicySettings(),
+      isFeatureEnabled("prevent_negative_stock"),
+      warehouseRepo.getDefaultWarehouse(input.storeId),
+    ]);
+
   for (const line of input.cart) {
-    const variants = await catalogRepo.listVariants(line.productId);
-    const activeVariants = variants.filter((v) => v.is_active);
+    const activeVariants = (variantMap.get(line.productId) ?? []).filter((v) => v.is_active);
     if (activeVariants.length > 0 && !line.variantId) {
       throw new Error(`الخيار مطلوب للمنتج ${line.name}`);
     }
   }
 
-  const [inventoryPolicy, preventNegativeStock] = await Promise.all([
-    getInventoryPolicySettings(),
-    isFeatureEnabled("prevent_negative_stock"),
-  ]);
-  const warehouse = await warehouseRepo.getDefaultWarehouse(input.storeId);
   const warehouseId = warehouse?.id ?? null;
-  const allBatches = warehouseId ? await inventoryRepo.listInventoryBatches(input.storeId, warehouseId) : [];
+  const allBatches = warehouseId
+    ? await inventoryRepo.listInventoryBatches(input.storeId, warehouseId)
+    : [];
   const today = new Date();
   const nearExpiryThreshold = Number(
     Array.isArray(inventoryPolicy.alert_days) ? inventoryPolicy.alert_days[0] : 7
@@ -115,7 +121,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   nearExpiryDate.setDate(today.getDate() + nearExpiryThreshold);
 
   for (const line of input.cart) {
-    const product = await catalogRepo.getProduct(line.productId);
+    const product = productMap.get(line.productId);
     if (!product || product.inventory_tracking_mode !== "batch_and_expiry") continue;
 
     const productBatches = allBatches
@@ -165,25 +171,65 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     }
   }
 
-  const payments = input.payments?.filter((payment) => payment.amount > 0) ?? [];
+  const expectedTotal = roundMoney(Math.max(0, subtotal - orderDiscount - loyaltyDiscount));
+  let payments =
+    input.payments
+      ?.map((payment) => ({
+        method: payment.method,
+        amount: roundMoney(Number(payment.amount) || 0),
+      }))
+      .filter((payment) => payment.amount > 0) ?? [];
+  if (payments.length > 1) {
+    const sum = roundMoney(payments.reduce((s, p) => s + p.amount, 0));
+    const diff = roundMoney(expectedTotal - sum);
+    if (Math.abs(diff) >= 0.01) {
+      const last = payments[payments.length - 1]!;
+      last.amount = roundMoney(last.amount + diff);
+      payments = payments.filter((payment) => payment.amount > 0);
+    }
+  }
   const checkoutPayload = {
     storeId: input.storeId,
     sessionId: input.sessionId,
     cashierId: input.cashierId,
     deviceId: input.deviceId ?? null,
     customerId: input.customer?.id ?? null,
-    paymentMethod: input.paymentMethod,
+    paymentMethod: payments[0]?.method ?? input.paymentMethod,
     salesMode: input.salesMode ?? "retail",
     discount: roundMoney(orderDiscount + loyaltyDiscount),
     lines,
   };
-  const result = input.override?.expiredSession
-    ? payments.length > 1
-      ? await orderRepo.completeCheckoutSplitExpiredOverrideRpc({ ...checkoutPayload, payments })
-      : await orderRepo.completeCheckoutExpiredOverrideRpc(checkoutPayload)
-    : payments.length > 1
-      ? await orderRepo.completeCheckoutSplitRpc({ ...checkoutPayload, payments })
-      : await orderRepo.completeCheckoutRpc(checkoutPayload);
+  let result;
+  try {
+    result = input.override?.expiredSession
+      ? payments.length > 1
+        ? await orderRepo.completeCheckoutSplitExpiredOverrideRpc({ ...checkoutPayload, payments })
+        : await orderRepo.completeCheckoutExpiredOverrideRpc(checkoutPayload)
+      : payments.length > 1
+        ? await orderRepo.completeCheckoutSplitRpc({ ...checkoutPayload, payments })
+        : await orderRepo.completeCheckoutRpc(checkoutPayload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Split payments must equal order total")) {
+      throw new Error("مبالغ الدفع المقسّم لا تطابق إجمالي الفاتورة");
+    }
+    if (message.includes("Credit cannot be mixed with split payments")) {
+      throw new Error("لا يمكن خلط البيع الآجل مع الدفع المقسّم");
+    }
+    if (message.includes("Only one credit payment line is allowed")) {
+      throw new Error("سطر آجل واحد فقط في الفاتورة");
+    }
+    if (message.includes("Credit limit exceeded")) {
+      throw new Error("تم تجاوز حد الائتمان للعميل");
+    }
+    if (message.includes("Customer required for credit sale")) {
+      throw new Error("اختر عميلًا للبيع الآجل");
+    }
+    if (message.includes("Payment amount must be greater than zero")) {
+      throw new Error("مبلغ الدفع يجب أن يكون أكبر من صفر");
+    }
+    throw error;
+  }
 
   const order = await orderRepo.getOrder(result.order_id);
   if (!order) throw new Error("لم يتم العثور على الطلب بعد إتمام البيع");

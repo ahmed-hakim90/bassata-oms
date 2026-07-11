@@ -1,0 +1,26 @@
+---
+description: Search and filter UX pattern
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Search Pattern
+
+## Defaults
+
+- Debounce input (≈200–400ms)
+- Clear (×) control when non-empty
+- Empty-results state distinct from empty-list state
+- Keyboard-friendly focus
+
+## Placement
+
+Search lives in the list/table toolbar — predictable, not buried.
+
+## Advanced
+
+Filters as compact triggers; combine search + filters without resetting each other unexpectedly. Persist filter state in URL when the page is shareable and the repo already does so.
+
+## Performance
+
+Search server-side or against indexed columns for large datasets. Do not load entire tables to filter in memory unless the dataset is known small.

@@ -1,0 +1,26 @@
+---
+description: Performance standards — render, network, bundles, lists
+globs: "**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# Performance Standards
+
+Performance is a feature. Fast software feels intelligent.
+
+## Avoid
+
+Unnecessary re-renders, duplicate fetches, huge client bundles, blocking work on the main thread, unbounded lists without pagination/virtualization.
+
+## Prefer
+
+- Server Components / server data loading when the stack supports it
+- Lazy routes and code splitting for heavy panels
+- Pagination or virtualization for large tables
+- Image optimization and correct sizes
+- Caching and `revalidatePath` / query invalidation with intent
+- Debounced search
+
+## Discipline
+
+Do not premature-optimize. Measure bottlenecks. Keep code simple while fixing what users feel.

@@ -1,0 +1,37 @@
+---
+description: SweetFlow / CafeFlow (bassata-oms) project context
+alwaysApply: true
+---
+
+# Project Context — SweetFlow (bassata-oms)
+
+**Product:** CafeFlow / SweetFlow — multi-location café & dessert POS + ERP.  
+**Repo:** `bassata-oms` · package often named `cafeflow-erp-pos`.
+
+## Stack
+
+- Next.js 16 App Router · React 19 · Tailwind 4
+- Supabase (Auth, Postgres, RLS, Storage)
+- shadcn (base-nova) + **SweetFlow** composites (`src/components/SweetFlow/*`)
+- TanStack Table · Zustand · RHF+Zod · sonner
+- Edge session: `src/proxy.ts` (not legacy middleware assumptions)
+
+## Architecture
+
+```
+src/app/(shell|operational|auth|print)/  → thin routes
+src/modules/<domain>/{actions,services,components}
+src/lib/repositories/ · src/lib/auth/ · src/stores/
+```
+
+## UI language
+
+Arabic-first RTL (`lang="ar"` `dir="rtl"`, Cairo). Shared chrome via `t()`; many ops labels hardcoded Arabic. Public QR menu at `/menu`.
+
+## Design reference
+
+Follow `docs/DESIGN_SYSTEM.md` and existing SweetFlow primitives (`PageHeader`, `OperationalCard`, `DataTableShell`, `StandardModal`, state blocks). Do not add a second design system.
+
+## Also read
+
+`AGENTS.md` — Next.js APIs may differ from training data; check local docs.

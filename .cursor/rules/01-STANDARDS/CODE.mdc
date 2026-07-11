@@ -1,0 +1,31 @@
+---
+description: Code quality — naming, size, typing, reuse
+globs: "**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# Code Standards
+
+## One reason to exist
+
+One responsibility per function, component, and file. Avoid god components/services, deep nesting, magic numbers, hidden side effects.
+
+## Naming
+
+Match the repo. Typical Hakimo Next conventions:
+
+- `createXAction` / `updateXAction`
+- `x.service.ts`, `x.repository.ts`, `x-page.tsx`, `x-form-dialog.tsx`
+- Path alias `@/` → `src/`
+
+## Types
+
+TypeScript strictness as configured. Prefer explicit domain types over `any`. Parse external input with Zod.
+
+## Reuse
+
+Before creating a component/hook/util/service: search the codebase. Extend existing patterns.
+
+## Errors
+
+User-facing messages in the product language (usually Arabic). Log technical detail server-side. Prefer typed result unions (`{ ok: true|false }`) or consistent throw+toast patterns already used in the module.

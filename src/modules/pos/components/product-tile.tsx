@@ -84,7 +84,7 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
                   : "secondary"
             }
             className={cn(
-              "absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/90 px-2.5 py-1 text-xs shadow-sm backdrop-blur",
+              "absolute end-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/90 px-2.5 py-1 text-xs shadow-sm backdrop-blur",
               product.stockBadge === "low" &&
                 "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200"
             )}
@@ -94,12 +94,12 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
           </Badge>
         )}
         {product.hasVariants ? (
-          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
+          <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
             <Layers3 className="size-3.5 text-primary" />
             {product.variants.length} أحجام
           </span>
         ) : null}
-        <span className="absolute bottom-2 right-2 flex h-10 items-center gap-1.5 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-lg transition group-hover:scale-105 group-disabled:opacity-0 sm:h-11">
+        <span className="absolute bottom-2 end-2 flex h-10 items-center gap-1.5 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-lg transition group-hover:scale-105 group-disabled:opacity-0 sm:h-11">
           <Plus className="size-4" />
           إضافة
         </span>

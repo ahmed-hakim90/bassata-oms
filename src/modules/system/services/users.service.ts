@@ -148,7 +148,13 @@ export async function updateUser(
   userId: string
 ): Promise<AppUser | null> {
   const existing = await userRepo.getUser(id);
-  if (existing?.role === "owner" && (input.role || input.is_active === false)) {
+  const demotingOwner =
+    existing?.role === "owner" &&
+    input.role !== undefined &&
+    input.role !== "owner";
+  const deactivatingOwner =
+    existing?.role === "owner" && input.is_active === false;
+  if (demotingOwner || deactivatingOwner) {
     const owners = (await userRepo.listUsers()).filter(
       (u) => u.role === "owner" && u.is_active && u.id !== id
     );

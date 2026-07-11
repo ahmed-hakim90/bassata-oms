@@ -597,6 +597,7 @@ function OnlineOrderCard({
       customerName={draft.customerName || null}
       loading={isPending}
       fixedTotal={draftTotal || order.total}
+      creditCustomerLinked={Boolean(draft.customerPhone?.trim())}
     />
     <ReceiptModal
       open={receiptOpen}

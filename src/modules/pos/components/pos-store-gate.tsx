@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PosPinSwitch } from "@/modules/pos/components/pos-pin-switch";
+import { PosSetupStepper } from "@/modules/pos/components/pos-setup-stepper";
 import type { Store as StoreType } from "@/lib/types";
 
 interface PosStoreGateProps {
@@ -22,6 +23,8 @@ interface PosStoreGateProps {
   activeStoreId?: string | null;
   title?: string;
   description?: string;
+  /** Explicit readiness for stepper — do not infer from title copy. */
+  readinessState?: "store_required" | "store_mismatch";
 }
 
 export function PosStoreGate({
@@ -29,6 +32,7 @@ export function PosStoreGate({
   activeStoreId,
   title = "اختيار الفرع",
   description = "اختر الفرع الذي ستعمل عليه في نقطة البيع.",
+  readinessState = "store_required",
 }: PosStoreGateProps) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(activeStoreId ?? stores[0]?.id ?? "");
@@ -60,6 +64,7 @@ export function PosStoreGate({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-8">
+        <PosSetupStepper state={readinessState} className="mb-2" />
         <div className="w-full max-w-md space-y-6 rounded-2xl border bg-card p-6 shadow-lg ring-1 ring-foreground/5">
           <div className="space-y-1 text-center">
             <h1 className="text-xl font-semibold tracking-tight">{title}</h1>

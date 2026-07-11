@@ -1,0 +1,19 @@
+---
+description: Checklist before finishing a feature
+alwaysApply: false
+---
+
+# Feature Checklist
+
+- [ ] Business goal understood (Five Questions)
+- [ ] Existing module/pattern inspected and reused
+- [ ] Correct layering (action → service → repo)
+- [ ] Server-side authz on every mutation
+- [ ] Validation at boundary
+- [ ] Tenant/org scoping
+- [ ] revalidate / cache invalidation
+- [ ] UX states: loading / empty / error / success
+- [ ] Destructive confirmations
+- [ ] No invented schema/API
+- [ ] Full scope complete (when user said نفذ / كمل — not a stub)
+- [ ] Self-review against Constitution

@@ -1,19 +1,80 @@
 "use client";
 
-import { Clock3, Minus, Plus, Star, Trash2, User } from "lucide-react";
+import { useState } from "react";
+import {
+  Banknote,
+  Clock3,
+  CreditCard,
+  Minus,
+  Pause,
+  Percent,
+  Plus,
+  Star,
+  Trash2,
+  UserCircle,
+  UserRound,
+  Wallet,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/format";
+import type { PaymentMethod } from "@/lib/types";
 import { getCartSubtotal, getCartTotal, usePosStore } from "@/stores/pos-store";
 import { CustomerAttach } from "@/modules/pos/components/customer-attach";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { cn } from "@/lib/utils";
+
+const METHOD_META: Record<
+  PaymentMethod,
+  {
+    label: string;
+    icon: typeof Banknote;
+    className: string;
+  }
+> = {
+  cash: {
+    label: "نقدي",
+    icon: Banknote,
+    className:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20",
+  },
+  card: {
+    label: "كارت",
+    icon: CreditCard,
+    className:
+      "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/20",
+  },
+  wallet: {
+    label: "محفظة",
+    icon: Wallet,
+    className:
+      "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-500/20",
+  },
+  other: {
+    label: "أخرى",
+    icon: Banknote,
+    className:
+      "border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-200 dark:hover:bg-slate-500/20",
+  },
+  credit: {
+    label: "آجل",
+    icon: UserCircle,
+    className:
+      "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/20",
+  },
+};
+
+const METHOD_ORDER: PaymentMethod[] = ["cash", "card", "wallet", "other", "credit"];
 
 interface CartPanelProps {
-  onCheckout: () => void;
+  onCheckout: (method?: PaymentMethod) => void;
   checkoutDisabled?: boolean;
   discountsEnabled?: boolean;
   loyaltyEnabled?: boolean;
+  enabledPaymentMethods?: PaymentMethod[];
   loyaltyRedemptionRate?: number | null;
   minimumLoyaltyRedeemPoints?: number;
 }
@@ -23,6 +84,7 @@ export function CartPanel({
   checkoutDisabled,
   discountsEnabled = false,
   loyaltyEnabled = false,
+  enabledPaymentMethods = ["cash", "card", "wallet", "other"],
   loyaltyRedemptionRate = null,
   minimumLoyaltyRedeemPoints = 0,
 }: CartPanelProps) {
@@ -40,6 +102,8 @@ export function CartPanel({
   const holdCart = usePosStore((s) => s.holdCart);
   const resumeHeldCart = usePosStore((s) => s.resumeHeldCart);
   const removeHeldCart = usePosStore((s) => s.removeHeldCart);
+  const [attachExpanded, setAttachExpanded] = useState(false);
+  const [discountOpen, setDiscountOpen] = useState(false);
 
   const subtotal = getCartSubtotal(cart);
   const totalBeforeRedemption = getCartTotal(cart, discountAmount);
@@ -62,28 +126,26 @@ export function CartPanel({
   const maxRedeemableAmount =
     Math.round(maxRedeemablePoints * (loyaltyRedemptionRate ?? 0) * 100) / 100;
 
+  const methods = METHOD_ORDER.filter((method) => enabledPaymentMethods.includes(method));
+  const payDisabled = cart.length === 0 || checkoutDisabled;
+
+  function handlePay(method: PaymentMethod) {
+    if (payDisabled) return;
+    if (method === "credit" && !customer) {
+      toast.error("اربط عميلًا أولًا للبيع الآجل");
+      setAttachExpanded(true);
+      return;
+    }
+    onCheckout(method);
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none bg-card text-card-foreground shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-border">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <h2 className="font-heading text-lg font-semibold">{t("Cart")}</h2>
-        {cart.length > 0 && (
-          <div className="flex gap-1.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-10 rounded-xl px-3"
-              onClick={() => holdCart(customer?.name)}
-            >
-              {t("Hold")}
-            </Button>
-            <Button variant="ghost" size="sm" className="h-10 rounded-xl px-3" onClick={clearCart}>
-              {t("Clear")}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <CustomerAttach loyaltyEnabled={loyaltyEnabled} />
+      <CustomerAttach
+        loyaltyEnabled={loyaltyEnabled}
+        expanded={attachExpanded}
+        onExpandedChange={setAttachExpanded}
+      />
 
       {heldCarts.length > 0 ? (
         <div className="border-b px-4 py-3">
@@ -149,9 +211,7 @@ export function CartPanel({
                       variant="outline"
                       size="icon-xs"
                       className="size-9 rounded-xl xl:size-11"
-                      onClick={() =>
-                        updateQuantity(line.id, line.quantity - 1)
-                      }
+                      onClick={() => updateQuantity(line.id, line.quantity - 1)}
                     >
                       <Minus className="size-3.5 xl:size-4" />
                     </Button>
@@ -162,9 +222,7 @@ export function CartPanel({
                       variant="outline"
                       size="icon-xs"
                       className="size-9 rounded-xl xl:size-11"
-                      onClick={() =>
-                        updateQuantity(line.id, line.quantity + 1)
-                      }
+                      onClick={() => updateQuantity(line.id, line.quantity + 1)}
                     >
                       <Plus className="size-3.5 xl:size-4" />
                     </Button>
@@ -188,41 +246,20 @@ export function CartPanel({
       </div>
 
       <div className="border-t p-4">
-        {customer && (
-          <p className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <User className="size-4" />
-            {customer.name}
-          </p>
-        )}
         <div className="mb-3 flex justify-between text-base">
           <span className="text-muted-foreground">{t("Subtotal")}</span>
-          <span className="font-semibold tabular-nums">
-            {formatCurrency(subtotal)}
-          </span>
+          <span className="font-semibold tabular-nums">{formatCurrency(subtotal)}</span>
         </div>
-        {discountsEnabled ? (
-          <div className="mb-3 grid gap-1.5">
-            <label className="text-sm text-muted-foreground" htmlFor="cart-discount">
-              {t("Discount")}
-            </label>
-            <Input
-              id="cart-discount"
-              type="number"
-              min="0"
-              max={subtotal}
-              step="0.01"
-              value={discountAmount || ""}
-              onChange={(e) => setDiscountAmount(Number(e.target.value))}
-              className="h-10 rounded-xl"
-            />
-          </div>
-        ) : null}
-        {discountAmount > 0 ? (
-          <div className="mb-3 flex justify-between text-sm">
+        {discountAmount > 0 && !discountOpen ? (
+          <div className="mb-3 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">{t("Discount")}</span>
-            <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+            <button
+              type="button"
+              className="font-medium tabular-nums text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+              onClick={() => setDiscountOpen(true)}
+            >
               -{formatCurrency(discountAmount)}
-            </span>
+            </button>
           </div>
         ) : null}
         {loyaltyAvailable ? (
@@ -254,17 +291,134 @@ export function CartPanel({
         <Separator className="mb-3" />
         <div className="mb-3 flex justify-between text-base">
           <span className="font-medium">{t("Total")}</span>
-          <span className="font-semibold tabular-nums">
-            {formatCurrency(total)}
-          </span>
+          <span className="font-semibold tabular-nums">{formatCurrency(total)}</span>
         </div>
-        <Button
-          className="h-14 w-full rounded-xl text-base font-semibold"
-          disabled={cart.length === 0 || checkoutDisabled}
-          onClick={onCheckout}
-        >
-          {t("Pay")} {formatCurrency(total)}
-        </Button>
+
+        <div className="grid gap-2">
+          <div
+            className={cn(
+              "grid gap-2",
+              customer ? "grid-cols-2" : "grid-cols-3"
+            )}
+          >
+            {!customer ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 flex-col gap-1 rounded-xl border-primary/25 bg-primary/5 text-xs font-semibold text-primary hover:bg-primary/10 sm:text-sm"
+                onClick={() => setAttachExpanded(true)}
+              >
+                <UserRound className="size-4" />
+                ربط عميل
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={cart.length === 0}
+              className="h-12 flex-col gap-1 rounded-xl border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20 sm:text-sm"
+              onClick={() => holdCart(customer?.name)}
+            >
+              <Pause className="size-4" />
+              تعليق
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={cart.length === 0}
+              className="h-12 flex-col gap-1 rounded-xl border-rose-200 bg-rose-50 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:bg-rose-500/20 sm:text-sm"
+              onClick={clearCart}
+            >
+              <Trash2 className="size-4" />
+              مسح
+            </Button>
+          </div>
+
+          {discountsEnabled && discountOpen ? (
+            <div className="space-y-2 rounded-xl border border-orange-200 bg-orange-50 p-3 dark:border-orange-500/30 dark:bg-orange-500/10">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-sm font-medium text-orange-900 dark:text-orange-200" htmlFor="cart-discount">
+                  {t("Discount")}
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  className="size-8 rounded-lg"
+                  aria-label="إغلاق الخصم"
+                  onClick={() => {
+                    setDiscountAmount(0);
+                    setDiscountOpen(false);
+                  }}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+              <Input
+                id="cart-discount"
+                type="number"
+                min="0"
+                max={subtotal}
+                step="0.01"
+                value={discountAmount || ""}
+                onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                className="h-11 rounded-xl bg-background"
+                autoFocus
+                placeholder="0.00"
+              />
+            </div>
+          ) : null}
+
+          <div
+            className={cn(
+              "grid gap-2",
+              (methods.length + (discountsEnabled ? 1 : 0)) <= 2
+                ? "grid-cols-2"
+                : (methods.length + (discountsEnabled ? 1 : 0)) === 3
+                  ? "grid-cols-3"
+                  : "grid-cols-2 sm:grid-cols-3"
+            )}
+          >
+            {methods.map((method) => {
+              const meta = METHOD_META[method];
+              const Icon = meta.icon;
+              return (
+                <Button
+                  key={method}
+                  type="button"
+                  variant="outline"
+                  disabled={payDisabled}
+                  className={cn(
+                    "h-14 flex-col gap-1 rounded-xl border font-semibold",
+                    meta.className
+                  )}
+                  onClick={() => handlePay(method)}
+                >
+                  <Icon className="size-5" />
+                  <span className="text-xs sm:text-sm">{meta.label}</span>
+                </Button>
+              );
+            })}
+            {discountsEnabled ? (
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "h-14 flex-col gap-1 rounded-xl border font-semibold",
+                  discountOpen || discountAmount > 0
+                    ? "border-orange-400 bg-orange-100 text-orange-900 dark:border-orange-500/50 dark:bg-orange-500/20 dark:text-orange-200"
+                    : "border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200 dark:hover:bg-orange-500/20"
+                )}
+                onClick={() => setDiscountOpen((open) => !open)}
+              >
+                <Percent className="size-5" />
+                <span className="text-xs sm:text-sm">
+                  {discountAmount > 0 ? formatCurrency(discountAmount) : "خصم"}
+                </span>
+              </Button>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,32 @@
+---
+description: Data table pattern — search, actions, states
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Table Pattern
+
+## Shell
+
+Use the project’s table shell (`DataTableShell`, `EnterpriseDataTable`, shared `data-table`) — do not invent a one-off table chrome.
+
+## Must-haves
+
+- Search (debounced) with clear control
+- Column headers with sort when data supports it
+- Pagination or virtualization for large sets
+- Sticky header when scrolling
+- Row actions menu (edit/view/delete) — consistent placement
+- Loading skeleton + empty + error states
+
+## Filters
+
+Prefer compact icon/filter triggers over always-open filter bars that steal vertical space.
+
+## RTL
+
+Arabic headers and actions; keep numeric/code columns `tabular-nums` / LTR when needed.
+
+## Money & dates
+
+Format via shared `formatCurrency` / date helpers — never ad-hoc string concat.

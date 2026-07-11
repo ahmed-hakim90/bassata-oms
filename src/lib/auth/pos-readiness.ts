@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth/session";
 import { PosAccessError, resolvePosAccess } from "@/lib/auth/pos-access";
 import { getActiveSession } from "@/modules/sessions/services/session.service";
@@ -39,7 +40,8 @@ function mapPosAccessError(code: PosAccessError["code"]): PosReadinessState {
   }
 }
 
-export async function getPosReadiness(): Promise<PosReadiness> {
+/** Deduped per request; never writes device heartbeat (mutations use requirePosAccess). */
+export const getPosReadiness = cache(async (): Promise<PosReadiness> => {
   const user = await getCurrentUser();
   if (!user) {
     return {
@@ -53,7 +55,7 @@ export async function getPosReadiness(): Promise<PosReadiness> {
 
   let ctx;
   try {
-    ctx = await resolvePosAccess();
+    ctx = await resolvePosAccess({ touchSeen: false });
   } catch (e) {
     if (e instanceof PosAccessError) {
       return {
@@ -108,4 +110,4 @@ export async function getPosReadiness(): Promise<PosReadiness> {
     deviceId: ctx.deviceId,
     sessionId: session.id,
   };
-}
+});

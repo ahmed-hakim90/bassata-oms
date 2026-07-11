@@ -12,14 +12,7 @@ import { closeSessionAction } from "@/modules/sessions/actions/session.actions";
 import type { SessionReconciliation } from "@/modules/sessions/services/reconciliation.service";
 import type { CashierSession, Expense } from "@/lib/types";
 
-const STEPS = [
-  "الملخص",
-  "المصروفات",
-  "المتوقع",
-  "الفعلي",
-  "الفرق",
-  "التأكيد",
-] as const;
+const STEPS = ["الملخص", "العدّ والتأكيد"] as const;
 
 interface CloseSessionStepperProps {
   session: CashierSession;
@@ -50,6 +43,20 @@ export function CloseSessionStepper({
   );
 
   function handleClose() {
+    if (actualCash.trim() === "") return;
+    const confirmed = window.confirm(
+      [
+        "سيتم إغلاق الجلسة وتثبيت إجماليات الكاشير.",
+        "",
+        `المتوقع: ${formatCurrency(reconciliation.expectedCash)}`,
+        `الفعلي: ${formatCurrency(actual)}`,
+        `الفرق: ${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`,
+        "",
+        "هل تريد المتابعة؟",
+      ].join("\n")
+    );
+    if (!confirmed) return;
+
     startTransition(async () => {
       try {
         await closeSessionAction({
@@ -81,80 +88,69 @@ export function CloseSessionStepper({
       </div>
 
       {step === 0 && (
-        <div className="space-y-3">
-          <h3 className="font-heading text-lg font-semibold">ملخص الجلسة</h3>
-          <p className="text-sm text-muted-foreground">الكاشير: {cashierName}</p>
-          <p className="text-sm text-muted-foreground">
-            تم الفتح {new Date(session.opened_at).toLocaleString()}
-          </p>
-          <p className="text-sm">
-            رصيد الافتتاح: {formatCurrency(session.opening_cash)}
-          </p>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <h3 className="font-heading text-lg font-semibold">ملخص الجلسة</h3>
+            <p className="text-sm text-muted-foreground">الكاشير: {cashierName}</p>
+            <p className="text-sm text-muted-foreground">
+              تم الفتح {new Date(session.opened_at).toLocaleString()}
+            </p>
+          </div>
+
+          <dl className="space-y-2 rounded-xl border border-border/60 bg-muted/30 p-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">رصيد الافتتاح</dt>
+              <dd className="tabular-nums">{formatCurrency(reconciliation.openingCash)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">مبيعات نقدية</dt>
+              <dd className="tabular-nums">+{formatCurrency(reconciliation.cashSales)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">المصروفات</dt>
+              <dd className="tabular-nums">-{formatCurrency(reconciliation.expenses)}</dd>
+            </div>
+            <div className="flex justify-between border-t border-border/60 pt-2 font-semibold">
+              <dt>المتوقع في الدرج</dt>
+              <dd className="tabular-nums">{formatCurrency(reconciliation.expectedCash)}</dd>
+            </div>
+          </dl>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">مصروفات الجلسة</p>
+            {sessionExpenses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">لا توجد مصروفات مسجلة</p>
+            ) : (
+              <ul className="max-h-40 space-y-2 overflow-y-auto">
+                {sessionExpenses.map((e) => (
+                  <li
+                    key={e.id}
+                    className="rounded-lg bg-muted/50 px-3 py-2 text-sm"
+                  >
+                    <div className="flex justify-between gap-2">
+                      <span className="font-medium">{e.title}</span>
+                      <span className="shrink-0 font-medium tabular-nums">
+                        {formatCurrency(e.amount)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {costCenterMap.get(e.cost_center_id) ?? "—"} ·{" "}
+                      {categoryMap.get(e.expense_category_id) ?? "—"}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
       {step === 1 && (
-        <div className="space-y-3">
-          <h3 className="font-heading text-lg font-semibold">مصروفات الجلسة</h3>
-          {sessionExpenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا توجد مصروفات مسجلة</p>
-          ) : (
-            <ul className="space-y-2">
-              {sessionExpenses.map((e) => (
-                <li
-                  key={e.id}
-                  className="rounded-lg bg-muted/50 px-3 py-2 text-sm"
-                >
-                  <div className="flex justify-between gap-2">
-                    <span className="font-medium">{e.title}</span>
-                    <span className="shrink-0 font-medium tabular-nums">
-                      {formatCurrency(e.amount)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {costCenterMap.get(e.cost_center_id) ?? "—"} ·{" "}
-                    {categoryMap.get(e.expense_category_id) ?? "—"} ·{" "}
-                    {e.expense_source.replace("_", " ")}
-                    {e.inventory_item_id && e.quantity != null && e.unit_cost != null
-                      ? ` · ${e.quantity} × ${formatCurrency(e.unit_cost)}`
-                      : null}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="text-sm font-medium">
-            إجمالي المصروفات: {formatCurrency(reconciliation.expenses)}
-          </p>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="space-y-3">
-          <h3 className="font-heading text-lg font-semibold">النقدية المتوقعة</h3>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">الافتتاح</dt>
-              <dd>{formatCurrency(reconciliation.openingCash)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">مبيعات نقدية</dt>
-              <dd>+{formatCurrency(reconciliation.cashSales)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">المصروفات</dt>
-              <dd>-{formatCurrency(reconciliation.expenses)}</dd>
-            </div>
-          </dl>
-          <p className="text-2xl font-bold tabular-nums">
-            {formatCurrency(reconciliation.expectedCash)}
-          </p>
-        </div>
-      )}
-
-      {step === 3 && (
         <div className="space-y-4">
-          <h3 className="font-heading text-lg font-semibold">عدّ النقدية الفعلية</h3>
+          <h3 className="font-heading text-lg font-semibold">عدّ النقدية وتأكيد الإغلاق</h3>
+          <p className="text-sm text-muted-foreground">
+            المتوقع {formatCurrency(reconciliation.expectedCash)}
+          </p>
           <div className="space-y-2">
             <Label htmlFor="actual-cash">المبلغ في الدرج</Label>
             <Input
@@ -168,38 +164,21 @@ export function CloseSessionStepper({
               placeholder="0.00"
             />
           </div>
-        </div>
-      )}
-
-      {step === 4 && (
-        <div className="space-y-3">
-          <h3 className="font-heading text-lg font-semibold">الفرق</h3>
-          <p className="text-sm text-muted-foreground">
-            المتوقع {formatCurrency(reconciliation.expectedCash)} · الفعلي{" "}
-            {formatCurrency(actual)}
-          </p>
-          <p
-            className={cn(
-              "text-3xl font-bold tabular-nums",
-              variance === 0
-                ? "text-emerald-600"
-                : variance > 0
-                  ? "text-amber-600"
-                  : "text-destructive"
-            )}
-          >
-            {variance >= 0 ? "+" : ""}
-            {formatCurrency(variance)}
-          </p>
-        </div>
-      )}
-
-      {step === 5 && (
-        <div className="space-y-4">
-          <h3 className="font-heading text-lg font-semibold">تأكيد الإغلاق</h3>
-          <p className="text-sm text-muted-foreground">
-            سيتم إغلاق الجلسة وتثبيت إجماليات الكاشير.
-          </p>
+          {actualCash ? (
+            <p
+              className={cn(
+                "text-2xl font-bold tabular-nums",
+                variance === 0
+                  ? "text-emerald-600"
+                  : variance > 0
+                    ? "text-amber-600"
+                    : "text-destructive"
+              )}
+            >
+              الفرق: {variance >= 0 ? "+" : ""}
+              {formatCurrency(variance)}
+            </p>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="notes">ملاحظات (اختياري)</Label>
             <Textarea
@@ -223,17 +202,13 @@ export function CloseSessionStepper({
           رجوع
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button
-            className="rounded-xl"
-            disabled={step === 3 && !actualCash}
-            onClick={() => setStep((s) => s + 1)}
-          >
-            متابعة
+          <Button className="rounded-xl" onClick={() => setStep(1)}>
+            متابعة للعدّ
           </Button>
         ) : (
           <Button
             className="rounded-xl"
-            disabled={pending}
+            disabled={pending || actualCash.trim() === ""}
             onClick={handleClose}
           >
             {pending ? "جاري الإغلاق…" : "إغلاق الجلسة"}

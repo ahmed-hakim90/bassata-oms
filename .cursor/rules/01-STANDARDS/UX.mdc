@@ -1,0 +1,45 @@
+---
+description: UX standards — cognitive load, flows, feedback, forgiveness
+globs: "**/*.{tsx,jsx}"
+alwaysApply: false
+---
+
+# UX Standards
+
+Build experiences, not screens. Users should rarely stop to think.
+
+## Before any feature
+
+Who is the user? What is the goal? What is the fastest path? What confuses them? Can one step/click/field be removed?
+
+## Cognitive load
+
+Reduce thinking, memory, decisions, distractions. Increase clarity, feedback, confidence.
+
+## Required states
+
+Every meaningful surface needs:
+
+- Loading (skeleton or spinner as appropriate)
+- Empty (real empty — never fake demo rows in production)
+- Error (what happened + how to recover + retry when possible)
+- Success feedback (toast or inline)
+
+## Flows
+
+Clear start → progress → completion → recovery. Users always know where they are and what happens next.
+
+## Recognition over recall
+
+Prefer defaults, recent items, autocomplete, suggestions, templates. Do not force users to remember IDs or prior screens.
+
+## Forgiveness
+
+- Confirm destructive actions
+- Preserve form input on error
+- Undo/recover when feasible
+- Never disable controls without explaining why
+
+## Operator ease (ops products)
+
+Cashiers, warehouse, HR, field staff need fewer clicks and less typing than admin power-users. Optimize the primary role's path first.

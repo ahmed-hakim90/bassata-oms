@@ -71,7 +71,7 @@ export async function recordCustomerPayment(input: {
   userId: string;
 }): Promise<string> {
   if (input.paymentMethod === "credit") {
-    throw new Error("Cannot record a collection as credit");
+    throw new Error("لا يمكن تسجيل التحصيل كبيع آجل");
   }
   await assertPeriodOpen(input.storeId);
   const paymentId = await accountRepo.recordCustomerPaymentRpc({

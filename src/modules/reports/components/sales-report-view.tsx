@@ -70,11 +70,13 @@ export function SalesReportView({
   const columns: ColumnDef<Order>[] = [
     { header: "الطلب", accessorKey: "order_number" },
     {
+      id: "total",
       header: "الإجمالي",
       cell: ({ row }) => formatCurrency(row.original.total, currency),
     },
     { header: "الحالة", accessorKey: "status" },
     {
+      id: "created_at",
       header: "التاريخ",
       cell: ({ row }) => new Date(row.original.created_at).toLocaleString(),
     },

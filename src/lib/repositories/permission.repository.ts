@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -18,7 +19,7 @@ function isMissingRbacSchema(error: { code?: string; message?: string } | null):
   );
 }
 
-export async function listPermissions(): Promise<Permission[]> {
+export const listPermissions = cache(async (): Promise<Permission[]> => {
   const db = await getDb();
   const { data, error } = await db.from("permissions").select("*").order("group_name");
   if (error) {
@@ -26,11 +27,11 @@ export async function listPermissions(): Promise<Permission[]> {
     throwDbError(error, "listPermissions");
   }
   return (data ?? []).map(mapPermission);
-}
+});
 
-export async function getRolePermissions(
+export const getRolePermissions = cache(async (
   orgId?: string
-): Promise<{ role: UserRole; permission_key: string }[]> {
+): Promise<{ role: UserRole; permission_key: string }[]> => {
   const db = await getDb();
   const oid = orgId ?? (await getOrgId());
   const { data, error } = await db
@@ -42,7 +43,7 @@ export async function getRolePermissions(
     throwDbError(error, "getRolePermissions");
   }
   return (data ?? []) as { role: UserRole; permission_key: string }[];
-}
+});
 
 export async function getUserPermissionGrants(
   userId: string
@@ -57,6 +58,29 @@ export async function getUserPermissionGrants(
     throwDbError(error, "getUserPermissionGrants");
   }
   return data ?? [];
+}
+
+export async function getUserPermissionGrantsForUsers(
+  userIds: string[]
+): Promise<Map<string, { permission_key: string; granted: boolean }[]>> {
+  const map = new Map<string, { permission_key: string; granted: boolean }[]>();
+  if (userIds.length === 0) return map;
+  for (const id of userIds) map.set(id, []);
+  const db = await getDb();
+  const { data, error } = await db
+    .from("user_permission_grants")
+    .select("user_id, permission_key, granted")
+    .in("user_id", userIds);
+  if (error) {
+    if (isMissingRbacSchema(error)) return map;
+    throwDbError(error, "getUserPermissionGrantsForUsers");
+  }
+  for (const row of data ?? []) {
+    const list = map.get(row.user_id) ?? [];
+    list.push({ permission_key: row.permission_key, granted: row.granted });
+    map.set(row.user_id, list);
+  }
+  return map;
 }
 
 export async function isRbacSeeded(orgId?: string): Promise<boolean> {
@@ -125,20 +149,26 @@ export async function getEffectivePermissions(user: {
   id: string;
   role: UserRole;
 }): Promise<Set<PermissionKey>> {
-  const all = await listPermissions();
-  if (user.role === "owner") {
-    return new Set(all.map((p) => p.key as PermissionKey));
-  }
-  const rolePerms = await getPermissionsForRole(user.role);
-  const set = new Set(rolePerms);
-  const grants = await getUserPermissionGrants(user.id);
-  for (const g of grants) {
-    const key = g.permission_key as PermissionKey;
-    if (g.granted) set.add(key);
-    else set.delete(key);
-  }
-  return set;
+  return getEffectivePermissionsCached(user.id, user.role);
 }
+
+const getEffectivePermissionsCached = cache(
+  async (userId: string, role: UserRole): Promise<Set<PermissionKey>> => {
+    const all = await listPermissions();
+    if (role === "owner") {
+      return new Set(all.map((p) => p.key as PermissionKey));
+    }
+    const rolePerms = await getPermissionsForRole(role);
+    const set = new Set(rolePerms);
+    const grants = await getUserPermissionGrants(userId);
+    for (const g of grants) {
+      const key = g.permission_key as PermissionKey;
+      if (g.granted) set.add(key);
+      else set.delete(key);
+    }
+    return set;
+  }
+);
 
 export function permissionAllowsPath(
   pathname: string,

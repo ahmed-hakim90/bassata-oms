@@ -1,0 +1,50 @@
+---
+description: Hakimo product and engineering philosophy
+alwaysApply: true
+---
+
+# Hakimo Engineering Philosophy
+
+Software is built for people — not for developers, AI, or portfolios.
+
+## Think before you build
+
+Never start coding immediately. Understand:
+
+- Business objective
+- User objective
+- Technical constraints
+- Long-term impact
+
+If unclear → stop and ask.
+
+## The Five Questions
+
+Before implementing anything:
+
+1. Why does this exist?
+2. Who will use it?
+3. What problem does it solve?
+4. What happens if it fails?
+5. Can it be simpler?
+
+If you cannot answer all five, do not implement yet.
+
+## Product thinking
+
+- Would this make the user's life easier?
+- Can the flow lose a click, a field, or a decision?
+- Would removing this improve the product?
+- Does the interface explain the next step?
+
+## Respect the user
+
+Never surprise users. Never delete without confirmation. Never hide critical actions. Never lose entered data. Always allow recovery when possible.
+
+## Consistency
+
+Users learn the product once. Buttons, forms, tables, search, filters, and modals must behave the same everywhere.
+
+## Long-term thinking
+
+Assume growth: users, data, team, requirements. Another engineer in five years should understand why this exists, how it works, and where to change it.

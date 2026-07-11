@@ -50,6 +50,7 @@ export function SessionsReportView({
     { header: "تم الفتح", accessorKey: "openedAt" },
     {
       header: "الفرق",
+      id: "variance",
       cell: ({ row }) =>
         row.original.variance != null
           ? formatCurrency(row.original.variance, currency)
@@ -57,13 +58,14 @@ export function SessionsReportView({
     },
     { header: "الحالة", accessorKey: "status" },
     {
-      header: "",
+      id: "closing",
+      header: "تقرير الإغلاق",
       cell: ({ row }) => (
         <Link
           href={`/print/sessions/${row.original.id}/closing`}
           className="text-sm text-primary hover:underline"
         >
-          الإغلاق
+          عرض
         </Link>
       ),
     },

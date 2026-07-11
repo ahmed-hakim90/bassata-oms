@@ -108,15 +108,9 @@ export async function getProductsForPOS(
 
   const recipeLinesCache = new Map<string, Awaited<ReturnType<typeof recipeRepo.getRecipeLines>>>();
   if (recipesEnabled) {
-    for (const key of recipeByKey.keys()) {
-      const [productId, variantIdPart] = key.split(":");
-      const variantId = variantIdPart || null;
-      const recipe = variantId
-        ? await recipeRepo.getRecipeByProductId(productId!, variantId)
-        : await recipeRepo.getRecipeByProductId(productId!, null);
-      if (recipe) {
-        recipeLinesCache.set(key, await recipeRepo.getRecipeLines(recipe.id));
-      }
+    const allLines = await recipeRepo.listAllRecipeLinesByProductKey();
+    for (const [key, lines] of allLines) {
+      recipeLinesCache.set(key, lines);
     }
   }
 

@@ -1,0 +1,33 @@
+---
+description: Accessibility requirements for all interactive UI
+globs: "**/*.{tsx,jsx,html}"
+alwaysApply: false
+---
+
+# Accessibility Standards
+
+Accessibility is mandatory — not a polish pass.
+
+## Must support
+
+- Full keyboard navigation
+- Visible focus states
+- Screen readers (semantic HTML + ARIA only when needed)
+- Adequate color contrast
+- `prefers-reduced-motion` respected
+- Usable without a mouse
+
+## Forms
+
+- Every input has a visible `<label>`
+- Errors are associated with fields
+- Required fields indicated
+- Do not rely on color alone for meaning
+
+## Interactive targets
+
+Touch-friendly hit areas on mobile. Icon-only buttons need accessible names.
+
+## Modals / dialogs
+
+Focus trap, Escape to close, restore focus on dismiss, announce title.

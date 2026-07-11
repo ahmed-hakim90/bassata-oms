@@ -1,0 +1,32 @@
+---
+description: SweetFlow domain entities and surfaces
+alwaysApply: true
+---
+
+# Domain — SweetFlow
+
+## Surfaces
+
+| Surface | Route group | Users |
+|---------|-------------|-------|
+| Admin / back office | `(shell)` | owner, manager, inventory |
+| POS | `(operational)/pos` | cashier (+ device pairing) |
+| Auth / device / unlock | `(auth)` | all |
+| Print | `(print)` | ops |
+| Public menu | `/menu` | customers (no login) |
+
+## Core domains (modules)
+
+Customers, products/catalog, orders, purchases, inventory/transfers/stock-count, expenses, reports, dashboard, online-orders, loyalty, system/settings, auth.
+
+## Tenancy
+
+Org + multi-store. Active store via validated session/cookie (`sf_active_store`). All data access scoped by org; store-scoped where required.
+
+## Roles (see `src/lib/constants.ts`)
+
+`owner` · `manager` · `cashier` · `inventory` + fine-grained permissions / feature flags.
+
+## Money & catalog
+
+Currency formatting via shared helpers. Product images/logos in storage bucket `org-assets` when used.

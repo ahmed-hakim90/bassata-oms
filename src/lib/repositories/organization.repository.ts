@@ -1,23 +1,23 @@
+import { cache } from "react";
 import { asJson, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapAppSetting, mapOrganization } from "@/lib/repositories/mappers";
+import { getAuthUserId } from "@/lib/auth/auth-user";
 import type { AppSetting, Organization } from "@/lib/types";
 
-export async function getOrgId(): Promise<string> {
+export const getOrgId = cache(async (): Promise<string> => {
+  const authUserId = await getAuthUserId();
+  if (!authUserId) throw new Error("Not authenticated");
   const db = await getDb();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
   const { data, error } = await db
     .from("users")
     .select("org_id")
-    .eq("auth_user_id", user.id)
+    .eq("auth_user_id", authUserId)
     .single();
   if (error || !data) throwDbError(error, "getOrgId");
   return data.org_id;
-}
+});
 
-export async function getOrganization(): Promise<Organization> {
+export const getOrganization = cache(async (): Promise<Organization> => {
   const orgId = await getOrgId();
   const db = await getDb();
   const { data, error } = await db
@@ -27,7 +27,7 @@ export async function getOrganization(): Promise<Organization> {
     .single();
   if (error || !data) throwDbError(error, "getOrganization");
   return mapOrganization(data);
-}
+});
 
 export async function updateOrganization(
   updates: Partial<
@@ -51,13 +51,13 @@ export async function updateOrganization(
   return mapOrganization(data);
 }
 
-export async function listSettings(): Promise<AppSetting[]> {
+export const listSettings = cache(async (): Promise<AppSetting[]> => {
   const orgId = await getOrgId();
   const db = await getDb();
   const { data, error } = await db.from("app_settings").select("*").eq("org_id", orgId);
   if (error) throwDbError(error, "listSettings");
   return (data ?? []).map(mapAppSetting);
-}
+});
 
 export async function countOrganizations(): Promise<number> {
   const admin = await import("@/lib/supabase/admin").then((m) => m.createAdminClient());

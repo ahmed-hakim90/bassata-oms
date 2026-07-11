@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermissionOrRole } from "@/lib/auth/guards";
+import { requirePermissionOrRole, AuthError } from "@/lib/auth/guards";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { getAuditLogs } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -35,7 +35,7 @@ import {
   updateStore,
   updateUser,
 } from "@/modules/system/services/users.service";
-import type { FeatureFlag, PermissionKey } from "@/lib/constants";
+import type { FeatureFlag, PermissionKey, UserRole } from "@/lib/constants";
 import type { ExpenseSettings, SessionSettings } from "@/lib/types";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
@@ -196,6 +196,37 @@ export async function updateProductTemplateSettingsAction(
   revalidatePath("/products");
 }
 
+export interface CreateUserResult {
+  success: boolean;
+  error?: string;
+}
+
+function createUserErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "فشل إنشاء المستخدم";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("password must be at least 8")) {
+    return "كلمة المرور يجب أن تكون 8 أحرف أو أكثر.";
+  }
+  if (normalized.includes("already been registered") || normalized.includes("already exists")) {
+    return "هذا البريد الإلكتروني مسجّل مسبقاً.";
+  }
+  if (normalized.includes("insufficient permissions")) {
+    return "ليس لديك صلاحية إنشاء مستخدمين.";
+  }
+  if (normalized.includes("user not found or out of scope")) {
+    return "تعذر ربط المستخدم بالفروع المحددة.";
+  }
+  if (normalized.includes("stores are out of scope")) {
+    return "أحد الفروع المحددة غير متاح لحسابك.";
+  }
+  if (normalized.includes("pin must be 4 to 8 digits")) {
+    return "رقم PIN يجب أن يكون من 4 إلى 8 أرقام.";
+  }
+
+  return "تعذر إنشاء المستخدم. حاول مرة أخرى.";
+}
+
 export async function createUserAction(input: {
   name: string;
   email: string;
@@ -204,11 +235,50 @@ export async function createUserAction(input: {
   deviceIds?: string[];
   pin?: string;
   password: string;
-}) {
-  const user = await requirePermissionOrRole("user_manage", ["owner"]);
-  await createUser({ ...input, userId: user.id });
-  revalidatePath("/users");
-  revalidatePath("/settings");
+}): Promise<CreateUserResult> {
+  let actor;
+  try {
+    actor = await requirePermissionOrRole("user_manage", ["owner"]);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { success: false, error: "ليس لديك صلاحية إنشاء مستخدمين." };
+    }
+    return { success: false, error: createUserErrorMessage(error) };
+  }
+
+  const name = input.name.trim();
+  const email = input.email.trim().toLowerCase();
+  const password = input.password;
+
+  if (!name || !email || !password) {
+    return { success: false, error: "الاسم والبريد الإلكتروني وكلمة المرور مطلوبة." };
+  }
+  if (password.length < 8) {
+    return { success: false, error: "كلمة المرور يجب أن تكون 8 أحرف أو أكثر." };
+  }
+  if (input.role === "owner" && actor.role !== "owner") {
+    return { success: false, error: "تعيين دور المالك متاح للمالك فقط." };
+  }
+  if (input.role === "cashier") {
+    if (!input.pin || !/^[0-9]{4,8}$/.test(input.pin)) {
+      return { success: false, error: "رقم PIN يجب أن يكون من 4 إلى 8 أرقام." };
+    }
+  }
+
+  try {
+    await createUser({
+      ...input,
+      name,
+      email,
+      password,
+      userId: actor.id,
+    });
+    revalidatePath("/users");
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: createUserErrorMessage(error) };
+  }
 }
 
 export async function updateUserAction(
@@ -221,43 +291,139 @@ export async function updateUserAction(
     deviceIds?: string[];
     isActive?: boolean;
   }
-) {
-  const user = await requirePermissionOrRole("user_manage", ["owner"]);
-  await updateUser(
-    id,
-    {
-      name: input.name,
-      email: input.email,
-      role: input.role,
-      store_ids: input.storeIds,
-      deviceIds: input.deviceIds,
-      is_active: input.isActive,
-    },
-    user.id
-  );
-  revalidatePath("/users");
-  revalidatePath("/settings");
+): Promise<{ success: boolean; error?: string }> {
+  let actor;
+  try {
+    actor = await requirePermissionOrRole("user_manage", ["owner"]);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { success: false, error: "ليس لديك صلاحية تعديل المستخدمين." };
+    }
+    return { success: false, error: "تعذر تحديث المستخدم." };
+  }
+
+  if (input.role === "owner" && actor.role !== "owner") {
+    return { success: false, error: "تعيين دور المالك متاح للمالك فقط." };
+  }
+
+  try {
+    await updateUser(
+      id,
+      {
+        name: input.name,
+        email: input.email,
+        role: input.role,
+        store_ids: input.storeIds,
+        deviceIds: input.deviceIds,
+        is_active: input.isActive,
+      },
+      actor.id
+    );
+    revalidatePath("/users");
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "تعذر تحديث المستخدم";
+    if (message.toLowerCase().includes("at least one active owner")) {
+      return {
+        success: false,
+        error: "لازم يفضل مالك نشط واحد على الأقل. مش هتقدر تغيّر دور المالك الوحيد أو تعطّله.",
+      };
+    }
+    return { success: false, error: "تعذر تحديث المستخدم. حاول مرة أخرى." };
+  }
 }
 
-export async function deactivateUserAction(id: string) {
-  const user = await requirePermissionOrRole("user_manage", ["owner"]);
-  await deactivateUser(id, user.id);
-  revalidatePath("/users");
-  revalidatePath("/settings");
+function userAdminAuthErrorMessage(action: "deactivate" | "pin" | "password"): string {
+  if (action === "deactivate") return "ليس لديك صلاحية تعطيل المستخدمين.";
+  if (action === "pin") return "ليس لديك صلاحية إعادة ضبط PIN.";
+  return "ليس لديك صلاحية إعادة ضبط كلمة المرور.";
 }
 
-export async function resetUserPinAction(id: string, pin: string) {
-  const user = await requirePermissionOrRole("user_manage", ["owner"]);
-  await resetUserPin(id, pin, user.id);
-  revalidatePath("/users");
-  revalidatePath("/settings");
+export async function deactivateUserAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  let actor;
+  try {
+    actor = await requirePermissionOrRole("user_manage", ["owner"]);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { success: false, error: userAdminAuthErrorMessage("deactivate") };
+    }
+    return { success: false, error: "تعذر تعطيل المستخدم." };
+  }
+
+  try {
+    await deactivateUser(id, actor.id);
+    revalidatePath("/users");
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.toLowerCase().includes("at least one active owner")) {
+      return {
+        success: false,
+        error: "لازم يفضل مالك نشط واحد على الأقل. مش هتقدر تعطّل المالك الوحيد.",
+      };
+    }
+    return { success: false, error: "تعذر تعطيل المستخدم." };
+  }
 }
 
-export async function resetUserPasswordAction(id: string, password: string) {
-  const user = await requirePermissionOrRole("user_manage", ["owner"]);
-  await resetUserPassword(id, password, user.id);
-  revalidatePath("/users");
-  revalidatePath("/settings");
+export async function resetUserPinAction(
+  id: string,
+  pin: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!/^[0-9]{4,8}$/.test(pin)) {
+    return { success: false, error: "رقم PIN يجب أن يكون من 4 إلى 8 أرقام." };
+  }
+
+  let actor;
+  try {
+    actor = await requirePermissionOrRole("user_manage", ["owner"]);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { success: false, error: userAdminAuthErrorMessage("pin") };
+    }
+    return { success: false, error: "تعذرت إعادة ضبط PIN." };
+  }
+
+  try {
+    await resetUserPin(id, pin, actor.id);
+    revalidatePath("/users");
+    revalidatePath("/settings");
+    return { success: true };
+  } catch {
+    return { success: false, error: "تعذرت إعادة ضبط PIN." };
+  }
+}
+
+export async function resetUserPasswordAction(
+  id: string,
+  password: string
+): Promise<{ success: boolean; error?: string }> {
+  if (password.length < 8) {
+    return { success: false, error: "كلمة المرور يجب أن تكون 8 أحرف أو أكثر." };
+  }
+
+  let actor;
+  try {
+    actor = await requirePermissionOrRole("user_manage", ["owner"]);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { success: false, error: userAdminAuthErrorMessage("password") };
+    }
+    return { success: false, error: "تعذرت إعادة ضبط كلمة المرور." };
+  }
+
+  try {
+    await resetUserPassword(id, password, actor.id);
+    revalidatePath("/users");
+    revalidatePath("/settings");
+    return { success: true };
+  } catch {
+    return { success: false, error: "تعذرت إعادة ضبط كلمة المرور." };
+  }
 }
 
 export async function createStoreAction(input: {
@@ -451,50 +617,78 @@ export async function getAuditData(filters?: {
 }
 
 async function loadSettingsBundle() {
+  const [
+    org,
+    featureFlags,
+    expenseSettings,
+    sessionSettings,
+    costCenters,
+    stores,
+    warehouses,
+    devices,
+    settings,
+  ] = await Promise.all([
+    getOrganizationSettings(),
+    getFeatureFlags(),
+    getExpenseSettings(),
+    getSessionSettings(),
+    listCostCenters(),
+    listStores(),
+    warehouseRepo.listWarehouses(),
+    listDevices(),
+    getSettings(),
+  ]);
   return {
-    org: await getOrganizationSettings(),
-    featureFlags: await getFeatureFlags(),
-    expenseSettings: await getExpenseSettings(),
-    sessionSettings: await getSessionSettings(),
-    costCenters: await listCostCenters(),
-    stores: await listStores(),
-    warehouses: await warehouseRepo.listWarehouses(),
-    devices: await listDevices(),
-    settings: await getSettings(),
+    org,
+    featureFlags,
+    expenseSettings,
+    sessionSettings,
+    costCenters,
+    stores,
+    warehouses,
+    devices,
+    settings,
   };
 }
 
 async function loadUsersBundle() {
-  const users = await listUsers();
-  const stores = await listStores();
-  const devices = await listDevices();
+  const [users, stores, devices] = await Promise.all([
+    listUsers(),
+    listStores(),
+    listDevices(),
+  ]);
+  const cashierIds = users.filter((u) => u.role === "cashier").map((u) => u.id);
+  const nonOwnerIds = users.filter((u) => u.role !== "owner").map((u) => u.id);
+  const { getDeviceIdsForUsers } = await import("@/lib/repositories/device.repository");
+  const [deviceIdsByUser, permissionsBase, grantsByUser] = await Promise.all([
+    getDeviceIdsForUsers(cashierIds),
+    (async () => {
+      try {
+        const { getPermissionsData } = await import(
+          "@/modules/accounting/actions/permission.actions"
+        );
+        return await getPermissionsData();
+      } catch {
+        return null;
+      }
+    })(),
+    permissionRepo.getUserPermissionGrantsForUsers(nonOwnerIds),
+  ]);
+
   const userDeviceIds: Record<string, string[]> = {};
-  await Promise.all(
-    users
-      .filter((u) => u.role === "cashier")
-      .map(async (u) => {
-        const { getUserDeviceIds } = await import("@/lib/repositories/device.repository");
-        userDeviceIds[u.id] = await getUserDeviceIds(u.id);
-      })
-  );
-  let permissionsData = null;
-  try {
-    const { getPermissionsData } = await import(
-      "@/modules/accounting/actions/permission.actions"
-    );
-    const base = await getPermissionsData();
-    const userGrants: Record<string, { permission_key: string; granted: boolean }[]> = {};
-    await Promise.all(
-      users
-        .filter((u) => u.role !== "owner")
-        .map(async (u) => {
-          userGrants[u.id] = await permissionRepo.getUserPermissionGrants(u.id);
-        })
-    );
-    permissionsData = { ...base, userGrants };
-  } catch {
-    permissionsData = null;
+  for (const id of cashierIds) {
+    userDeviceIds[id] = deviceIdsByUser.get(id) ?? [];
   }
+
+  let permissionsData = null;
+  if (permissionsBase) {
+    const userGrants: Record<string, { permission_key: string; granted: boolean }[]> = {};
+    for (const id of nonOwnerIds) {
+      userGrants[id] = grantsByUser.get(id) ?? [];
+    }
+    permissionsData = { ...permissionsBase, userGrants };
+  }
+
   return { users, stores, devices, userDeviceIds, permissionsData };
 }
 
@@ -511,6 +705,7 @@ export async function getUnifiedSettingsData(
   permissions: Set<PermissionKey>,
   options: {
     isOwner: boolean;
+    actorRole?: UserRole;
     tab?: string;
     auditFilters?: {
       storeId?: string;
@@ -527,9 +722,18 @@ export async function getUnifiedSettingsData(
   const visibleTabs = getVisibleSettingsTabs(permissions, options.isOwner);
   const activeTab = resolveSettingsTab(options.tab, permissions, options.isOwner);
 
-  const settingsBundle = has("settings_manage") ? await loadSettingsBundle() : null;
+  const needsSettingsBundle =
+    has("settings_manage") &&
+    (activeTab === "business" ||
+      activeTab === "branches" ||
+      activeTab === "pos" ||
+      activeTab === "expenses" ||
+      activeTab === "features");
+
+  const settingsBundle = needsSettingsBundle ? await loadSettingsBundle() : null;
 
   const sessionOnly =
+    activeTab === "pos" &&
     !has("settings_manage") &&
     has("session_settings_manage") &&
     settingsBundle === null;
@@ -539,8 +743,16 @@ export async function getUnifiedSettingsData(
   let receiptFooter = "Thank you for visiting CafeFlow!";
 
   if (sessionOnly) {
-    sessionSettings = await getSessionSettings();
-    featureFlags = await getFeatureFlags();
+    const [session, flags, settings] = await Promise.all([
+      getSessionSettings(),
+      getFeatureFlags(),
+      getSettings(),
+    ]);
+    sessionSettings = session;
+    featureFlags = flags;
+    const receipt = settings.find((s) => s.key === "receipt_footer");
+    receiptFooter =
+      (receipt?.value.text as string) ?? "Thank you for visiting CafeFlow!";
   }
 
   if (settingsBundle) {
@@ -549,47 +761,58 @@ export async function getUnifiedSettingsData(
       (receipt?.value.text as string) ?? "Thank you for visiting CafeFlow!";
   }
 
-  const usersBundle = has("user_manage") ? await loadUsersBundle() : null;
+  const usersBundle =
+    has("user_manage") && activeTab === "users"
+      ? {
+          ...(await loadUsersBundle()),
+          actorRole:
+            options.actorRole ?? (options.isOwner ? ("owner" as const) : ("manager" as const)),
+        }
+      : null;
 
-  const costCentersBundle = has("cost_center_manage")
-    ? await loadCostCentersBundle().catch(() => null)
-    : null;
+  const costCentersBundle =
+    has("cost_center_manage") && activeTab === "expenses"
+      ? await loadCostCentersBundle().catch(() => null)
+      : null;
 
-  const auditBundle = has("audit_view")
-    ? await (async () => {
-        const orgId = await getOrgId();
-        const page = Math.max(1, options.auditFilters?.page ?? 1);
-        const pageSize = 50;
-        const logs = await getAuditLogs({
-          orgId,
-          storeId: options.auditFilters?.storeId,
-          userId: options.auditFilters?.userId,
-          action: options.auditFilters?.action,
-          from: options.auditFilters?.from,
-          to: options.auditFilters?.to,
-          limit: pageSize,
-          offset: (page - 1) * pageSize,
-        });
-        const users = await listUsers();
-        const stores = await listStores();
-        return {
-          logs,
-          users,
-          stores,
-          page,
-          pageSize,
-          hasMore: logs.length === pageSize,
-          initialFilters: {
-            storeId: options.auditFilters?.storeId,
-            userId: options.auditFilters?.userId,
-            action: options.auditFilters?.action,
-            from: options.auditFilters?.from,
-            to: options.auditFilters?.to,
-            page: options.auditFilters?.page?.toString(),
-          },
-        };
-      })()
-    : null;
+  const auditBundle =
+    has("audit_view") && activeTab === "audit"
+      ? await (async () => {
+          const orgId = await getOrgId();
+          const page = Math.max(1, options.auditFilters?.page ?? 1);
+          const pageSize = 50;
+          const [logs, users, stores] = await Promise.all([
+            getAuditLogs({
+              orgId,
+              storeId: options.auditFilters?.storeId,
+              userId: options.auditFilters?.userId,
+              action: options.auditFilters?.action,
+              from: options.auditFilters?.from,
+              to: options.auditFilters?.to,
+              limit: pageSize,
+              offset: (page - 1) * pageSize,
+            }),
+            listUsers(),
+            listStores(),
+          ]);
+          return {
+            logs,
+            users,
+            stores,
+            page,
+            pageSize,
+            hasMore: logs.length === pageSize,
+            initialFilters: {
+              storeId: options.auditFilters?.storeId,
+              userId: options.auditFilters?.userId,
+              action: options.auditFilters?.action,
+              from: options.auditFilters?.from,
+              to: options.auditFilters?.to,
+              page: options.auditFilters?.page?.toString(),
+            },
+          };
+        })()
+      : null;
 
   return {
     visibleTabs,

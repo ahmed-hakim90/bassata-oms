@@ -50,6 +50,16 @@ const iconMap = {
   Warehouse,
 };
 
+const CASHIER_PRIORITY = ["/pos", "/orders", "/sessions", "/online-orders", "/settings"];
+const OWNER_PRIORITY = ["/", "/pos", "/products", "/inventory", "/settings"];
+const DEFAULT_PRIORITY = ["/", "/pos", "/products", "/inventory", "/settings"];
+
+function priorityForRole(role: UserRole): string[] {
+  if (role === "cashier") return CASHIER_PRIORITY;
+  if (role === "owner" || role === "manager") return OWNER_PRIORITY;
+  return DEFAULT_PRIORITY;
+}
+
 function isActivePath(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -70,7 +80,7 @@ export function MobileNav({
     (group) => group.items
   );
   const allowedItems = new Set<string>(allItems.map((item) => item.href));
-  const priority = ["/", "/pos", "/products", "/inventory", "/settings"];
+  const priority = priorityForRole(userRole);
   const mobileItems = priority
     .filter((href) => allowedItems.has(href))
     .map((href) => allItems.find((item) => item.href === href))
@@ -89,7 +99,7 @@ export function MobileNav({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-[var(--radius-button)] px-2 py-2 text-[10px] font-medium transition-colors",
+                  "flex min-h-10 flex-col items-center gap-1 rounded-[var(--radius-button)] px-2 py-2 text-[10px] font-medium transition-colors",
                   active
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"

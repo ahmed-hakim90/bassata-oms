@@ -1,0 +1,18 @@
+---
+description: Checklist before finishing any page UI
+globs: "**/app/**/*.tsx"
+alwaysApply: false
+---
+
+# Page Checklist
+
+- [ ] Title + primary action clear
+- [ ] Loading state
+- [ ] Empty state (no fake data)
+- [ ] Error state + recovery
+- [ ] Success feedback for mutations
+- [ ] Responsive (mobile usable)
+- [ ] RTL layout correct (widths mirrored)
+- [ ] Keyboard + focus visible
+- [ ] Permission/access handled
+- [ ] Matches existing page chrome (header, spacing, components)

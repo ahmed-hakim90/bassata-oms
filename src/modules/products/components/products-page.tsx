@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { FileSpreadsheet, Plus, Search, Tags } from "lucide-react";
-import type { Product } from "@/lib/types";
+import type { Product, ProductVariant } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GlassPanel } from "@/components/SweetFlow/glass-panel";
@@ -46,6 +46,7 @@ export function ProductsPage({
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [editingVariants, setEditingVariants] = useState<ProductVariant[]>([]);
   const [editingIngredient, setEditingIngredient] = useState<Product | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -96,6 +97,7 @@ export function ProductsPage({
 
   function openCreate() {
     setEditing(null);
+    setEditingVariants([]);
     setCafeDialogOpen(true);
   }
 
@@ -104,13 +106,14 @@ export function ProductsPage({
     setIngredientDialogOpen(true);
   }
 
-  function openEdit(product: Product) {
-    setEditing(product);
+  function openEdit(item: ProductGridItem) {
+    setEditing(item.product);
+    setEditingVariants(item.variants ?? []);
     setCafeDialogOpen(true);
   }
 
-  function openEditIngredient(product: Product) {
-    setEditingIngredient(product);
+  function openEditIngredient(item: ProductGridItem) {
+    setEditingIngredient(item.product);
     setIngredientDialogOpen(true);
   }
 
@@ -267,6 +270,7 @@ export function ProductsPage({
         categories={categoryList}
         ingredients={ingredients}
         product={editing}
+        initialVariants={editingVariants}
         recipesEnabled={recipesEnabled}
         currency={currency}
         existingSkus={existingSkus}

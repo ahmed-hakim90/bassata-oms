@@ -1,0 +1,17 @@
+---
+description: Release / go-live gate checklist
+alwaysApply: false
+---
+
+# Release Checklist
+
+- [ ] Critical user flows smoke-tested
+- [ ] Migrations applied on target environment
+- [ ] Types regenerated if schema changed
+- [ ] Env vars present (no secrets in client)
+- [ ] RLS/policies verified for touched tables
+- [ ] Role redirects correct (cashier vs admin)
+- [ ] Public routes stay public (menu/QR)
+- [ ] No demo/fake KPIs on production pages
+- [ ] Error monitoring / logs checked if configured
+- [ ] Rollback path known for risky changes

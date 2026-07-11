@@ -1,0 +1,32 @@
+---
+description: Auth and login flow patterns
+globs: "**/auth/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Login / Auth Pattern
+
+## Layers
+
+1. Edge/session refresh (proxy/middleware) for cookies
+2. Provider auth (usually Supabase email/password)
+3. App user mapping (role, org, stores)
+4. Server guards on every sensitive action
+5. Role-based post-login redirect
+
+## UI
+
+- Native form + `useActionState` or equivalent server action pattern
+- Inline error text (not only toasts)
+- Show/hide password, accessible labels
+- Forgot/reset password routes when product needs them
+
+## Redirects (ops products)
+
+- Cashier / field role → operational surface (POS, tickets)
+- Admin / manager → dashboard
+- Unauthenticated → login; preserve safe return path when appropriate
+
+## Never
+
+Client-only “auth checks” as the sole protection. Always re-enforce on the server.

@@ -27,6 +27,7 @@ export default async function SettingsRoute({
 
   const data = await getUnifiedSettingsData(permissions, {
     isOwner,
+    actorRole: user.role,
     tab: params.tab,
     auditFilters: {
       storeId: params.storeId,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ export function CustomerAccountPanel({
   canCollect,
   currency = "SAR",
 }: CustomerAccountPanelProps) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
@@ -49,7 +51,11 @@ export function CustomerAccountPanel({
   const collect = () => {
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) {
-      toast.error("Enter a valid amount");
+      toast.error("اكتب مبلغ صحيح");
+      return;
+    }
+    if (value > accountBalance + 0.001) {
+      toast.error("المبلغ أكبر من المستحق");
       return;
     }
     startTransition(async () => {
@@ -62,44 +68,54 @@ export function CustomerAccountPanel({
         });
         setAmount("");
         setReference("");
-        toast.success("Payment recorded");
+        toast.success("تم تسجيل التحصيل");
+        router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not record payment");
+        toast.error(e instanceof Error ? e.message : "تعذر تسجيل التحصيل");
       }
     });
   };
 
+  const collectValue = Number(amount);
+  const amountTooHigh =
+    Number.isFinite(collectValue) && collectValue > accountBalance + 0.001;
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
-        <OperationalCard title="Balance owed">
+        <OperationalCard title="المستحق">
           <p className="text-2xl font-semibold tabular-nums">{formatCurrency(accountBalance)}</p>
         </OperationalCard>
-        <OperationalCard title="Credit limit">
+        <OperationalCard title="حد الائتمان">
           <p className="text-2xl font-semibold tabular-nums">
-            {creditLimit > 0 ? formatCurrency(creditLimit) : "No limit"}
+            {creditLimit > 0 ? formatCurrency(creditLimit) : "بدون حد"}
           </p>
         </OperationalCard>
-        <OperationalCard title="Payment terms">
+        <OperationalCard title="شروط الدفع">
           <p className="text-sm text-muted-foreground">{paymentTerms || "—"}</p>
         </OperationalCard>
       </div>
 
       {canCollect && accountBalance > 0 ? (
-        <OperationalCard title="Receive payment">
+        <OperationalCard title="تحصيل دفعة">
           <div className="grid max-w-md gap-3">
             <div className="space-y-2">
-              <Label>Amount</Label>
+              <Label htmlFor="customer-collect-amount">المبلغ</Label>
               <Input
+                id="customer-collect-amount"
                 type="number"
                 min="0"
+                max={accountBalance}
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
+              {amountTooHigh ? (
+                <p className="text-xs text-destructive">المبلغ أكبر من المستحق</p>
+              ) : null}
             </div>
             <div className="space-y-2">
-              <Label>Method</Label>
+              <Label>الطريقة</Label>
               <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -107,18 +123,24 @@ export function CustomerAccountPanel({
                 <SelectContent>
                   {PAYMENT_METHODS.filter((m) => m !== "credit").map((m) => (
                     <SelectItem key={m} value={m} label={m}>
-                      {m}
+                      {m === "cash"
+                        ? "كاش"
+                        : m === "card"
+                          ? "كارت"
+                          : m === "wallet"
+                            ? "محفظة"
+                            : "أخرى"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Reference</Label>
+              <Label>مرجع</Label>
               <Input value={reference} onChange={(e) => setReference(e.target.value)} />
             </div>
-            <Button onClick={collect} disabled={pending}>
-              {pending ? "Saving…" : "Record payment"}
+            <Button onClick={collect} disabled={pending || amountTooHigh}>
+              {pending ? "جاري الحفظ…" : "تسجيل التحصيل"}
             </Button>
           </div>
         </OperationalCard>
@@ -126,7 +148,7 @@ export function CustomerAccountPanel({
 
       {statement ? (
         <OperationalCard
-          title="Account statement"
+          title="كشف الحساب"
           action={
             <ExportButtonGroup
               printHref={`/print/statements/customers/${customerId}`}
@@ -135,9 +157,9 @@ export function CustomerAccountPanel({
                   try {
                     const result = await exportCustomerStatementExcel(customerId);
                     downloadBase64Excel(result.base64, result.filename);
-                    toast.success("Excel exported");
+                    toast.success("تم تصدير Excel");
                   } catch {
-                    toast.error("Export failed");
+                    toast.error("فشل التصدير");
                   }
                 });
               }}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import type { Customer } from "@/lib/types";
 import { createCustomerAction } from "@/modules/customers/actions/customer.actions";
@@ -63,22 +64,31 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
       />
 
       <div className="relative mb-6 max-w-md">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="ابحث بالاسم أو الهاتف..."
-          className="pl-10"
+          className="ps-10"
         />
       </div>
 
       {filtered.length === 0 ? (
-        <OperationalCard title="لا توجد عملاء">
-          <div className="flex flex-col items-center py-12">
-            <Users className="mb-4 size-12 text-muted-foreground" />
-            <Button onClick={() => setShowCreate(true)}>إضافة عميل</Button>
-          </div>
-        </OperationalCard>
+        <div className="space-y-4">
+          <EmptyStateBlock
+            title={search.trim() ? "لا نتائج" : "لا يوجد عملاء"}
+            description={
+              search.trim()
+                ? "جرّب اسمًا أو رقم هاتف مختلف."
+                : "أضف عميلًا للبدء في الولاء والبيع الآجل."
+            }
+          />
+          {!search.trim() ? (
+            <div className="flex justify-center">
+              <Button onClick={() => setShowCreate(true)}>إضافة عميل</Button>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c) => (

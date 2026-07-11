@@ -1,0 +1,23 @@
+---
+description: Dashboard composition pattern
+globs: "**/*dashboard*/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Dashboard Pattern
+
+## Composition (server-first)
+
+Page header → optional hero/summary → KPI grid → primary widgets/feeds → secondary panels.
+
+## Rules
+
+- Scope KPIs to active org/store/workspace
+- Load data on the server when using Next App Router
+- Every widget owns loading/empty/error — no blank boxes
+- Quick actions link to real workflows, not placeholders
+- No fake metrics. If data is missing, show empty state.
+
+## Density
+
+Ops dashboards prioritize scannability and action. Avoid marketing-style hero clutter.
