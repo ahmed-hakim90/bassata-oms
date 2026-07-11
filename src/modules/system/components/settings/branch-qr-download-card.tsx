@@ -118,15 +118,17 @@ export function BranchQrDownloadCard({
   phone,
   onlineMenuHref,
 }: BranchQrDownloadCardProps) {
-  const [origin] = useState(() =>
-    typeof window === "undefined" ? "" : window.location.origin
-  );
+  const [origin, setOrigin] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
 
   const menuUrl = useMemo(() => {
     if (!origin) return onlineMenuHref;
     return new URL(onlineMenuHref, origin).toString();
   }, [onlineMenuHref, origin]);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
