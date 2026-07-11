@@ -46,7 +46,7 @@ export function OperationalCard(props: OperationalCardProps) {
     return (
       <Card
         className={cn(
-          "overflow-hidden rounded-3xl border-0 bg-card/80 shadow-md shadow-black/[0.04] ring-1 ring-foreground/5 backdrop-blur-sm",
+          "overflow-hidden rounded-[var(--mds-radius-lg)] border-border bg-card shadow-[var(--mds-elevation-1)]",
           className
         )}
       >
@@ -54,7 +54,7 @@ export function OperationalCard(props: OperationalCardProps) {
         {(title || action) && (
           <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
             <div>
-              {title ? <CardTitle className="text-lg font-semibold">{title}</CardTitle> : null}
+              {title ? <CardTitle className="text-base font-semibold">{title}</CardTitle> : null}
               {description ? (
                 <p className="mt-1 text-sm text-muted-foreground">{description}</p>
               ) : null}
@@ -73,7 +73,7 @@ export function OperationalCard(props: OperationalCardProps) {
     subtitle,
     icon,
     href,
-    accent = "#2563EB",
+    accent = "var(--mds-color-action-primary)",
     className,
     footer,
   } = props;
@@ -81,31 +81,34 @@ export function OperationalCard(props: OperationalCardProps) {
   const content = (
     <GlassPanel
       className={cn(
-        "flex flex-col gap-3 p-5 transition hover:shadow-md",
-        href && "cursor-pointer hover:border-primary/30",
+        "flex flex-col overflow-hidden p-0 transition-shadow hover:shadow-[var(--mds-elevation-2)]",
+        href && "cursor-pointer hover:border-primary/40",
         className
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {title}
-          </p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-          {subtitle ? (
-            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+      <div className="h-1 w-full" style={{ backgroundColor: accent }} aria-hidden />
+      <div className="flex flex-col gap-3 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {title}
+            </p>
+            <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
+            {subtitle ? (
+              <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+            ) : null}
+          </div>
+          {icon ? (
+            <div
+              className="flex size-10 shrink-0 items-center justify-center rounded-[var(--mds-radius-md)] text-primary-foreground"
+              style={{ backgroundColor: accent }}
+            >
+              {icon}
+            </div>
           ) : null}
         </div>
-        {icon ? (
-          <div
-            className="flex size-11 shrink-0 items-center justify-center rounded-2xl text-white"
-            style={{ backgroundColor: accent }}
-          >
-            {icon}
-          </div>
-        ) : null}
+        {footer}
       </div>
-      {footer}
     </GlassPanel>
   );
 
@@ -113,7 +116,7 @@ export function OperationalCard(props: OperationalCardProps) {
     return (
       <Link
         href={href}
-        className="block rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="block rounded-[var(--mds-radius-lg)] outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {content}
       </Link>

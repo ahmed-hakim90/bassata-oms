@@ -1,3 +1,4 @@
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import type { TopProduct } from "@/modules/dashboard/services/dashboard.service";
 
@@ -10,10 +11,13 @@ export function TopProductsRanking({ products, currency }: TopProductsRankingPro
   const max = products[0]?.revenue ?? 1;
 
   return (
-    <div className="rounded-2xl bg-card p-5 text-card-foreground ring-1 ring-border">
-      <h3 className="mb-4 font-heading text-sm font-semibold">Top products</h3>
+    <div className="rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-5)] text-card-foreground shadow-[var(--mds-elevation-1)]">
+      <h3 className="mb-[var(--mds-space-4)] font-heading text-sm font-semibold">أفضل المنتجات</h3>
       {products.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No sales data yet</p>
+        <EmptyStateBlock
+          title="مفيش بيانات مبيعات لسة"
+          className="p-[var(--mds-space-4)]"
+        />
       ) : (
         <ul className="space-y-3">
           {products.map((p, i) => (

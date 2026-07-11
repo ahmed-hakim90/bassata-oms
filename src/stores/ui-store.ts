@@ -12,6 +12,7 @@ interface UiState {
   language: LanguagePreference;
   activeStoreId: string | null;
   collapsedGroups: Record<string, boolean>;
+  commandPaletteOpen: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   setTheme: (theme: ThemePreference) => void;
@@ -19,6 +20,8 @@ interface UiState {
   setActiveStoreId: (storeId: string | null) => void;
   toggleGroup: (groupLabel: string) => void;
   setGroupCollapsed: (groupLabel: string, collapsed: boolean) => void;
+  setCommandPaletteOpen: (open: boolean) => void;
+  toggleCommandPalette: () => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -29,6 +32,7 @@ export const useUiStore = create<UiState>()(
       language: "ar",
       activeStoreId: null,
       collapsedGroups: {},
+      commandPaletteOpen: false,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -49,6 +53,9 @@ export const useUiStore = create<UiState>()(
             [groupLabel]: collapsed,
           },
         })),
+      setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+      toggleCommandPalette: () =>
+        set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
     }),
     {
       name: "SweetFlow-ui",

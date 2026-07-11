@@ -75,7 +75,7 @@ export function RecipeEditor({
           setLines([{ ingredient_product_id: "", quantity: 1, unit: "piece" }]);
         }
       } catch {
-        if (!cancelled) toast.error("Could not load recipe");
+        if (!cancelled) toast.error("تعذر تحميل الوصفة");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -129,35 +129,35 @@ export function RecipeEditor({
       (l) => l.ingredient_product_id && l.quantity > 0
     );
     if (valid.length === 0) {
-      toast.error("Add at least one ingredient");
+      toast.error("أضف مكوّن واحد على الأقل");
       return;
     }
     setSaving(true);
     try {
       await saveRecipeAction(product.id, valid, variantId ?? null);
-      toast.success("Recipe saved");
+      toast.success("تم حفظ الوصفة");
       onSaved?.();
     } catch {
-      toast.error("Could not save recipe");
+      toast.error("تعذر حفظ الوصفة");
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading recipe…</p>;
+    return <p className="text-sm text-muted-foreground">جاري تحميل الوصفة…</p>;
   }
 
   return (
     <div className="grid gap-4">
       {variantLabel ? (
-        <p className="text-sm text-muted-foreground">Recipe for {variantLabel}</p>
+        <p className="text-sm text-muted-foreground">وصفة {variantLabel}</p>
       ) : null}
       <div className="space-y-3">
         {lines.map((line, index) => (
           <div key={index} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_100px_120px_auto]">
             <div className="grid gap-1">
-              <Label className="text-xs">Ingredient</Label>
+              <Label className="text-xs">المكوّن</Label>
               <Select
                 value={line.ingredient_product_id}
                 onValueChange={(v) =>
@@ -165,7 +165,7 @@ export function RecipeEditor({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select ingredient">
+                  <SelectValue placeholder="اختار مكوّن">
                     {(value) => selectLabelById(ingredients, value, (ing) => ing.name)}
                   </SelectValue>
                 </SelectTrigger>
@@ -179,7 +179,7 @@ export function RecipeEditor({
               </Select>
             </div>
             <div className="grid gap-1">
-              <Label className="text-xs">Qty</Label>
+              <Label className="text-xs">الكمية</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -191,7 +191,7 @@ export function RecipeEditor({
               />
             </div>
             <div className="grid gap-1">
-              <Label className="text-xs">Unit</Label>
+              <Label className="text-xs">الوحدة</Label>
               <Select
                 value={line.unit}
                 onValueChange={(v) =>
@@ -231,32 +231,32 @@ export function RecipeEditor({
 
       <Button type="button" variant="outline" size="sm" onClick={addLine}>
         <Plus className="size-4" />
-        Add ingredient
+        إضافة مكوّن
       </Button>
 
       <div className="rounded-lg bg-muted/50 p-4 text-sm">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div>
-            <p className="text-muted-foreground">Recipe cost</p>
+            <p className="text-muted-foreground">تكلفة الوصفة</p>
             <p className="font-semibold">{formatCurrency(recipeCost, currency)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Sale price</p>
+            <p className="text-muted-foreground">سعر البيع</p>
             <p className="font-semibold">{formatCurrency(price, currency)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Profit</p>
+            <p className="text-muted-foreground">الربح</p>
             <p className="font-semibold">{formatCurrency(profit, currency)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Margin</p>
+            <p className="text-muted-foreground">الهامش</p>
             <p className="font-semibold">{margin.toFixed(1)}%</p>
           </div>
         </div>
       </div>
 
       <Button type="button" onClick={handleSave} disabled={saving}>
-        {saving ? "Saving…" : "Save recipe"}
+        {saving ? "جاري الحفظ…" : "حفظ الوصفة"}
       </Button>
     </div>
   );

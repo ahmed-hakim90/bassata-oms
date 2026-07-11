@@ -112,38 +112,43 @@ export function PaymentPanel({
     }
   }, [enabledMethods, methods, paymentMethod, setPaymentMethod]);
 
-  // Reset split UI whenever the panel is reopened.
-  useEffect(() => {
-    if (!open) return;
-    setSplitMode(false);
-    setSplits([]);
-  }, [open]);
+  // Reset split UI whenever the panel is reopened (adjust state during render).
+  const [splitResetForOpen, setSplitResetForOpen] = useState(open);
+  if (open !== splitResetForOpen) {
+    setSplitResetForOpen(open);
+    if (open) {
+      setSplitMode(false);
+      setSplits([]);
+    }
+  }
 
   function roundMoney(value: number) {
     return Math.round(value * 100) / 100;
   }
 
   // Keep the first split line in sync when the payable total changes (discount/loyalty).
-  useEffect(() => {
-    if (!open || !splitMode) return;
-    setSplits((current) => {
-      if (current.length !== 1) return current;
-      const next = Math.round(total * 100) / 100;
-      const first = current[0]!;
-      if (Math.abs(first.amount - next) < 0.005) return current;
-      return [{ method: first.method, amount: next }];
-    });
-  }, [open, splitMode, total]);
+  const syncedSplits =
+    open && splitMode && splits.length === 1
+      ? (() => {
+          const next = roundMoney(total);
+          const first = splits[0]!;
+          if (Math.abs(first.amount - next) < 0.005) return splits;
+          return [{ method: first.method, amount: next }] as typeof splits;
+        })()
+      : splits;
+  if (syncedSplits !== splits) {
+    setSplits(syncedSplits);
+  }
 
-  const splitTotal = roundMoney(splits.reduce((sum, payment) => sum + payment.amount, 0));
+  const splitTotal = roundMoney(syncedSplits.reduce((sum, payment) => sum + payment.amount, 0));
   const remaining = roundMoney(Math.max(0, total - splitTotal));
   const overpaid = roundMoney(Math.max(0, splitTotal - total));
   const creditSelected = splitMode
-    ? splits.some((payment) => payment.method === "credit")
+    ? syncedSplits.some((payment) => payment.method === "credit")
     : paymentMethod === "credit";
   const creditAmount = splitMode
     ? roundMoney(
-        splits
+        syncedSplits
           .filter((payment) => payment.method === "credit")
           .reduce((sum, payment) => sum + payment.amount, 0)
       )
@@ -153,7 +158,7 @@ export function PaymentPanel({
   const hasCustomerForCredit = Boolean(customer) || creditCustomerLinked;
   const creditNeedsCustomer = creditSelected && !hasCustomerForCredit;
   const creditEnabled = methods.some((method) => method.id === "credit");
-  const hasCreditSplit = splits.some((payment) => payment.method === "credit");
+  const hasCreditSplit = syncedSplits.some((payment) => payment.method === "credit");
   const canComplete =
     !disabled &&
     !loading &&
@@ -161,7 +166,7 @@ export function PaymentPanel({
     total > 0 &&
     (useFixedTotal || cart.length > 0) &&
     methods.length > 0 &&
-    (!splitMode || (Math.abs(splitTotal - total) < 0.01 && splits.length >= 1));
+    (!splitMode || (Math.abs(splitTotal - total) < 0.01 && syncedSplits.length >= 1));
 
   function addSplit(method: PaymentMethod = methods.find((m) => m.id !== "credit")?.id ?? "cash") {
     if (method === "credit") {
@@ -213,7 +218,7 @@ export function PaymentPanel({
 
   function complete() {
     const payments = normalizePayments(
-      splitMode ? splits : [{ method: paymentMethod, amount: total }]
+      splitMode ? syncedSplits : [{ method: paymentMethod, amount: total }]
     );
     if (payments.length === 0) return;
     if (!useFixedTotal) {
@@ -225,31 +230,31 @@ export function PaymentPanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-md rounded-3xl bg-card p-6 text-card-foreground shadow-2xl">
-        <div className="mb-6 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-[2px] sm:items-center">
+      <div className="w-full max-w-md rounded-2xl bg-card p-5 text-card-foreground shadow-2xl ring-1 ring-border/60 sm:p-6">
+        <div className="mb-5 flex items-center justify-between">
           <h2 className="font-heading text-xl font-semibold">{t("Payment")}</h2>
           <Button variant="ghost" size="icon" className="size-11 rounded-xl" aria-label="إغلاق" onClick={onClose}>
             <X className="size-5" aria-hidden />
           </Button>
         </div>
 
-        <p className="mb-2 text-center text-4xl font-bold tabular-nums tracking-tight">
-          {formatCurrency(total)}
-        </p>
-        {discountAmount > 0 || redemptionAmount > 0 ? (
-          <p className="mb-4 text-center text-sm text-muted-foreground">
-            {formatCurrency(subtotal)} {t("subtotal")}
-            {discountAmount > 0
-              ? ` · ${formatCurrency(discountAmount)} ${t("discount")}`
-              : ""}
-            {redemptionAmount > 0
-              ? ` · ${formatCurrency(redemptionAmount)} ${t("points")}`
-              : ""}
+        <div className="mb-4 rounded-xl border border-border/50 bg-muted/30 py-3 text-center">
+          <p className="text-4xl font-bold tabular-nums tracking-tight">
+            {formatCurrency(total)}
           </p>
-        ) : (
-          <div className="mb-4" />
-        )}
+          {discountAmount > 0 || redemptionAmount > 0 ? (
+            <p className="mt-1.5 text-center text-xs text-muted-foreground">
+              {formatCurrency(subtotal)} {t("subtotal")}
+              {discountAmount > 0
+                ? ` · -${formatCurrency(discountAmount)} ${t("discount")}`
+                : ""}
+              {redemptionAmount > 0
+                ? ` · -${formatCurrency(redemptionAmount)} ${t("points")}`
+                : ""}
+            </p>
+          ) : null}
+        </div>
 
         {customerName ? (
           <p className="mb-4 text-center text-sm text-muted-foreground">
@@ -330,7 +335,7 @@ export function PaymentPanel({
           </div>
         ) : null}
 
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-2.5 flex items-center justify-between gap-3">
           <p className="text-sm font-medium text-muted-foreground">{t("Method")}</p>
           <Button
             type="button"
@@ -359,53 +364,44 @@ export function PaymentPanel({
           </p>
         ) : null}
         {!splitMode ? (
-        <div className="mb-6 grid grid-cols-2 gap-3">
+        <div className="mb-5 grid grid-cols-2 gap-3">
           {methods.map(({ id, label, icon: Icon }) => {
             const selected = paymentMethod === id;
             const tone =
               id === "cash"
-                ? selected
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200"
-                  : "border-emerald-200 bg-emerald-50/70 text-emerald-800 hover:border-emerald-400 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+                ? "border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700"
                 : id === "card"
-                  ? selected
-                    ? "border-sky-500 bg-sky-50 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200"
-                    : "border-sky-200 bg-sky-50/70 text-sky-800 hover:border-sky-400 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200"
+                  ? "border-sky-300 bg-sky-600 text-white hover:bg-sky-700"
                   : id === "wallet"
-                    ? selected
-                      ? "border-violet-500 bg-violet-50 text-violet-800 dark:bg-violet-500/15 dark:text-violet-200"
-                      : "border-violet-200 bg-violet-50/70 text-violet-800 hover:border-violet-400 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200"
+                    ? "border-violet-300 bg-violet-600 text-white hover:bg-violet-700"
                     : id === "credit"
-                      ? selected
-                        ? "border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200"
-                        : "border-amber-200 bg-amber-50/70 text-amber-900 hover:border-amber-400 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
-                      : selected
-                        ? "border-slate-500 bg-slate-50 text-slate-800 dark:bg-slate-500/15 dark:text-slate-200"
-                        : "border-slate-200 bg-slate-50/70 text-slate-800 hover:border-slate-400 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-200";
+                      ? "border-amber-300 bg-amber-500 text-amber-950 hover:bg-amber-400"
+                      : "border-slate-300 bg-slate-700 text-white hover:bg-slate-800";
             return (
               <button
                 key={id}
                 type="button"
                 onClick={() => setPaymentMethod(id)}
                 className={cn(
-                  "flex min-h-[7.5rem] flex-col items-center justify-center gap-2 rounded-2xl border-2 py-6 transition active:scale-[0.98] sm:min-h-32",
-                  tone
+                  "flex min-h-[6.5rem] flex-col items-center justify-center gap-2 rounded-2xl border-2 py-5 font-semibold transition active:scale-[0.98] sm:min-h-28",
+                  tone,
+                  selected && "ring-2 ring-offset-2 ring-foreground/30"
                 )}
               >
                 <Icon className="size-8" />
-                <span className="font-semibold">{t(label)}</span>
+                <span>{t(label)}</span>
               </button>
             );
           })}
         </div>
         ) : (
-          <div className="mb-6 grid gap-3">
-            {splits.map((payment, index) => (
+          <div className="mb-5 grid gap-2.5">
+            {syncedSplits.map((payment, index) => (
               <div key={index} className="grid grid-cols-[1fr_120px_auto] gap-2">
                 <select
                   value={payment.method}
                   onChange={(e) => updateSplit(index, { method: e.target.value as PaymentMethod })}
-                  className="h-11 rounded-xl border border-input bg-transparent px-3 text-sm"
+                  className="h-11 rounded-xl border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 >
                   {methods.map((method) => (
                       <option key={method.id} value={method.id}>
@@ -474,7 +470,7 @@ export function PaymentPanel({
         )}
 
         <Button
-          className="h-14 w-full rounded-xl text-base font-semibold"
+          className="h-14 w-full rounded-2xl text-base font-semibold"
           disabled={!canComplete}
           onClick={complete}
         >

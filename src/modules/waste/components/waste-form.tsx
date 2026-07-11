@@ -39,28 +39,28 @@ export function WasteForm({ products, warehouses, onComplete }: WasteFormProps) 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!productId || !warehouseId) {
-      toast.error("Select a product and warehouse");
+      toast.error("اختار منتج ومخزن");
       return;
     }
     startTransition(async () => {
       try {
         await recordWasteAction({ productId, warehouseId, quantity, reasonCode, notes });
-        toast.success("Waste recorded");
+        toast.success("تم تسجيل الهالك");
         onComplete();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "تعذر التسجيل");
       }
     });
   };
 
   return (
-    <OperationalCard title="Record Waste" description="Shrinkage and spoilage">
+    <OperationalCard title="تسجيل هالك" description="تالف وانسكاب وانتهاء صلاحية">
       <form onSubmit={submit} className="grid max-w-lg gap-4">
         <div className="space-y-2">
-          <Label>Warehouse</Label>
+          <Label>المخزن</Label>
           <Select value={warehouseId} onValueChange={(v) => setWarehouseId(v ?? "")}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select warehouse">
+              <SelectValue placeholder="اختار المخزن">
                 {(value) => selectLabelById(warehouses, value, (w) => w.name)}
               </SelectValue>
             </SelectTrigger>
@@ -74,10 +74,10 @@ export function WasteForm({ products, warehouses, onComplete }: WasteFormProps) 
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Product</Label>
+          <Label>المنتج</Label>
           <Select value={productId} onValueChange={(v) => setProductId(v ?? "")}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select product">
+              <SelectValue placeholder="اختار المنتج">
                 {(value) => selectLabelById(products, value, (p) => p.name)}
               </SelectValue>
             </SelectTrigger>
@@ -91,7 +91,7 @@ export function WasteForm({ products, warehouses, onComplete }: WasteFormProps) 
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Quantity</Label>
+          <Label>الكمية</Label>
           <Input
             type="number"
             min={1}
@@ -100,7 +100,7 @@ export function WasteForm({ products, warehouses, onComplete }: WasteFormProps) 
           />
         </div>
         <div className="space-y-2">
-          <Label>Reason</Label>
+          <Label>السبب</Label>
           <Select
             value={reasonCode}
             onValueChange={(v) => {
@@ -129,15 +129,15 @@ export function WasteForm({ products, warehouses, onComplete }: WasteFormProps) 
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Notes</Label>
+          <Label>ملاحظات</Label>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Optional details..."
+            placeholder="تفاصيل اختيارية…"
           />
         </div>
         <Button type="submit" disabled={pending} variant="destructive">
-          <Trash2 className="size-4" /> Record Waste
+          <Trash2 className="size-4" /> تسجيل الهالك
         </Button>
       </form>
     </OperationalCard>

@@ -257,7 +257,10 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
 
   return (
     <div id="online-menu-items" className="pb-28">
-      <section className="sticky top-2 z-20 mb-5 rounded-3xl border border-border/70 bg-card/95 p-3 shadow-lg shadow-black/[0.04] backdrop-blur">
+      <section
+        className="sticky top-2 z-20 mb-5 rounded-3xl border border-border/50 bg-card/98 p-3 backdrop-blur"
+        style={{ boxShadow: "var(--mds-elevation-2)" }}
+      >
         <div className="relative">
           <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -274,7 +277,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
             <div className="flex w-max gap-2">
               <Button
                 nativeButton={false}
-                variant="secondary"
+                variant="default"
                 size="sm"
                 className="h-9 shrink-0 rounded-full px-4"
                 render={<a href="#online-menu-items" />}
@@ -287,10 +290,10 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                   nativeButton={false}
                   variant="outline"
                   size="sm"
-                  className="h-10 shrink-0 rounded-full border bg-background/80 px-3"
+                  className="h-10 shrink-0 rounded-full border bg-card/90 px-3"
                   style={{
-                    borderColor: `${group.color}66`,
-                    background: `linear-gradient(135deg, ${group.color}22, transparent)`,
+                    borderColor: `${group.color}40`,
+                    background: `linear-gradient(135deg, ${group.color}18, transparent)`,
                   }}
                   render={<a href={`#menu-category-${group.id}`} />}
                 >
@@ -326,10 +329,11 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
           visibleGroups.map((group) => (
             <section id={`menu-category-${group.id}`} key={group.id} className="scroll-mt-28 space-y-3">
               <div
-                className="flex items-center justify-between gap-3 rounded-3xl border border-border/70 bg-card/80 p-3 shadow-sm"
+                className="flex items-center justify-between gap-3 rounded-3xl border border-border/40 bg-card/80 p-3"
                 style={{
-                  borderColor: `${group.color}44`,
-                  background: `linear-gradient(135deg, ${group.color}24, hsl(var(--card) / 0.85))`,
+                  borderColor: `${group.color}30`,
+                  background: `linear-gradient(135deg, ${group.color}1a, hsl(var(--card) / 0.9))`,
+                  boxShadow: "var(--mds-elevation-1)",
                 }}
               >
                 <div className="flex min-w-0 items-center gap-3">
@@ -353,7 +357,8 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                   return (
                     <article
                       key={item.id}
-                      className="group flex flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                      className="group flex flex-col overflow-hidden rounded-3xl border border-border/40 bg-card transition hover:-translate-y-0.5"
+                      style={{ boxShadow: "var(--mds-elevation-1)" }}
                     >
                       <div className="relative flex aspect-[4/3] w-full shrink-0 items-center justify-center overflow-hidden bg-primary/10">
                         {item.imageUrl ? (
@@ -417,7 +422,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                                   key={variant.id}
                                   type="button"
                                   variant="outline"
-                                  className="h-auto flex-col items-stretch gap-2 rounded-2xl border-border/70 bg-background/70 px-2 py-2 text-start hover:border-primary/40 hover:bg-primary/5 data-[added=true]:border-primary/50 data-[added=true]:bg-primary/10 sm:flex-row sm:items-center sm:justify-between sm:px-3 sm:py-2.5"
+                                  className="h-auto flex-col items-stretch gap-2 rounded-2xl border-border/40 bg-background/60 px-2 py-2 text-start hover:border-primary/40 hover:bg-primary/5 data-[added=true]:border-primary/50 data-[added=true]:bg-primary/10 sm:flex-row sm:items-center sm:justify-between sm:px-3 sm:py-2.5"
                                   data-added={wasJustAdded}
                                   disabled={!menu.store.orderingEnabled}
                                   onClick={() => addToCart(item, variant)}
@@ -477,7 +482,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
 
       <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
         <DialogContent className="bottom-0 top-auto left-1/2 flex max-h-[90vh] max-w-none translate-y-0 flex-col overflow-hidden rounded-b-none rounded-t-3xl p-0 sm:max-w-xl">
-          <DialogHeader className="border-b border-border/70 px-5 pb-4 pt-3">
+          <DialogHeader className="border-b border-border/40 px-5 pb-4 pt-3">
             <div className="mx-auto mb-2 h-1 w-12 rounded-full bg-muted-foreground/25" />
             <DialogTitle className="flex items-center justify-between gap-3 pe-8">
               <span className="flex items-center gap-2">
@@ -511,7 +516,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
             ) : (
               <ul className="space-y-2">
                 {cart.map((line) => (
-                  <li key={line.id} className="rounded-3xl border border-border/60 bg-muted/35 p-3">
+                  <li key={line.id} className="rounded-3xl border border-border/40 bg-muted/25 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="line-clamp-2 text-sm font-semibold leading-snug">{line.name}</p>
@@ -533,7 +538,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
                       </Button>
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center rounded-2xl border border-border/70 bg-background p-1">
+                      <div className="flex items-center rounded-2xl border border-border/40 bg-background p-1">
                         <Button
                           type="button"
                           variant="ghost"
@@ -564,7 +569,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
             )}
           </div>
 
-          <div className="space-y-3 border-t border-border/70 bg-card p-4">
+          <div className="space-y-3 border-t border-border/40 bg-card p-4">
             <div className="rounded-3xl bg-primary/10 px-4 py-3">
               <div className="flex items-center justify-between text-sm text-primary/80">
                 <span>الإجمالي</span>
@@ -744,8 +749,11 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
         </DialogContent>
       </Dialog>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 px-4 py-3 shadow-2xl backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 rounded-3xl border border-border/70 bg-card/95 p-2 shadow-sm">
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border/40 bg-background/97 px-4 py-3 backdrop-blur"
+        style={{ boxShadow: "var(--mds-elevation-3)" }}
+      >
+        <div className="mx-auto flex max-w-5xl items-center gap-3 rounded-3xl border border-border/40 bg-card p-2" style={{ boxShadow: "var(--mds-elevation-1)" }}>
           <div
             className={`flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary transition ${
               recentlyAddedLineId ? "scale-110 bg-primary text-primary-foreground" : ""

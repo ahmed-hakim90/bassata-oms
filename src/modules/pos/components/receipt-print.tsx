@@ -77,7 +77,7 @@ export function ReceiptPrint({ receipt }: ReceiptPrintProps) {
           <div className="mt-2 space-y-1 text-xs">
             {payments.map((payment, index) => (
               <div key={`${payment.method}-${index}`} className="flex justify-between">
-                <span>{payment.method}</span>
+                <span>{t(payment.method)}</span>
                 <span>{formatCurrency(payment.amount, branding.currency)}</span>
               </div>
             ))}

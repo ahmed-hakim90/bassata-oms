@@ -81,10 +81,12 @@ export function CustomerAccountPanel({
     Number.isFinite(collectValue) && collectValue > accountBalance + 0.001;
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">
         <OperationalCard title="المستحق">
-          <p className="text-2xl font-semibold tabular-nums">{formatCurrency(accountBalance)}</p>
+          <p className="text-2xl font-semibold tabular-nums">
+            {formatCurrency(accountBalance)}
+          </p>
         </OperationalCard>
         <OperationalCard title="حد الائتمان">
           <p className="text-2xl font-semibold tabular-nums">
@@ -98,8 +100,8 @@ export function CustomerAccountPanel({
 
       {canCollect && accountBalance > 0 ? (
         <OperationalCard title="تحصيل دفعة">
-          <div className="grid max-w-md gap-3">
-            <div className="space-y-2">
+          <div className="grid max-w-md gap-[var(--mds-space-3)]">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label htmlFor="customer-collect-amount">المبلغ</Label>
               <Input
                 id="customer-collect-amount"
@@ -109,15 +111,16 @@ export function CustomerAccountPanel({
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                className="rounded-[var(--mds-radius-md)]"
               />
               {amountTooHigh ? (
                 <p className="text-xs text-destructive">المبلغ أكبر من المستحق</p>
               ) : null}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>الطريقة</Label>
               <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
-                <SelectTrigger>
+                <SelectTrigger className="rounded-[var(--mds-radius-md)]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -135,11 +138,20 @@ export function CustomerAccountPanel({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>مرجع</Label>
-              <Input value={reference} onChange={(e) => setReference(e.target.value)} />
+            <div className="space-y-[var(--mds-space-2)]">
+              <Label htmlFor="customer-collect-ref">مرجع</Label>
+              <Input
+                id="customer-collect-ref"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                className="rounded-[var(--mds-radius-md)]"
+              />
             </div>
-            <Button onClick={collect} disabled={pending || amountTooHigh}>
+            <Button
+              onClick={collect}
+              disabled={pending || amountTooHigh}
+              className="shadow-[var(--mds-elevation-1)]"
+            >
               {pending ? "جاري الحفظ…" : "تسجيل التحصيل"}
             </Button>
           </div>

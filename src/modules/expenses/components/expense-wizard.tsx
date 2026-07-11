@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import {
   createExpenseAction,
   deleteExpenseAction,
@@ -37,14 +38,14 @@ const STEPS = ["النوع", "التصنيف", "المبلغ", "الدفع", "ا
 const STEP_IDS = [0, 1, 2, 3, 4] as const;
 
 const EXPENSE_SOURCE_LABELS: Record<ExpenseSource, string> = {
-  session_cash: "كاش الجلسة",
+  session_cash: "نقدي الجلسة",
   external: "خارجي",
   purchase: "مشتريات",
 };
 
 const EXPENSE_PAYMENT_LABELS: Record<ExpensePaymentMethod, string> = {
-  cash: "كاش",
-  card: "بطاقة",
+  cash: "نقدي",
+  card: "كارت",
   wallet: "محفظة",
   other: "أخرى",
 };
@@ -82,6 +83,7 @@ export function ExpenseWizard({
 }: ExpenseWizardProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [step, setStep] = useState(0);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const [expenseType, setExpenseType] = useState<"general" | "inventory">("general");
@@ -227,7 +229,12 @@ export function ExpenseWizard({
   }
 
   function handleDelete() {
-    if (!expense || !confirm("حذف هذا المصروف؟")) return;
+    if (!expense) return;
+    setDeleteConfirmOpen(true);
+  }
+
+  function confirmDelete() {
+    if (!expense) return;
     startTransition(async () => {
       try {
         await deleteExpenseAction(expense.id);
@@ -242,7 +249,7 @@ export function ExpenseWizard({
 
   const sessionContent = (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">مصروف من درج الجلسة (كاش).</p>
+      <p className="text-sm text-muted-foreground">مصروف من درج الجلسة (نقدي).</p>
       {!inventoryPurchaseDisabled ? (
         <div className="grid gap-2 sm:grid-cols-2">
           <Button
@@ -672,24 +679,48 @@ export function ExpenseWizard({
   );
 
   if (trigger === null) {
-    return content;
+    return (
+      <>
+        {content}
+        <ConfirmActionDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          title="حذف المصروف؟"
+          description="هيتشال المصروف ومش هتقدر ترجّعه من هنا."
+          confirmLabel="حذف"
+          destructive
+          onConfirm={confirmDelete}
+        />
+      </>
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {trigger !== undefined && isValidElement(trigger) ? (
-        <DialogTrigger render={trigger} />
-      ) : (
-        <DialogTrigger render={<Button className="rounded-xl" />}>
-          إضافة مصروف
-        </DialogTrigger>
-      )}
-      <DialogContent className="rounded-2xl sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{expense ? "تعديل مصروف" : "إضافة مصروف"}</DialogTitle>
-        </DialogHeader>
-        {content}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        {trigger !== undefined && isValidElement(trigger) ? (
+          <DialogTrigger render={trigger} />
+        ) : (
+          <DialogTrigger render={<Button className="rounded-xl" />}>
+            إضافة مصروف
+          </DialogTrigger>
+        )}
+        <DialogContent className="rounded-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{expense ? "تعديل مصروف" : "إضافة مصروف"}</DialogTitle>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+      <ConfirmActionDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="حذف المصروف؟"
+        description="هيتشال المصروف ومش هتقدر ترجّعه من هنا."
+        confirmLabel="حذف"
+        destructive
+        onConfirm={confirmDelete}
+      />
+    </>
   );
 }

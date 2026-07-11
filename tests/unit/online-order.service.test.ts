@@ -79,6 +79,15 @@ const mocks = vi.hoisted(() => {
         };
       }
 
+      if (table === "customers") {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: vi.fn().mockResolvedValue({ error: null }),
+        };
+      }
+
       if (table === "online_orders") {
         return {
           insert: vi.fn((payload) => {

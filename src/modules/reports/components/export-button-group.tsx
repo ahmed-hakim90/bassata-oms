@@ -28,11 +28,12 @@ export function ExportButtonGroup({
   if (!canPrint && !canExcel && !canPdf) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 print:hidden">
+    <div className="flex flex-wrap gap-[var(--mds-space-2)] print:hidden">
       {canPrint && printHref ? (
         <Button
           variant="outline"
           size="sm"
+          className="rounded-[var(--mds-radius-md)]"
           nativeButton={false}
           render={<a href={printHref} target="_blank" rel="noopener noreferrer" />}
         >
@@ -41,19 +42,19 @@ export function ExportButtonGroup({
         </Button>
       ) : null}
       {canPdf && onExportPdf ? (
-        <Button variant="outline" size="sm" onClick={onExportPdf} disabled={pending}>
+        <Button variant="outline" size="sm" className="rounded-[var(--mds-radius-md)]" onClick={onExportPdf} disabled={pending}>
           <FileText className="me-2 size-4" />
           {t("PDF")}
         </Button>
       ) : null}
       {canExcel && onExportExcel ? (
-        <Button variant="outline" size="sm" onClick={onExportExcel} disabled={pending}>
+        <Button variant="outline" size="sm" className="rounded-[var(--mds-radius-md)]" onClick={onExportExcel} disabled={pending}>
           <FileSpreadsheet className="me-2 size-4" />
           {t("Excel")}
         </Button>
       ) : null}
       {!onExportExcel && !onExportPdf && !printHref ? (
-        <Button variant="outline" size="sm" disabled>
+        <Button variant="outline" size="sm" className="rounded-[var(--mds-radius-md)]" disabled>
           <Download className="me-2 size-4" />
           {t("Export")}
         </Button>

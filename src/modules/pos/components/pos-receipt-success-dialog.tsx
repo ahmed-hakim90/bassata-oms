@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, MessageCircle, Printer, Usb } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +25,7 @@ interface PosReceiptSuccessDialogProps {
   open: boolean;
   receipt: ReceiptPayload | null;
   onOpenChange: (open: boolean) => void;
-  onUsbPrint: () => void;
+  onUsbPrint: () => void | Promise<void>;
   onBrowserPrint?: () => void;
   onWhatsApp: () => void;
 }
@@ -45,12 +46,28 @@ export function PosReceiptSuccessDialog({
   const currency = receipt.branding.currency;
 
   function handleBrowserPrint() {
-    if (onBrowserPrint) {
-      onBrowserPrint();
-      return;
+    try {
+      if (onBrowserPrint) {
+        onBrowserPrint();
+        return;
+      }
+      if (typeof document !== "undefined" && !document.getElementById("CafeFlow-receipt")) {
+        toast.error("تعذرت طباعة الإيصال — الإيصال غير جاهز");
+        return;
+      }
+      // Defer so the print stylesheet applies after paint.
+      window.setTimeout(() => triggerReceiptPrint(), 100);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذرت طباعة الإيصال");
     }
-    // Defer so the print stylesheet applies after paint.
-    window.setTimeout(() => triggerReceiptPrint(), 100);
+  }
+
+  async function handleUsbPrint() {
+    try {
+      await onUsbPrint();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذرت طباعة الإيصال");
+    }
   }
 
   return (
@@ -58,11 +75,11 @@ export function PosReceiptSuccessDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[92dvh] max-w-md overflow-hidden rounded-2xl p-0 sm:max-w-md">
           <DialogHeader className="space-y-2 border-b border-border/70 px-4 py-4 text-start">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="size-6" />
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-7" />
             </div>
-            <DialogTitle>تم حفظ الطلب</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">تم حفظ الطلب</DialogTitle>
+            <DialogDescription className="text-sm">
               الطلب {receipt.orderNumber} · {formatCurrency(receipt.total, currency)}
               {receipt.customer?.name ? ` · ${receipt.customer.name}` : ""}
             </DialogDescription>
@@ -123,13 +140,23 @@ export function PosReceiptSuccessDialog({
                 </span>
                 <span>{formatCurrency(receipt.total, currency)}</span>
               </div>
+              {receipt.payments.length > 1 ? (
+                <div className="mt-2 space-y-1 text-xs">
+                  {receipt.payments.map((payment, index) => (
+                    <div key={`${payment.method}-${index}`} className="flex justify-between">
+                      <span>{t(payment.method)}</span>
+                      <span>{formatCurrency(payment.amount, currency)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
 
           <div className="grid gap-2 border-t border-border/70 p-4">
             <Button
               type="button"
-              className="h-14 rounded-xl text-base font-semibold"
+              className="h-14 rounded-2xl text-base font-semibold"
               onClick={handleBrowserPrint}
             >
               <Printer className="size-5" />
@@ -140,7 +167,7 @@ export function PosReceiptSuccessDialog({
                 type="button"
                 variant="outline"
                 className="h-12 rounded-xl text-sm font-semibold"
-                onClick={onUsbPrint}
+                onClick={() => void handleUsbPrint()}
               >
                 <Usb className="size-4" />
                 طباعة USB
@@ -159,7 +186,7 @@ export function PosReceiptSuccessDialog({
             <Button
               type="button"
               variant="secondary"
-              className="h-11 rounded-xl"
+              className="h-11 rounded-xl text-sm"
               onClick={() => onOpenChange(false)}
             >
               متابعة البيع

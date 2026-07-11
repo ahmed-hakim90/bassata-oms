@@ -86,7 +86,7 @@ export function ProfitReportView({
           { label: "تكلفة الهالك", value: formatCurrency(profit.wasteCost, currency), icon: <Trash2 className="size-5" /> },
         ]}
       />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-[var(--mds-space-4)] lg:grid-cols-2">
         <OperationalCard title="أفضل المنتجات حسب الربح">
           <ul className="space-y-2 text-sm">
             {rankings.highestProfit.map((p) => (

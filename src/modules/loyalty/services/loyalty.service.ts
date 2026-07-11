@@ -8,14 +8,20 @@ export async function getLoyaltyRule(): Promise<LoyaltyRule | null> {
   return customerRepo.getLoyaltyRule();
 }
 
+/** Ensures the org has a loyalty rule row (creates defaults if missing). */
+export async function ensureLoyaltyRule(): Promise<LoyaltyRule> {
+  const existing = await customerRepo.getOrgLoyaltyRule();
+  if (existing) return existing;
+  return customerRepo.createLoyaltyRule();
+}
+
 export async function updateLoyaltyRule(
   input: Partial<
     Pick<LoyaltyRule, "points_per_currency" | "redemption_rate" | "minimum_redeem_points" | "is_active">
   >,
   userId: string
 ): Promise<LoyaltyRule | null> {
-  const rule = await customerRepo.getLoyaltyRule();
-  if (!rule) return null;
+  const rule = await ensureLoyaltyRule();
   const updated = await customerRepo.updateLoyaltyRule(rule.id, input);
   if (updated) {
     const orgId = await getOrgId();

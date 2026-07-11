@@ -1,7 +1,10 @@
 # خطة الإنتاج — SweetFlow POS
 
-خطة عملية لنقل SweetFlow من بيئة التطوير إلى **Staging** ثم **Production**.  
-مرجع سريع: [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) · [SMOKE_TEST.md](./SMOKE_TEST.md)
+خطة عملية لنقل SweetFlow من بيئة التطوير إلى **Staging** ثم **Production**.
+
+> **ترتيب التنفيذ الحالي (ملزم):** جودة الواجهة → اكتمال MVP + Feature Freeze → Stabilization (Smoke/Verify) → Infrastructure → Pilot.  
+> المصدر التشغيلي: [PRODUCT_EXECUTION_PLAN.md](./PRODUCT_EXECUTION_PLAN.md) · [ACCEPTANCE_CRITERIA.md](./ACCEPTANCE_CRITERIA.md) · [PERFORMANCE_BUDGET.md](./PERFORMANCE_BUDGET.md) · [ERROR_BUDGET.md](./ERROR_BUDGET.md) · [DEVICE_MATRIX.md](./DEVICE_MATRIX.md) · [MVP_FREEZE.md](./MVP_FREEZE.md)  
+> Go-live التشغيلي بعد الـ Freeze: [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) · [SMOKE_TEST.md](./SMOKE_TEST.md)
 
 ---
 
@@ -9,18 +12,20 @@
 
 | المرحلة | الهدف | المدة المقدّرة |
 |---------|--------|----------------|
-| **0 — بوابة الكود** | فرع release يمرّ `smoke:check` و CI | 1–2 يوم |
-| **1 — Staging** | بيئة معزولة + اختبار يدوي كامل | 3–5 أيام |
-| **2 — Production infra** | Supabase + Vercel + Auth + secrets | 1–2 يوم |
-| **3 — Cutover** | onboarding + أجهزة POS + بيع تجريبي | 1 يوم |
-| **4 — Post go-live** | مراقبة + تدوير secrets + تدريب | أسبوع 1 |
+| **0 — Product Quality** | UI/UX، Design System، shells، states، responsive | مستمر حتى اتساق الشاشات |
+| **1 — Feature Complete + Freeze** | إكمال MVP وتجميد الميزات | 1–3 أيام مسح + ختم |
+| **2 — Stabilization** | Smoke، verify، صلاحيات، POS، جلسات | 3–5 أيام |
+| **3 — Infrastructure** | Staging، SMTP، backups، monitoring، domain | 1–2 يوم |
+| **4 — Pilot → Production** | فرع واحد 3–7 أيام ثم التوسع | أسبوع+ |
 
 **نطاق الإطلاق الأول (MVP):** POS يومي، مخزون، جلسات كاشير، تقارير أساسية، QR menu.  
-**خارج النطاق (لاحقاً):** تقارير P&L كاملة، loyalty متقدم، SaaS billing — راجع [COMPLETION_PLAN.md](./COMPLETION_PLAN.md).
+**خارج النطاق (لاحقاً):** Offline/PWA، تقارير P&L كاملة، loyalty متقدم، SaaS billing — راجع [COMPLETION_PLAN.md](./COMPLETION_PLAN.md) و [MVP_FREEZE.md](./MVP_FREEZE.md).
 
 ---
 
-## المرحلة 0 — بوابة الكود (Release gate)
+## بوابة الكود (ضمن المرحلة 2 — Stabilization)
+
+> لا تشغّل smoke شامل كامل أثناء موجات جودة الواجهة إلا فحصاً انتقائياً للشاشة المعدّلة.
 
 ### متطلبات قبل أي نشر
 

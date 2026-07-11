@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, Fragment } from "react";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -186,59 +189,113 @@ export function OnboardingWizard() {
     });
   }
 
+  const progressPct = Math.round((step / (STEPS.length - 1)) * 100);
+
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">مرحبًا بك في {APP_NAME}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          جهّز شركتك في سبع خطوات
-        </p>
+    <div className="space-y-[var(--mds-space-6)]">
+      {/* Harbor header card with primary accent stripe */}
+      <div className="rounded-[var(--mds-radius-xl)] border border-border shadow-[var(--mds-elevation-2)] bg-card overflow-hidden">
+        <div className="h-1 bg-[var(--mds-color-action-primary)]" />
+        <div className="px-[var(--mds-space-6)] py-[var(--mds-space-5)] text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">مرحبًا بك في {APP_NAME}</h1>
+          <p className="mt-[var(--mds-space-2)] text-sm text-muted-foreground">
+            جهّز شركتك في سبع خطوات
+          </p>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {STEPS.map((label, index) => (
-          <span
-            key={label}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              index === step
-                ? "bg-primary text-primary-foreground"
-                : index < step
-                  ? "bg-primary/15 text-primary"
-                  : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {index + 1}. {label}
-          </span>
-        ))}
+      {/* Step indicator card */}
+      <div className="rounded-[var(--mds-radius-xl)] border border-border shadow-[var(--mds-elevation-2)] bg-card overflow-hidden">
+        {/* Progress stripe */}
+        <div className="h-1 bg-muted relative overflow-hidden">
+          <div
+            className="absolute inset-y-0 start-0 bg-[var(--mds-color-action-primary)] transition-all duration-500 ease-out"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+
+        <div className="px-[var(--mds-space-4)] py-[var(--mds-space-4)]">
+          {/* Numbered step circles + connectors */}
+          <div className="flex items-center">
+            {STEPS.map((label, index) => {
+              const isActive = index === step;
+              const isDone = index < step;
+              return (
+                <Fragment key={label}>
+                  <div className="flex flex-col items-center gap-[var(--mds-space-1)] min-w-0">
+                    <div
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300",
+                        isActive &&
+                          "bg-[var(--mds-color-action-primary)] text-white shadow-md ring-2 ring-[var(--mds-color-action-primary)]/25 ring-offset-2",
+                        isDone &&
+                          "bg-[var(--mds-color-feedback-success)] text-white",
+                        !isActive && !isDone && "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {isDone ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                    </div>
+                    <span
+                      className={cn(
+                        "hidden text-[10px] font-medium sm:block truncate max-w-[52px] text-center leading-tight",
+                        isActive && "text-[var(--mds-color-action-primary)]",
+                        isDone && "text-[var(--mds-color-feedback-success)]",
+                        !isActive && !isDone && "text-muted-foreground"
+                      )}
+                    >
+                      {label}
+                    </span>
+                  </div>
+                  {index < STEPS.length - 1 && (
+                    <div
+                      className={cn(
+                        "h-px flex-1 mx-[var(--mds-space-1)] transition-colors duration-300",
+                        isDone
+                          ? "bg-[var(--mds-color-feedback-success)]"
+                          : "bg-border"
+                      )}
+                    />
+                  )}
+                </Fragment>
+              );
+            })}
+          </div>
+
+          {/* Mobile: current step label */}
+          <p className="mt-[var(--mds-space-3)] text-center text-sm font-medium text-[var(--mds-color-action-primary)] sm:hidden">
+            {step + 1} / {STEPS.length} — {STEPS[step]}
+          </p>
+        </div>
       </div>
 
+      {/* Step content */}
       {step === 0 && (
         <OperationalCard title="بيانات المؤسسة">
-          <div className="grid gap-4">
-            <div className="space-y-2">
+          <div className="grid gap-[var(--mds-space-4)]">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>اسم المؤسسة</Label>
               <Input
                 value={organization.name}
                 onChange={(e) => setOrganization({ ...organization, name: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>الشعار</Label>
               <Input type="file" accept="image/*" onChange={(e) => handleLogoChange(e.target.files?.[0] ?? null)} />
               {organization.logoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={organization.logoUrl} alt="معاينة الشعار" className="mt-2 h-16 w-16 rounded-lg object-cover" />
+                <img src={organization.logoUrl} alt="معاينة الشعار" className="mt-[var(--mds-space-2)] h-16 w-16 rounded-[var(--mds-radius-md)] object-cover" />
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-[var(--mds-space-4)]">
+              <div className="space-y-[var(--mds-space-2)]">
                 <Label>العملة</Label>
                 <Input
                   value={organization.currency}
                   onChange={(e) => setOrganization({ ...organization, currency: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-[var(--mds-space-2)]">
                 <Label>المنطقة الزمنية</Label>
                 <Input
                   value={organization.timezone}
@@ -246,15 +303,15 @@ export function OnboardingWizard() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>الدولة</Label>
               <Input
                 value={organization.country}
                 onChange={(e) => setOrganization({ ...organization, country: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-[var(--mds-space-4)]">
+              <div className="space-y-[var(--mds-space-2)]">
                 <Label>نسبة الضريبة (%)</Label>
                 <Input
                   type="number"
@@ -267,9 +324,9 @@ export function OnboardingWizard() {
                   }
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-[var(--mds-space-2)]">
                 <Label>طريقة الضريبة</Label>
-                <label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-[var(--mds-space-2)] text-sm">
                   <Checkbox
                     checked={organization.taxInclusive}
                     onCheckedChange={(checked) =>
@@ -278,7 +335,7 @@ export function OnboardingWizard() {
                   />
                   Tax inclusive
                 </label>
-                <label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-[var(--mds-space-2)] text-sm">
                   <Checkbox
                     checked={organization.taxEnabled}
                     onCheckedChange={(checked) =>
@@ -295,20 +352,20 @@ export function OnboardingWizard() {
 
       {step === 1 && (
         <OperationalCard title="أول فرع">
-          <div className="grid gap-4">
-            <div className="space-y-2">
+          <div className="grid gap-[var(--mds-space-4)]">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>اسم الفرع</Label>
               <Input value={store.name} onChange={(e) => setStore({ ...store, name: e.target.value })} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>العنوان</Label>
               <Textarea value={store.address} onChange={(e) => setStore({ ...store, address: e.target.value })} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>الهاتف</Label>
               <Input value={store.phone} onChange={(e) => setStore({ ...store, phone: e.target.value })} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>المنطقة الزمنية للفرع</Label>
               <Input
                 value={store.timezone}
@@ -321,12 +378,12 @@ export function OnboardingWizard() {
 
       {step === 2 && (
         <OperationalCard title="حساب المالك">
-          <div className="grid gap-4">
-            <div className="space-y-2">
+          <div className="grid gap-[var(--mds-space-4)]">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>الاسم</Label>
               <Input value={owner.name} onChange={(e) => setOwner({ ...owner, name: e.target.value })} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>البريد الإلكتروني</Label>
               <Input
                 type="email"
@@ -335,10 +392,9 @@ export function OnboardingWizard() {
                 onChange={(e) => setOwner({ ...owner, email: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>كلمة المرور</Label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={owner.password}
                 onChange={(e) => setOwner({ ...owner, password: e.target.value })}
               />
@@ -349,9 +405,17 @@ export function OnboardingWizard() {
 
       {step === 3 && (
         <OperationalCard title="نوع النشاط">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-2">
             {BUSINESS_ACTIVITY_TYPES.map((type) => (
-              <label key={type} className="flex items-center gap-2 rounded-md border p-3 text-sm">
+              <label
+                key={type}
+                className={cn(
+                  "flex cursor-pointer items-center gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border p-[var(--mds-space-3)] text-sm font-medium transition-colors select-none",
+                  businessType === type
+                    ? "border-[var(--mds-color-action-primary)] bg-[var(--mds-color-action-primary)]/8 text-[var(--mds-color-action-primary)]"
+                    : "border-border hover:bg-muted/50"
+                )}
+              >
                 <Checkbox
                   checked={businessType === type}
                   onCheckedChange={(checked) => {
@@ -367,9 +431,12 @@ export function OnboardingWizard() {
 
       {step === 4 && (
         <OperationalCard title="الخصائص">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-[var(--mds-space-2)] sm:grid-cols-2">
             {ONBOARDING_FEATURE_KEYS.map((key) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
+              <label
+                key={key}
+                className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm transition-colors select-none hover:bg-muted/50"
+              >
                 <Checkbox
                   checked={features[key]}
                   onCheckedChange={(checked) =>
@@ -385,8 +452,8 @@ export function OnboardingWizard() {
 
       {step === 5 && (
         <OperationalCard title="الإعدادات الافتراضية">
-          <div className="grid gap-4">
-            <div className="space-y-2">
+          <div className="grid gap-[var(--mds-space-4)]">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>بداية الإيصال</Label>
               <Textarea
                 value={defaultSettings.receiptHeader}
@@ -395,7 +462,7 @@ export function OnboardingWizard() {
                 }
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>نهاية الإيصال</Label>
               <Textarea
                 value={defaultSettings.receiptFooter}
@@ -404,9 +471,12 @@ export function OnboardingWizard() {
                 }
               />
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-[var(--mds-space-2)] sm:grid-cols-2">
               {Object.entries(defaultSettings.paymentMethods).map(([key, value]) => (
-                <label key={key} className="flex items-center gap-2 text-sm">
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors"
+                >
                   <Checkbox
                     checked={value}
                     onCheckedChange={(checked) =>
@@ -423,7 +493,7 @@ export function OnboardingWizard() {
                 </label>
               ))}
             </div>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] text-sm select-none">
               <Checkbox
                 checked={defaultSettings.preventNegativeStock}
                 onCheckedChange={(checked) =>
@@ -435,7 +505,7 @@ export function OnboardingWizard() {
               />
               Prevent negative stock
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] text-sm select-none">
               <Checkbox
                 checked={defaultSettings.defaultTaxBehavior === "inclusive"}
                 onCheckedChange={(checked) =>
@@ -447,8 +517,8 @@ export function OnboardingWizard() {
               />
               Default tax behavior: inclusive
             </label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-[var(--mds-space-4)]">
+              <div className="space-y-[var(--mds-space-2)]">
                 <Label>أقصى ساعات فتح الجلسة</Label>
                 <Input
                   type="number"
@@ -466,7 +536,7 @@ export function OnboardingWizard() {
                   }
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-[var(--mds-space-2)]">
                 <Label>ساعات تحذير الجلسة</Label>
                 <Input
                   type="number"
@@ -485,7 +555,7 @@ export function OnboardingWizard() {
                 />
               </div>
             </div>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] text-sm select-none">
               <Checkbox
                 checked={defaultSettings.expenseRules.approvalRequired}
                 onCheckedChange={(checked) =>
@@ -506,8 +576,8 @@ export function OnboardingWizard() {
 
       {step === 6 && (
         <OperationalCard title="التجهيز الأولي">
-          <div className="grid gap-3">
-            <label className="flex items-center gap-2 text-sm">
+          <div className="grid gap-[var(--mds-space-3)]">
+            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors">
               <Checkbox
                 checked={initialSetup.createDefaultCostCenters}
                 onCheckedChange={(checked) =>
@@ -516,7 +586,7 @@ export function OnboardingWizard() {
               />
               Create default cost centers
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors">
               <Checkbox
                 checked={initialSetup.createDefaultExpenseCategories}
                 onCheckedChange={(checked) =>
@@ -528,7 +598,7 @@ export function OnboardingWizard() {
               />
               Create default expense categories
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors">
               <Checkbox
                 checked={initialSetup.createDefaultProductCategories}
                 onCheckedChange={(checked) =>
@@ -540,7 +610,7 @@ export function OnboardingWizard() {
               />
               Create default product categories
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors">
               <Checkbox
                 checked={initialSetup.createDefaultInventoryUnits}
                 onCheckedChange={(checked) =>
@@ -552,7 +622,7 @@ export function OnboardingWizard() {
               />
               Create default inventory units
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors">
               <Checkbox
                 checked={initialSetup.createFirstPosDevice}
                 onCheckedChange={(checked) =>
@@ -562,7 +632,7 @@ export function OnboardingWizard() {
               Create first POS device placeholder
             </label>
             {initialSetup.createFirstPosDevice && (
-              <div className="space-y-2">
+              <div className="space-y-[var(--mds-space-2)] ps-[var(--mds-space-6)]">
                 <Label>اسم جهاز الكاشير</Label>
                 <Input
                   value={initialSetup.firstPosDeviceName}
@@ -576,16 +646,33 @@ export function OnboardingWizard() {
         </OperationalCard>
       )}
 
-      <div className="flex justify-between gap-3">
-        <Button type="button" variant="outline" disabled={step === 0 || pending} onClick={() => setStep(Math.max(step - 1, 0))}>
-          Back
+      {/* Navigation */}
+      <div className="flex justify-between gap-[var(--mds-space-3)]">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10"
+          disabled={step === 0 || pending}
+          onClick={() => setStep(Math.max(step - 1, 0))}
+        >
+          السابق
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button type="button" onClick={nextStep} disabled={pending}>
-            Continue
+          <Button
+            type="button"
+            className="h-10"
+            onClick={nextStep}
+            disabled={pending}
+          >
+            التالي
           </Button>
         ) : (
-          <Button type="button" onClick={submit} disabled={pending}>
+          <Button
+            type="button"
+            className="h-10"
+            onClick={submit}
+            disabled={pending}
+          >
             {pending ? "جاري التجهيز..." : "إكمال التجهيز"}
           </Button>
         )}

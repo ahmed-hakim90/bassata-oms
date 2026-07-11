@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,11 +42,13 @@ export function ForceCloseSessionDialog({
           closeReason,
           notes: notes || undefined,
         });
-        toast.success("Session force closed");
+        toast.success("تم إغلاق الجلسة إجباريًا");
         setOpen(false);
         window.location.reload();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not force close session");
+        toast.error(
+          error instanceof Error ? error.message : "تعذر الإغلاق الإجباري للجلسة"
+        );
       }
     });
   }
@@ -61,70 +62,74 @@ export function ForceCloseSessionDialog({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        Force close
+        إغلاق إجباري
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md rounded-2xl">
-        <DialogHeader>
-          <DialogTitle>Manager force close</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="rounded-xl bg-muted/50 p-3 text-sm">
-            <p className="font-medium">{summary.cashierName}</p>
-            <p className="text-muted-foreground">
-              Opened {format(new Date(summary.openedAt), "MMM d, h:mm a")} ·{" "}
-              {summary.durationLabel}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <SessionLifecycleBadge lifecycle={summary.lifecycle} />
-              <span className="text-muted-foreground">
-                Expected {formatCurrency(summary.expectedCash)}
-              </span>
+          <DialogHeader>
+            <DialogTitle>إغلاق جلسة إجباري (مدير)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-xl bg-muted/50 p-3 text-sm">
+              <p className="font-medium">{summary.cashierName}</p>
+              <p className="text-muted-foreground">
+                فُتحت{" "}
+                {new Date(summary.openedAt).toLocaleString("ar-EG", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}{" "}
+                · {summary.durationLabel}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <SessionLifecycleBadge lifecycle={summary.lifecycle} />
+                <span className="text-muted-foreground">
+                  متوقع {formatCurrency(summary.expectedCash)}
+                </span>
+              </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor={`reason-${summary.session.id}`}>سبب الإغلاق (مطلوب)</Label>
+              <Textarea
+                id={`reason-${summary.session.id}`}
+                value={closeReason}
+                onChange={(e) => setCloseReason(e.target.value)}
+                className="rounded-xl"
+                rows={2}
+                placeholder="ليه هتقفل الجلسة إجباري؟"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`actual-${summary.session.id}`}>النقدية الفعلية في الدرج</Label>
+              <Input
+                id={`actual-${summary.session.id}`}
+                type="number"
+                min={0}
+                step="0.01"
+                value={actualCash}
+                onChange={(e) => setActualCash(e.target.value)}
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`notes-${summary.session.id}`}>ملاحظات (اختياري)</Label>
+              <Textarea
+                id={`notes-${summary.session.id}`}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="rounded-xl"
+                rows={2}
+              />
+            </div>
+            <Button
+              className={cn("w-full rounded-xl")}
+              disabled={pending || !closeReason.trim() || !actualCash}
+              onClick={handleForceClose}
+            >
+              {pending ? "جاري الإغلاق…" : "تأكيد الإغلاق الإجباري"}
+            </Button>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor={`reason-${summary.session.id}`}>Reason (required)</Label>
-            <Textarea
-              id={`reason-${summary.session.id}`}
-              value={closeReason}
-              onChange={(e) => setCloseReason(e.target.value)}
-              className="rounded-xl"
-              rows={2}
-              placeholder="Why is this session being force closed?"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`actual-${summary.session.id}`}>Actual cash in drawer</Label>
-            <Input
-              id={`actual-${summary.session.id}`}
-              type="number"
-              min={0}
-              step="0.01"
-              value={actualCash}
-              onChange={(e) => setActualCash(e.target.value)}
-              className="h-11 rounded-xl"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`notes-${summary.session.id}`}>Notes (optional)</Label>
-            <Textarea
-              id={`notes-${summary.session.id}`}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="rounded-xl"
-              rows={2}
-            />
-          </div>
-          <Button
-            className={cn("w-full rounded-xl")}
-            disabled={pending || !closeReason.trim() || !actualCash}
-            onClick={handleForceClose}
-          >
-            {pending ? "Closing…" : "Confirm force close"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

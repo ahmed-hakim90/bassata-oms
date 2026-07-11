@@ -15,7 +15,7 @@ export function SessionsStoreFilter({ stores, value }: SessionsStoreFilterProps)
   return (
     <div className="flex items-center gap-2">
       <Label htmlFor="sessions-store-filter" className="sr-only">
-        Branch
+        الفرع
       </Label>
       <select
         id="sessions-store-filter"
@@ -32,7 +32,7 @@ export function SessionsStoreFilter({ stores, value }: SessionsStoreFilterProps)
           router.push(query ? `/sessions?${query}` : "/sessions");
         }}
       >
-        <option value="all">All branches</option>
+        <option value="all">كل الفروع</option>
         {stores.map((store) => (
           <option key={store.id} value={store.id}>
             {store.name}

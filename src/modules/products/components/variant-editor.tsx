@@ -279,7 +279,7 @@ export function VariantEditor({
 
       {variants.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No variants yet. Products with variants require size selection at POS.
+          مفيش متغيرات لسة. المنتجات بالمقاسات محتاجة اختيار مقاس في نقطة البيع.
         </p>
       ) : (
         <Tabs defaultValue={variants[0]?.id}>

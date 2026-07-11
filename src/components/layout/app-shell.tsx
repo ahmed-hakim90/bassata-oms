@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppShellHeader } from "@/components/layout/app-shell-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { SessionBar } from "@/components/layout/session-bar";
+import { CommandPalette } from "@/components/layout/command-palette";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness";
 
 interface AppShellProps {
@@ -29,26 +30,33 @@ export function AppShell({
   posReadinessState,
 }: AppShellProps) {
   return (
-    <div className="flex h-full bg-background">
-      <div className="hidden overflow-hidden h-full shrink-0 md:flex">
+    <div className="flex h-full bg-[var(--mds-color-bg-canvas)]">
+      <div className="hidden h-full shrink-0 overflow-hidden md:flex">
         <AppSidebar userRole={userRole} featureFlags={featureFlags} permissions={permissions} />
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader
           userName={userName}
+          userRole={userRole}
           stores={stores}
           activeStoreId={activeStoreId}
           featureFlags={featureFlags}
           posReadinessState={posReadinessState}
+          permissions={permissions}
         />
         <SessionBar />
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6">
-          {children}
+        <main className="min-h-0 flex-1 overflow-y-auto bg-[var(--mds-color-bg-canvas)] p-[var(--mds-space-4)] pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:p-[var(--mds-space-6)] md:pb-[var(--mds-space-8)]">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
 
       <MobileNav userRole={userRole} featureFlags={featureFlags} permissions={permissions} />
+      <CommandPalette
+        userRole={userRole}
+        permissions={permissions}
+        featureFlags={featureFlags}
+      />
     </div>
   );
 }

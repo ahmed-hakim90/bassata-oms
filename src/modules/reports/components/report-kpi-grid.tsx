@@ -26,7 +26,7 @@ export function ReportKpiGrid({ items, columns = 4, className }: ReportKpiGridPr
         : "sm:grid-cols-2 lg:grid-cols-4";
 
   return (
-    <div className={cn("grid gap-4", gridClass, className)}>
+    <div className={cn("grid gap-[var(--mds-space-4)]", gridClass, className)}>
       {items.map((item) => (
         <KpiCard
           key={item.label}

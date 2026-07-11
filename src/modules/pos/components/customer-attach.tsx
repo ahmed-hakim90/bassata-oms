@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Search, Star, UserPlus, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,16 +40,13 @@ export function CustomerAttach({
   const expanded = controlled ? expandedProp : expandedInternal;
 
   function setExpanded(next: boolean) {
-    if (!controlled) setExpandedInternal(next);
-    onExpandedChange?.(next);
-  }
-
-  useEffect(() => {
-    if (!expanded) {
+    if (!next) {
       setPhone("");
       setResults([]);
     }
-  }, [expanded]);
+    if (!controlled) setExpandedInternal(next);
+    onExpandedChange?.(next);
+  }
 
   function attachCustomer(c: Customer) {
     setCustomer(c);

@@ -72,27 +72,28 @@ export function AuditLogsPage({
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
       {embedded ? null : (
         <PageHeader
-          title="Audit Logs"
-          description="Sensitive actions and system events"
+          title="سجل النشاط"
+          description="إجراءات حساسة وأحداث النظام — للمالك والمدير"
         />
       )}
 
-      <OperationalCard title="Filters">
+      <OperationalCard title="فلاتر">
         <form
           action={applyFilters}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
+          className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-5"
         >
-          <div className="space-y-2">
-            <Label>Action</Label>
+          <div className="space-y-[var(--mds-space-2)]">
+            <Label htmlFor="audit-action">الإجراء</Label>
             <select
+              id="audit-action"
               name="action"
               defaultValue={initialFilters.action ?? searchParams.get("action") ?? ""}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-9 w-full rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm"
             >
-              <option value="">All actions</option>
+              <option value="">كل الإجراءات</option>
               {uniqueActions.map((a) => (
                 <option key={a} value={a}>
                   {a}
@@ -100,14 +101,15 @@ export function AuditLogsPage({
               ))}
             </select>
           </div>
-          <div className="space-y-2">
-            <Label>User</Label>
+          <div className="space-y-[var(--mds-space-2)]">
+            <Label htmlFor="audit-user">المستخدم</Label>
             <select
+              id="audit-user"
               name="userId"
               defaultValue={initialFilters.userId ?? searchParams.get("userId") ?? ""}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-9 w-full rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm"
             >
-              <option value="">All users</option>
+              <option value="">كل المستخدمين</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
@@ -115,14 +117,15 @@ export function AuditLogsPage({
               ))}
             </select>
           </div>
-          <div className="space-y-2">
-            <Label>Store</Label>
+          <div className="space-y-[var(--mds-space-2)]">
+            <Label htmlFor="audit-store">الفرع</Label>
             <select
+              id="audit-store"
               name="storeId"
               defaultValue={initialFilters.storeId ?? searchParams.get("storeId") ?? ""}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-9 w-full rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm"
             >
-              <option value="">All stores</option>
+              <option value="">كل الفروع</option>
               {stores.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -130,50 +133,58 @@ export function AuditLogsPage({
               ))}
             </select>
           </div>
-          <div className="space-y-2">
-            <Label>From</Label>
+          <div className="space-y-[var(--mds-space-2)]">
+            <Label htmlFor="audit-from">من</Label>
             <Input
+              id="audit-from"
               type="date"
               name="from"
               defaultValue={initialFilters.from?.slice(0, 10) ?? ""}
+              className="rounded-[var(--mds-radius-md)]"
             />
           </div>
-          <div className="space-y-2">
-            <Label>To</Label>
+          <div className="space-y-[var(--mds-space-2)]">
+            <Label htmlFor="audit-to">إلى</Label>
             <Input
+              id="audit-to"
               type="date"
               name="to"
               defaultValue={initialFilters.to?.slice(0, 10) ?? ""}
+              className="rounded-[var(--mds-radius-md)]"
             />
           </div>
-          <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row sm:items-end lg:col-span-5">
-            <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-              Apply filters
+          <div className="flex flex-col gap-[var(--mds-space-2)] sm:col-span-2 sm:flex-row sm:items-end lg:col-span-5">
+            <Button
+              type="submit"
+              disabled={pending}
+              className="w-full shadow-[var(--mds-elevation-1)] sm:w-auto"
+            >
+              تطبيق الفلاتر
             </Button>
             <Button
               type="button"
               variant="outline"
-              className="w-full sm:w-auto"
+              className="w-full rounded-[var(--mds-radius-md)] sm:w-auto"
               onClick={() =>
                 router.push(embedded ? "/settings?tab=audit" : "/audit")
               }
             >
-              Clear
+              مسح
             </Button>
           </div>
         </form>
       </OperationalCard>
 
-      <OperationalCard title={`Recent Activity (page ${page})`}>
+      <OperationalCard title={`آخر النشاط (صفحة ${page})`}>
         {logs.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground">
-            No audit events match these filters
+          <p className="py-[var(--mds-space-8)] text-center text-muted-foreground">
+            مفيش أحداث مطابقة للفلاتر دي
           </p>
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y divide-border">
             {logs.map((log) => (
-              <li key={log.id} className="py-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <li key={log.id} className="py-[var(--mds-space-3)]">
+                <div className="flex flex-col gap-[var(--mds-space-2)] sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="break-words font-medium">{log.action}</p>
                     <p className="break-words text-sm text-muted-foreground">
@@ -183,7 +194,7 @@ export function AuditLogsPage({
                         : ""}
                     </p>
                   </div>
-                  <div className="text-sm text-muted-foreground sm:text-right">
+                  <div className="text-sm text-muted-foreground sm:text-end">
                     <p className="break-words">{userMap.get(log.user_id) ?? log.user_id}</p>
                     <p>{formatDateTime(log.created_at)}</p>
                   </div>
@@ -192,16 +203,16 @@ export function AuditLogsPage({
             ))}
           </ul>
         )}
-        <div className="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-[var(--mds-space-4)] flex flex-col gap-[var(--mds-space-3)] border-t border-border pt-[var(--mds-space-4)] sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            Showing up to {pageSize} entries per page
+            حتى {pageSize} سجل لكل صفحة
           </p>
-          <div className="flex gap-2 sm:justify-end">
+          <div className="flex gap-[var(--mds-space-2)] sm:justify-end">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="flex-1 sm:flex-none"
+              className="flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
               disabled={page <= 1 || pending}
               onClick={() =>
                 startTransition(() =>
@@ -209,13 +220,13 @@ export function AuditLogsPage({
                 )
               }
             >
-              Previous
+              السابق
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="flex-1 sm:flex-none"
+              className="flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
               disabled={!hasMore || pending}
               onClick={() =>
                 startTransition(() =>
@@ -223,11 +234,11 @@ export function AuditLogsPage({
                 )
               }
             >
-              Next
+              التالي
             </Button>
           </div>
         </div>
       </OperationalCard>
-    </>
+    </div>
   );
 }

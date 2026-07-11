@@ -111,6 +111,44 @@ export async function getLoyaltyRule(): Promise<LoyaltyRule | null> {
   return data ? mapLoyaltyRule(data) : null;
 }
 
+/** Org loyalty rule for settings UI — includes inactive rows. */
+export async function getOrgLoyaltyRule(): Promise<LoyaltyRule | null> {
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("loyalty_rules")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("is_active", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throwDbError(error, "getOrgLoyaltyRule");
+  return data ? mapLoyaltyRule(data) : null;
+}
+
+export async function createLoyaltyRule(input?: {
+  points_per_currency?: number;
+  redemption_rate?: number;
+  minimum_redeem_points?: number;
+  is_active?: boolean;
+}): Promise<LoyaltyRule> {
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("loyalty_rules")
+    .insert({
+      org_id: orgId,
+      points_per_currency: input?.points_per_currency ?? 1,
+      redemption_rate: input?.redemption_rate ?? 0.01,
+      minimum_redeem_points: input?.minimum_redeem_points ?? 0,
+      is_active: input?.is_active ?? true,
+    })
+    .select()
+    .single();
+  if (error) throwDbError(error, "createLoyaltyRule");
+  return mapLoyaltyRule(data);
+}
+
 export async function updateLoyaltyRule(
   id: string,
   patch: Partial<LoyaltyRule>

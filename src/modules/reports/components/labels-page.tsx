@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,11 +61,12 @@ export function LabelsPage({ products, currency, initialSettings }: LabelsPagePr
 
   return (
     <ReportPage
-      title="Barcode Labels"
-      description="Print product stickers for thermal or A4 label sheets"
+      title="ملصقات الباركود"
+      description="اطبع ملصقات المنتجات للطابعة الحرارية أو ورق A4"
       actions={
         <Button
           variant="outline"
+          className="shadow-[var(--mds-elevation-1)]"
           disabled={selectedIds.length === 0}
           render={
             selectedIds.length ? (
@@ -75,14 +75,14 @@ export function LabelsPage({ products, currency, initialSettings }: LabelsPagePr
           }
         >
           <Printer className="me-2 size-4" />
-          Print preview
+          معاينة الطباعة
         </Button>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <div className="space-y-4 rounded-2xl border bg-card p-4">
-          <div className="space-y-2">
-            <Label>Preset</Label>
+      <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-[320px_1fr]">
+        <div className="space-y-[var(--mds-space-4)] rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
+          <div className="space-y-[var(--mds-space-2)]">
+            <Label>مقاس جاهز</Label>
             <Select
               value={settings.preset}
               onValueChange={(preset) => {
@@ -93,86 +93,94 @@ export function LabelsPage({ products, currency, initialSettings }: LabelsPagePr
                 setSettings(next);
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="rounded-[var(--mds-radius-md)]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="thermal_40x30">Thermal 40×30mm</SelectItem>
-                <SelectItem value="thermal_50x25">Thermal 50×25mm</SelectItem>
-                <SelectItem value="a4_3x7">A4 sheet 63.5×38.1mm</SelectItem>
+                <SelectItem value="thermal_40x30">حراري 40×30مم</SelectItem>
+                <SelectItem value="thermal_50x25">حراري 50×25مم</SelectItem>
+                <SelectItem value="a4_3x7">ورقة A4 63.5×38.1مم</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Width (mm)</Label>
+          <div className="grid grid-cols-2 gap-[var(--mds-space-3)]">
+            <div className="space-y-[var(--mds-space-2)]">
+              <Label>العرض (مم)</Label>
               <Input
                 type="number"
                 value={settings.labelWidthMm}
                 onChange={(e) =>
                   setSettings((s) => ({ ...s, labelWidthMm: Number(e.target.value) }))
                 }
+                className="rounded-[var(--mds-radius-md)]"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Height (mm)</Label>
+            <div className="space-y-[var(--mds-space-2)]">
+              <Label>الارتفاع (مم)</Label>
               <Input
                 type="number"
                 value={settings.labelHeightMm}
                 onChange={(e) =>
                   setSettings((s) => ({ ...s, labelHeightMm: Number(e.target.value) }))
                 }
+                className="rounded-[var(--mds-radius-md)]"
               />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-[var(--mds-space-2)] text-sm">
             <input
               type="checkbox"
               checked={settings.showPrice}
               onChange={(e) => setSettings((s) => ({ ...s, showPrice: e.target.checked }))}
             />
-            Show price
+            إظهار السعر
           </label>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-[var(--mds-space-2)] text-sm">
             <input
               type="checkbox"
               checked={settings.showSku}
               onChange={(e) => setSettings((s) => ({ ...s, showSku: e.target.checked }))}
             />
-            Show SKU
+            إظهار SKU
           </label>
-          <div className="space-y-2">
-            <Label>Copies per product</Label>
-            <Input value={copies} onChange={(e) => setCopies(e.target.value)} />
+          <div className="space-y-[var(--mds-space-2)]">
+            <Label>عدد النسخ لكل منتج</Label>
+            <Input
+              value={copies}
+              onChange={(e) => setCopies(e.target.value)}
+              className="rounded-[var(--mds-radius-md)]"
+            />
           </div>
           <Button
-            className="w-full"
+            className="w-full shadow-[var(--mds-elevation-1)]"
             onClick={async () => {
               try {
                 await saveLabelSettingsAction(settings);
-                toast.success("Label settings saved");
+                toast.success("تم حفظ إعدادات الملصقات");
               } catch {
-                toast.error("Could not save settings");
+                toast.error("تعذر حفظ الإعدادات");
               }
             }}
           >
-            Save settings
+            حفظ الإعدادات
           </Button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-[var(--mds-space-4)]">
           <Input
-            placeholder="Search products…"
+            placeholder="ابحث عن منتج…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="بحث المنتجات"
+            className="rounded-[var(--mds-radius-md)]"
           />
-          <div className="max-h-[320px] overflow-y-auto rounded-2xl border">
+          <div className="max-h-[320px] overflow-y-auto rounded-[var(--mds-radius-lg)] border border-border shadow-[var(--mds-elevation-1)]">
             {filtered.map((product) => {
               const checked = selectedIds.includes(product.id);
               return (
                 <label
                   key={product.id}
-                  className="flex cursor-pointer items-center gap-3 border-b px-4 py-3 last:border-b-0"
+                  className="flex cursor-pointer items-center gap-[var(--mds-space-3)] border-b border-border px-[var(--mds-space-4)] py-[var(--mds-space-3)] last:border-b-0"
                 >
                   <input
                     type="checkbox"
@@ -194,8 +202,8 @@ export function LabelsPage({ products, currency, initialSettings }: LabelsPagePr
             })}
           </div>
           {labelItems.length > 0 ? (
-            <div className="rounded-2xl border bg-muted/20 p-4">
-              <p className="mb-3 text-sm font-medium">Preview</p>
+            <div className="rounded-[var(--mds-radius-lg)] border border-border bg-muted/20 p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
+              <p className="mb-[var(--mds-space-3)] text-sm font-medium">معاينة</p>
               <LabelDocument items={labelItems} settings={settings} currency={currency} />
             </div>
           ) : null}

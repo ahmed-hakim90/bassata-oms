@@ -1,3 +1,4 @@
+import Link from "next/link";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
 import * as deviceRepo from "@/lib/repositories/device.repository";
@@ -41,20 +42,37 @@ export async function SessionBar() {
 
   if (!session) return null;
 
+  const openedLabel = new Date(session.opened_at).toLocaleTimeString("ar-EG", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
   return (
-    <div className="border-b border-border/60 bg-primary/5 px-4 py-2 text-center text-sm">
-      <span className="font-medium">{store?.name}</span>
-      {device ? (
-        <>
-          <span className="mx-2 text-muted-foreground">·</span>
-          {device.name}
-        </>
-      ) : null}
-      <span className="mx-2 text-muted-foreground">·</span>
-      جلسة مفتوحة - {cashier?.name ?? "الكاشير"}
-      {cashierId && user && cashierId !== user.id ? (
-        <span className="text-muted-foreground"> (تم التبديل)</span>
-      ) : null}
+    <div className="border-b border-[color-mix(in_srgb,var(--mds-color-feedback-success)_30%,transparent)] bg-[color-mix(in_srgb,var(--mds-color-feedback-success)_8%,var(--mds-color-bg-surface))] px-[var(--mds-space-4)] py-[var(--mds-space-1)] dark:bg-[color-mix(in_srgb,var(--mds-color-feedback-success)_10%,transparent)]">
+      <Link
+        href="/sessions"
+        className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-[var(--mds-space-2)] gap-y-0.5 text-xs hover:underline"
+      >
+        {/* pulsing active indicator */}
+        <span className="relative flex size-2 shrink-0 items-center justify-center" aria-hidden>
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-[var(--mds-color-feedback-success)] opacity-40" />
+          <span className="inline-flex size-2 rounded-full bg-[var(--mds-color-feedback-success)]" />
+        </span>
+        <span className="font-semibold text-foreground">{store?.name}</span>
+        {device ? (
+          <>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="text-muted-foreground">{device.name}</span>
+          </>
+        ) : null}
+        <span className="text-muted-foreground/40">·</span>
+        <span className="text-[var(--mds-color-feedback-success)]">
+          جلسة مفتوحة — {cashier?.name ?? "الكاشير"}
+          {cashierId && user && cashierId !== user.id ? " (تم التبديل)" : ""}
+        </span>
+        <span className="text-muted-foreground/40">·</span>
+        <span className="tabular-nums text-muted-foreground">من {openedLabel}</span>
+      </Link>
     </div>
   );
 }

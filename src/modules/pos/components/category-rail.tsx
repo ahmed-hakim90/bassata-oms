@@ -15,29 +15,29 @@ export function CategoryRail({
   onSelect,
 }: CategoryRailProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
       <button
         type="button"
         onClick={() => onSelect(null)}
         className={cn(
-          "min-h-11 shrink-0 rounded-full px-5 text-sm font-medium transition sm:text-base",
+          "min-h-11 shrink-0 rounded-full px-4 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:px-5 sm:text-base",
           selectedId === null
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground"
+            ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+            : "bg-card text-muted-foreground ring-1 ring-border/70 hover:bg-muted/80 hover:text-foreground"
         )}
       >
-        All
+        الكل
       </button>
       {categories.map((cat) => (
         <button
           key={cat.id}
-        type="button"
-        onClick={() => onSelect(cat.id)}
-        className={cn(
-            "min-h-11 shrink-0 rounded-full px-5 text-sm font-medium transition sm:text-base",
+          type="button"
+          onClick={() => onSelect(cat.id)}
+          className={cn(
+            "min-h-11 shrink-0 rounded-full px-4 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 sm:px-5 sm:text-base",
             selectedId === cat.id
-              ? "text-white shadow-sm"
-              : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground"
+              ? "font-semibold text-white shadow-sm"
+              : "bg-card text-muted-foreground ring-1 ring-border/70 hover:bg-muted/80 hover:text-foreground"
           )}
           style={
             selectedId === cat.id

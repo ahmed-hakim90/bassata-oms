@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Plus, Truck } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { Product, Supplier, Warehouse } from "@/lib/types";
@@ -94,24 +95,21 @@ export function PurchasesPage({
       />
 
       {purchases.length === 0 ? (
-        <OperationalCard
+        <EmptyStateBlock
           title="لا توجد مشتريات بعد"
-          description="أنشئ أول فاتورة شراء لاستلام المخزون"
-        >
-          <div className="flex flex-col items-center py-12 text-center">
-            <div className="mb-4 flex size-16 items-center justify-center rounded-3xl bg-primary/10 text-primary">
-              <Truck className="size-8" />
-            </div>
+          description="أنشئ أول فاتورة شراء لاستلام المخزون."
+          action={
             <Button onClick={() => setCreating(true)}>
               <Plus className="size-4" /> شراء جديد
             </Button>
-          </div>
-        </OperationalCard>
+          }
+        />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-[var(--mds-space-4)]">
           <SupplierPriceHistory history={priceHistory} currency={currency} />
+          <p className="text-sm text-muted-foreground">{purchases.length} فاتورة</p>
           {purchases.map((p) => (
-            <OperationalCard key={p.id} accent="#2563EB">
+            <OperationalCard key={p.id} accent="var(--mds-color-action-primary)">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3">

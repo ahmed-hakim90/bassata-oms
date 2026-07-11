@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -19,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PAYMENT_METHODS } from "@/lib/constants";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import type { PaymentMethod } from "@/lib/types";
 import { createSupplierPaymentAction } from "@/modules/suppliers/actions/supplier.actions";
 
@@ -35,6 +37,7 @@ export function RecordPaymentDialog({
   onOpenChange,
   onSuccess,
 }: RecordPaymentDialogProps) {
+  const { t } = useTranslation();
   const [pending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -53,7 +56,7 @@ export function RecordPaymentDialog({
   const submit = () => {
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) {
-      toast.error("Enter a valid amount");
+      toast.error("أدخل مبلغ صحيح");
       return;
     }
     startTransition(async () => {
@@ -69,7 +72,7 @@ export function RecordPaymentDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Payment recorded");
+      toast.success("تم تسجيل الدفعة");
       reset();
       onOpenChange(false);
       onSuccess();
@@ -86,11 +89,12 @@ export function RecordPaymentDialog({
     >
       <DialogContent className="rounded-3xl">
         <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
+          <DialogTitle>تسجيل دفعة للمورد</DialogTitle>
+          <DialogDescription>أدخل تفاصيل الدفعة — ستُضاف لكشف حساب المورد فورًا.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="space-y-2">
-            <Label>Amount</Label>
+            <Label>المبلغ</Label>
             <Input
               type="number"
               min="0"
@@ -100,37 +104,37 @@ export function RecordPaymentDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Method</Label>
+            <Label>طريقة الدفع</Label>
             <Select
               value={paymentMethod}
               onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{(value) => (value ? t(String(value)) : null)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {PAYMENT_METHODS.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m}
+                  <SelectItem key={m} value={m} label={t(m)}>
+                    {t(m)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Reference</Label>
+            <Label>المرجع</Label>
             <Input
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder="Check #, transfer ref..."
+              placeholder="رقم شيك، تحويل…"
             />
           </div>
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>ملاحظات</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Paid at</Label>
+            <Label>تاريخ الدفع</Label>
             <Input
               type="datetime-local"
               value={paidAt}
@@ -138,7 +142,7 @@ export function RecordPaymentDialog({
             />
           </div>
           <Button onClick={submit} disabled={pending}>
-            Save payment
+            حفظ الدفعة
           </Button>
         </div>
       </DialogContent>

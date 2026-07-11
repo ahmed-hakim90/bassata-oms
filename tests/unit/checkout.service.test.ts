@@ -54,6 +54,7 @@ describe("completeCheckout session expiry", () => {
       manager_discount_override_amount: null,
     });
     vi.mocked(catalogRepo.listVariants).mockResolvedValue([]);
+    vi.mocked(catalogRepo.listVariantsForProducts).mockResolvedValue(new Map());
     vi.mocked(catalogRepo.getProduct).mockResolvedValue({
       id: "p1",
       org_id: "org-1",
@@ -75,6 +76,35 @@ describe("completeCheckout session expiry", () => {
       cost_unit: "piece",
       updated_at: new Date().toISOString(),
     });
+    vi.mocked(catalogRepo.getProductsByIds).mockResolvedValue(
+      new Map([
+        [
+          "p1",
+          {
+            id: "p1",
+            org_id: "org-1",
+            name: "Latte",
+            sku: "LATTE",
+            barcode: "",
+            category_id: "cat-1",
+            base_price: 10,
+            description: "",
+            sale_price: null,
+            image_url: null,
+            is_active: true,
+            is_popular: false,
+            track_inventory: false,
+            product_type: "finished",
+            inventory_tracking_mode: "standard",
+            unit: "piece",
+            last_unit_cost: 0,
+            cost_unit: "piece",
+            updated_at: new Date().toISOString(),
+          },
+        ],
+      ])
+    );
+    vi.mocked(settingsService.isFeatureEnabled).mockResolvedValue(false);
     vi.mocked(warehouseRepo.getDefaultWarehouse).mockResolvedValue({
       id: "warehouse-1",
       org_id: "org-1",

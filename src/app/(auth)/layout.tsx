@@ -6,10 +6,16 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-full items-center justify-center overflow-hidden px-4 py-12">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(37,99,235,0.12),transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(96,165,250,0.08),transparent_50%)]" />
-      <div className="pointer-events-none absolute -left-24 top-20 size-72 rounded-full bg-primary/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-20 size-72 rounded-full bg-sky-400/10 blur-3xl" />
+    <div className="relative flex min-h-full items-center justify-center overflow-hidden bg-[var(--mds-color-bg-canvas)] px-[var(--mds-space-4)] py-[var(--mds-space-12)]">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 50% at 50% 0%, color-mix(in srgb, var(--mds-color-action-primary) 18%, transparent), transparent 60%), radial-gradient(ellipse 50% 40% at 100% 100%, color-mix(in srgb, var(--mds-color-action-primary) 10%, transparent), transparent 55%)",
+        }}
+      />
+      <div className="pointer-events-none absolute -start-20 top-16 size-72 rounded-full bg-[var(--mds-color-harbor-100)] blur-3xl" />
+      <div className="pointer-events-none absolute -end-16 bottom-10 size-80 rounded-full bg-[var(--mds-color-action-primary)]/10 blur-3xl" />
       <div className="relative z-10 w-full max-w-3xl">{children}</div>
     </div>
   );

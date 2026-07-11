@@ -566,9 +566,9 @@ export function GuidedProductDetailsForm({
       <ConfirmActionDialog
         open={reapplyDialogOpen}
         onOpenChange={setReapplyDialogOpen}
-        title="Reapply template defaults?"
-        description="This will overwrite current product setup values with activity template defaults."
-        confirmLabel="Reapply defaults"
+        title="إعادة تطبيق قالب النشاط؟"
+        description="هيتكتب فوق إعدادات المنتج الحالية بقيم القالب الافتراضية."
+        confirmLabel="إعادة التطبيق"
         onConfirm={() => {
           if (!pendingTemplateReapply) return;
           onApplyActivityTemplate?.(

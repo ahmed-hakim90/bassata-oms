@@ -1,6 +1,5 @@
 "use client";
 
-import { format } from "date-fns";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
@@ -16,6 +15,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+function formatOpened(iso: string) {
+  return new Date(iso).toLocaleString("ar-EG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("ar-EG", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 interface OpenSessionsTableProps {
   summaries: OpenSessionSummary[];
@@ -35,15 +48,15 @@ export function OpenSessionsTable({
   if (summaries.length === 0) {
     return (
       <EmptyStateBlock
-        title="No open sessions yet"
-        description="Open a session to monitor cashier activity and live totals."
+        title="مفيش جلسات مفتوحة"
+        description="افتح جلسة عشان تتابع مبيعات الكاشير والنقدية المتوقعة."
       />
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-3 md:hidden">
+    <div className="flex flex-col gap-[var(--mds-space-3)]">
+      <div className="grid gap-[var(--mds-space-3)] md:hidden">
         {summaries.map((summary) => {
           const isCurrentCashier = summary.session.cashier_id === currentCashierId;
           const showForceClose =
@@ -52,28 +65,31 @@ export function OpenSessionsTable({
             !isCurrentCashier &&
             (summary.lifecycle === "warning" || summary.lifecycle === "expired_locked");
           return (
-            <div key={summary.session.id} className="rounded-xl border border-border/60 bg-card p-4">
-              <div className="mb-2 flex items-center justify-between">
+            <div key={summary.session.id} className="rounded-[var(--mds-radius-md)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
+              <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="font-medium">{summary.cashierName}</p>
                 <SessionLifecycleBadge lifecycle={summary.lifecycle} />
               </div>
+              {showStoreColumn ? (
+                <p className="mb-2 text-xs text-muted-foreground">{summary.storeName}</p>
+              ) : null}
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <p className="text-muted-foreground">Opened</p>
-                <p>{format(new Date(summary.openedAt), "MMM d, h:mm a")}</p>
-                <p className="text-muted-foreground">Duration</p>
+                <p className="text-muted-foreground">الفتح</p>
+                <p>{formatOpened(summary.openedAt)}</p>
+                <p className="text-muted-foreground">المدة</p>
                 <p>{summary.durationLabel}</p>
-                <p className="text-muted-foreground">Sales</p>
+                <p className="text-muted-foreground">المبيعات</p>
                 <p>{formatCurrency(summary.totalSales)}</p>
-                <p className="text-muted-foreground">Expected cash</p>
+                <p className="text-muted-foreground">النقدية المتوقعة</p>
                 <p>{formatCurrency(summary.expectedCash)}</p>
               </div>
               <div className="mt-3 text-xs">
                 {showForceClose ? (
                   <ForceCloseSessionDialog summary={summary} />
                 ) : isCurrentCashier ? (
-                  <span className="text-muted-foreground">Use close stepper</span>
+                  <span className="text-muted-foreground">اقفل جلستك من الأسفل</span>
                 ) : (
-                  <span className="text-muted-foreground">No actions</span>
+                  <span className="text-muted-foreground">مفيش إجراء</span>
                 )}
               </div>
             </div>
@@ -82,25 +98,25 @@ export function OpenSessionsTable({
       </div>
 
       <div className="hidden md:block">
-        <DataTableShell title="Open sessions">
+        <DataTableShell title="الجلسات المفتوحة">
           <Table className="min-w-[920px]">
             <TableHeader>
-              <TableRow>
-                {showStoreColumn ? <TableHead>Store</TableHead> : null}
-                <TableHead>Cashier</TableHead>
-                <TableHead>Device</TableHead>
-                <TableHead>Opened</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Orders</TableHead>
-                <TableHead>Sales</TableHead>
-                <TableHead>Cash</TableHead>
-                <TableHead>Card</TableHead>
-                <TableHead>Other</TableHead>
-                <TableHead>Expenses</TableHead>
-                <TableHead>Expected cash</TableHead>
-                <TableHead>Last order</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="hover:bg-transparent">
+                {showStoreColumn ? <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الفرع</TableHead> : null}
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الكاشير</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الجهاز</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الفتح</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">المدة</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الطلبات</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">المبيعات</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">نقدي</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">كارت</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">أخرى</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">مصروفات</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">نقدية متوقعة</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">آخر طلب</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الحالة</TableHead>
+                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -125,9 +141,7 @@ export function OpenSessionsTable({
                     ) : null}
                     <TableCell className="font-medium">{summary.cashierName}</TableCell>
                     <TableCell className="text-muted-foreground">{summary.deviceName ?? "—"}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {format(new Date(summary.openedAt), "MMM d, h:mm a")}
-                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{formatOpened(summary.openedAt)}</TableCell>
                     <TableCell className="tabular-nums">{summary.durationLabel}</TableCell>
                     <TableCell className="tabular-nums">{summary.orderCount}</TableCell>
                     <TableCell className="tabular-nums">{formatCurrency(summary.totalSales)}</TableCell>
@@ -135,9 +149,11 @@ export function OpenSessionsTable({
                     <TableCell className="tabular-nums">{formatCurrency(summary.cardSales)}</TableCell>
                     <TableCell className="tabular-nums">{formatCurrency(summary.otherSales)}</TableCell>
                     <TableCell className="tabular-nums">{formatCurrency(summary.sessionExpenses)}</TableCell>
-                    <TableCell className="tabular-nums font-medium">{formatCurrency(summary.expectedCash)}</TableCell>
+                    <TableCell className="font-medium tabular-nums">
+                      {formatCurrency(summary.expectedCash)}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {summary.lastOrderAt ? format(new Date(summary.lastOrderAt), "h:mm a") : "—"}
+                      {summary.lastOrderAt ? formatTime(summary.lastOrderAt) : "—"}
                     </TableCell>
                     <TableCell>
                       <SessionLifecycleBadge lifecycle={summary.lifecycle} />
@@ -146,7 +162,7 @@ export function OpenSessionsTable({
                       {showForceClose ? (
                         <ForceCloseSessionDialog summary={summary} />
                       ) : isCurrentCashier ? (
-                        <span className="text-xs text-muted-foreground">Use close stepper</span>
+                        <span className="text-xs text-muted-foreground">اقفل من الأسفل</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}

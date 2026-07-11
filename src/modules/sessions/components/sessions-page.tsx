@@ -9,11 +9,12 @@ import * as userRepo from "@/lib/repositories/user.repository";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { listDevices } from "@/modules/system/services/users.service";
 import { PageHeader } from "@/components/SweetFlow/page-header";
-import { Badge } from "@/components/ui/badge";
 import { OpenSessionDialog } from "@/modules/sessions/components/open-session-dialog";
 import { CloseSessionStepper } from "@/modules/sessions/components/close-session-stepper";
 import { OpenSessionsTable } from "@/modules/sessions/components/open-sessions-table";
+import { ClosedSessionsTable } from "@/modules/sessions/components/closed-sessions-table";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
+import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { calcExpectedCash } from "@/modules/sessions/services/reconciliation.service";
 import { getOpenSessionSummaries } from "@/modules/sessions/services/open-session-summary.service";
 import {
@@ -23,8 +24,6 @@ import {
 import { listExpenses } from "@/modules/expenses/services/expense.service";
 import { getSessionSettings } from "@/modules/system/services/settings.service";
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
-import { format } from "date-fns";
-import { formatCurrency } from "@/lib/format";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import { SessionsStoreFilter } from "@/modules/sessions/components/sessions-store-filter";
@@ -79,7 +78,20 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
     deviceMap,
   });
 
-  const closedSessions = scopedSessions.filter((s) => s.status === "closed");
+  const closedSessions = scopedSessions
+    .filter((s) => s.status === "closed")
+    .sort((a, b) => {
+      const aTime = a.closed_at ?? a.opened_at;
+      const bTime = b.closed_at ?? b.opened_at;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+  const closedRows = closedSessions.map((s) => ({
+    session: s,
+    storeName: storeMap.get(s.store_id) ?? "—",
+    cashierName: userMap.get(s.cashier_id) ?? "الكاشير",
+    closedByName: s.closed_by ? (userMap.get(s.closed_by) ?? null) : null,
+    deviceName: s.device_id ? (deviceMap.get(s.device_id) ?? null) : null,
+  }));
 
   const [reconciliation, sessionExpenses] = active
     ? await Promise.all([calcExpectedCash(active.id), listExpenses(storeId, active.id)])
@@ -90,23 +102,46 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
     : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <PageHeader
-          title="Cashier sessions"
-          description={
-            canViewAll
-              ? "Live open sessions across branches"
-              : "Open, close, and reconcile branch sessions"
+    <div className="flex flex-col gap-[var(--mds-space-6)]">
+      <PageHeader
+        breadcrumb={<span>المبيعات · الجلسات</span>}
+        title="جلسات الكاشير"
+        description={
+          canViewAll
+            ? "الجلسات المفتوحة على كل الفروع — راقب وافتح إغلاق إجباري عند الحاجة"
+            : "افتح واقفل جلستك وعدّ الدرج قبل ما تمشي"
+        }
+        action={<OpenSessionDialog disabled={Boolean(active)} />}
+      />
+
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">
+        <OperationalCard
+          title="مفتوحة الآن"
+          value={String(openSummaries.length)}
+          subtitle={canViewAll ? "كل الفروع أو الفلتر الحالي" : "فرعك"}
+          accent="var(--mds-color-feedback-success)"
+        />
+        <OperationalCard
+          title="جلسة الجهاز"
+          value={active ? "نشطة" : "لا توجد"}
+          subtitle={
+            active
+              ? (userMap.get(active.cashier_id) ?? "الكاشير")
+              : "افتح جلسة للبيع"
           }
         />
-        <OpenSessionDialog disabled={Boolean(active)} />
+        <OperationalCard
+          title="مقفولة"
+          value={String(closedRows.length)}
+          subtitle="سجل الجلسات المغلقة"
+          accent="var(--mds-color-feedback-info)"
+        />
       </div>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="flex flex-col gap-[var(--mds-space-3)]">
+        <div className="flex flex-wrap items-center justify-between gap-[var(--mds-space-3)]">
           <h2 className="font-heading text-base font-semibold">
-            Open sessions ({openSummaries.length})
+            الجلسات المفتوحة ({openSummaries.length})
           </h2>
           {canViewAll ? (
             <SessionsStoreFilter
@@ -125,63 +160,28 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
       </section>
 
       {active && reconciliation && activeLifecycle && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h2 className="font-heading text-base font-semibold">Close your session</h2>
+        <section className="flex flex-col gap-[var(--mds-space-3)]">
+          <div className="flex items-center gap-[var(--mds-space-3)]">
+            <h2 className="font-heading text-base font-semibold">اقفل جلستك</h2>
             <SessionLifecycleBadge lifecycle={activeLifecycle.lifecycle} />
           </div>
           <CloseSessionStepper
             session={active}
             reconciliation={reconciliation}
             sessionExpenses={sessionExpenses}
-            cashierName={userMap.get(active.cashier_id) ?? "Cashier"}
+            cashierName={userMap.get(active.cashier_id) ?? "الكاشير"}
             costCenterMap={costCenterMap}
             categoryMap={categoryMap}
           />
         </section>
       )}
 
-      <details className="rounded-2xl bg-card text-card-foreground ring-1 ring-border">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
-          Closed session history ({closedSessions.length})
-        </summary>
-        <ul className="space-y-0 border-t border-border">
-          {closedSessions.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center justify-between border-b border-border px-4 py-3 last:border-0"
-            >
-              <div>
-                <p className="font-medium">
-                  {canViewAll ? `${storeMap.get(s.store_id)} · ` : ""}
-                  {userMap.get(s.cashier_id)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(s.opened_at), "MMM d, h:mm a")}
-                  {s.closed_at
-                    ? ` → ${format(new Date(s.closed_at), "MMM d, h:mm a")}`
-                    : ""}
-                </p>
-                {s.force_closed && s.close_reason ? (
-                  <p className="mt-1 text-xs text-destructive">
-                    Force closed: {s.close_reason}
-                  </p>
-                ) : null}
-              </div>
-              <div className="text-right">
-                <Badge variant={s.force_closed ? "destructive" : "secondary"}>
-                  {s.force_closed ? "force closed" : s.status}
-                </Badge>
-                {s.variance != null && (
-                  <p className="mt-1 text-xs tabular-nums">
-                    Variance {formatCurrency(s.variance)}
-                  </p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </details>
+      <section className="flex flex-col gap-[var(--mds-space-3)]">
+        <h2 className="font-heading text-base font-semibold">
+          الجلسات المقفولة ({closedRows.length})
+        </h2>
+        <ClosedSessionsTable rows={closedRows} showStoreColumn={canViewAll} />
+      </section>
     </div>
   );
 }

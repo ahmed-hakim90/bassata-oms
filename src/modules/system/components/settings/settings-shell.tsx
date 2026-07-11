@@ -156,25 +156,27 @@ export function SettingsShell({
   return (
     <>
       <PageHeader
+        breadcrumb={<span>الإدارة · الإعدادات</span>}
         title="الإعدادات"
         description="بيانات المتجر، الكاشير، المصروفات، المستخدمون، وإعدادات النظام"
       />
       <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col space-y-6">
-        <div className="min-w-0 space-y-3 rounded-2xl border border-border/60 p-3 sm:p-4">
+        <div className="min-w-0 space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-3 shadow-[var(--mds-elevation-1)] sm:p-4">
           <Input
             aria-label="بحث في الإعدادات"
             placeholder="ابحث في الإعدادات..."
+            className="h-10"
             value={settingsQuery}
             onChange={(event) => setSettingsQuery(event.target.value)}
           />
           <div className="-mx-3 min-w-0 overflow-x-auto px-3 pb-1 [scrollbar-gutter:stable] sm:-mx-4 sm:px-4">
             {filteredTabs.length > 0 ? (
-              <TabsList className="inline-flex h-auto w-max min-w-max flex-nowrap justify-start gap-1 rounded-xl bg-muted/60 px-2 py-2">
+              <TabsList className="inline-flex h-auto w-max min-w-max flex-nowrap justify-start gap-1 rounded-[var(--mds-radius-md)] bg-muted px-2 py-2">
                 {filteredTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="h-9 flex-none rounded-lg px-3 text-sm font-medium data-active:bg-background data-active:text-foreground data-active:shadow-sm"
+                    className="h-9 flex-none rounded-[var(--mds-radius-md)] px-3 text-sm font-medium data-active:bg-[var(--mds-color-action-primary)] data-active:text-[var(--mds-color-text-inverse)] data-active:shadow-[var(--mds-elevation-1)]"
                   >
                     {tab.label}
                   </TabsTrigger>
@@ -190,24 +192,24 @@ export function SettingsShell({
 
         {canManageSettings && bundle ? (
           <>
-            <TabsContent value="business" className="min-w-0">
+            <TabsContent value="business" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
               <BusinessSettingsTab org={bundle.org} />
             </TabsContent>
-            <TabsContent value="branches" className="min-w-0">
+            <TabsContent value="branches" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
               <BranchSettingsTab
                 stores={bundle.stores}
                 warehouses={bundle.warehouses}
                 devices={bundle.devices}
               />
             </TabsContent>
-            <TabsContent value="features" className="min-w-0">
+            <TabsContent value="features" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
               <SystemFeaturesTab featureFlags={bundle.featureFlags} />
             </TabsContent>
           </>
         ) : null}
 
         {(canManageSettings || canManageSessions) && session && flags ? (
-          <TabsContent value="pos" className="min-w-0">
+          <TabsContent value="pos" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
             <PosSessionSettingsTab
               canManageSettings={canManageSettings}
               canManageSessions={canManageSessions}
@@ -220,7 +222,7 @@ export function SettingsShell({
         ) : null}
 
         {(canManageExpenseSettings || canManageCostCenters) && (
-          <TabsContent value="expenses" className="min-w-0">
+          <TabsContent value="expenses" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
             <ExpenseSettingsTab
               canManageExpenseSettings={canManageExpenseSettings}
               canManageCostCenters={canManageCostCenters}
@@ -232,13 +234,13 @@ export function SettingsShell({
         )}
 
         {usersBundle ? (
-          <TabsContent value="users" className="min-w-0">
+          <TabsContent value="users" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)] overflow-hidden">
             <UsersSettingsTab {...usersBundle} />
           </TabsContent>
         ) : null}
 
         {auditBundle ? (
-          <TabsContent value="audit" className="min-w-0">
+          <TabsContent value="audit" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)] overflow-hidden">
             <AuditSettingsTab {...auditBundle} />
           </TabsContent>
         ) : null}

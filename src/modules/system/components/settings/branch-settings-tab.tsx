@@ -106,7 +106,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
       <PosSetupGuide />
 
       <OperationalCard title="الفروع">
-        <div className="grid gap-6">
+        <div className="grid gap-[var(--mds-space-6)]">
           {stores.map((store) => {
             const storeWarehouses = warehouses.filter((w) => w.store_id === store.id);
             const storeDevices = devices.filter((d) => d.store_id === store.id);
@@ -117,7 +117,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
             return (
               <div
                 key={store.id}
-                className="grid gap-4 rounded-xl border border-border/60 p-4"
+                className="grid gap-[var(--mds-space-4)] rounded-[var(--mds-radius-lg)] border border-border/60 p-[var(--mds-space-4)]"
               >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
@@ -126,10 +126,10 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                       <img
                         src={logoUrl}
                         alt={`لوجو ${store.name}`}
-                        className="size-12 shrink-0 rounded-2xl border border-border/60 object-cover"
+                        className="size-12 shrink-0 rounded-[var(--mds-radius-lg)] border border-border/60 object-cover"
                       />
                     ) : (
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold text-primary">
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-[var(--mds-radius-lg)] bg-primary/10 text-lg font-semibold text-primary">
                         {store.name.slice(0, 1)}
                       </div>
                     )}
@@ -624,7 +624,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
             );
           })}
 
-          <div className="grid max-w-xl gap-3 rounded-xl border border-dashed border-border/60 p-4">
+          <div className="grid max-w-xl gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-dashed border-border/60 p-[var(--mds-space-4)]">
             <p className="text-sm font-medium">إضافة فرع</p>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">

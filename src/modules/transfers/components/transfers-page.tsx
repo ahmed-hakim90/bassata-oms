@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeftRight, Pencil, Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { formatDateTime } from "@/lib/format";
 import type { Product, Store, Warehouse } from "@/lib/types";
@@ -20,6 +21,13 @@ interface TransfersPageProps {
   storeId: string;
 }
 
+const TRANSFER_STATUS_LABELS: Record<TransferWithLines["status"], string> = {
+  draft: "مسودة",
+  sent: "مرسلة",
+  received: "مستلمة",
+  cancelled: "ملغاة",
+};
+
 const statusVariant: Record<
   TransferWithLines["status"],
   "draft" | "warning" | "success" | "danger"
@@ -28,6 +36,13 @@ const statusVariant: Record<
   sent: "warning",
   received: "success",
   cancelled: "danger",
+};
+
+const statusAccent: Record<TransferWithLines["status"], string> = {
+  draft: "var(--mds-color-border-default)",
+  sent: "var(--mds-color-feedback-warning)",
+  received: "var(--mds-color-feedback-success)",
+  cancelled: "var(--mds-color-feedback-danger)",
 };
 
 export function TransfersPage({
@@ -77,29 +92,39 @@ export function TransfersPage({
       />
 
       {transfers.length === 0 ? (
-        <OperationalCard title="لا توجد تحويلات بعد">
-          <div className="flex flex-col items-center py-12">
-            <ArrowLeftRight className="mb-4 size-12 text-muted-foreground" />
-            <Button onClick={() => setCreating(true)}>إنشاء تحويل</Button>
-          </div>
-        </OperationalCard>
+        <EmptyStateBlock
+          title="لا توجد تحويلات بعد"
+          description="أنشئ تحويلًا لنقل المخزون بين الفروع."
+          action={
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="size-4" /> تحويل جديد
+            </Button>
+          }
+        />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-[var(--mds-space-3)]">
           {transfers.map((t) => (
-            <OperationalCard key={t.id}>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
+            <OperationalCard key={t.id} accent={statusAccent[t.status]}>
+              <div className="flex flex-wrap items-center justify-between gap-[var(--mds-space-4)]">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
                     <span className="font-semibold">
-                      {t.fromStoreName} / {t.fromWarehouseName} → {t.toStoreName} / {t.toWarehouseName}
+                      {t.fromStoreName} / {t.fromWarehouseName}
                     </span>
-                    <StatusPill label={t.status} variant={statusVariant[t.status]} />
+                    <span className="text-muted-foreground">←</span>
+                    <span className="font-semibold">
+                      {t.toStoreName} / {t.toWarehouseName}
+                    </span>
+                    <StatusPill
+                      label={TRANSFER_STATUS_LABELS[t.status]}
+                      variant={statusVariant[t.status]}
+                    />
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {t.lines.length} أصناف · {formatDateTime(t.created_at)}
                   </p>
                 </div>
-                <Button variant="outline" onClick={() => setEditingId(t.id)}>
+                <Button variant="outline" size="sm" onClick={() => setEditingId(t.id)}>
                   <Pencil className="size-4" />
                   فتح
                 </Button>

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { LoadingStateBlock } from "@/components/SweetFlow/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import { calculateExpiryDate } from "@/lib/inventory/expiry";
 import { selectLabelById } from "@/lib/select-label";
@@ -174,7 +175,7 @@ export function PurchaseForm({
         setExpiryDate("");
         setSelectedProductId("");
         barcodeRef.current?.focus();
-        toast.success(`Added ${productMap.get(productId)?.name ?? "item"}`);
+        toast.success(`تمت إضافة ${productMap.get(productId)?.name ?? "صنف"}`);
       });
     },
     [invoice, productMap]
@@ -305,16 +306,17 @@ export function PurchaseForm({
   };
 
   if (loading) {
-    return (
-      <OperationalCard title="جاري تحميل فاتورة الشراء…">
-        <p className="text-sm text-muted-foreground">برجاء الانتظار</p>
-      </OperationalCard>
-    );
+    return <LoadingStateBlock label="جاري تحميل فاتورة الشراء…" />;
   }
 
   const subtotal = invoice?.lines.reduce((s, l) => s + l.line_total, 0) ?? 0;
   const isDraft = invoice?.status === "draft";
   const isReceived = invoice?.status === "received";
+  const statusLabels: Record<string, string> = {
+    draft: "مسودة",
+    received: "مستلمة",
+    cancelled: "ملغاة",
+  };
 
   if (!invoice) {
     return (
@@ -376,7 +378,7 @@ export function PurchaseForm({
           </div>
         </div>
         <Button className="mt-6" onClick={handleCreateDraft} disabled={pending}>
-          Start Draft
+          بدء مسودة
         </Button>
       </OperationalCard>
     );
@@ -389,7 +391,7 @@ export function PurchaseForm({
         description={
           isDraft
             ? "امسح الباركود أو ابحث عن منتج - Enter للإضافة"
-            : `الحالة: ${invoice.status} · ${invoice.supplierName} · ${invoice.warehouseName}`
+            : `الحالة: ${statusLabels[invoice.status] ?? invoice.status} · ${invoice.supplierName} · ${invoice.warehouseName}`
         }
       >
         {isDraft && (

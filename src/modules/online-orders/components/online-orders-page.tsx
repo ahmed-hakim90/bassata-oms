@@ -29,8 +29,14 @@ import {
   updateOnlineOrderStatusAction,
 } from "@/modules/online-orders/actions/online-order.actions";
 import { PaymentPanel } from "@/modules/pos/components/payment-panel";
-import { ReceiptModal } from "@/modules/pos/components/receipt-modal";
+import { PosReceiptSuccessDialog } from "@/modules/pos/components/pos-receipt-success-dialog";
+import {
+  triggerReceiptPrint,
+} from "@/modules/pos/components/receipt-print";
+import { buildWhatsAppReceiptUrl } from "@/modules/pos/services/receipt-format.service";
+import { printReceiptViaUsb } from "@/modules/pos/services/receipt-usb-printer.service";
 import { buildReceiptPayloadFromOnlineOrder } from "@/modules/pos/utils/receipt-payload";
+import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
 import type { ReceiptPayload } from "@/modules/pos/services/receipt-format.service";
 import type { ReportBranding } from "@/modules/reports/core/report-context";
 import type { PaymentMethod, PaymentSplit } from "@/lib/types";
@@ -140,8 +146,8 @@ export function OnlineOrdersPageClient({
 }: OnlineOrdersPageClientProps) {
   if (orders.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
+      <Card className="rounded-[var(--mds-radius-lg)] border-border shadow-[var(--mds-elevation-1)]">
+        <CardContent className="py-[var(--mds-space-8)] text-center text-muted-foreground">
           لا توجد طلبات أونلاين حتى الآن.
         </CardContent>
       </Card>
@@ -153,20 +159,20 @@ export function OnlineOrdersPageClient({
   const readyOrders = orders.filter((order) => order.status === "ready");
 
   return (
-    <div className={cn("grid", compact ? "gap-2" : "gap-4")} dir="rtl">
+    <div className={cn("grid", compact ? "gap-[var(--mds-space-2)]" : "gap-[var(--mds-space-4)]")} dir="rtl">
       {!compact ? (
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+      <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-3">
+        <div className="rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
           <p className="text-xs text-muted-foreground">طلبات نشطة</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums">{activeOrders.length}</p>
+          <p className="mt-[var(--mds-space-1)] text-2xl font-semibold tabular-nums">{activeOrders.length}</p>
         </div>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-[var(--mds-radius-lg)] border border-[var(--mds-color-feedback-warning)]/30 bg-[var(--mds-color-feedback-warning)]/10 p-[var(--mds-space-4)] text-[var(--mds-color-feedback-warning)] shadow-[var(--mds-elevation-1)]">
           <p className="text-xs opacity-80">تحتاج مراجعة</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums">{pendingOrders.length}</p>
+          <p className="mt-[var(--mds-space-1)] text-2xl font-semibold tabular-nums">{pendingOrders.length}</p>
         </div>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+        <div className="rounded-[var(--mds-radius-lg)] border border-[var(--mds-color-feedback-success)]/30 bg-[var(--mds-color-feedback-success)]/10 p-[var(--mds-space-4)] text-[var(--mds-color-feedback-success)] shadow-[var(--mds-elevation-1)]">
           <p className="text-xs opacity-80">جاهزة</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums">{readyOrders.length}</p>
+          <p className="mt-[var(--mds-space-1)] text-2xl font-semibold tabular-nums">{readyOrders.length}</p>
         </div>
       </div>
       ) : null}
@@ -282,6 +288,7 @@ function OnlineOrderCard({
     startTransition(async () => {
       try {
         const result = await invoiceOnlineOrderAction(order.id, payments);
+        playPosSuccessSound();
         toast.success(`تم إنشاء الريسيت ${result.order_number}`);
         setPaymentOpen(false);
         if (receiptBranding) {
@@ -298,6 +305,7 @@ function OnlineOrderCard({
         }
         router.refresh();
       } catch (error) {
+        playPosErrorSound();
         toast.error(error instanceof Error ? error.message : "تعذر إنشاء الريسيت");
       }
     });
@@ -315,17 +323,42 @@ function OnlineOrderCard({
     });
   }
 
+  async function handleUsbPrintReceipt() {
+    if (!receipt) return;
+    try {
+      await printReceiptViaUsb(receipt);
+      toast.success("تم إرسال الإيصال لطابعة USB");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذرت طباعة الإيصال");
+    }
+  }
+
+  function handleBrowserPrintReceipt() {
+    if (!receipt) return;
+    setTimeout(() => triggerReceiptPrint(), 50);
+  }
+
+  function handleSendWhatsAppReceipt() {
+    if (!receipt) return;
+    const url = buildWhatsAppReceiptUrl(receipt);
+    if (!url) {
+      toast.error("رقم هاتف العميل غير صالح لواتساب");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <>
-    <Card className={cn("border-border/70 bg-card/95 shadow-sm", compact ? "gap-2 rounded-2xl py-2" : "rounded-3xl")}>
+    <Card className={cn("border-border bg-card shadow-[var(--mds-elevation-1)]", compact ? "gap-[var(--mds-space-2)] rounded-[var(--mds-radius-lg)] py-[var(--mds-space-2)]" : "rounded-[var(--mds-radius-lg)]")}>
       <CardHeader
         className={cn(
-          "border-b border-border/60 sm:grid-cols-[1fr_auto]",
-          compact ? "gap-2 px-3 pb-2" : "gap-4 pb-4"
+          "border-b border-border sm:grid-cols-[1fr_auto]",
+          compact ? "gap-[var(--mds-space-2)] px-[var(--mds-space-3)] pb-[var(--mds-space-2)]" : "gap-[var(--mds-space-4)] pb-[var(--mds-space-4)]"
         )}
       >
-        <div className={cn("min-w-0", compact ? "space-y-2" : "space-y-3")}>
-          <div className="flex flex-wrap items-center gap-2">
+        <div className={cn("min-w-0", compact ? "space-y-[var(--mds-space-2)]" : "space-y-[var(--mds-space-3)]")}>
+          <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
             <Badge
               className={cn(
                 "border",
@@ -344,33 +377,33 @@ function OnlineOrderCard({
           <div
             className={cn(
               "grid text-muted-foreground sm:grid-cols-2 xl:grid-cols-4",
-              compact ? "gap-1 text-xs" : "gap-2 text-sm"
+              compact ? "gap-[var(--mds-space-1)] text-xs" : "gap-[var(--mds-space-2)] text-sm"
             )}
           >
-            <span className={cn("flex items-center gap-2 rounded-xl bg-muted/40", compact ? "px-2 py-1" : "px-3 py-2")}>
+            <span className={cn("flex items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] bg-muted/40", compact ? "px-2 py-1" : "px-3 py-2")}>
               <UserRound className={cn("text-primary", compact ? "size-3.5" : "size-4")} />
               <span className="truncate">{draft.customerName || "بدون اسم"}</span>
             </span>
-            <span className={cn("flex items-center gap-2 rounded-xl bg-muted/40", compact ? "px-2 py-1" : "px-3 py-2")} dir="ltr">
+            <span className={cn("flex items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] bg-muted/40", compact ? "px-2 py-1" : "px-3 py-2")} dir="ltr">
               <Phone className={cn("text-primary", compact ? "size-3.5" : "size-4")} />
               <span className="truncate tabular-nums">{draft.customerPhone || "بدون هاتف"}</span>
             </span>
-            <span className={cn("flex items-center gap-2 rounded-xl bg-muted/40", compact ? "hidden px-2 py-1 xl:flex" : "px-3 py-2")}>
+            <span className={cn("flex items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] bg-muted/40", compact ? "hidden px-2 py-1 xl:flex" : "px-3 py-2")}>
               <Store className={cn("text-primary", compact ? "size-3.5" : "size-4")} />
               <span className="truncate">{order.storeName}</span>
             </span>
-            <span className={cn("flex items-center gap-2 rounded-xl bg-muted/40", compact ? "px-2 py-1" : "px-3 py-2")}>
+            <span className={cn("flex items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] bg-muted/40", compact ? "px-2 py-1" : "px-3 py-2")}>
               <CalendarClock className={cn("text-primary", compact ? "size-3.5" : "size-4")} />
               <span className="truncate">{formatOrderDate(order.created_at)}</span>
             </span>
           </div>
         </div>
-        <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
+        <div className="flex flex-wrap justify-start gap-[var(--mds-space-2)] sm:justify-end">
           {order.order_id ? (
             <Button
               variant="outline"
               size={compact ? "sm" : "default"}
-              className="rounded-xl"
+              className="rounded-[var(--mds-radius-md)]"
               disabled={isPending}
               onClick={viewReceipt}
             >
@@ -381,7 +414,7 @@ function OnlineOrderCard({
           <Button
             type="button"
             size={compact ? "sm" : "default"}
-            className="rounded-xl"
+            className="rounded-[var(--mds-radius-md)] shadow-[var(--mds-elevation-1)]"
             disabled={isPending || isLocked}
             onClick={openPayment}
           >
@@ -393,30 +426,30 @@ function OnlineOrderCard({
       <CardContent
         className={cn(
           "grid",
-          compact ? "gap-2 px-3 pt-2 xl:grid-cols-[minmax(0,1fr)_220px]" : "gap-5 pt-4 xl:grid-cols-[minmax(0,1fr)_320px]"
+          compact ? "gap-[var(--mds-space-2)] px-[var(--mds-space-3)] pt-[var(--mds-space-2)] xl:grid-cols-[minmax(0,1fr)_220px]" : "gap-[var(--mds-space-5)] pt-[var(--mds-space-4)] xl:grid-cols-[minmax(0,1fr)_320px]"
         )}
       >
-        <div className={compact ? "space-y-2" : "space-y-5"}>
-          <section className={cn("border border-border/70 bg-background/60", compact ? "rounded-xl p-2" : "rounded-2xl p-3")}>
-            <div className={cn("flex items-center justify-between gap-3", compact ? "mb-1" : "mb-3")}>
+        <div className={compact ? "space-y-[var(--mds-space-2)]" : "space-y-[var(--mds-space-5)]"}>
+          <section className={cn("border border-border bg-background/60", compact ? "rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "rounded-[var(--mds-radius-lg)] p-[var(--mds-space-3)]")}>
+            <div className={cn("flex items-center justify-between gap-[var(--mds-space-3)]", compact ? "mb-[var(--mds-space-1)]" : "mb-[var(--mds-space-3)]")}>
               <h3 className={cn("font-medium", compact && "text-sm")}>ملخص الطلب</h3>
               <Button
                 type="button"
                 variant="outline"
                 size={compact ? "sm" : "default"}
-                className="rounded-xl"
+                className="rounded-[var(--mds-radius-md)]"
                 disabled={isLocked}
                 onClick={() => setIsEditingItems((open) => !open)}
               >
                 {isEditingItems ? "إخفاء التعديل" : "تعديل الأصناف"}
               </Button>
             </div>
-            <div className={compact ? "space-y-1" : "space-y-2"}>
+            <div className={compact ? "space-y-[var(--mds-space-1)]" : "space-y-[var(--mds-space-2)]"}>
               {order.items.map((item) => (
                 <div
                   key={item.id}
                   className={cn(
-                    "flex items-center justify-between gap-3 rounded-xl bg-muted/40",
+                    "flex items-center justify-between gap-[var(--mds-space-3)] rounded-[var(--mds-radius-md)] bg-muted/40",
                     compact ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm"
                   )}
                 >
@@ -429,7 +462,7 @@ function OnlineOrderCard({
                 </div>
               ))}
               {order.notes ? (
-                <p className={cn("rounded-xl bg-muted/50 text-muted-foreground", compact ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm")}>
+                <p className={cn("rounded-[var(--mds-radius-md)] bg-muted/50 text-muted-foreground", compact ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm")}>
                   {order.notes}
                 </p>
               ) : null}
@@ -438,14 +471,14 @@ function OnlineOrderCard({
 
           {isEditingItems ? (
             <>
-              <section className={cn("border border-border/70 bg-background/60", compact ? "rounded-xl p-2" : "rounded-2xl p-3")}>
-                <div className={cn("flex items-center justify-between gap-3", compact ? "mb-1" : "mb-3")}>
+              <section className={cn("border border-border bg-background/60", compact ? "rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "rounded-[var(--mds-radius-lg)] p-[var(--mds-space-3)]")}>
+                <div className={cn("flex items-center justify-between gap-[var(--mds-space-3)]", compact ? "mb-[var(--mds-space-1)]" : "mb-[var(--mds-space-3)]")}>
                   <h3 className={cn("font-medium", compact && "text-sm")}>تعديل الأصناف</h3>
                   <span className="text-sm text-muted-foreground">
                     {draft.lines.length} صنف
                   </span>
                 </div>
-                <div className={compact ? "space-y-1" : "space-y-2"}>
+                <div className={compact ? "space-y-[var(--mds-space-1)]" : "space-y-[var(--mds-space-2)]"}>
                 {draft.lines.map((line) => {
                   const product = productMap.get(line.productId);
                   const variants = product?.variants ?? [];
@@ -456,8 +489,8 @@ function OnlineOrderCard({
                       className={cn(
                         "grid bg-muted/40 md:items-center",
                         compact
-                          ? "gap-1 rounded-xl p-1 md:grid-cols-[minmax(130px,1.3fr)_minmax(100px,1fr)_64px_78px_30px]"
-                          : "gap-2 rounded-2xl p-2 md:grid-cols-[minmax(180px,1.3fr)_minmax(140px,1fr)_88px_110px_auto]"
+                          ? "gap-[var(--mds-space-1)] rounded-[var(--mds-radius-md)] p-1 md:grid-cols-[minmax(130px,1.3fr)_minmax(100px,1fr)_64px_78px_30px]"
+                          : "gap-[var(--mds-space-2)] rounded-[var(--mds-radius-lg)] p-[var(--mds-space-2)] md:grid-cols-[minmax(180px,1.3fr)_minmax(140px,1fr)_88px_110px_auto]"
                       )}
                     >
                   <select
@@ -471,7 +504,7 @@ function OnlineOrderCard({
                       });
                     }}
                     className={cn(
-                      "rounded-xl border border-input bg-background text-sm",
+                      "rounded-[var(--mds-radius-md)] border border-input bg-background text-sm",
                       compact ? "h-8 px-2 text-xs" : "h-10 px-3"
                     )}
                   >
@@ -486,7 +519,7 @@ function OnlineOrderCard({
                     disabled={isLocked || variants.length === 0}
                     onChange={(event) => updateLine(line.key, { variantId: event.target.value || null })}
                     className={cn(
-                      "rounded-xl border border-input bg-background text-sm",
+                      "rounded-[var(--mds-radius-md)] border border-input bg-background text-sm",
                       compact ? "h-8 px-2 text-xs" : "h-10 px-3"
                     )}
                   >
@@ -506,16 +539,16 @@ function OnlineOrderCard({
                     onChange={(event) =>
                       updateLine(line.key, { quantity: Math.max(1, Number(event.target.value) || 1) })
                     }
-                    className={cn("rounded-xl", compact ? "h-8 px-2 text-xs" : "h-10")}
+                    className={cn("rounded-[var(--mds-radius-md)]", compact ? "h-8 px-2 text-xs" : "h-10")}
                   />
-                  <div className={cn("rounded-xl bg-background font-medium tabular-nums", compact ? "px-2 py-1.5 text-xs" : "px-3 py-2 text-sm")}>
+                  <div className={cn("rounded-[var(--mds-radius-md)] bg-background font-medium tabular-nums", compact ? "px-2 py-1.5 text-xs" : "px-3 py-2 text-sm")}>
                     {formatMoney(unitPrice * line.quantity)}
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size={compact ? "icon-sm" : "icon"}
-                    className="rounded-xl text-muted-foreground hover:text-destructive"
+                    className="rounded-[var(--mds-radius-md)] text-muted-foreground hover:text-destructive"
                     disabled={isLocked}
                     onClick={() =>
                       setDraft((current) => ({
@@ -533,12 +566,12 @@ function OnlineOrderCard({
                 </div>
               </section>
 
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size={compact ? "sm" : "default"} className="rounded-xl" disabled={isLocked || products.length === 0} onClick={addLine}>
+              <div className="flex flex-wrap gap-[var(--mds-space-2)]">
+                <Button type="button" variant="outline" size={compact ? "sm" : "default"} className="rounded-[var(--mds-radius-md)]" disabled={isLocked || products.length === 0} onClick={addLine}>
                   <Plus className="size-4" />
                   إضافة صنف
                 </Button>
-                <Button type="button" size={compact ? "sm" : "default"} className="rounded-xl" disabled={isPending || isLocked} onClick={saveDetails}>
+                <Button type="button" size={compact ? "sm" : "default"} className="rounded-[var(--mds-radius-md)] shadow-[var(--mds-elevation-1)]" disabled={isPending || isLocked} onClick={saveDetails}>
                   <Save className="size-4" />
                   حفظ التعديل
                 </Button>
@@ -547,27 +580,27 @@ function OnlineOrderCard({
           ) : null}
         </div>
 
-        <aside className={cn("border border-border/70 bg-muted/30", compact ? "space-y-2 rounded-xl p-2" : "space-y-4 rounded-2xl p-4")}>
-          <div className={cn("bg-card", compact ? "rounded-xl p-2" : "rounded-2xl p-4")}>
+        <aside className={cn("border border-border bg-muted/30", compact ? "space-y-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "space-y-[var(--mds-space-4)] rounded-[var(--mds-radius-lg)] p-[var(--mds-space-4)]")}>
+          <div className={cn("bg-card shadow-[var(--mds-elevation-1)]", compact ? "rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "rounded-[var(--mds-radius-lg)] p-[var(--mds-space-4)]")}>
             <p className="text-sm text-muted-foreground">الإجمالي</p>
-            <p className={cn("mt-1 font-semibold tabular-nums", compact ? "text-lg" : "text-2xl")}>{formatMoney(draftTotal || order.total)}</p>
+            <p className={cn("mt-[var(--mds-space-1)] font-semibold tabular-nums", compact ? "text-lg" : "text-2xl")}>{formatMoney(draftTotal || order.total)}</p>
             {Math.abs(draftTotal - order.total) > 0.01 ? (
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-[var(--mds-space-1)] text-xs text-muted-foreground">
                 المسجل حاليًا: {formatMoney(order.total)}
               </p>
             ) : null}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-[var(--mds-space-2)]">
             <p className="text-sm font-medium">تغيير الحالة</p>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-[var(--mds-space-2)] overflow-x-auto pb-1">
             {EDITABLE_STATUSES.map((status) => (
               <Button
                 key={status}
                 type="button"
                 variant="outline"
                 className={cn(
-                  "shrink-0 justify-center rounded-xl border",
+                  "shrink-0 justify-center rounded-[var(--mds-radius-md)] border",
                   compact ? "h-8 min-w-24 px-2 text-xs" : "h-10 min-w-28 px-3",
                   STATUS_STYLES[status],
                   order.status === status && "ring-2 ring-primary/30"
@@ -599,10 +632,16 @@ function OnlineOrderCard({
       fixedTotal={draftTotal || order.total}
       creditCustomerLinked={Boolean(draft.customerPhone?.trim())}
     />
-    <ReceiptModal
-      open={receiptOpen}
-      onOpenChange={setReceiptOpen}
+    <PosReceiptSuccessDialog
+      open={receiptOpen && Boolean(receipt)}
       receipt={receipt}
+      onOpenChange={(open) => {
+        setReceiptOpen(open);
+        if (!open) setReceipt(null);
+      }}
+      onUsbPrint={handleUsbPrintReceipt}
+      onBrowserPrint={handleBrowserPrintReceipt}
+      onWhatsApp={handleSendWhatsAppReceipt}
     />
     </>
   );

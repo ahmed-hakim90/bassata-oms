@@ -209,8 +209,8 @@ export function BranchQrDownloadCard({
   }
 
   return (
-    <div className="grid gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-3 sm:grid-cols-[9rem_1fr]">
-      <div className="overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-border/60">
+    <div className="grid gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-3)] shadow-[var(--mds-elevation-1)] sm:grid-cols-[9rem_1fr]">
+      <div className="overflow-hidden rounded-[var(--mds-radius-md)] bg-muted shadow-[var(--mds-elevation-1)]">
         {posterDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={posterDataUrl} alt={`QR ${storeName}`} className="aspect-[2/3] w-full object-cover" />

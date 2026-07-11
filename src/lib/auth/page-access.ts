@@ -8,11 +8,17 @@ export interface PageAccessDenial {
 }
 
 const PATH_LABELS: Record<string, string> = {
-  "/settings": "Settings",
-  "/users": "Settings",
-  "/audit": "Settings",
-  "/reports": "Reports",
-  "/expenses": "Expenses",
+  "/settings": "الإعدادات",
+  "/users": "الإعدادات",
+  "/audit": "الإعدادات",
+  "/reports": "التقارير",
+  "/expenses": "المصروفات",
+  "/orders": "الطلبات",
+  "/sessions": "الجلسات",
+  "/inventory": "المخزون",
+  "/products": "المنتجات",
+  "/customers": "العملاء",
+  "/purchases": "المشتريات",
 };
 
 function navAllowsPath(
@@ -45,24 +51,24 @@ export function getPageAccessDenial(
 
   const label =
     Object.entries(PATH_LABELS).find(([p]) => pathname.startsWith(p))?.[1] ??
-    "this page";
+    "الصفحة دي";
 
   if (role === "cashier") {
     return {
-      title: "Access denied",
-      description: `Your cashier account cannot open ${label}. Ask a manager if you need help.`,
+      title: "مفيش صلاحية",
+      description: `حساب الكاشير مش هيقدر يفتح ${label}. لو محتاج حاجة، كلّم المدير.`,
     };
   }
 
   if (role === "inventory") {
     return {
-      title: "Access denied",
-      description: `Store keeper accounts cannot open ${label}. Use Products and Inventory from the menu.`,
+      title: "مفيش صلاحية",
+      description: `حساب المخزن مش هيقدر يفتح ${label}. استخدم المنتجات والمخزون من القائمة.`,
     };
   }
 
   return {
-    title: "Access denied",
-    description: `You do not have permission to open ${label}.`,
+    title: "مفيش صلاحية",
+    description: `مش عندك صلاحية تفتح ${label}.`,
   };
 }

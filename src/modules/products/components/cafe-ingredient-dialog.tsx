@@ -53,11 +53,11 @@ export function CafeIngredientDialog({
   function handleSave() {
     const name = form.name.trim();
     if (!name) {
-      toast.error("Ingredient name is required");
+      toast.error("اسم المكوّن مطلوب");
       return;
     }
     if (!form.category_id) {
-      toast.error("Choose a category first");
+      toast.error("اختار تصنيف أولاً");
       return;
     }
 
@@ -71,16 +71,16 @@ export function CafeIngredientDialog({
         };
         if (ingredient) {
           await updateCafeIngredientAction(ingredient.id, payload);
-          toast.success("Ingredient updated");
+          toast.success("تم تحديث المكوّن");
         } else {
           await createCafeIngredientAction(payload);
-          toast.success("Ingredient added");
+          toast.success("تمت إضافة المكوّن");
         }
         reset();
         onOpenChange(false);
         onSaved?.();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not add ingredient");
+        toast.error(error instanceof Error ? error.message : "تعذر حفظ المكوّن");
       }
     });
   }
@@ -95,27 +95,27 @@ export function CafeIngredientDialog({
     >
       <StandardModalContent
         size="md"
-        title={isEdit ? "Edit ingredient" : "New ingredient"}
+        title={isEdit ? "تعديل مكوّن" : "مكوّن جديد"}
         description={
           isEdit
-            ? "Update ingredient category, unit, and unit cost."
-            : "Add a reusable cafe ingredient with simple defaults."
+            ? "حدّث التصنيف والوحدة وتكلفة الوحدة."
+            : "أضف مكوّن كافي قابل لإعادة الاستخدام."
         }
       >
         <div className="grid gap-4">
           <div className="space-y-2">
-            <Label htmlFor="ingredient_name">Ingredient name</Label>
+            <Label htmlFor="ingredient_name">اسم المكوّن</Label>
             <Input
               id="ingredient_name"
               value={form.name}
-              placeholder="Milk, sugar, espresso beans..."
+              placeholder="لبن، سكر، بن إسبريسو…"
               onChange={(event) =>
                 setForm((current) => ({ ...current, name: event.target.value }))
               }
             />
           </div>
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label>التصنيف</Label>
             <Select
               value={form.category_id}
               onValueChange={(value) =>
@@ -123,7 +123,7 @@ export function CafeIngredientDialog({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Choose ingredient category">
+                <SelectValue placeholder="اختار تصنيف المكوّن">
                   {(value) =>
                     categories.find((category) => category.id === value)?.name ?? null
                   }
@@ -140,7 +140,7 @@ export function CafeIngredientDialog({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Unit</Label>
+              <Label>الوحدة</Label>
               <Select
                 value={form.unit}
                 onValueChange={(value) =>
@@ -165,7 +165,7 @@ export function CafeIngredientDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ingredient_cost">Unit cost</Label>
+              <Label htmlFor="ingredient_cost">تكلفة الوحدة</Label>
               <Input
                 id="ingredient_cost"
                 type="number"
@@ -181,10 +181,10 @@ export function CafeIngredientDialog({
           </div>
           <DialogFooter className="gap-2 px-0 pb-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              إلغاء
             </Button>
             <Button type="button" disabled={pending} onClick={handleSave}>
-              {pending ? "Saving..." : isEdit ? "Save ingredient" : "Add ingredient"}
+              {pending ? "جاري الحفظ…" : isEdit ? "حفظ المكوّن" : "إضافة مكوّن"}
             </Button>
           </DialogFooter>
         </div>

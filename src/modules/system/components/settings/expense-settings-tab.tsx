@@ -121,7 +121,7 @@ export function ExpenseSettingsTab({
               <div key={key} className="space-y-2">
                 <Label>مركز التكلفة الافتراضي - {costCenterDefaultsLabels[key]}</Label>
                 <select
-                  className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+                  className="flex h-9 w-full rounded-[var(--mds-radius-md)] border border-input bg-transparent px-3 text-sm"
                   value={
                     (expenseForm[`default_cost_center_${key}` as keyof ExpenseSettings] as string) ??
                     ""

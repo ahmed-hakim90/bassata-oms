@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -32,7 +33,7 @@ export function EditSupplierDialog({
 
   const submit = () => {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error("الاسم مطلوب");
       return;
     }
     startTransition(async () => {
@@ -45,7 +46,7 @@ export function EditSupplierDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Supplier updated");
+      toast.success("تم تحديث المورد");
       onSuccess(result.data);
       onOpenChange(false);
     });
@@ -63,25 +64,26 @@ export function EditSupplierDialog({
     >
       <DialogContent className="rounded-3xl">
         <DialogHeader>
-          <DialogTitle>Edit Supplier</DialogTitle>
+          <DialogTitle>تعديل المورد</DialogTitle>
+          <DialogDescription>تعديل بيانات المورد. التغييرات تُطبَّق فورًا.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>الاسم</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <Label>Contact</Label>
+            <Label>التواصل</Label>
             <Input
               value={form.contact_info}
               onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
             />
           </div>
           <Button onClick={submit} disabled={pending}>
-            Save
+            حفظ
           </Button>
         </div>
       </DialogContent>

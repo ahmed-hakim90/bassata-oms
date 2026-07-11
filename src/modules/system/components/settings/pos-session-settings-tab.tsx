@@ -106,7 +106,7 @@ export function PosSessionSettingsTab({
                 {POS_OPERATIONAL_FEATURE_FLAGS.map((flag) => (
                   <label
                     key={flag}
-                    className="flex items-center gap-2 rounded-xl border border-border/60 p-3"
+                    className="flex items-center gap-2 rounded-[var(--mds-radius-lg)] border border-border/60 p-[var(--mds-space-3)]"
                   >
                     <Checkbox
                       checked={posForm.operationalFlags[flag]}

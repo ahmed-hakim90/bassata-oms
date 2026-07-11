@@ -93,6 +93,30 @@ export function filterNavByAccess(
   })).filter((g) => g.items.length > 0);
 }
 
+/** Prefer the most specific matching nav href (e.g. /customers/loyalty over /customers). */
+export function isNavHrefActive(
+  pathname: string,
+  href: string,
+  siblingHrefs: readonly string[]
+): boolean {
+  if (href === "/") return pathname === "/";
+  const matches = pathname === href || pathname.startsWith(`${href}/`);
+  if (!matches) return false;
+  return !siblingHrefs.some(
+    (other) =>
+      other !== href &&
+      other.length > href.length &&
+      (pathname === other || pathname.startsWith(`${other}/`))
+  );
+}
+
+export const ROLE_LABELS_AR: Record<UserRole, string> = {
+  owner: "المالك",
+  manager: "المدير",
+  cashier: "الكاشير",
+  inventory: "أمين المخزن",
+};
+
 /** @deprecated use filterNavByAccess */
 export function filterNavByRole(
   role: UserRole,

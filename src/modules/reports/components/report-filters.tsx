@@ -52,14 +52,15 @@ export function ReportFiltersBar({
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-card p-4">
+    <div className="flex flex-wrap items-end gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
       {showDaysPresets ? (
-        <div className="flex gap-2">
+        <div className="flex gap-[var(--mds-space-2)]">
           {[7, 30, 90].map((days) => (
             <Button
               key={days}
               type="button"
               size="sm"
+              className="rounded-[var(--mds-radius-md)]"
               variant={filters.days === days && !filters.from ? "default" : "outline"}
               onClick={() => apply({ days, from: undefined, to: undefined })}
             >
@@ -71,7 +72,7 @@ export function ReportFiltersBar({
 
       {showDateRange ? (
         <form
-          className="flex flex-wrap items-end gap-2"
+          className="flex flex-wrap items-end gap-[var(--mds-space-2)]"
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
@@ -82,28 +83,45 @@ export function ReportFiltersBar({
             });
           }}
         >
-          <div className="space-y-1">
+          <div className="space-y-[var(--mds-space-1)]">
             <Label htmlFor="from">{t("From")}</Label>
-            <Input id="from" name="from" type="date" defaultValue={filters.from ?? ""} />
+            <Input
+              id="from"
+              name="from"
+              type="date"
+              defaultValue={filters.from ?? ""}
+              className="rounded-[var(--mds-radius-md)]"
+            />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-[var(--mds-space-1)]">
             <Label htmlFor="to">{t("To")}</Label>
-            <Input id="to" name="to" type="date" defaultValue={filters.to ?? ""} />
+            <Input
+              id="to"
+              name="to"
+              type="date"
+              defaultValue={filters.to ?? ""}
+              className="rounded-[var(--mds-radius-md)]"
+            />
           </div>
-          <Button type="submit" size="sm" variant="secondary">
+          <Button
+            type="submit"
+            size="sm"
+            variant="secondary"
+            className="rounded-[var(--mds-radius-md)] shadow-[var(--mds-elevation-1)]"
+          >
             {t("Apply")}
           </Button>
         </form>
       ) : null}
 
       {showStore && stores.length > 0 ? (
-        <div className="space-y-1">
+        <div className="space-y-[var(--mds-space-1)]">
           <Label>{t("Store")}</Label>
           <Select
             value={filters.storeId ?? "all"}
             onValueChange={(v) => apply({ storeId: v === "all" ? undefined : v ?? undefined })}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] rounded-[var(--mds-radius-md)]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -119,7 +137,7 @@ export function ReportFiltersBar({
       ) : null}
 
       {showPaymentMethod ? (
-        <div className="space-y-1">
+        <div className="space-y-[var(--mds-space-1)]">
           <Label>{t("Payment method")}</Label>
           <Select
             value={filters.paymentMethod ?? "all"}
@@ -127,7 +145,7 @@ export function ReportFiltersBar({
               apply({ paymentMethod: v === "all" ? undefined : (v as ReportFilters["paymentMethod"]) })
             }
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px] rounded-[var(--mds-radius-md)]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

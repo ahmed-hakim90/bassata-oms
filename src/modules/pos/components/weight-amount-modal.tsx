@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { formatCurrency } from "@/lib/format";
 import type { POSProduct } from "@/modules/pos/services/catalog.service";
 import { amountFromQuantity, quantityFromAmount } from "@/lib/units";
 
@@ -25,6 +27,8 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
   const [amount, setAmount] = useState("");
 
   const unitPrice = product?.base_price ?? 0;
+  const unit = product?.sale_unit ?? "kg";
+  const allowAmount = product?.supports_amount_sale !== false;
   const quantity = useMemo(() => {
     if (mode === "by_weight") return Number(weight || 0);
     return quantityFromAmount(Number(amount || 0), unitPrice);
@@ -33,43 +37,76 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="rounded-2xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{product?.name ?? "Weight sale"}</DialogTitle>
+          <DialogTitle>{product?.name ?? "بيع بالوزن"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="inline-flex rounded-xl border p-1">
-            <Button size="sm" variant={mode === "by_weight" ? "default" : "ghost"} onClick={() => setMode("by_weight")}>
-              Sell by weight
+            <Button
+              size="sm"
+              variant={mode === "by_weight" ? "default" : "ghost"}
+              className="rounded-lg"
+              onClick={() => setMode("by_weight")}
+            >
+              بالوزن
             </Button>
-            <Button size="sm" variant={mode === "by_amount" ? "default" : "ghost"} onClick={() => setMode("by_amount")}>
-              Sell by amount
-            </Button>
+            {allowAmount ? (
+              <Button
+                size="sm"
+                variant={mode === "by_amount" ? "default" : "ghost"}
+                className="rounded-lg"
+                onClick={() => setMode("by_amount")}
+              >
+                بالمبلغ
+              </Button>
+            ) : null}
           </div>
           <p className="text-sm text-muted-foreground">
-            Unit price: {unitPrice} / {product?.sale_unit ?? "kg"}
+            سعر الوحدة: {formatCurrency(unitPrice)} / {unit}
           </p>
           {mode === "by_weight" ? (
-            <Input
-              type="number"
-              step="0.001"
-              placeholder="Weight"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="pos-weight-input">الوزن ({unit})</Label>
+              <Input
+                id="pos-weight-input"
+                type="number"
+                step="0.001"
+                min="0"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                className="h-11 rounded-xl"
+                inputMode="decimal"
+                autoFocus
+              />
+            </div>
           ) : (
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="Amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="pos-amount-input">المبلغ</Label>
+              <Input
+                id="pos-amount-input"
+                type="number"
+                step="0.01"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="h-11 rounded-xl"
+                inputMode="decimal"
+                autoFocus
+              />
+            </div>
           )}
-          <p className="text-sm">Calculated quantity: {quantity.toFixed(3)} {product?.sale_unit ?? "kg"}</p>
-          <p className="text-sm">Total: {total.toFixed(2)}</p>
+          <p className="text-sm text-muted-foreground">
+            الكمية المحسوبة: {quantity.toFixed(3)} {unit}
+          </p>
+          <div className="rounded-xl border border-border/60 bg-muted/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">الإجمالي</p>
+            <p className="text-xl font-bold tabular-nums tracking-tight text-foreground">
+              {formatCurrency(total)}
+            </p>
+          </div>
           <Button
-            className="w-full"
+            className="h-14 w-full rounded-2xl text-base font-semibold"
             disabled={quantity <= 0}
             onClick={() =>
               onConfirm({
@@ -80,7 +117,7 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
               })
             }
           >
-            Add to cart
+            إضافة للسلة
           </Button>
         </div>
       </DialogContent>

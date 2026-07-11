@@ -48,13 +48,13 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
       <PageHeader
         title={t("Loyalty")}
         description={t("Customers earn points on every sale and redeem them as a discount at the POS")}
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">
         <KpiCard
           label={t("Active Members")}
           value={String(stats.activeCustomers)}
@@ -64,15 +64,15 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
         <KpiCard label={t("Points Redeemed")} value={String(stats.totalRedeemed)} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-2">
         <LoyaltyRulesForm rule={rule} />
 
         <OperationalCard
           title={t("Redeem Points")}
           description={t("Manual redemption — at the POS the cashier can redeem directly during payment")}
         >
-          <div className="grid gap-4">
-            <div className="space-y-2">
+          <div className="grid gap-[var(--mds-space-4)]">
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>{t("Customer")}</Label>
               <Select
                 value={redeem.customerId}
@@ -80,7 +80,7 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
                   setRedeem({ ...redeem, customerId: v ?? "" })
                 }
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full rounded-[var(--mds-radius-md)]">
                   <SelectValue placeholder={t("Select customer")}>
                     {(value) => selectLabelById(customers, value, (c) => c.name)}
                   </SelectValue>
@@ -94,9 +94,10 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>{t("Points")}</Label>
+            <div className="space-y-[var(--mds-space-2)]">
+              <Label htmlFor="loyalty-points">{t("Points")}</Label>
               <Input
+                id="loyalty-points"
                 type="number"
                 min={1}
                 value={redeem.points || ""}
@@ -106,39 +107,49 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
                     points: parseInt(e.target.value) || 0,
                   })
                 }
+                className="rounded-[var(--mds-radius-md)]"
               />
             </div>
-            <div className="space-y-2">
-              <Label>{t("Reason")}</Label>
+            <div className="space-y-[var(--mds-space-2)]">
+              <Label htmlFor="loyalty-reason">{t("Reason")}</Label>
               <Input
+                id="loyalty-reason"
                 value={redeem.reason}
                 onChange={(e) =>
                   setRedeem({ ...redeem, reason: e.target.value })
                 }
                 placeholder={t("Manual redemption")}
+                className="rounded-[var(--mds-radius-md)]"
               />
             </div>
-            <Button onClick={redeemSubmit} disabled={pending}>
+            <Button
+              onClick={redeemSubmit}
+              disabled={pending}
+              className="shadow-[var(--mds-elevation-1)]"
+            >
               {t("Redeem")}
             </Button>
           </div>
         </OperationalCard>
       </div>
 
-      <OperationalCard title={t("Recent Activity")} className="mt-6">
+      <OperationalCard title={t("Recent Activity")}>
         {ledger.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="py-[var(--mds-space-6)] text-center text-sm text-muted-foreground">
             {t("No loyalty activity yet. Attach a customer to a sale and points are earned automatically")}
           </p>
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y divide-border">
             {ledger.map((e) => (
-              <li key={e.id} className="flex justify-between py-2">
+              <li
+                key={e.id}
+                className="flex justify-between gap-[var(--mds-space-3)] py-[var(--mds-space-2)]"
+              >
                 <span className="text-sm">
                   {customers.find((c) => c.id === e.customer_id)?.name ?? e.customer_id}{" "}
                   · {e.reason === "Purchase" ? t("Purchase") : e.reason}
                 </span>
-                <span className="text-sm text-muted-foreground" dir="ltr">
+                <span className="shrink-0 text-sm text-muted-foreground tabular-nums" dir="ltr">
                   {e.points_delta >= 0 ? "+" : ""}
                   {e.points_delta} · {formatRelativeTime(e.created_at)}
                 </span>
@@ -147,6 +158,6 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
           </ul>
         )}
       </OperationalCard>
-    </>
+    </div>
   );
 }

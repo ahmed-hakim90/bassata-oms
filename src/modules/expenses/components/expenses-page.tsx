@@ -10,8 +10,8 @@ import { listCostCenters } from "@/modules/accounting/services/cost-center.servi
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as purchaseRepo from "@/lib/repositories/purchase.repository";
-import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import type { ExpenseSource, ExpenseStatus } from "@/lib/types";
 
 interface ExpensesPageProps {
@@ -61,13 +61,13 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
   const pendingCount = expenses.filter((e) => e.status === "pending").length;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-[var(--mds-space-6)]">
       <PageHeader
-        title="Expenses"
+        title="المصروفات"
         description={
           pendingCount > 0
-            ? `Structured expenses · ${pendingCount} pending approval`
-            : "Structured expenses by cost center and category"
+            ? `مصروفات حسب المركز والتصنيف · ${pendingCount} في انتظار الموافقة`
+            : "سجّل وراجع المصروفات حسب مركز التكلفة والتصنيف"
         }
         action={
           <ExpenseWizard
@@ -79,7 +79,7 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
             products={products}
             suppliers={suppliers}
             sessionMode={Boolean(readiness.sessionId)}
-            trigger={<Button className="rounded-xl">Add expense</Button>}
+            trigger={<Button className="shadow-[var(--mds-elevation-1)]">إضافة مصروف</Button>}
           />
         }
       />
@@ -100,14 +100,25 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
       {readiness.state !== "ready" ? <PosReadinessStatus readiness={readiness} /> : null}
 
       {expenses.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-6 py-12 text-center">
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-muted">
-            <Wallet className="size-6 text-muted-foreground" />
-          </div>
-          <p className="font-medium">No expenses match your filters</p>
-        </div>
+        <EmptyStateBlock
+          title="مفيش مصروفات مطابقة للفلاتر"
+          description="غيّر الفلاتر أو سجّل مصروف جديد من هنا."
+          action={
+            <ExpenseWizard
+              storeId={storeId}
+              sessionId={readiness.sessionId}
+              userId={readiness.cashierId ?? ""}
+              costCenters={costCenters}
+              categories={categories}
+              products={products}
+              suppliers={suppliers}
+              sessionMode={Boolean(readiness.sessionId)}
+              trigger={<Button>إضافة مصروف</Button>}
+            />
+          }
+        />
       ) : (
-        <ul className="space-y-2">
+        <ul className="flex flex-col gap-[var(--mds-space-2)]">
           {expenses.map((e) => (
             <ExpenseListItem
               key={e.id}

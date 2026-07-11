@@ -16,7 +16,7 @@ export function SupplierPriceHistory({ history, currency }: SupplierPriceHistory
   if (history.length === 0) return null;
 
   return (
-    <OperationalCard title="Supplier price history" description="Latest received unit costs">
+    <OperationalCard title="سجل أسعار المورد" description="آخر تكلفة وحدة مستلمة">
       <div className="grid gap-3">
         {history.slice(0, 6).map((item) => {
           const increased = (item.changePercent ?? 0) > 0;

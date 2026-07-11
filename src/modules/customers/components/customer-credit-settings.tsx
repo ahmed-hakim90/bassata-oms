@@ -34,36 +34,44 @@ export function CustomerCreditSettings({
           credit_limit: Number(limit) || 0,
           payment_terms: terms,
         });
-        toast.success("Credit settings saved");
+        toast.success("تم حفظ إعدادات الآجل");
       } catch {
-        toast.error("Could not save credit settings");
+        toast.error("تعذر حفظ إعدادات الآجل");
       }
     });
   };
 
   return (
-    <OperationalCard title="Credit settings">
-      <div className="grid max-w-md gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>Credit limit</Label>
+    <OperationalCard title="إعدادات الآجل">
+      <div className="grid max-w-md gap-[var(--mds-space-3)] sm:grid-cols-2">
+        <div className="space-y-[var(--mds-space-2)]">
+          <Label htmlFor="credit-limit">حد الآجل</Label>
           <Input
+            id="credit-limit"
             type="number"
             min="0"
             step="0.01"
             value={limit}
             onChange={(e) => setLimit(e.target.value)}
+            className="rounded-[var(--mds-radius-md)]"
           />
         </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label>Payment terms</Label>
+        <div className="space-y-[var(--mds-space-2)] sm:col-span-2">
+          <Label htmlFor="payment-terms">شروط الدفع</Label>
           <Input
+            id="payment-terms"
             value={terms}
-            placeholder="e.g. Net 30"
+            placeholder="مثال: صافي ٣٠ يوم"
             onChange={(e) => setTerms(e.target.value)}
+            className="rounded-[var(--mds-radius-md)]"
           />
         </div>
-        <Button onClick={save} disabled={pending} className="sm:col-span-2">
-          {pending ? "Saving…" : "Save credit settings"}
+        <Button
+          onClick={save}
+          disabled={pending}
+          className="shadow-[var(--mds-elevation-1)] sm:col-span-2"
+        >
+          {pending ? "جاري الحفظ…" : "حفظ إعدادات الآجل"}
         </Button>
       </div>
     </OperationalCard>

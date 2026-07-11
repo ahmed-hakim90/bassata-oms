@@ -3,6 +3,7 @@ import { checkoutAction } from "@/modules/pos/actions/checkout.action";
 import * as guards from "@/lib/auth/guards";
 import * as posAccess from "@/lib/auth/pos-access";
 import { completeCheckout } from "@/modules/pos/services/checkout.service";
+import { getSessionSettings } from "@/modules/system/services/settings.service";
 
 vi.mock("@/lib/auth/guards");
 vi.mock("@/lib/auth/pos-access");
@@ -34,6 +35,7 @@ describe("checkoutAction payment validation", () => {
       store_ids: ["store-1"],
     });
     vi.mocked(guards.requireFeature).mockResolvedValue(undefined);
+    vi.mocked(guards.requireFeatures).mockResolvedValue(undefined);
     vi.mocked(posAccess.requirePosAccess).mockResolvedValue({
       user: {
         id: "cashier-1",
@@ -49,18 +51,89 @@ describe("checkoutAction payment validation", () => {
       deviceId: "device-1",
       activeCashierId: "cashier-1",
     });
+    vi.mocked(posAccess.getActiveSessionForPos).mockResolvedValue({
+      id: "session-1",
+      store_id: "store-1",
+      cashier_id: "cashier-1",
+      device_id: "device-1",
+      status: "open",
+      opening_cash: 0,
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+      expected_cash: null,
+      actual_cash: null,
+      variance: null,
+      notes: null,
+      closed_by: null,
+      close_reason: null,
+      force_closed: false,
+    });
+    vi.mocked(getSessionSettings).mockResolvedValue({
+      max_open_hours: 24,
+      warn_after_hours: 20,
+      block_sales_when_expired: true,
+      require_manager_override_for_expired_sale: true,
+      allow_manager_force_close: true,
+      manager_discount_override_amount: null,
+    });
+    vi.mocked(completeCheckout).mockResolvedValue({
+      order: {
+        id: "order-1",
+        store_id: "store-1",
+        session_id: "session-1",
+        order_number: "ORD-1",
+        customer_id: null,
+        status: "completed",
+        subtotal: 10,
+        discount: 0,
+        tax: 0,
+        total: 10,
+        payment_status: "paid",
+        created_by: "cashier-1",
+        created_at: new Date().toISOString(),
+      },
+      orderNumber: "ORD-1",
+    });
   });
 
-  it("rejects mismatched payment method and payment details", async () => {
+  it("rejects zero-amount payments", async () => {
     await expect(
       checkoutAction({
         cart: [],
         customer: null,
-        paymentMethod: "card",
-        payments: [{ method: "cash", amount: 10 }],
+        paymentMethod: "cash",
+        payments: [{ method: "cash", amount: 0 }],
       })
-    ).rejects.toThrow("Payment method does not match payment details");
+    ).rejects.toThrow("أدخل مبلغ دفع صالحاً");
 
     expect(completeCheckout).not.toHaveBeenCalled();
+  });
+
+  it("prefers payments array over paymentMethod when completing checkout", async () => {
+    await checkoutAction({
+      cart: [
+        {
+          id: "line-1",
+          productId: "p1",
+          variantId: null,
+          name: "Latte",
+          quantity: 1,
+          unitPrice: 10,
+          modifiers: [],
+          lineTotal: 10,
+          imageUrl: null,
+        },
+      ],
+      customer: null,
+      paymentMethod: "card",
+      payments: [{ method: "cash", amount: 10 }],
+    });
+
+    expect(completeCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentMethod: "cash",
+        payments: [{ method: "cash", amount: 10 }],
+      })
+    );
   });
 });

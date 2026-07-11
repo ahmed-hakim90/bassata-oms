@@ -15,64 +15,64 @@ interface CustomerProfileViewProps {
 
 export function CustomerProfileView({ profile, ledger }: CustomerProfileViewProps) {
   return (
-    <div className="space-y-8">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Total Spent"
+          label="إجمالي المشتريات"
           value={formatCurrency(profile.total_spent)}
           icon={<ShoppingBag className="size-5" />}
         />
-        <KpiCard label="Visits" value={String(profile.visit_count)} />
+        <KpiCard label="عدد الزيارات" value={String(profile.visit_count)} />
         <KpiCard
-          label="Avg Order"
+          label="متوسط الطلب"
           value={formatCurrency(profile.avgOrderValue)}
         />
         <KpiCard
-          label="Loyalty Points"
+          label="نقاط الولاء"
           value={String(profile.loyaltyBalance)}
           icon={<Heart className="size-5" />}
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <OperationalCard title="Favorite Products">
+      <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-2">
+        <OperationalCard title="المنتجات المفضلة">
           {profile.favoriteProducts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No order history yet</p>
+            <p className="text-sm text-muted-foreground">مفيش سجل طلبات لسة</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-[var(--mds-space-2)]">
               {profile.favoriteProducts.map((f) => (
                 <li
                   key={f.productId}
-                  className="flex justify-between rounded-2xl bg-muted/50 px-4 py-2"
+                  className="flex justify-between rounded-[var(--mds-radius-md)] bg-muted/50 px-[var(--mds-space-4)] py-[var(--mds-space-2)]"
                 >
                   <span>{f.name}</span>
-                  <span className="text-muted-foreground">{f.count}×</span>
+                  <span className="text-muted-foreground tabular-nums">{f.count}×</span>
                 </li>
               ))}
             </ul>
           )}
         </OperationalCard>
 
-        <OperationalCard title="Recent Orders">
+        <OperationalCard title="آخر الطلبات">
           {profile.recentOrders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No orders yet</p>
+            <p className="text-sm text-muted-foreground">مفيش طلبات لسة</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-[var(--mds-space-2)]">
               {profile.recentOrders.map((o) => (
                 <li key={o.id}>
                   <Link
                     href={`/orders/${o.id}`}
-                    className="flex items-center justify-between rounded-2xl px-4 py-2 hover:bg-muted/50"
+                    className="flex items-center justify-between rounded-[var(--mds-radius-md)] px-[var(--mds-space-4)] py-[var(--mds-space-2)] transition-colors hover:bg-muted/50"
                   >
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-[var(--mds-space-2)]">
                       <Receipt className="size-4 text-muted-foreground" />
                       {o.order_number}
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium tabular-nums">
                       {formatCurrency(o.total)}
                     </span>
                   </Link>
-                  <p className="px-4 text-xs text-muted-foreground">
+                  <p className="px-[var(--mds-space-4)] text-xs text-muted-foreground">
                     {formatDateTime(o.created_at)}
                   </p>
                 </li>
@@ -82,26 +82,35 @@ export function CustomerProfileView({ profile, ledger }: CustomerProfileViewProp
         </OperationalCard>
       </div>
 
-      <OperationalCard title="Loyalty Ledger">
-        <ul className="divide-y">
-          {ledger.map((e) => (
-            <li key={e.id} className="flex justify-between py-2">
-              <span className="text-sm">{e.reason}</span>
-              <span
-                className={
-                  e.points_delta >= 0 ? "text-emerald-600" : "text-red-600"
-                }
+      <OperationalCard title="سجل الولاء">
+        {ledger.length === 0 ? (
+          <p className="text-sm text-muted-foreground">مفيش حركات نقاط لسة</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {ledger.map((e) => (
+              <li
+                key={e.id}
+                className="flex justify-between gap-[var(--mds-space-3)] py-[var(--mds-space-2)]"
               >
-                {e.points_delta >= 0 ? "+" : ""}
-                {e.points_delta} ({e.balance_after} bal)
-              </span>
-            </li>
-          ))}
-        </ul>
+                <span className="text-sm">{e.reason}</span>
+                <span
+                  className={
+                    e.points_delta >= 0
+                      ? "tabular-nums text-[var(--mds-color-feedback-success)]"
+                      : "tabular-nums text-[var(--mds-color-feedback-danger)]"
+                  }
+                >
+                  {e.points_delta >= 0 ? "+" : ""}
+                  {e.points_delta} (رصيد {e.balance_after})
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </OperationalCard>
 
       {profile.notes && (
-        <OperationalCard title="Notes">
+        <OperationalCard title="ملاحظات">
           <p className="text-sm text-muted-foreground">{profile.notes}</p>
         </OperationalCard>
       )}

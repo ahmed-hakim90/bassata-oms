@@ -1,50 +1,60 @@
 "use client";
 
-import { format } from "date-fns";
 import { Printer } from "lucide-react";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { formatCurrency } from "@/lib/format";
+import { useTranslation } from "@/lib/i18n/use-translation";
+import { cn } from "@/lib/utils";
 import type { OrderWithDetails } from "@/modules/orders/services/order.service";
 import { refundOrderAction, voidOrderAction } from "@/modules/orders/actions/order.actions";
+
+const STATUS_LABELS: Record<string, string> = {
+  completed: "مكتمل",
+  voided: "ملغي",
+  refunded: "مسترد",
+  pending: "قيد الانتظار",
+  open: "مفتوح",
+};
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  paid: "مدفوع",
+  unpaid: "غير مدفوع",
+  partial: "جزئي",
+  refunded: "مسترد",
+};
 
 interface OrderDetailProps {
   order: OrderWithDetails;
 }
 
 export function OrderDetail({ order }: OrderDetailProps) {
+  const { t } = useTranslation();
   const [pending, startTransition] = useTransition();
+  const [confirm, setConfirm] = useState<"void" | "refund" | null>(null);
 
   function handlePrint() {
     window.open(`/print/orders/${order.id}`, "_blank", "noopener,noreferrer");
   }
 
-  function handleVoid() {
-    if (!confirm("إلغاء هذا الطلب واسترجاع المخزون؟")) return;
+  function runAction(kind: "void" | "refund") {
     startTransition(async () => {
       try {
-        await voidOrderAction(order.id);
-        toast.success("تم إلغاء الطلب");
+        if (kind === "void") {
+          await voidOrderAction(order.id);
+          toast.success("تم إلغاء الطلب");
+        } else {
+          await refundOrderAction(order.id);
+          toast.success("تم رد الطلب");
+        }
         window.location.reload();
       } catch {
-        toast.error("تعذر إلغاء الطلب");
-      }
-    });
-  }
-
-  function handleRefund() {
-    if (!confirm("استرداد هذا الطلب واسترجاع المخزون؟")) return;
-    startTransition(async () => {
-      try {
-        await refundOrderAction(order.id);
-        toast.success("تم رد الطلب");
-        window.location.reload();
-      } catch {
-        toast.error("تعذر رد الطلب");
+        toast.error(kind === "void" ? "تعذر إلغاء الطلب" : "تعذر رد الطلب");
       }
     });
   }
@@ -57,10 +67,14 @@ export function OrderDetail({ order }: OrderDetailProps) {
             {order.order_number}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {order.storeName} · {format(new Date(order.created_at), "PPpp")}
+            {order.storeName} ·{" "}
+            {new Date(order.created_at).toLocaleString("ar-EG", {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="size-4" />
             طباعة
@@ -71,7 +85,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 variant="outline"
                 size="sm"
                 disabled={pending}
-                onClick={handleRefund}
+                onClick={() => setConfirm("refund")}
               >
                 رد
               </Button>
@@ -79,7 +93,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 variant="destructive"
                 size="sm"
                 disabled={pending}
-                onClick={handleVoid}
+                onClick={() => setConfirm("void")}
               >
                 إلغاء
               </Button>
@@ -92,12 +106,40 @@ export function OrderDetail({ order }: OrderDetailProps) {
         <CardHeader className="text-center">
           <CardTitle className="text-lg">CafeFlow</CardTitle>
           <p className="text-xs text-muted-foreground">{order.storeName}</p>
-          <Badge className="mx-auto w-fit" variant="outline">
-            {order.status}
-          </Badge>
-          <Badge className="mx-auto w-fit capitalize" variant="secondary">
-            {order.payment_status}
-          </Badge>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Badge
+              variant={
+                order.status === "completed"
+                  ? "secondary"
+                  : order.status === "voided" || order.status === "refunded"
+                    ? "destructive"
+                    : "outline"
+              }
+              className={cn(
+                order.status === "completed" &&
+                  "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+              )}
+            >
+              {STATUS_LABELS[order.status] ?? order.status}
+            </Badge>
+            <Badge
+              variant={
+                order.payment_status === "paid"
+                  ? "secondary"
+                  : order.payment_status === "unpaid"
+                    ? "outline"
+                    : "default"
+              }
+              className={cn(
+                order.payment_status === "paid" &&
+                  "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+                order.payment_status === "unpaid" &&
+                  "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+              )}
+            >
+              {PAYMENT_STATUS_LABELS[order.payment_status] ?? order.payment_status}
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {order.customerName && (
@@ -112,7 +154,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 <span>
                   {item.quantity}× {item.productName}
                 </span>
-                <span className="tabular-nums font-medium">
+                <span className="font-medium tabular-nums">
                   {formatCurrency(item.line_total)}
                 </span>
               </li>
@@ -144,17 +186,36 @@ export function OrderDetail({ order }: OrderDetailProps) {
           <Separator />
           <div className="space-y-1">
             {order.payments.map((p) => (
-              <div key={p.id} className="flex justify-between text-sm capitalize">
-                <span>{p.method}</span>
+              <div key={p.id} className="flex justify-between text-sm">
+                <span>{t(p.method)}</span>
                 <span className="tabular-nums">{formatCurrency(p.amount)}</span>
               </div>
             ))}
           </div>
           <p className="text-center text-xs text-muted-foreground print:mt-8">
-            شكرًا لزيارتك CafeFlow!
+            شكرًا لزيارتك!
           </p>
         </CardContent>
       </Card>
+
+      <ConfirmActionDialog
+        open={confirm === "void"}
+        onOpenChange={(open) => !open && setConfirm(null)}
+        title="إلغاء هذا الطلب؟"
+        description="هيتلغى الطلب ويترجع المخزون للرصيد. الإجراء ده مش هيتراجع بسهولة."
+        confirmLabel="إلغاء الطلب"
+        destructive
+        onConfirm={() => runAction("void")}
+      />
+      <ConfirmActionDialog
+        open={confirm === "refund"}
+        onOpenChange={(open) => !open && setConfirm(null)}
+        title="رد هذا الطلب؟"
+        description="هيتسجّل كمسترد ويترجع المخزون. تأكد إن الفلوس رجعت للعميل."
+        confirmLabel="تأكيد الرد"
+        destructive
+        onConfirm={() => runAction("refund")}
+      />
     </div>
   );
 }

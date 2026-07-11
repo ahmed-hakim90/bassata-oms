@@ -15,12 +15,42 @@ import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
 const REPORT_LINKS = [
-  { href: "/reports/sales", label: "Sales", icon: TrendingUp, description: "Revenue, orders, and trends" },
-  { href: "/reports/sessions", label: "Sessions", icon: Clock, description: "Cash reconciliation and variance" },
-  { href: "/reports/profit", label: "Profit", icon: CircleDollarSign, description: "Margins, COGS, and net profit" },
-  { href: "/reports/inventory", label: "Inventory", icon: Warehouse, description: "Valuation, batches, and expiry" },
-  { href: "/reports/expenses", label: "Expenses", icon: Wallet, description: "Operating expenses by category" },
-  { href: "/labels", label: "Barcode Labels", icon: Barcode, description: "Print product sticker labels" },
+  {
+    href: "/reports/sales",
+    label: "المبيعات",
+    icon: TrendingUp,
+    description: "الإيراد والطلبات والاتجاهات",
+  },
+  {
+    href: "/reports/sessions",
+    label: "الجلسات",
+    icon: Clock,
+    description: "تسوية الدرج والفروقات",
+  },
+  {
+    href: "/reports/profit",
+    label: "الأرباح",
+    icon: CircleDollarSign,
+    description: "الهوامش وتكلفة البضاعة وصافي الربح",
+  },
+  {
+    href: "/reports/inventory",
+    label: "المخزون",
+    icon: Warehouse,
+    description: "التقييم والتشغيلات والانتهاء",
+  },
+  {
+    href: "/reports/expenses",
+    label: "المصروفات",
+    icon: Wallet,
+    description: "مصروفات التشغيل حسب التصنيف",
+  },
+  {
+    href: "/labels",
+    label: "ملصقات الباركود",
+    icon: Barcode,
+    description: "اطبع ملصقات المنتجات",
+  },
 ] as const;
 
 interface ReportsHubProps {
@@ -39,33 +69,41 @@ export function ReportsHub({ showProfit, showFinancial, overview, children }: Re
   });
 
   return (
-    <>
+    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
       <PageHeader
-        title="Reports"
-        description="Executive insights, exports, and print layouts"
+        breadcrumb={<span>التقارير</span>}
+        title="التقارير"
+        description="نظرة تنفيذية، تصدير، وتخطيطات طباعة — للمدير والمالك"
       />
       {overview ?? children}
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 xl:grid-cols-3">
         {links.map((link) => {
           const Icon = link.icon;
           return (
             <Link key={link.href} href={link.href}>
-              <OperationalCard title={t(link.label)} description={t(link.description)}>
-                <div className="flex items-center gap-3 text-primary">
+              <OperationalCard
+                title={link.label}
+                description={link.description}
+                className="transition-shadow hover:shadow-[var(--mds-elevation-2)]"
+              >
+                <div className="flex items-center gap-[var(--mds-space-3)] text-primary">
                   <Icon className="size-5" />
-                  <span className="text-sm font-medium">{t("Open report")}</span>
+                  <span className="text-sm font-medium">فتح التقرير</span>
                 </div>
               </OperationalCard>
             </Link>
           );
         })}
-        <OperationalCard title={t("Overview dashboard")} description={t("Legacy executive KPI dashboard")}>
-          <div className="flex items-center gap-3 text-primary">
+        <OperationalCard
+          title={t("Overview dashboard")}
+          description={t("Legacy executive KPI dashboard")}
+        >
+          <div className="flex items-center gap-[var(--mds-space-3)] text-primary">
             <BarChart3 className="size-5" />
             <span className="text-sm text-muted-foreground">{t("Charts below")}</span>
           </div>
         </OperationalCard>
       </div>
-    </>
+    </div>
   );
 }

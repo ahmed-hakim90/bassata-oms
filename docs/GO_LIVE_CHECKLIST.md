@@ -1,5 +1,10 @@
 # SweetFlow Go-Live Checklist
 
+Use this checklist **after** Product Quality + Feature Freeze + Stabilization  
+([PRODUCT_EXECUTION_PLAN.md](./PRODUCT_EXECUTION_PLAN.md) · [MVP_FREEZE.md](./MVP_FREEZE.md) · [PILOT_RUNBOOK.md](./PILOT_RUNBOOK.md)).
+
+Do **not** treat SMTP/Staging as Phase 0 work while UI quality waves are still open.
+
 Use this checklist before pointing production traffic at a new deployment.
 
 ## Infrastructure

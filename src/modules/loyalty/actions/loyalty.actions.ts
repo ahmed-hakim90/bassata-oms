@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireFeature, requirePermissionOrRole, getValidatedActiveStoreId } from "@/lib/auth/guards";
 import {
+  ensureLoyaltyRule,
   getLedger,
-  getLoyaltyRule,
   getLoyaltyStats,
   redeemPoints,
   updateLoyaltyRule,
@@ -19,8 +19,6 @@ export async function updateLoyaltyRuleAction(input: {
 }) {
   await requireFeature("loyalty");
   const user = await requirePermissionOrRole("loyalty_manage", ["owner", "manager"]);
-  const rule = await getLoyaltyRule();
-  if (!rule) throw new Error("No loyalty rule");
   await updateLoyaltyRule(
     {
       points_per_currency: input.pointsPerCurrency,
@@ -49,13 +47,15 @@ export async function redeemPointsAction(input: {
 export async function getLoyaltyData() {
   await requireFeature("loyalty");
   await requirePermissionOrRole("loyalty_manage", ["owner", "manager"]);
-  const ledger = await getLedger(20);
-  const rule = await getLoyaltyRule();
-  if (!rule) throw new Error("Loyalty rules not configured");
+  const [rule, ledger, customers] = await Promise.all([
+    ensureLoyaltyRule(),
+    getLedger(20),
+    listCustomers(),
+  ]);
   return {
     rule,
     stats: await getLoyaltyStats(),
     ledger,
-    customers: await listCustomers(),
+    customers,
   };
 }

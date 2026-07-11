@@ -77,7 +77,7 @@ export function ExpensesReportView({
         columns={2}
         items={[{ label: "إجمالي المصروفات", value: formatCurrency(total, currency), icon: <Wallet className="size-5" /> }]}
       />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-[var(--mds-space-4)] lg:grid-cols-2">
         <OperationalCard title="حسب مركز التكلفة">
           <ul className="space-y-2 text-sm">
             {byCenter.map((row) => (

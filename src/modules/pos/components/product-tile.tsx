@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
 import type { POSProduct } from "@/modules/pos/services/catalog.service";
 
 const BADGE_LABELS = {
-  in_stock: "In stock",
-  low: "Low",
-  out: "Out",
+  in_stock: "متوفر",
+  low: "قليل",
+  out: "نفد",
   untracked: null,
 } as const;
 
@@ -43,11 +43,11 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
       onClick={onAdd}
       disabled={disabled || outOfStock}
       className={cn(
-        "group relative flex min-h-[218px] flex-col overflow-hidden rounded-3xl bg-card text-left text-card-foreground shadow-sm ring-1 ring-border/70 transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/25 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 sm:min-h-[238px]"
+        "group relative flex min-h-[148px] flex-col overflow-hidden rounded-2xl bg-card text-left text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/30 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[158px]"
       )}
     >
       <div
-        className="relative flex aspect-[4/3] min-h-[122px] w-full items-center justify-center overflow-hidden"
+        className="relative flex aspect-[5/3] min-h-[72px] w-full items-center justify-center overflow-hidden"
         style={{
           background: `linear-gradient(145deg, ${product.categoryColor}22, ${product.categoryColor}44)`,
         }}
@@ -57,7 +57,7 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
             src={product.image_url}
             alt={product.name}
             fill
-            sizes="(min-width: 1280px) 20vw, (min-width: 640px) 33vw, 50vw"
+            sizes="(min-width: 1280px) 14vw, (min-width: 640px) 25vw, 45vw"
             unoptimized
             className="object-cover transition duration-300 group-hover:scale-105"
           />
@@ -67,7 +67,7 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
         ) : null}
         <span
           className={cn(
-            "text-5xl font-bold opacity-30 transition group-hover:scale-105",
+            "text-3xl font-bold opacity-30 transition group-hover:scale-105",
             product.image_url && "opacity-0"
           )}
           style={{ color: product.categoryColor }}
@@ -84,7 +84,7 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
                   : "secondary"
             }
             className={cn(
-              "absolute end-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-background/90 px-2.5 py-1 text-xs shadow-sm backdrop-blur",
+              "absolute end-1.5 top-1.5 max-w-[calc(100%-0.75rem)] truncate rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] shadow-sm backdrop-blur",
               product.stockBadge === "low" &&
                 "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200"
             )}
@@ -94,38 +94,29 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
           </Badge>
         )}
         {product.hasVariants ? (
-          <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur">
-            <Layers3 className="size-3.5 text-primary" />
-            {product.variants.length} أحجام
+          <span className="absolute start-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm backdrop-blur">
+            <Layers3 className="size-3 text-primary" />
+            {product.variants.length}
           </span>
         ) : null}
-        <span className="absolute bottom-2 end-2 flex h-10 items-center gap-1.5 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-lg transition group-hover:scale-105 group-disabled:opacity-0 sm:h-11">
-          <Plus className="size-4" />
-          إضافة
+        <span className="absolute bottom-1.5 end-1.5 flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-110 group-disabled:opacity-0 sm:size-10">
+          <Plus className="size-4 sm:size-4.5" />
+          <span className="sr-only">إضافة</span>
         </span>
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-3.5">
-        <p className="line-clamp-2 text-base font-semibold leading-snug text-card-foreground">
+      <div className="flex flex-1 flex-col gap-1 p-2 sm:p-2.5">
+        <p className="line-clamp-2 text-sm font-semibold leading-snug text-card-foreground">
           {product.name}
         </p>
-        <div className="flex items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-sm text-muted-foreground">{product.categoryName}</p>
-          {product.hasVariants ? (
-            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-              اختر حجم
-            </span>
-          ) : null}
-        </div>
-        <div className="mt-auto rounded-2xl bg-muted/45 px-3 py-2">
+        <p className="min-w-0 truncate text-[11px] text-muted-foreground">{product.categoryName}</p>
+        <div className="mt-auto rounded-xl border border-border/50 bg-muted/40 px-2 py-1.5">
           {showVariantPrice ? (
-            <p className="text-xs text-muted-foreground">
-              {priceRange ? "من أقل سعر" : "سعر الأحجام"}
-            </p>
+            <p className="text-[10px] text-muted-foreground">{priceRange ? "من" : "سعر"}</p>
           ) : null}
-          <p className="text-lg font-bold tabular-nums text-card-foreground">
+          <p className="text-sm font-bold tabular-nums text-card-foreground sm:text-[15px]">
             {formatCurrency(displayPrice)}
             {priceRange ? (
-              <span className="ms-1 text-xs font-normal text-muted-foreground">{priceRange}</span>
+              <span className="ms-0.5 text-[10px] font-normal text-muted-foreground">{priceRange}</span>
             ) : null}
           </p>
         </div>

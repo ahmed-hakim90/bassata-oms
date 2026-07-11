@@ -26,11 +26,11 @@ import type { ReorderSuggestion } from "../services/reorder.service";
 import type { Warehouse as WarehouseType, ProductType } from "@/lib/types";
 
 const quickLinks = [
-  { label: "مشتريات", href: "/inventory/purchases", icon: Truck, accent: "#2563EB" },
-  { label: "موردين", href: "/inventory/suppliers", icon: Landmark, accent: "#0D9488" },
-  { label: "تحويلات", href: "/inventory/transfers", icon: ArrowLeftRight, accent: "#8B5CF6" },
-  { label: "هالك", href: "/inventory/waste", icon: Trash2, accent: "#DC2626" },
-  { label: "جرد", href: "/inventory/stock-count", icon: ClipboardList, accent: "#F59E0B" },
+  { label: "مشتريات", subtitle: "فواتير الموردين", href: "/inventory/purchases", icon: Truck, accent: "var(--mds-color-action-primary)" },
+  { label: "موردين", subtitle: "كشوف الحساب", href: "/inventory/suppliers", icon: Landmark, accent: "var(--mds-color-feedback-info)" },
+  { label: "تحويلات", subtitle: "نقل بين الفروع", href: "/inventory/transfers", icon: ArrowLeftRight, accent: "var(--mds-color-action-primary-hover)" },
+  { label: "هالك", subtitle: "الفاقد والتالف", href: "/inventory/waste", icon: Trash2, accent: "var(--mds-color-feedback-danger)" },
+  { label: "جرد", subtitle: "تسوية المخزون", href: "/inventory/stock-count", icon: ClipboardList, accent: "var(--mds-color-feedback-warning)" },
 ];
 
 const productTypeFilters: { label: string; value?: ProductType }[] = [
@@ -84,10 +84,11 @@ export function InventoryHub({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        breadcrumb={<span>المخزون</span>}
         title="المخزون"
         description={`صحة المخزون والحركة لفرع ${storeName}${
           activeWarehouse ? ` · ${activeWarehouse.name}` : " · كل المخازن"
-        }`}
+        }. ابدأ من المشتريات أو الجرد حسب المطلوب.`}
         action={
           <Link
             href="/inventory/movements"
@@ -98,44 +99,53 @@ export function InventoryHub({
         }
       />
 
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href={inventoryHref(undefined, selectedProductType)}
-          className={`rounded-xl border px-3 py-2 text-sm ${
-            !selectedWarehouseId ? "border-primary bg-primary text-primary-foreground" : "border-border"
-          }`}
-        >
-          كل المخازن
-        </Link>
-        {warehouses.map((warehouse) => (
-          <Link
-            key={warehouse.id}
-            href={inventoryHref(warehouse.id, selectedProductType)}
-            className={`rounded-xl border px-3 py-2 text-sm ${
-              selectedWarehouseId === warehouse.id
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border"
-            }`}
-          >
-            {warehouse.name}
-          </Link>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {productTypeFilters.map(({ label, value }) => (
-          <Link
-            key={label}
-            href={inventoryHref(selectedWarehouseId, value)}
-            className={`rounded-xl border px-3 py-2 text-sm ${
-              selectedProductType === value
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border"
-            }`}
-          >
-            {label}
-          </Link>
-        ))}
+      <div className="flex flex-col gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card px-[var(--mds-space-4)] py-[var(--mds-space-3)]">
+        <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
+          <span className="min-w-[4.5rem] text-xs font-medium text-muted-foreground">المخزن</span>
+          <div className="flex flex-wrap gap-[var(--mds-space-2)]">
+            <Link
+              href={inventoryHref(undefined, selectedProductType)}
+              className={`rounded-[var(--mds-radius-md)] border px-3 py-1.5 text-sm transition-colors ${
+                !selectedWarehouseId
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-muted/40 hover:bg-muted"
+              }`}
+            >
+              الكل
+            </Link>
+            {warehouses.map((warehouse) => (
+              <Link
+                key={warehouse.id}
+                href={inventoryHref(warehouse.id, selectedProductType)}
+                className={`rounded-[var(--mds-radius-md)] border px-3 py-1.5 text-sm transition-colors ${
+                  selectedWarehouseId === warehouse.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-muted/40 hover:bg-muted"
+                }`}
+              >
+                {warehouse.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
+          <span className="min-w-[4.5rem] text-xs font-medium text-muted-foreground">النوع</span>
+          <div className="flex flex-wrap gap-[var(--mds-space-2)]">
+            {productTypeFilters.map(({ label, value }) => (
+              <Link
+                key={label}
+                href={inventoryHref(selectedWarehouseId, value)}
+                className={`rounded-[var(--mds-radius-md)] border px-3 py-1.5 text-sm transition-colors ${
+                  selectedProductType === value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-muted/40 hover:bg-muted"
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -144,20 +154,25 @@ export function InventoryHub({
           value={`${healthScore}%`}
           subtitle={healthLabel}
           icon={<Warehouse className="size-5" />}
-          accent={healthScore >= 85 ? "#16A34A" : healthScore >= 60 ? "#F59E0B" : "#DC2626"}
+          accent={
+            healthScore >= 85
+              ? "var(--mds-color-feedback-success)"
+              : healthScore >= 60
+                ? "var(--mds-color-feedback-warning)"
+                : "var(--mds-color-feedback-danger)"
+          }
         />
         <OperationalCard
           title="أصناف متتبعة"
           value={String(totalSkus)}
           subtitle="عناصر مخزون نشطة"
           icon={<Package className="size-5" />}
-          accent="#2563EB"
         />
         <OperationalCard
           title="مخزون منخفض"
           value={String(lowCount)}
           subtitle="عند أو تحت حد إعادة الطلب"
-          accent="#F59E0B"
+          accent="var(--mds-color-feedback-warning)"
           href="/products"
         />
       </div>
@@ -168,13 +183,12 @@ export function InventoryHub({
 
       <ReorderSuggestions suggestions={reorderSuggestions} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-2 lg:grid-cols-5">
         {quickLinks.map((link) => (
           <OperationalCard
             key={link.href}
             title={link.label}
-            value="فتح"
-            subtitle="إجراء تشغيلي"
+            value={link.subtitle}
             href={link.href}
             icon={<link.icon className="size-5" />}
             accent={link.accent}

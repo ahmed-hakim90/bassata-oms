@@ -1,12 +1,25 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { FileSpreadsheet, Plus, Search, Tags } from "lucide-react";
+import {
+  FileSpreadsheet,
+  MoreHorizontal,
+  Package,
+  Plus,
+  Search,
+  Tags,
+} from "lucide-react";
 import type { Product, ProductVariant } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { GlassPanel } from "@/components/SweetFlow/glass-panel";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { PageHeader } from "@/components/SweetFlow/page-header";
 import { ProductGrid, type ProductGridItem } from "./product-grid";
 import { CategoryList } from "./category-list";
 import { CafeMenuItemDialog } from "./cafe-menu-item-dialog";
@@ -19,6 +32,7 @@ import {
 } from "../actions/product.actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 type CatalogView = "menu" | "ingredients";
 
@@ -58,14 +72,12 @@ export function ProductsPage({
   );
 
   const menuItems = useMemo(
-    () =>
-      initialProducts.filter(({ product }) => product.product_type !== "ingredient"),
+    () => initialProducts.filter(({ product }) => product.product_type !== "ingredient"),
     [initialProducts]
   );
 
   const ingredientItems = useMemo(
-    () =>
-      initialProducts.filter(({ product }) => product.product_type === "ingredient"),
+    () => initialProducts.filter(({ product }) => product.product_type === "ingredient"),
     [initialProducts]
   );
 
@@ -155,59 +167,73 @@ export function ProductsPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">المنتجات</h1>
-          <p className="text-sm text-muted-foreground">
-            كتالوج المنيو والأسعار وتنظيم التصنيفات.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={pending} onClick={handleBulkDisableTracking}>
-            تفعيل الأصناف وإلغاء تتبع المخزون
-          </Button>
-          <Button variant="outline" onClick={() => setCategoryDialogOpen(true)}>
-            <Tags className="size-4" />
-            التصنيفات
-          </Button>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <FileSpreadsheet className="size-4" />
-            استيراد
-          </Button>
-          <Button variant="outline" onClick={openCreateIngredient}>
-            <Plus className="size-4" />
-            مكوّن جديد
-          </Button>
-          <Button onClick={openCreate}>
-            <Plus className="size-4" />
-            صنف منيو جديد
-          </Button>
-        </div>
-      </div>
+    <div className="flex flex-col gap-[var(--mds-space-6)]">
+      <PageHeader
+        breadcrumb={<span>المخزون · المنتجات</span>}
+        title="المنتجات"
+        description="كتالوج المنيو والأسعار والتصنيفات — المكان اللي بتجهّز منه الكاشير."
+        action={
+          <>
+            <Button type="button" onClick={openCreate} className="shadow-[var(--mds-elevation-1)]">
+              <Plus className="size-4" />
+              صنف منيو جديد
+            </Button>
+            <Button type="button" variant="outline" onClick={openCreateIngredient}>
+              <Plus className="size-4" />
+              مكوّن جديد
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setCategoryDialogOpen(true)}>
+              <Tags className="size-4" />
+              التصنيفات
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
+              <FileSpreadsheet className="size-4" />
+              استيراد
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button type="button" variant="outline" size="icon" aria-label="المزيد" />
+                }
+              >
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-52">
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={pending}
+                  onClick={handleBulkDisableTracking}
+                >
+                  <Package className="size-4" />
+                  تفعيل وإلغاء تتبع المخزون
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-3">
         <OperationalCard
           title="الأصناف النشطة"
           value={String(activeCount)}
-          subtitle={`${menuItems.length} صنف منيو`}
-          accent="#2563EB"
+          subtitle={`من أصل ${menuItems.length} صنف منيو`}
         />
         <OperationalCard
-          title="اختيارات شائعة"
+          title="شائعة في الكاشير"
           value={String(popularCount)}
-          subtitle="ظاهرة في كروت الكاشير"
-          accent="#F472B6"
+          subtitle="تظهر أولاً في نقطة البيع"
+          accent="var(--mds-color-feedback-info)"
         />
         <OperationalCard
           title="المكونات"
           value={String(ingredientItems.length)}
-          subtitle="تستخدم في الوصفات والمخزون"
-          accent="#34D399"
+          subtitle="للوصفات والمخزون"
+          accent="var(--mds-color-feedback-success)"
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+      <div className="grid gap-[var(--mds-space-4)] lg:grid-cols-[240px_minmax(0,1fr)]">
         <CategoryList
           categories={categoryList}
           selectedId={categoryId}
@@ -215,41 +241,72 @@ export function ProductsPage({
           onSelect={setCategoryId}
         />
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={view === "menu" ? "secondary" : "outline"}
-              onClick={() => {
-                setView("menu");
-                setCategoryId(null);
-              }}
+        <div className="flex min-w-0 flex-col gap-[var(--mds-space-4)]">
+          <div className="flex flex-col gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-3)] shadow-[var(--mds-elevation-1)] sm:flex-row sm:items-center sm:justify-between">
+            <div
+              className="inline-flex rounded-[var(--mds-radius-md)] bg-muted/60 p-1"
+              role="tablist"
+              aria-label="نوع الكتالوج"
             >
-              أصناف المنيو
-            </Button>
-            <Button
-              variant={view === "ingredients" ? "secondary" : "outline"}
-              onClick={() => {
-                setView("ingredients");
-                setCategoryId(null);
-              }}
-            >
-              المكونات
-            </Button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === "menu"}
+                className={cn(
+                  "rounded-[var(--mds-radius-sm)] px-3 py-1.5 text-sm transition-colors",
+                  view === "menu"
+                    ? "bg-card font-semibold text-foreground shadow-[var(--mds-elevation-1)]"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => {
+                  setView("menu");
+                  setCategoryId(null);
+                }}
+              >
+                أصناف المنيو
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === "ingredients"}
+                className={cn(
+                  "rounded-[var(--mds-radius-sm)] px-3 py-1.5 text-sm transition-colors",
+                  view === "ingredients"
+                    ? "bg-card font-semibold text-foreground shadow-[var(--mds-elevation-1)]"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => {
+                  setView("ingredients");
+                  setCategoryId(null);
+                }}
+              >
+                المكونات
+              </button>
+            </div>
+
+            <div className="relative min-w-0 flex-1 sm:max-w-md">
+              <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="h-10 border-border/70 bg-background pe-3 ps-9"
+                placeholder={
+                  view === "ingredients"
+                    ? "ابحث في المكونات بالاسم أو الكود…"
+                    : "ابحث بالاسم أو الكود أو الباركود…"
+                }
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="بحث المنتجات"
+              />
+            </div>
           </div>
 
-          <GlassPanel className="flex items-center gap-2 p-2">
-            <Search className="ml-2 size-4 text-muted-foreground" />
-            <Input
-              className="border-0 bg-transparent shadow-none focus-visible:ring-0"
-              placeholder={
-                view === "ingredients"
-                  ? "ابحث في المكونات بالاسم أو الكود…"
-                  : "ابحث بالاسم أو الكود أو الباركود…"
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </GlassPanel>
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>
+              عرض {filtered.length} من {visibleSource.length}
+              {categoryId ? " · تصنيف محدد" : ""}
+            </span>
+            {pending ? <span>جاري التحديث…</span> : null}
+          </div>
 
           <ProductGrid
             items={filtered}
@@ -257,10 +314,20 @@ export function ProductsPage({
             priceMode={view === "ingredients" ? "cost" : "sale"}
             onEdit={view === "ingredients" ? openEditIngredient : openEdit}
             onDelete={handleDelete}
+            emptyAction={
+              view === "ingredients" ? (
+                <Button type="button" onClick={openCreateIngredient}>
+                  <Plus className="size-4" />
+                  مكوّن جديد
+                </Button>
+              ) : (
+                <Button type="button" onClick={openCreate}>
+                  <Plus className="size-4" />
+                  صنف منيو جديد
+                </Button>
+              )
+            }
           />
-          {pending ? (
-            <p className="text-center text-xs text-muted-foreground">جاري التحديث…</p>
-          ) : null}
         </div>
       </div>
 

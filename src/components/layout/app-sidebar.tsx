@@ -31,17 +31,23 @@ import {
   Wallet,
   Warehouse,
   ChevronLeft,
-  ChevronRight,
   IceCream,
+  Menu,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import type { UserRole, PermissionKey } from "@/lib/constants";
 import type { FeatureFlag } from "@/lib/constants";
-import { filterNavByAccess } from "@/lib/auth/nav";
+import { filterNavByAccess, isNavHrefActive, ROLE_LABELS_AR } from "@/lib/auth/nav";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -74,103 +80,171 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ScrollText,
 };
 
+const ROLE_SUBTITLE: Record<UserRole, string> = {
+  owner: "إدارة كاملة",
+  manager: "تشغيل الفرع",
+  cashier: "بيع وورديات",
+  inventory: "مخزون ومشتريات",
+};
+
 export function AppSidebar({
   userRole,
   featureFlags,
   permissions = new Set<PermissionKey>(),
+  className,
+  forceExpanded = false,
 }: {
   userRole: UserRole;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   permissions?: Set<PermissionKey>;
+  className?: string;
+  forceExpanded?: boolean;
 }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar, collapsedGroups, toggleGroup } =
     useUiStore();
+  const collapsed = forceExpanded ? false : sidebarCollapsed;
   const navGroups = filterNavByAccess(userRole, permissions, featureFlags);
+  const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
 
   return (
-    <aside
-      className={cn(
-        "flex h-full flex-col overflow-y-auto border-r border-border/60 bg-sidebar/80 backdrop-blur-xl transition-all duration-300",
-        sidebarCollapsed ? "w-[72px]" : "w-64"
-      )}
-    >
-      <div className="flex h-16 items-center gap-3 border-b border-border/60 px-4">
-        <div className="flex size-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-          <IceCream className="size-5" />
-        </div>
-        {!sidebarCollapsed && (
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{APP_NAME}</p>
-            <p className="text-xs text-muted-foreground">{t("Operations")}</p>
+    <TooltipProvider delay={300}>
+      <aside
+        className={cn(
+          "flex h-full flex-col overflow-hidden border-e border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[var(--mds-elevation-2)] transition-[width] duration-[var(--mds-motion-normal)] ease-[var(--mds-motion-easing-standard)]",
+          collapsed ? "w-[76px]" : "w-[17rem]",
+          className
+        )}
+      >
+        {collapsed && !forceExpanded ? (
+          <div className="flex h-16 shrink-0 items-center justify-center border-b border-sidebar-border bg-[linear-gradient(135deg,rgb(103_232_249/0.16),transparent_55%)]">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-sidebar-foreground hover:bg-[var(--mds-sidebar-hover)] hover:text-sidebar-foreground"
+              onClick={toggleSidebar}
+              aria-label={t("Expand sidebar")}
+            >
+              <Menu className="size-5" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border bg-[linear-gradient(135deg,rgb(103_232_249/0.16),transparent_55%)] px-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--mds-radius-md)] bg-sidebar-primary text-sidebar-primary-foreground shadow-[var(--mds-elevation-1)]">
+              <IceCream className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
+                {APP_NAME}
+              </p>
+              <p className="truncate text-[11px]" style={{ color: "var(--mds-sidebar-muted)" }}>
+                {ROLE_SUBTITLE[userRole]}
+              </p>
+            </div>
+            {!forceExpanded && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-sidebar-foreground hover:bg-[var(--mds-sidebar-hover)] hover:text-sidebar-foreground"
+                onClick={toggleSidebar}
+                aria-label={t("Collapse sidebar")}
+              >
+                <ChevronLeft className="size-4 rtl:rotate-180" />
+              </Button>
+            )}
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className={cn("ms-auto", sidebarCollapsed && "mx-auto")}
-          onClick={toggleSidebar}
-          aria-label={sidebarCollapsed ? t("Expand sidebar") : t("Collapse sidebar")}
-        >
-          {sidebarCollapsed ? (
-            <ChevronRight className="size-4 rtl:rotate-180" />
-          ) : (
-            <ChevronLeft className="size-4 rtl:rotate-180" />
-          )}
-        </Button>
-      </div>
 
-      <ScrollArea className="flex-1 px-2 py-4">
-        <nav className="space-y-6">
-          {navGroups.map((group) => {
-            const collapsed = collapsedGroups[group.label];
-            return (
-              <div key={group.label}>
-                {!sidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(group.label)}
-                    aria-expanded={!collapsed}
-                    className="mb-2 flex w-full items-center px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
-                  >
-                    {t(group.label)}
-                  </button>
-                )}
-                {(!collapsed || sidebarCollapsed) && (
-                  <ul className="space-y-1">
-                    {group.items.map((item, index) => {
-                      const Icon = iconMap[item.icon] ?? LayoutDashboard;
-                      const active =
-                        pathname === item.href ||
-                        (item.href !== "/" &&
-                          pathname.startsWith(item.href));
-                      return (
-                        <li key={`${group.label}-${item.href}-${index}`}>
-                          <Link
-                            href={item.href}
-                            className={cn(
-                              "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all",
-                              active
-                                ? "bg-primary/10 text-primary shadow-sm shadow-primary/10"
-                                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                              sidebarCollapsed && "justify-center px-2"
+        <ScrollArea className="min-h-0 flex-1 px-2.5 py-4">
+          <nav className="space-y-5">
+            {navGroups.map((group) => {
+              const groupCollapsed = collapsedGroups[group.label];
+              return (
+                <div key={group.label}>
+                  {!collapsed && (
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.label)}
+                      aria-expanded={!groupCollapsed}
+                      className="mb-1.5 flex w-full items-center px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors"
+                      style={{ color: "var(--mds-sidebar-muted)" }}
+                    >
+                      {t(group.label)}
+                    </button>
+                  )}
+                  {(!groupCollapsed || collapsed) && (
+                    <ul className="space-y-1">
+                      {group.items.map((item, index) => {
+                        const Icon = iconMap[item.icon] ?? LayoutDashboard;
+                        const active = isNavHrefActive(pathname, item.href, allHrefs);
+                        return (
+                          <li key={`${group.label}-${item.href}-${index}`}>
+                            {collapsed ? (
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <Link
+                                      href={item.href}
+                                      aria-current={active ? "page" : undefined}
+                                      className={cn(
+                                        "relative flex items-center justify-center rounded-[var(--mds-radius-md)] p-2.5 text-sm transition-colors",
+                                        active
+                                          ? "bg-sidebar-accent text-sidebar-primary"
+                                          : "text-sidebar-foreground/75 hover:bg-[var(--mds-sidebar-hover)] hover:text-sidebar-foreground"
+                                      )}
+                                    />
+                                  }
+                                >
+                                  <Icon className="size-4 shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent side="left">{t(item.label)}</TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Link
+                                href={item.href}
+                                aria-current={active ? "page" : undefined}
+                                className={cn(
+                                  "relative flex items-center gap-3 rounded-[var(--mds-radius-md)] px-3 py-2.5 text-sm transition-colors",
+                                  active
+                                    ? "bg-sidebar-accent font-semibold text-sidebar-primary"
+                                    : "font-medium text-sidebar-foreground/80 hover:bg-[var(--mds-sidebar-hover)] hover:text-sidebar-foreground"
+                                )}
+                              >
+                                {active ? (
+                                  <span
+                                    className="absolute inset-e-0 inset-y-1.5 w-1 rounded-s-full bg-sidebar-primary"
+                                    aria-hidden
+                                  />
+                                ) : null}
+                                <Icon className="size-4 shrink-0 opacity-90" />
+                                <span className="truncate">{t(item.label)}</span>
+                              </Link>
                             )}
-                            title={sidebarCollapsed ? t(item.label) : undefined}
-                          >
-                            <Icon className="size-4 shrink-0" />
-                            {!sidebarCollapsed && t(item.label)}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-      </ScrollArea>
-    </aside>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        </ScrollArea>
+
+        {!collapsed ? (
+          <div className="shrink-0 border-t border-sidebar-border px-4 py-3">
+            <p className="text-xs font-medium text-sidebar-foreground">
+              {ROLE_LABELS_AR[userRole]}
+            </p>
+            <p className="mt-0.5 text-[11px]" style={{ color: "var(--mds-sidebar-muted)" }}>
+              SweetFlow · Meridian
+            </p>
+          </div>
+        ) : null}
+      </aside>
+    </TooltipProvider>
   );
 }

@@ -52,29 +52,52 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
       <PageHeader
+        breadcrumb={<span>العملاء</span>}
         title="العملاء"
         description="العلاقات والسجل والولاء"
         action={
-          <Button onClick={() => setShowCreate(true)}>
+          <Button
+            className="shadow-[var(--mds-elevation-1)]"
+            onClick={() => setShowCreate(true)}
+          >
             <Plus className="size-4" /> إضافة عميل
           </Button>
         }
       />
 
-      <div className="relative mb-6 max-w-md">
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">
+        <OperationalCard title="إجمالي العملاء" value={String(customers.length)} />
+        <OperationalCard
+          title="نتائج البحث"
+          value={String(filtered.length)}
+          subtitle={search.trim() ? "مطابقة للفلتر الحالي" : "كل العملاء"}
+          accent="var(--mds-color-feedback-info)"
+        />
+        <OperationalCard
+          title="رصيد آجل"
+          value={formatCurrency(
+            customers.reduce((sum, c) => sum + (c.account_balance ?? 0), 0)
+          )}
+          subtitle="مجموع أرصدة العملاء"
+          accent="var(--mds-color-feedback-warning)"
+        />
+      </div>
+
+      <div className="relative max-w-md">
         <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="ابحث بالاسم أو الهاتف..."
-          className="ps-10"
+          className="rounded-[var(--mds-radius-md)] ps-10"
+          aria-label="بحث العملاء"
         />
       </div>
 
       {filtered.length === 0 ? (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-[var(--mds-space-4)]">
           <EmptyStateBlock
             title={search.trim() ? "لا نتائج" : "لا يوجد عملاء"}
             description={
@@ -85,22 +108,31 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
           />
           {!search.trim() ? (
             <div className="flex justify-center">
-              <Button onClick={() => setShowCreate(true)}>إضافة عميل</Button>
+              <Button
+                className="shadow-[var(--mds-elevation-1)]"
+                onClick={() => setShowCreate(true)}
+              >
+                إضافة عميل
+              </Button>
             </div>
           ) : null}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c) => (
             <Link key={c.id} href={`/customers/${c.id}`}>
-              <OperationalCard className="transition-all hover:shadow-lg">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold">{c.name}</h3>
-                    <p className="text-sm text-muted-foreground">{c.phone}</p>
+              <OperationalCard className="transition-shadow hover:shadow-[var(--mds-elevation-2)]">
+                <div className="flex items-start justify-between gap-[var(--mds-space-3)]">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold">{c.name}</h3>
+                    <p className="text-sm text-muted-foreground" dir="ltr">
+                      {c.phone}
+                    </p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{formatCurrency(c.total_spent)}</p>
+                  <div className="shrink-0 text-end">
+                    <p className="font-semibold tabular-nums">
+                      {formatCurrency(c.total_spent)}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {c.visit_count} زيارة
                       {c.account_balance > 0
@@ -116,39 +148,49 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
       )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="rounded-3xl">
+        <DialogContent className="rounded-[var(--mds-radius-lg)]">
           <DialogHeader>
             <DialogTitle>عميل جديد</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label>الاسم</Label>
+          <div className="grid gap-[var(--mds-space-4)]">
+            <div className="space-y-[var(--mds-space-2)]">
+              <Label htmlFor="customer-name">الاسم</Label>
               <Input
+                id="customer-name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="rounded-[var(--mds-radius-md)]"
               />
             </div>
-            <div className="space-y-2">
-              <Label>الهاتف</Label>
+            <div className="space-y-[var(--mds-space-2)]">
+              <Label htmlFor="customer-phone">الهاتف</Label>
               <Input
+                id="customer-phone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className="rounded-[var(--mds-radius-md)]"
               />
             </div>
-            <div className="space-y-2">
-              <Label>البريد الإلكتروني</Label>
+            <div className="space-y-[var(--mds-space-2)]">
+              <Label htmlFor="customer-email">البريد الإلكتروني</Label>
               <Input
+                id="customer-email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="rounded-[var(--mds-radius-md)]"
               />
             </div>
-            <Button onClick={create} disabled={pending}>
+            <Button
+              className="shadow-[var(--mds-elevation-1)]"
+              onClick={create}
+              disabled={pending}
+            >
               إنشاء
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

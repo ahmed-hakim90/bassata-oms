@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ClipboardList, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { formatDateTime } from "@/lib/format";
 import type { Product, Warehouse } from "@/lib/types";
@@ -92,37 +93,37 @@ export function StockCountPage({
           products={products}
           onComplete={() => router.refresh()}
         />
+      ) : counts.length === 0 ? (
+        <EmptyStateBlock
+          title="لا توجد جردات بعد"
+          description="ابدأ جردًا دوريًا لتسوية فروقات المخزون."
+          action={
+            <Button onClick={startCount} disabled={pending || !warehouseId}>
+              <Play className="size-4" /> بدء أول جرد
+            </Button>
+          }
+        />
       ) : (
-        <OperationalCard title="جرد سابق">
-          {counts.length === 0 ? (
-            <div className="flex flex-col items-center py-12 text-center">
-              <ClipboardList className="mb-4 size-12 text-muted-foreground" />
-              <p className="text-muted-foreground">لا توجد جردات بعد</p>
-              <Button className="mt-4" onClick={startCount} disabled={pending || !warehouseId}>
-                بدء أول جرد
-              </Button>
-            </div>
-          ) : (
-            <ul className="divide-y">
-              {counts.map((c) => (
-                <li key={c.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="font-medium">
-                      جرد {c.id.slice(-6).toUpperCase()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDateTime(c.started_at)}
-                      {c.completed_at && ` · مكتمل ${formatDateTime(c.completed_at)}`}
-                    </p>
-                  </div>
-                  <StatusPill
-                    label={c.status.replace("_", " ")}
-                    variant={c.status === "completed" ? "success" : "info"}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
+        <OperationalCard title="الجردات السابقة" description={`${counts.length} جردة`}>
+          <ul className="divide-y divide-border/60">
+            {counts.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-[var(--mds-space-4)] py-[var(--mds-space-3)]">
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    جرد #{c.id.slice(-6).toUpperCase()}
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    بدأ {formatDateTime(c.started_at)}
+                    {c.completed_at && ` · اكتمل ${formatDateTime(c.completed_at)}`}
+                  </p>
+                </div>
+                <StatusPill
+                  label={c.status === "completed" ? "مكتمل" : "جارٍ"}
+                  variant={c.status === "completed" ? "success" : "info"}
+                />
+              </li>
+            ))}
+          </ul>
         </OperationalCard>
       )}
     </>

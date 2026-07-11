@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { closeSessionAction } from "@/modules/sessions/actions/session.actions";
@@ -34,6 +35,7 @@ export function CloseSessionStepper({
   const [step, setStep] = useState(0);
   const [actualCash, setActualCash] = useState("");
   const [notes, setNotes] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const actual = parseFloat(actualCash) || 0;
@@ -44,19 +46,10 @@ export function CloseSessionStepper({
 
   function handleClose() {
     if (actualCash.trim() === "") return;
-    const confirmed = window.confirm(
-      [
-        "سيتم إغلاق الجلسة وتثبيت إجماليات الكاشير.",
-        "",
-        `المتوقع: ${formatCurrency(reconciliation.expectedCash)}`,
-        `الفعلي: ${formatCurrency(actual)}`,
-        `الفرق: ${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`,
-        "",
-        "هل تريد المتابعة؟",
-      ].join("\n")
-    );
-    if (!confirmed) return;
+    setConfirmOpen(true);
+  }
 
+  function confirmClose() {
     startTransition(async () => {
       try {
         await closeSessionAction({
@@ -73,8 +66,8 @@ export function CloseSessionStepper({
   }
 
   return (
-    <div className="rounded-2xl bg-card p-6 text-card-foreground ring-1 ring-border">
-      <div className="mb-6 flex gap-1">
+    <div className="rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-6)] text-card-foreground shadow-[var(--mds-elevation-1)]">
+      <div className="mb-[var(--mds-space-6)] flex gap-1">
         {STEPS.map((label, i) => (
           <div
             key={label}
@@ -125,7 +118,7 @@ export function CloseSessionStepper({
                 {sessionExpenses.map((e) => (
                   <li
                     key={e.id}
-                    className="rounded-lg bg-muted/50 px-3 py-2 text-sm"
+                    className="rounded-[var(--mds-radius-sm)] bg-muted/50 px-[var(--mds-space-3)] py-[var(--mds-space-2)] text-sm"
                   >
                     <div className="flex justify-between gap-2">
                       <span className="font-medium">{e.title}</span>
@@ -160,7 +153,7 @@ export function CloseSessionStepper({
               step="0.01"
               value={actualCash}
               onChange={(e) => setActualCash(e.target.value)}
-              className="h-12 rounded-xl text-lg"
+              className="h-12 rounded-[var(--mds-radius-md)] text-lg"
               placeholder="0.00"
             />
           </div>
@@ -185,29 +178,29 @@ export function CloseSessionStepper({
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="rounded-xl"
+              className="rounded-[var(--mds-radius-md)]"
               rows={3}
             />
           </div>
         </div>
       )}
 
-      <div className="mt-8 flex justify-between gap-3">
+      <div className="mt-[var(--mds-space-8)] flex justify-between gap-[var(--mds-space-3)]">
         <Button
           variant="outline"
-          className="rounded-xl"
+          className="rounded-[var(--mds-radius-md)]"
           disabled={step === 0 || pending}
           onClick={() => setStep((s) => Math.max(0, s - 1))}
         >
           رجوع
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button className="rounded-xl" onClick={() => setStep(1)}>
+          <Button className="rounded-[var(--mds-radius-md)]" onClick={() => setStep(1)}>
             متابعة للعدّ
           </Button>
         ) : (
           <Button
-            className="rounded-xl"
+            className="rounded-[var(--mds-radius-md)]"
             disabled={pending || actualCash.trim() === ""}
             onClick={handleClose}
           >
@@ -215,6 +208,16 @@ export function CloseSessionStepper({
           </Button>
         )}
       </div>
+
+      <ConfirmActionDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="إغلاق الجلسة؟"
+        description={`سيتم تثبيت إجماليات الكاشير.\nالمتوقع: ${formatCurrency(reconciliation.expectedCash)} · الفعلي: ${formatCurrency(actual)} · الفرق: ${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`}
+        confirmLabel="تأكيد الإغلاق"
+        destructive
+        onConfirm={confirmClose}
+      />
     </div>
   );
 }

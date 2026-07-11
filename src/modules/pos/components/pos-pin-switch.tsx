@@ -7,9 +7,9 @@ import { logoutAction } from "@/modules/auth/actions/logout.action";
 export function PosPinSwitch() {
   return (
     <form action={logoutAction}>
-      <Button type="submit" variant="outline" size="sm" className="rounded-full">
-        <LogOut className="mr-2 size-4" />
-        Switch user
+      <Button type="submit" variant="outline" size="sm" className="h-10 rounded-full px-3">
+        <LogOut className="size-4" />
+        تبديل
       </Button>
     </form>
   );

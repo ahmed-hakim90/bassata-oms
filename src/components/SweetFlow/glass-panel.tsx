@@ -5,6 +5,7 @@ interface GlassPanelProps extends ComponentProps<"div"> {
   variant?: "default" | "elevated";
 }
 
+/** Calm Meridian surface panel (legacy name retained for call-site compatibility). */
 export function GlassPanel({
   className,
   variant = "default",
@@ -13,8 +14,9 @@ export function GlassPanel({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-white/20 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-white/5",
-        variant === "elevated" && "shadow-lg shadow-black/5 dark:shadow-black/30",
+        "rounded-[var(--mds-radius-lg)] border border-border bg-card",
+        variant === "elevated" && "shadow-[var(--mds-elevation-2)]",
+        variant === "default" && "shadow-[var(--mds-elevation-1)]",
         className
       )}
       {...props}

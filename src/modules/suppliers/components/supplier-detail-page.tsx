@@ -165,9 +165,9 @@ export function SupplierDetailPage({
         }
       />
 
-      <p className="mb-4 text-sm text-muted-foreground">
+      <p className="mb-[var(--mds-space-4)] text-sm text-muted-foreground">
         <Link href="/inventory/suppliers" className="text-primary hover:underline">
-          ← كل الموردين
+          كل الموردين →
         </Link>
         {" · "}
         <Link href="/inventory/purchases" className="text-primary hover:underline">
@@ -175,7 +175,7 @@ export function SupplierDetailPage({
         </Link>
       </p>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-[var(--mds-space-6)] grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="الرصيد المستحق"
           value={formatCurrency(kpis.balance, currency)}
@@ -192,7 +192,7 @@ export function SupplierDetailPage({
         />
       </div>
 
-      <OperationalCard title="نطاق التاريخ" className="mb-6">
+      <OperationalCard title="نطاق التاريخ" className="mb-[var(--mds-space-6)]">
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-2">
             <Label>من</Label>
@@ -228,25 +228,25 @@ export function SupplierDetailPage({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 pr-4">التاريخ</th>
-                <th className="py-2 pr-4">النوع</th>
-                <th className="py-2 pr-4">المرجع</th>
-                <th className="py-2 pr-4">الوصف</th>
-                <th className="py-2 pr-4 text-right">مدين</th>
-                <th className="py-2 pr-4 text-right">دائن</th>
-                <th className="py-2 text-right">الرصيد</th>
-                {canManagePayments ? <th className="py-2 pl-2" /> : null}
+              <tr className="border-b text-start text-muted-foreground">
+                <th className="py-2 ps-4">التاريخ</th>
+                <th className="py-2 ps-4">النوع</th>
+                <th className="py-2 ps-4">المرجع</th>
+                <th className="py-2 ps-4">الوصف</th>
+                <th className="py-2 ps-4 text-end">مدين</th>
+                <th className="py-2 ps-4 text-end">دائن</th>
+                <th className="py-2 text-end">الرصيد</th>
+                {canManagePayments ? <th className="py-2 pe-2" /> : null}
               </tr>
             </thead>
             <tbody>
               <tr className="border-b bg-muted/30">
-                <td className="py-2 pr-4 text-muted-foreground" colSpan={4}>
+                <td className="py-2 ps-4 text-muted-foreground" colSpan={4}>
                   رصيد افتتاحي
                 </td>
-                <td className="py-2 pr-4 text-right" />
-                <td className="py-2 pr-4 text-right" />
-                <td className="py-2 text-right font-medium">
+                <td className="py-2 ps-4 text-end" />
+                <td className="py-2 ps-4 text-end" />
+                <td className="py-2 text-end font-medium">
                   {formatCurrency(statement.openingBalance, currency)}
                 </td>
                 {canManagePayments ? <td /> : null}
@@ -257,14 +257,14 @@ export function SupplierDetailPage({
                     colSpan={canManagePayments ? 8 : 7}
                     className="py-8 text-center text-muted-foreground"
                   >
-                    No transactions in this period
+                    مفيش حركات في الفترة دي
                   </td>
                 </tr>
               ) : (
-                statement.transactions.map((t) => (
+                  statement.transactions.map((t) => (
                   <tr key={t.id} className="border-b">
-                    <td className="py-2 pr-4 whitespace-nowrap">{formatDateTime(t.at)}</td>
-                    <td className="py-2 pr-4">
+                    <td className="whitespace-nowrap py-2 ps-4">{formatDateTime(t.at)}</td>
+                    <td className="py-2 ps-4">
                       <StatusPill
                         label={TYPE_LABELS[t.type]}
                         variant={
@@ -276,7 +276,7 @@ export function SupplierDetailPage({
                         }
                       />
                     </td>
-                    <td className="py-2 pr-4">
+                    <td className="py-2 ps-4">
                       {t.purchaseInvoiceId ? (
                         <Link
                           href={`/inventory/purchases?invoice=${t.purchaseInvoiceId}`}
@@ -288,18 +288,18 @@ export function SupplierDetailPage({
                         t.reference
                       )}
                     </td>
-                    <td className="py-2 pr-4">{t.description}</td>
-                    <td className="py-2 pr-4 text-right">
+                    <td className="py-2 ps-4">{t.description}</td>
+                    <td className="py-2 ps-4 text-end tabular-nums">
                       {t.debit > 0 ? formatCurrency(t.debit, currency) : "—"}
                     </td>
-                    <td className="py-2 pr-4 text-right">
+                    <td className="py-2 ps-4 text-end tabular-nums">
                       {t.credit > 0 ? formatCurrency(t.credit, currency) : "—"}
                     </td>
-                    <td className="py-2 text-right font-medium">
+                    <td className="py-2 text-end font-medium tabular-nums">
                       {formatCurrency(t.balance, currency)}
                     </td>
                     {canManagePayments && t.type === "payment" ? (
-                      <td className="py-2 pl-2">
+                      <td className="py-2 pe-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -307,7 +307,7 @@ export function SupplierDetailPage({
                           onClick={() => setVoidPaymentId(t.id)}
                           disabled={pending}
                         >
-                          Void
+                          إلغاء
                         </Button>
                       </td>
                     ) : canManagePayments ? (

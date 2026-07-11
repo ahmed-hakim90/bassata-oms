@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { IceCream } from "lucide-react";
 import { forgotPasswordAction } from "@/modules/auth/actions/password.actions";
 import { APP_NAME } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -12,32 +13,56 @@ export function ForgotPasswordForm() {
   const [state, formAction, pending] = useActionState(forgotPasswordAction, null);
 
   return (
-    <div className="w-full max-w-md space-y-8 rounded-3xl border border-border/60 bg-card/80 p-8 shadow-xl backdrop-blur-xl">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">إعادة تعيين كلمة المرور</p>
-      </div>
-
-      {state?.success ? (
-        <p className="text-center text-sm text-muted-foreground">{state.message}</p>
-      ) : (
-        <form action={formAction} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">البريد الإلكتروني</Label>
-            <Input id="email" name="email" type="email" required autoComplete="email" />
+    <div className="mx-auto w-full max-w-md overflow-hidden rounded-[var(--mds-radius-xl)] border border-border bg-card shadow-[var(--mds-elevation-3)]">
+      <div className="h-1.5 w-full bg-[var(--mds-color-action-primary)]" aria-hidden />
+      <div className="space-y-[var(--mds-space-6)] p-[var(--mds-space-8)]">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-[var(--mds-space-4)] flex size-12 items-center justify-center rounded-[var(--mds-radius-md)] bg-[var(--mds-color-action-primary)] text-[var(--mds-color-text-inverse)]">
+            <IceCream className="size-6" aria-hidden />
           </div>
-          {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
-          <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "جاري الإرسال…" : "إرسال رابط إعادة التعيين"}
-          </Button>
-        </form>
-      )}
+          <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
+          <p className="mt-[var(--mds-space-2)] text-sm text-muted-foreground">
+            إعادة تعيين كلمة المرور
+          </p>
+        </div>
 
-      <p className="text-center text-sm">
-        <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
-          الرجوع لتسجيل الدخول
-        </Link>
-      </p>
+        {state?.success ? (
+          <p className="rounded-[var(--mds-radius-md)] border border-border bg-muted/40 px-3 py-3 text-center text-sm text-muted-foreground">
+            {state.message}
+          </p>
+        ) : (
+          <form action={formAction} className="space-y-[var(--mds-space-4)]">
+            <div className="space-y-2">
+              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                className="h-10 rounded-[var(--mds-radius-md)]"
+              />
+            </div>
+            {state?.error ? (
+              <p className="text-sm text-[var(--mds-color-feedback-danger)]" role="alert">
+                {state.error}
+              </p>
+            ) : null}
+            <Button type="submit" className="h-10 w-full" disabled={pending}>
+              {pending ? "جاري الإرسال…" : "إرسال رابط إعادة التعيين"}
+            </Button>
+          </form>
+        )}
+
+        <p className="text-center text-sm">
+          <Link
+            href="/login"
+            className="font-medium text-[var(--mds-color-action-primary)] underline-offset-4 hover:underline"
+          >
+            الرجوع لتسجيل الدخول
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { format } from "date-fns";
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import type { Order } from "@/lib/types";
 
@@ -9,25 +10,28 @@ interface RecentOrdersFeedProps {
 
 export function RecentOrdersFeed({ orders }: RecentOrdersFeedProps) {
   return (
-    <div className="rounded-2xl bg-card p-5 text-card-foreground ring-1 ring-border">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-heading text-sm font-semibold">Recent orders</h3>
+    <div className="rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-5)] text-card-foreground shadow-[var(--mds-elevation-1)]">
+      <div className="mb-[var(--mds-space-4)] flex items-center justify-between">
+        <h3 className="font-heading text-sm font-semibold">آخر الطلبات</h3>
         <Link
           href="/orders"
           className="text-xs font-medium text-primary hover:underline"
         >
-          View all
+          عرض الكل
         </Link>
       </div>
       {orders.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No orders yet today</p>
+        <EmptyStateBlock
+          title="مفيش طلبات النهاردة لسة"
+          className="p-[var(--mds-space-4)]"
+        />
       ) : (
         <ul className="space-y-2">
           {orders.map((o) => (
             <li key={o.id}>
               <Link
                 href={`/orders/${o.id}`}
-                className="flex items-center justify-between rounded-xl px-2 py-2 transition hover:bg-muted/50"
+                className="flex items-center justify-between rounded-[var(--mds-radius-md)] px-[var(--mds-space-2)] py-[var(--mds-space-2)] transition-colors hover:bg-muted/60"
               >
                 <div>
                   <p className="text-sm font-medium">{o.order_number}</p>

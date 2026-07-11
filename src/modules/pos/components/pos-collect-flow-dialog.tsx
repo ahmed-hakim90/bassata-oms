@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowRight, Banknote, Search } from "lucide-react";
+import { ArrowRight, Banknote, CreditCard, Search, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,13 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import type { PaymentMethod } from "@/lib/types";
@@ -29,14 +22,45 @@ import {
   recordCustomerPaymentAction,
 } from "@/modules/customers/actions/customer.actions";
 import { searchCustomersAction } from "@/modules/pos/actions/customer-attach.action";
+import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
 import { usePosStore } from "@/stores/pos-store";
+import { cn } from "@/lib/utils";
 
-const METHOD_LABELS: Record<Exclude<PaymentMethod, "credit">, string> = {
-  cash: "كاش",
-  card: "كارت",
-  wallet: "محفظة",
-  other: "أخرى",
-};
+const METHOD_META: {
+  id: Exclude<PaymentMethod, "credit">;
+  label: string;
+  icon: typeof Banknote;
+  className: string;
+}[] = [
+  {
+    id: "cash",
+    label: "نقدي",
+    icon: Banknote,
+    className:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 data-[selected=true]:border-emerald-500 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+  },
+  {
+    id: "card",
+    label: "كارت",
+    icon: CreditCard,
+    className:
+      "border-sky-200 bg-sky-50 text-sky-800 data-[selected=true]:border-sky-500 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200",
+  },
+  {
+    id: "wallet",
+    label: "محفظة",
+    icon: Wallet,
+    className:
+      "border-violet-200 bg-violet-50 text-violet-800 data-[selected=true]:border-violet-500 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200",
+  },
+  {
+    id: "other",
+    label: "أخرى",
+    icon: Banknote,
+    className:
+      "border-slate-200 bg-slate-50 text-slate-800 data-[selected=true]:border-slate-500 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-200",
+  },
+];
 
 type CollectCustomer = {
   id: string;
@@ -82,32 +106,30 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     });
   }
 
-  useEffect(() => {
-    if (!open) return;
-    setQuery("");
-    setSearchResults([]);
-    const preselect =
-      cartCustomer && cartCustomer.account_balance > 0
-        ? {
-            id: cartCustomer.id,
-            name: cartCustomer.name,
-            phone: cartCustomer.phone,
-            account_balance: cartCustomer.account_balance,
-          }
-        : null;
-    resetForm(preselect);
-    loadOutstanding();
-    // Only re-init when the dialog opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional open-gated init
-  }, [open]);
+  const [initOpen, setInitOpen] = useState(open);
+  if (open !== initOpen) {
+    setInitOpen(open);
+    if (open) {
+      setQuery("");
+      setSearchResults([]);
+      const preselect =
+        cartCustomer && cartCustomer.account_balance > 0
+          ? {
+              id: cartCustomer.id,
+              name: cartCustomer.name,
+              phone: cartCustomer.phone,
+              account_balance: cartCustomer.account_balance,
+            }
+          : null;
+      resetForm(preselect);
+      loadOutstanding();
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setSearchResults([]);
-      return;
-    }
+    if (trimmed.length < 2) return;
     const handle = window.setTimeout(() => {
       startListTransition(async () => {
         try {
@@ -154,6 +176,11 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     onOpenChange(next);
   }
 
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    if (value.trim().length < 2) setSearchResults([]);
+  }
+
   function handleCollect() {
     if (!selected || !canSubmit) return;
     startTransition(async () => {
@@ -166,11 +193,13 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
         });
         const nextBalance = Math.max(0, Math.round((owed - value) * 100) / 100);
         toast.success(`تم تحصيل ${formatCurrency(value)} من ${selected.name}`);
+        playPosSuccessSound();
         if (cartCustomer?.id === selected.id) {
           setCartCustomer({ ...cartCustomer, account_balance: nextBalance });
         }
         handleOpenChange(false);
       } catch (error) {
+        playPosErrorSound();
         toast.error(error instanceof Error ? error.message : "تعذر تسجيل التحصيل");
       }
     });
@@ -198,7 +227,7 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
                 <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => handleQueryChange(e.target.value)}
                   placeholder="ابحث بالاسم أو رقم الهاتف…"
                   aria-label="بحث عن عميل للتحصيل"
                   className="h-11 rounded-xl ps-10"
@@ -284,24 +313,26 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
                 ) : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="pos-collect-method">طريقة التحصيل</Label>
-                <Select
-                  value={method}
-                  onValueChange={(v) =>
-                    setMethod((v ?? "cash") as Exclude<PaymentMethod, "credit">)
-                  }
-                >
-                  <SelectTrigger id="pos-collect-method" className="h-11 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.filter((m) => m !== "credit").map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {METHOD_LABELS[m]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>طريقة التحصيل</Label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {METHOD_META.filter((m) => PAYMENT_METHODS.includes(m.id)).map(
+                    ({ id, label, icon: Icon, className }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        data-selected={method === id}
+                        onClick={() => setMethod(id)}
+                        className={cn(
+                          "flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border text-xs font-semibold",
+                          className
+                        )}
+                      >
+                        <Icon className="size-4" />
+                        {label}
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pos-collect-ref">مرجع (اختياري)</Label>

@@ -5,6 +5,7 @@ import { Pencil, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -291,9 +292,8 @@ export function UsersPage({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="create-password">كلمة مرور مؤقتة</Label>
-                <Input
+                <PasswordInput
                   id="create-password"
-                  type="password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   minLength={8}
@@ -576,14 +576,14 @@ export function UsersPage({
                   <div className="space-y-2 rounded-xl border border-border/60 p-3">
                     <Label htmlFor="edit-password">إعادة ضبط كلمة المرور</Label>
                     <div className="flex flex-wrap gap-2">
-                      <Input
-                        id="edit-password"
-                        type="password"
-                        placeholder="8 أحرف أو أكثر"
-                        className="max-w-[14rem]"
-                        value={passwordValue}
-                        onChange={(e) => setPasswordValue(e.target.value)}
-                      />
+                      <div className="w-full max-w-[14rem]">
+                        <PasswordInput
+                          id="edit-password"
+                          placeholder="8 أحرف أو أكثر"
+                          value={passwordValue}
+                          onChange={(e) => setPasswordValue(e.target.value)}
+                        />
+                      </div>
                       <Button
                         type="button"
                         variant="outline"

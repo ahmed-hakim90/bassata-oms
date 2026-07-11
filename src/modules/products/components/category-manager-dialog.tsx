@@ -49,7 +49,7 @@ function toForm(category: Category): CategoryFormState {
 
 function buildPayload(form: CategoryFormState) {
   const name = form.name.trim();
-  if (!name) throw new Error("Category name is required");
+  if (!name) throw new Error("اسم التصنيف مطلوب");
   return {
     name,
     color: form.color || DEFAULT_FORM.color,
@@ -92,15 +92,15 @@ export function CategoryManagerDialog({
         const payload = buildPayload(form);
         if (editingId) {
           await updateCategoryAction(editingId, payload);
-          toast.success("Category updated");
+          toast.success("تم تحديث التصنيف");
         } else {
           await createCategoryAction(payload);
-          toast.success("Category created");
+          toast.success("تم إنشاء التصنيف");
         }
         resetForm();
         onSaved?.();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not save category");
+        toast.error(error instanceof Error ? error.message : "تعذر حفظ التصنيف");
       }
     });
   }
@@ -109,18 +109,18 @@ export function CategoryManagerDialog({
     const productCount = counts[category.id] ?? 0;
     const message =
       productCount > 0
-        ? `Delete ${category.name}? It is used by ${productCount} products.`
-        : `Delete ${category.name}?`;
+        ? `حذف «${category.name}»؟ مستخدم في ${productCount} منتج.`
+        : `حذف «${category.name}»؟`;
     if (!confirm(message)) return;
 
     startTransition(async () => {
       try {
         await deleteCategoryAction(category.id);
         if (editingId === category.id) resetForm();
-        toast.success("Category deleted");
+        toast.success("تم حذف التصنيف");
         onSaved?.();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not delete category");
+        toast.error(error instanceof Error ? error.message : "تعذر حذف التصنيف");
       }
     });
   }
@@ -134,26 +134,26 @@ export function CategoryManagerDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <StandardModalContent
         size="lg"
-        title="Manage categories"
-        description="Create, reorder, and style product categories."
+        title="إدارة التصنيفات"
+        description="أنشئ ورتّب وصمّم تصنيفات المنتجات."
       >
         <div className="grid gap-4 md:grid-cols-[240px_1fr]">
           <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
             <div className="space-y-1.5">
-              <Label htmlFor="category-name">Name</Label>
+              <Label htmlFor="category-name">الاسم</Label>
               <Input
                 id="category-name"
                 value={form.name}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, name: event.target.value }))
                 }
-                placeholder="Desserts"
+                placeholder="حلويات"
               />
             </div>
 
             <div className="grid grid-cols-[1fr_88px] gap-2">
               <div className="space-y-1.5">
-                <Label htmlFor="category-icon">Icon</Label>
+                <Label htmlFor="category-icon">أيقونة</Label>
                 <Input
                   id="category-icon"
                   value={form.icon}
@@ -164,7 +164,7 @@ export function CategoryManagerDialog({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="category-sort">Order</Label>
+                <Label htmlFor="category-sort">الترتيب</Label>
                 <Input
                   id="category-sort"
                   type="number"
@@ -177,7 +177,7 @@ export function CategoryManagerDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="category-color">Color</Label>
+              <Label htmlFor="category-color">اللون</Label>
               <div className="grid grid-cols-[42px_1fr] gap-2">
                 <Input
                   id="category-color"
@@ -200,7 +200,7 @@ export function CategoryManagerDialog({
             <div className="flex gap-2">
               <Button className="flex-1" onClick={submit} disabled={pending}>
                 {isEditing ? <Save className="size-4" /> : <Plus className="size-4" />}
-                {isEditing ? "Save" : "Add"}
+                {isEditing ? "حفظ" : "إضافة"}
               </Button>
               {isEditing ? (
                 <Button variant="outline" size="icon" onClick={resetForm} disabled={pending}>
@@ -213,7 +213,7 @@ export function CategoryManagerDialog({
           <div className="min-h-[260px] space-y-2">
             {sortedCategories.length === 0 ? (
               <div className="flex h-full min-h-[220px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-                No categories yet
+                مفيش تصنيفات لسة
               </div>
             ) : (
               sortedCategories.map((category) => (
@@ -231,7 +231,7 @@ export function CategoryManagerDialog({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{category.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {counts[category.id] ?? 0} products · order {category.sort_order}
+                      {counts[category.id] ?? 0} منتج · ترتيب {category.sort_order}
                     </p>
                   </div>
                   <Button

@@ -24,7 +24,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { filterNavByAccess } from "@/lib/auth/nav";
+import { filterNavByAccess, isNavHrefActive } from "@/lib/auth/nav";
 import type { FeatureFlag, PermissionKey, UserRole } from "@/lib/constants";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
@@ -51,18 +51,17 @@ const iconMap = {
 };
 
 const CASHIER_PRIORITY = ["/pos", "/orders", "/sessions", "/online-orders", "/settings"];
+const MANAGER_PRIORITY = ["/", "/orders", "/sessions", "/reports", "/expenses"];
 const OWNER_PRIORITY = ["/", "/pos", "/products", "/inventory", "/settings"];
+const INVENTORY_PRIORITY = ["/", "/products", "/inventory", "/inventory/purchases", "/settings"];
 const DEFAULT_PRIORITY = ["/", "/pos", "/products", "/inventory", "/settings"];
 
 function priorityForRole(role: UserRole): string[] {
   if (role === "cashier") return CASHIER_PRIORITY;
-  if (role === "owner" || role === "manager") return OWNER_PRIORITY;
+  if (role === "manager") return MANAGER_PRIORITY;
+  if (role === "owner") return OWNER_PRIORITY;
+  if (role === "inventory") return INVENTORY_PRIORITY;
   return DEFAULT_PRIORITY;
-}
-
-function isActivePath(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function MobileNav({
@@ -80,6 +79,7 @@ export function MobileNav({
     (group) => group.items
   );
   const allowedItems = new Set<string>(allItems.map((item) => item.href));
+  const allHrefs = allItems.map((item) => item.href);
   const priority = priorityForRole(userRole);
   const mobileItems = priority
     .filter((href) => allowedItems.has(href))
@@ -88,10 +88,13 @@ export function MobileNav({
     .slice(0, 5);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/85 backdrop-blur-xl md:hidden">
-      <ul className="mx-auto flex max-w-lg items-stretch justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-2">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-[var(--mds-z-sticky)] border-t border-border bg-card shadow-[0_-8px_24px_rgb(15_23_42/0.08)] md:hidden"
+      aria-label={t("Navigation")}
+    >
+      <ul className="mx-auto flex max-w-lg items-stretch justify-around px-[var(--mds-space-1)] pb-[env(safe-area-inset-bottom)] pt-[var(--mds-space-1)]">
         {mobileItems.map((item, index) => {
-          const active = isActivePath(pathname, item.href);
+          const active = isNavHrefActive(pathname, item.href, allHrefs);
           const Icon = iconMap[item.icon as keyof typeof iconMap] ?? LayoutDashboard;
           return (
             <li key={`${item.href}-${index}`} className="flex-1">
@@ -99,19 +102,21 @@ export function MobileNav({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-10 flex-col items-center gap-1 rounded-[var(--radius-button)] px-2 py-2 text-[10px] font-medium transition-colors",
+                  "flex min-h-[52px] flex-col items-center gap-0.5 rounded-[var(--mds-radius-md)] px-[var(--mds-space-1)] py-[var(--mds-space-2)] text-[10px] transition-colors",
                   active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "font-semibold text-primary"
+                    : "font-medium text-muted-foreground hover:text-foreground"
                 )}
               >
                 <span
                   className={cn(
-                    "flex size-9 items-center justify-center rounded-[var(--radius-button)] transition-all",
-                    active && "bg-primary/10 shadow-[0_0_16px_-6px_var(--color-primary)]"
+                    "flex size-9 items-center justify-center rounded-[var(--mds-radius-md)] transition-all",
+                    active
+                      ? "bg-[var(--mds-color-harbor-50)] text-[var(--mds-color-action-primary)] shadow-[var(--mds-elevation-1)] ring-1 ring-[var(--mds-color-action-primary)]/25"
+                      : ""
                   )}
                 >
-                  <Icon className="size-4" />
+                  <Icon className="size-[18px]" />
                 </span>
                 {t(item.label)}
               </Link>

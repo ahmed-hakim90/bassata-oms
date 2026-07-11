@@ -13,10 +13,10 @@ interface ReportHeaderProps {
 export function ReportHeader({ title, subtitle, dateRange, storeName }: ReportHeaderProps) {
   const { t } = useTranslation();
   return (
-    <div className="space-y-2">
+    <div className="space-y-[var(--mds-space-2)]">
       <h2 className="font-heading text-xl font-semibold tracking-tight">{t(title)}</h2>
       {subtitle ? <p className="text-sm text-muted-foreground">{t(subtitle)}</p> : null}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-[var(--mds-space-2)]">
         {dateRange ? <Badge variant="secondary">{dateRange}</Badge> : null}
         {storeName ? <Badge variant="outline">{storeName}</Badge> : null}
       </div>

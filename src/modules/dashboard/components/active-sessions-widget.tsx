@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Clock } from "lucide-react";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
+import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
 import {
   computeSessionLifecycle,
@@ -26,29 +26,29 @@ export async function ActiveSessionsWidget({
   const userMap = new Map(users.map((u) => [u.id, u.name]));
 
   return (
-    <div className="rounded-2xl bg-card p-5 text-card-foreground ring-1 ring-border">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-heading text-sm font-semibold">Active sessions</h3>
+    <div className="rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-5)] text-card-foreground shadow-[var(--mds-elevation-1)]">
+      <div className="mb-[var(--mds-space-4)] flex items-center justify-between">
+        <h3 className="font-heading text-sm font-semibold">الجلسات المفتوحة</h3>
         <Link
           href="/sessions"
           className="text-xs font-medium text-primary hover:underline"
         >
-          Manage
+          إدارة
         </Link>
       </div>
       {sessions.length === 0 ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="size-4" />
-          No open sessions
-        </p>
+        <EmptyStateBlock
+          title="مفيش جلسات مفتوحة"
+          className="p-[var(--mds-space-4)]"
+        />
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {sessions.map((s) => {
             const lifecycle = computeSessionLifecycle(s, settings);
             return (
               <li
                 key={s.id}
-                className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2.5"
+                className="flex items-center justify-between rounded-[var(--mds-radius-md)] bg-muted/40 px-[var(--mds-space-3)] py-2.5"
               >
                 <div>
                   <p className="text-sm font-medium">{storeMap.get(s.store_id)}</p>

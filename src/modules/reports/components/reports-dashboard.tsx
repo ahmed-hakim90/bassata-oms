@@ -89,18 +89,18 @@ export function ReportsDashboard({
   const PIE_COLORS = ["#2563EB", "#7C3AED", "#059669", "#D97706", "#DC2626", "#64748B"];
 
   return (
-    <>
-      <div className="mb-2">
+    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+      <div>
         <h2 className="text-lg font-semibold">نظرة تنفيذية</h2>
         <p className="text-sm text-muted-foreground">{`مؤشرات الأداء خلال ${days} يوم`}</p>
       </div>
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
+        <div className="flex gap-[var(--mds-space-2)]">
           {[7, 30, 90].map((value) => (
             <Link
               key={value}
               href={`/reports?days=${value}&storeId=${filterStoreId}`}
-              className={`rounded-full border px-3 py-1 text-sm ${
+              className={`rounded-[var(--mds-radius-md)] border px-[var(--mds-space-3)] py-[var(--mds-space-1)] text-sm ${
                 days === value
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border text-muted-foreground"
@@ -111,7 +111,7 @@ export function ReportsDashboard({
           ))}
         </div>
         <form
-          className="flex flex-wrap items-center gap-2"
+          className="flex flex-wrap items-center gap-[var(--mds-space-2)]"
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
@@ -129,20 +129,20 @@ export function ReportsDashboard({
             type="date"
             name="from"
             defaultValue={customFrom}
-            className="h-9 w-36 rounded-full"
+            className="h-9 w-36 rounded-[var(--mds-radius-md)]"
           />
           <Input
             type="date"
             name="to"
             defaultValue={customTo}
-            className="h-9 w-36 rounded-full"
+            className="h-9 w-36 rounded-[var(--mds-radius-md)]"
           />
-          <Button type="submit" size="sm" variant="outline" className="rounded-full">
+          <Button type="submit" size="sm" variant="outline" className="rounded-[var(--mds-radius-md)]">
             فترة مخصصة
           </Button>
         </form>
         <select
-          className="h-9 rounded-full border border-input bg-background px-3 text-sm"
+          className="h-9 rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm"
           value={filterStoreId}
           onChange={(e) => {
             const params = new URLSearchParams();
@@ -163,7 +163,7 @@ export function ReportsDashboard({
         <Button
           size="sm"
           variant="outline"
-          className="rounded-full"
+          className="rounded-[var(--mds-radius-md)] shadow-[var(--mds-elevation-1)]"
           disabled={pending}
           onClick={() => {
             startTransition(async () => {
@@ -189,7 +189,7 @@ export function ReportsDashboard({
         </Button>
       </div>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="الإيراد"
           value={formatCurrency(sales.totalRevenue, currency)}
@@ -235,7 +235,7 @@ export function ReportsDashboard({
         )}
       </div>
 
-      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-[var(--mds-space-6)] lg:grid-cols-2">
         <OperationalCard title="اتجاه الإيراد">
           <div className="h-64">
             {chartData.length > 0 ? (
@@ -292,7 +292,7 @@ export function ReportsDashboard({
           ) : (
             <ul className="space-y-3">
               {sales.topProducts.map((p, i) => (
-                <li key={p.name} className="flex items-center gap-4">
+                <li key={p.name} className="flex items-center gap-[var(--mds-space-4)]">
                   <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
                     {i + 1}
                   </span>
@@ -325,7 +325,7 @@ export function ReportsDashboard({
           <OperationalCard title="أفضل الخيارات">
             <ul className="space-y-3">
               {sales.topVariants.map((v, i) => (
-                <li key={`${v.productName}-${v.name}`} className="flex items-center gap-4">
+                <li key={`${v.productName}-${v.name}`} className="flex items-center gap-[var(--mds-space-4)]">
                   <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
                     {i + 1}
                   </span>
@@ -361,24 +361,24 @@ export function ReportsDashboard({
         ) : null}
 
         <OperationalCard title="صحة المخزون">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-2xl bg-muted/50 p-4 text-center">
+          <div className="grid grid-cols-2 gap-[var(--mds-space-4)]">
+            <div className="rounded-[var(--mds-radius-lg)] bg-muted/50 p-[var(--mds-space-4)] text-center">
               <p className="text-2xl font-semibold">{inventory.totalUnits}</p>
               <p className="text-xs text-muted-foreground">إجمالي الوحدات</p>
             </div>
-            <div className="rounded-2xl bg-amber-500/10 p-4 text-center">
+            <div className="rounded-[var(--mds-radius-lg)] bg-[var(--mds-color-feedback-warning)]/10 p-[var(--mds-space-4)] text-center">
               <p className="text-2xl font-semibold text-amber-700 dark:text-amber-300">
                 {inventory.lowStockCount}
               </p>
               <p className="text-xs text-muted-foreground">مخزون منخفض</p>
             </div>
-            <div className="rounded-2xl bg-red-500/10 p-4 text-center">
+            <div className="rounded-[var(--mds-radius-lg)] bg-[var(--mds-color-feedback-danger)]/10 p-[var(--mds-space-4)] text-center">
               <p className="text-2xl font-semibold text-red-700 dark:text-red-300">
                 {inventory.outOfStockCount}
               </p>
               <p className="text-xs text-muted-foreground">غير متوفر</p>
             </div>
-            <div className="rounded-2xl bg-muted/50 p-4 text-center">
+            <div className="rounded-[var(--mds-radius-lg)] bg-muted/50 p-[var(--mds-space-4)] text-center">
               <p className="text-2xl font-semibold">{inventory.totalSkus}</p>
               <p className="text-xs text-muted-foreground">أكواد متتبعة</p>
             </div>
@@ -389,7 +389,7 @@ export function ReportsDashboard({
       {showCosts && accounting ? (
         <>
           <h2 className="mb-4 mt-10 text-xl font-semibold">الحسابات</h2>
-          <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label="إجمالي المصروفات"
               value={formatCurrency(accounting.profit.totalExpenses, currency)}
@@ -412,7 +412,7 @@ export function ReportsDashboard({
             />
           </div>
 
-          <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+          <div className="grid min-w-0 gap-[var(--mds-space-6)] lg:grid-cols-2">
             <OperationalCard title="المصروفات حسب مركز التكلفة">
               <div className="h-64">
                 {accounting.expensesByStore.length > 0 ? (
@@ -567,7 +567,7 @@ export function ReportsDashboard({
             </OperationalCard>
           </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-2">
             <OperationalCard title="أعلى منتجات ربحًا">
               <ul className="space-y-2 text-sm">
                 {accounting.productRankings.highestProfit.slice(0, 5).map((p) => (
@@ -607,7 +607,7 @@ export function ReportsDashboard({
       {customerAccounts ? (
         <section className="mt-10 space-y-4">
           <h2 className="text-xl font-semibold">حسابات العملاء</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label="أرصدة العملاء المستحقة"
               value={formatCurrency(customerAccounts.aging.total, currency)}
@@ -643,6 +643,6 @@ export function ReportsDashboard({
           </OperationalCard>
         </section>
       ) : null}
-    </>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Banknote, CreditCard, UserCircle, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,12 +81,15 @@ export function PosCreditCheckoutDialog({
     [enabledMethods]
   );
 
-  useEffect(() => {
-    if (!open) return;
-    setPayNow(false);
-    setAmountPaid("");
-    setPayMethod(availablePayMethods[0]?.id ?? "cash");
-  }, [open, availablePayMethods]);
+  const [initOpen, setInitOpen] = useState(open);
+  if (open !== initOpen) {
+    setInitOpen(open);
+    if (open) {
+      setPayNow(false);
+      setAmountPaid("");
+      setPayMethod(availablePayMethods[0]?.id ?? "cash");
+    }
+  }
 
   const paidValue = Number(amountPaid);
   const paid = payNow && Number.isFinite(paidValue) ? Math.max(0, paidValue) : 0;
@@ -153,7 +156,9 @@ export function PosCreditCheckoutDialog({
                 )}
               >
                 <p className="text-sm font-semibold">مش هيدفع دلوقتي</p>
-                <p className="mt-1 text-xs text-muted-foreground">كل المبلغ آجل</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  كل المبلغ ({formatCurrency(total)}) على الحساب
+                </p>
               </button>
               <button
                 type="button"
@@ -166,7 +171,7 @@ export function PosCreditCheckoutDialog({
                 )}
               >
                 <p className="text-sm font-semibold">هيدفع جزء</p>
-                <p className="mt-1 text-xs text-muted-foreground">والباقي على الحساب</p>
+                <p className="mt-1 text-xs text-muted-foreground">والباقي يتسجل آجل</p>
               </button>
             </div>
 
@@ -244,7 +249,11 @@ export function PosCreditCheckoutDialog({
               ) : null}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-6 text-center text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            اربط عميلًا من السلة أولًا، بعدين اختار آجل عشان نسجّل المبلغ على حسابه.
+          </div>
+        )}
 
         <DialogFooter className="gap-2 sm:justify-start">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
