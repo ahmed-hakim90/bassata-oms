@@ -33,8 +33,11 @@ export async function checkoutAction(input: {
   override?: CheckoutOverride;
 }): Promise<CheckoutActionResult> {
   try {
-    const user = await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
-    const ctx = await requirePosAccess();
+    // Skip device heartbeat write on checkout — page load already touched the device.
+    const [user, ctx] = await Promise.all([
+      requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]),
+      requirePosAccess({ touchSeen: false }),
+    ]);
     const payments = (input.payments?.length
       ? input.payments
       : [{ method: input.paymentMethod, amount: 0 }]
@@ -55,19 +58,22 @@ export async function checkoutAction(input: {
     }
     if ((input.discount ?? 0) > 0) featureChecks.push("customer_discounts");
     if ((input.loyaltyPoints ?? 0) > 0) featureChecks.push("loyalty");
-    await requireFeatures([...new Set(featureChecks)]);
 
-    if (usesCredit) {
-      await requirePermissionOrRole("customer_credit_sale", ["owner", "manager", "cashier"]);
-      if (!input.customer) {
-        return { success: false, error: "اختر عميلًا للبيع الآجل" };
-      }
+    const featuresPromise = requireFeatures([...new Set(featureChecks)]);
+    const creditPromise = usesCredit
+      ? requirePermissionOrRole("customer_credit_sale", ["owner", "manager", "cashier"])
+      : Promise.resolve(user);
+
+    if (usesCredit && !input.customer) {
+      return { success: false, error: "اختر عميلًا للبيع الآجل" };
     }
     if ((input.loyaltyPoints ?? 0) > 0 && !input.customer) {
       return { success: false, error: "اختر عميلاً لاستبدال نقاط الولاء" };
     }
 
-    const [session, settings] = await Promise.all([
+    const [, , session, settings] = await Promise.all([
+      featuresPromise,
+      creditPromise,
       getActiveSessionForPos(ctx),
       getSessionSettings(),
     ]);
@@ -137,6 +143,7 @@ export async function checkoutAction(input: {
       salesMode: input.salesMode ?? "retail",
       discount: input.discount ?? 0,
       loyaltyPoints: input.loyaltyPoints,
+      session,
       override: {
         expiredSession: input.override?.expiredSession,
       },

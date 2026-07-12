@@ -138,13 +138,13 @@ export async function resolvePosAccess(
 }
 
 export async function requirePosAccess(
-  options: { requireCashierRole?: boolean } = {}
+  options: { requireCashierRole?: boolean; touchSeen?: boolean } = {}
 ): Promise<PosAccessContext> {
   const ctx = await resolvePosAccess({
     ...options,
     clearInvalidCashier: true,
     persistCookies: true,
-    touchSeen: true,
+    touchSeen: options.touchSeen ?? true,
   });
   return ctx;
 }

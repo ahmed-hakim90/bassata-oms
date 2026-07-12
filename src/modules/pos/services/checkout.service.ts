@@ -1,23 +1,14 @@
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as sessionRepo from "@/lib/repositories/session.repository";
-import * as catalogRepo from "@/lib/repositories/catalog.repository";
-import * as inventoryRepo from "@/lib/repositories/inventory.repository";
-import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
-import * as deviceRepo from "@/lib/repositories/device.repository";
 import {
   earnPoints,
   getCustomerLoyaltyBalance,
   getLoyaltyRule,
   redeemPoints,
 } from "@/modules/loyalty/services/loyalty.service";
-import {
-  getInventoryPolicySettings,
-  getSessionSettings,
-  isFeatureEnabled,
-} from "@/modules/system/services/settings.service";
+import { getSessionSettings, isFeatureEnabled } from "@/modules/system/services/settings.service";
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
-import { assertPeriodOpen } from "@/lib/services/period-lock.service";
-import type { CartLine, Customer, Order, PaymentMethod, PaymentSplit } from "@/lib/types";
+import type { CartLine, CashierSession, Customer, Order, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { SalesMode } from "@/lib/constants";
 
 export interface CheckoutInput {
@@ -35,6 +26,8 @@ export interface CheckoutInput {
   override?: {
     expiredSession?: boolean;
   };
+  /** When the action already loaded the open session, skip a second fetch. */
+  session?: CashierSession;
 }
 
 export interface CheckoutResult {
@@ -55,22 +48,19 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     throw new Error("جلسة كاشير نشطة مطلوبة");
   }
 
-  await assertPeriodOpen(input.storeId);
+  // Catalog/stock/variant/device checks live in complete_checkout RPC — avoid
+  // duplicate pre-RPC round-trips that dominate cashier save latency.
+  const [session, settings] = await Promise.all([
+    input.session && input.session.id === input.sessionId
+      ? Promise.resolve(input.session)
+      : sessionRepo.getSession(input.sessionId),
+    getSessionSettings(),
+  ]);
 
-  const session = await sessionRepo.getSession(input.sessionId);
   if (!session || session.status !== "open" || session.store_id !== input.storeId) {
     throw new Error("جلسة الكاشير غير صالحة أو مغلقة");
   }
-  // Same open session may continue on any paired device for this store
-  // (phone + register). Still require an active device registered to the store.
-  if (input.deviceId) {
-    const device = await deviceRepo.getDevice(input.deviceId);
-    if (!device || !device.is_active || device.store_id !== session.store_id) {
-      throw new Error("الجهاز غير صالح لهذا الفرع");
-    }
-  }
 
-  const settings = await getSessionSettings();
   const lifecycle = computeSessionLifecycle(session, settings);
   if (lifecycle.blocksSales && !input.override?.expiredSession) {
     throw new Error("انتهت الجلسة - أغلق الوردية للمتابعة");
@@ -98,82 +88,20 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     tier_id: line.tierId ?? null,
   }));
 
-  const productIds = [...new Set(input.cart.map((line) => line.productId))];
-  const [variantMap, productMap, inventoryPolicy, preventNegativeStock, warehouse, loyaltyEnabled] =
-    await Promise.all([
-      catalogRepo.listVariantsForProducts(productIds),
-      catalogRepo.getProductsByIds(productIds),
-      getInventoryPolicySettings(),
-      isFeatureEnabled("prevent_negative_stock"),
-      warehouseRepo.getDefaultWarehouse(input.storeId),
-      isFeatureEnabled("loyalty"),
-    ]);
-
-  for (const line of input.cart) {
-    const activeVariants = (variantMap.get(line.productId) ?? []).filter((v) => v.is_active);
-    if (activeVariants.length > 0 && !line.variantId) {
-      throw new Error(`الخيار مطلوب للمنتج ${line.name}`);
-    }
-  }
-
-  const warehouseId = warehouse?.id ?? null;
-  const batchTrackedProductIds = [...productMap.values()]
-    .filter((product) => product.inventory_tracking_mode === "batch_and_expiry")
-    .map((product) => product.id)
-    .filter((id) => productIds.includes(id));
-
-  const allBatches =
-    warehouseId && batchTrackedProductIds.length > 0
-      ? await inventoryRepo.listInventoryBatchesForProducts(
-          input.storeId,
-          warehouseId,
-          batchTrackedProductIds
-        )
-      : [];
-  const today = new Date();
-  const nearExpiryThreshold = Number(
-    Array.isArray(inventoryPolicy.alert_days) ? inventoryPolicy.alert_days[0] : 7
-  );
-  const nearExpiryDate = new Date();
-  nearExpiryDate.setDate(today.getDate() + nearExpiryThreshold);
-
-  for (const line of input.cart) {
-    const product = productMap.get(line.productId);
-    if (!product || product.inventory_tracking_mode !== "batch_and_expiry") continue;
-
-    const productBatches = allBatches
-      .filter(
-        (batch) =>
-          batch.product_id === line.productId &&
-          (batch.variant_id ?? null) === (line.variantId ?? null)
-      )
-      .filter((batch) => batch.remaining_quantity > 0);
-    if (productBatches.length === 0) continue;
-
-    const expired = productBatches.some(
-      (batch) => batch.expiry_date && new Date(batch.expiry_date) < today
-    );
-    if (preventNegativeStock && expired && (product.expiry_policy ?? "block_sale") === "block_sale") {
-      throw new Error(`مخزون ${line.name} منتهي الصلاحية وممنوع بيعه حسب السياسة`);
-    }
-
-    const nearExpiry = productBatches.some(
-      (batch) =>
-        batch.expiry_date &&
-        new Date(batch.expiry_date) >= today &&
-        new Date(batch.expiry_date) <= nearExpiryDate
-    );
-    if (nearExpiry && (product.expiry_policy ?? "block_sale") === "warn_only") {
-      // Do not block; message is consumed by UI toast/alert when surfaced.
-      console.warn(`[expiry-warning] ${line.name} has near-expiry stock`);
-    }
-  }
-
-  // Loyalty redemption: validate before the order exists, deduct points after.
   const requestedPoints = Math.floor(input.loyaltyPoints ?? 0);
   let loyaltyDiscount = 0;
-  const loyaltyRule =
-    requestedPoints > 0 || loyaltyEnabled ? await getLoyaltyRule() : null;
+  let loyaltyRule = null;
+  let loyaltyEnabled = false;
+
+  if (requestedPoints > 0 || input.customer?.id) {
+    const [enabled, rule] = await Promise.all([
+      isFeatureEnabled("loyalty"),
+      getLoyaltyRule(),
+    ]);
+    loyaltyEnabled = enabled;
+    loyaltyRule = rule;
+  }
+
   if (requestedPoints > 0) {
     if (!input.customer?.id) {
       throw new Error("اختر عميلاً لاستبدال نقاط الولاء");
@@ -252,10 +180,15 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     if (message.includes("Payment amount must be greater than zero")) {
       throw new Error("مبلغ الدفع يجب أن يكون أكبر من صفر");
     }
+    if (message.includes("Variant required")) {
+      throw new Error("الخيار مطلوب لأحد المنتجات في السلة");
+    }
+    if (message.includes("Insufficient stock")) {
+      throw new Error("المخزون غير كافٍ لأحد المنتجات");
+    }
     throw error;
   }
 
-  // RPC already returns the fields callers need — avoid a post-checkout getOrder round-trip.
   const usesCredit = payments.some((payment) => payment.method === "credit");
   const order: Order = {
     id: result.order_id,
