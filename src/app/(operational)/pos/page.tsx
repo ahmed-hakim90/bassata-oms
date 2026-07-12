@@ -67,6 +67,15 @@ function toStaffOnlineProductOptions(products: POSProduct[]): StaffOnlineProduct
     }));
 }
 
+async function settled<T>(promise: Promise<T>, fallback: T, label: string): Promise<T> {
+  try {
+    return await promise;
+  } catch (error) {
+    console.error(`[pos] ${label} failed; using fallback`, error);
+    return fallback;
+  }
+}
+
 export default async function PosPage() {
   const [user, storeId, readiness] = await Promise.all([
     getCurrentUser(),
@@ -132,19 +141,41 @@ export default async function PosPage() {
     onlineOrders,
     allStores,
   ] = await Promise.all([
-    getCategoriesForPOS(),
+    settled(getCategoriesForPOS(), [], "categories"),
     getProductsForPOS(storeId),
     readiness.cashierId
-      ? getActiveSession(storeId, readiness.cashierId)
+      ? settled(getActiveSession(storeId, readiness.cashierId), null, "session")
       : Promise.resolve(null),
     getFeatureFlags(),
-    getExpenseSettings(),
+    settled(getExpenseSettings(), {
+      approval_required: false,
+      cashier_can_add_session_expense: false,
+      cashier_max_expense_amount: null,
+      allow_inventory_purchase_from_session: true,
+      default_cost_center_packaging: null,
+      default_cost_center_cleaning: null,
+      default_cost_center_utilities: null,
+      prevent_expenses_in_closed_periods: true,
+    }, "expenseSettings"),
     getSessionSettings(),
-    listCostCenters(storeId),
-    listExpenseCategories(),
-    getReportBranding(storeId),
-    listActiveOnlineOrdersWithItems(storeId),
-    storeRepo.listStores(),
+    settled(listCostCenters(storeId), [], "costCenters"),
+    settled(listExpenseCategories(), [], "expenseCategories"),
+    settled(
+      getReportBranding(storeId),
+      {
+        orgName: "SweetFlow",
+        orgLogoUrl: null,
+        currency: "EGP",
+        storeName: null,
+        storeAddress: null,
+        storePhone: null,
+        receiptHeader: null,
+        receiptFooter: null,
+      },
+      "receiptBranding"
+    ),
+    settled(listActiveOnlineOrdersWithItems(storeId), [], "onlineOrders"),
+    settled(storeRepo.listStores(), [], "stores"),
   ]);
 
   const onlineOrderProducts = toStaffOnlineProductOptions(products);
@@ -155,7 +186,7 @@ export default async function PosPage() {
     Boolean(session);
 
   const allProducts: Product[] = needsInventoryProducts
-    ? await catalogRepo.listProducts()
+    ? await settled(catalogRepo.listProducts(), [], "inventoryProducts")
     : [];
 
   const enabledPaymentMethods: PaymentMethod[] = [
@@ -184,17 +215,19 @@ export default async function PosPage() {
     cashier,
     pendingOpeningFloat,
   ] = await Promise.all([
-    session ? loadSessionCashBundle(session.id) : Promise.resolve(null),
-    flags.loyalty ? getLoyaltyRule() : Promise.resolve(null),
+    session
+      ? settled(loadSessionCashBundle(session.id), null, "sessionCashBundle")
+      : Promise.resolve(null),
+    flags.loyalty ? settled(getLoyaltyRule(), null, "loyaltyRule") : Promise.resolve(null),
     needsInventoryProducts
-      ? permissionRepo.hasPermission("session_expense_create")
+      ? settled(permissionRepo.hasPermission("session_expense_create"), false, "expensePerm")
       : Promise.resolve(false),
     user?.role === "owner" || user?.role === "manager"
       ? Promise.resolve(true)
-      : permissionRepo.hasPermission("customer_payment_receive"),
-    session ? userRepo.getUser(session.cashier_id) : Promise.resolve(null),
+      : settled(permissionRepo.hasPermission("customer_payment_receive"), false, "collectPerm"),
+    session ? settled(userRepo.getUser(session.cashier_id), null, "cashier") : Promise.resolve(null),
     !session && readiness.cashierId
-      ? getPendingOpeningFloat(storeId, readiness.cashierId)
+      ? settled(getPendingOpeningFloat(storeId, readiness.cashierId), 0, "pendingFloat")
       : Promise.resolve(0),
   ]);
 

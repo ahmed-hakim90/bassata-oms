@@ -5,12 +5,7 @@ import { Search, Star, UserPlus, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  quickCreateCustomerAction,
-  searchCustomersAction,
-  type PosCustomerSearchResult,
-} from "@/modules/pos/actions/customer-attach.action";
-import { getCustomerLoyaltyBalanceAction } from "@/modules/pos/actions/loyalty-balance.action";
+import type { PosCustomerSearchResult } from "@/modules/pos/actions/customer-attach.action";
 import { usePosStore } from "@/stores/pos-store";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { formatCurrency } from "@/lib/format";
@@ -24,6 +19,53 @@ function splitQueryHint(query: string): { name: string; phone: string } {
     return { name: "", phone: trimmed };
   }
   return { name: trimmed, phone: "" };
+}
+
+async function searchCustomersApi(query: string): Promise<PosCustomerSearchResult[]> {
+  const res = await fetch(`/api/pos/customers?q=${encodeURIComponent(query)}`, {
+    method: "GET",
+    credentials: "same-origin",
+  });
+  const data = (await res.json()) as {
+    customers?: PosCustomerSearchResult[];
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || "فشل البحث عن العملاء");
+  }
+  return data.customers ?? [];
+}
+
+async function createCustomerApi(input: {
+  name: string;
+  phone: string;
+}): Promise<PosCustomerSearchResult> {
+  const res = await fetch("/api/pos/customers", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json()) as {
+    customer?: PosCustomerSearchResult;
+    error?: string;
+  };
+  if (!res.ok || !data.customer) {
+    throw new Error(data.error || "فشل إضافة العميل");
+  }
+  return data.customer;
+}
+
+async function fetchLoyaltyBalanceApi(customerId: string): Promise<number> {
+  const res = await fetch(`/api/pos/customers/${customerId}/loyalty`, {
+    method: "GET",
+    credentials: "same-origin",
+  });
+  const data = (await res.json()) as { balance?: number; error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || "فشل جلب نقاط الولاء");
+  }
+  return data.balance ?? 0;
 }
 
 export function CustomerAttach({
@@ -101,7 +143,7 @@ export function CustomerAttach({
     setCustomerLoyaltyBalance(null);
     startTransition(async () => {
       try {
-        const balance = await getCustomerLoyaltyBalanceAction(c.id);
+        const balance = await fetchLoyaltyBalanceApi(c.id);
         setCustomerLoyaltyBalance(balance);
         if (balance > 0) {
           toast.info(`${c.name}: ${balance} نقطة جاهزة للاستبدال`);
@@ -128,9 +170,15 @@ export function CustomerAttach({
       const seq = ++searchSeqRef.current;
       const query = value;
       startTransition(async () => {
-        const found = await searchCustomersAction(query);
-        if (seq !== searchSeqRef.current) return;
-        setResults(found);
+        try {
+          const found = await searchCustomersApi(query);
+          if (seq !== searchSeqRef.current) return;
+          setResults(found);
+        } catch (error) {
+          if (seq !== searchSeqRef.current) return;
+          setResults([]);
+          toast.error(error instanceof Error ? error.message : "فشل البحث عن العملاء");
+        }
       });
     }, SEARCH_DEBOUNCE_MS);
   }
@@ -155,7 +203,7 @@ export function CustomerAttach({
     }
     startTransition(async () => {
       try {
-        const created = await quickCreateCustomerAction({
+        const created = await createCustomerApi({
           name,
           phone: phoneValue,
         });
