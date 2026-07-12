@@ -18,7 +18,7 @@ const receipt: ReceiptPayload = {
   branding: {
     orgName: "Bassata Cafe",
     orgLogoUrl: null,
-    currency: "USD",
+    currency: "EGP",
     storeName: "Main Branch",
     storeAddress: "Cairo",
     storePhone: "+202000000",

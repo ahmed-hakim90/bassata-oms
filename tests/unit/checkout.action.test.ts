@@ -97,20 +97,19 @@ describe("checkoutAction payment validation", () => {
   });
 
   it("rejects zero-amount payments", async () => {
-    await expect(
-      checkoutAction({
-        cart: [],
-        customer: null,
-        paymentMethod: "cash",
-        payments: [{ method: "cash", amount: 0 }],
-      })
-    ).rejects.toThrow("أدخل مبلغ دفع صالحاً");
+    const result = await checkoutAction({
+      cart: [],
+      customer: null,
+      paymentMethod: "cash",
+      payments: [{ method: "cash", amount: 0 }],
+    });
 
+    expect(result).toEqual({ success: false, error: "أدخل مبلغ دفع صالحاً" });
     expect(completeCheckout).not.toHaveBeenCalled();
   });
 
   it("prefers payments array over paymentMethod when completing checkout", async () => {
-    await checkoutAction({
+    const result = await checkoutAction({
       cart: [
         {
           id: "line-1",
@@ -129,6 +128,7 @@ describe("checkoutAction payment validation", () => {
       payments: [{ method: "cash", amount: 10 }],
     });
 
+    expect(result.success).toBe(true);
     expect(completeCheckout).toHaveBeenCalledWith(
       expect.objectContaining({
         paymentMethod: "cash",

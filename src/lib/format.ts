@@ -2,12 +2,13 @@ import { format, formatDistanceToNow } from "date-fns";
 
 export function formatCurrency(
   amount: number,
-  currency = "USD",
-  locale = "en-US"
+  currency = "EGP",
+  locale = "ar-EG"
 ): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
+    numberingSystem: "latn",
   }).format(amount);
 }
 

@@ -311,7 +311,10 @@ export function PosScreen({
                 }
               : undefined,
         });
-        if (!result?.orderNumber) {
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+        if (!result.orderNumber) {
           throw new Error("فشل إتمام البيع");
         }
 

@@ -239,7 +239,7 @@ export async function updateOrganizationSettings(
 
   const updated = await orgRepo.updateOrganization({
     name: input.name ?? org.name,
-    currency: input.currency ?? org.currency,
+    currency: "EGP",
     timezone: input.timezone ?? org.timezone,
     country: input.country ?? org.country,
     logo_url: input.logoUrl === undefined ? org.logo_url : input.logoUrl,

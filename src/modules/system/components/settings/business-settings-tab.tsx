@@ -30,9 +30,8 @@ export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
   const [logoUrl, setLogoUrl] = useState(org.organization.logo_url ?? "");
   const [form, setForm] = useState({
     name: org.organization.name,
-    currency: org.organization.currency,
-    timezone: org.organization.timezone,
-    country: org.organization.country,
+    timezone: org.organization.timezone || "Africa/Cairo",
+    country: org.organization.country || "EG",
     phone: (org.organization.settings.phone as string | undefined) ?? "",
     address: (org.organization.settings.address as string | undefined) ?? "",
   });
@@ -98,10 +97,8 @@ export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>العملة</Label>
-              <Input
-                value={form.currency}
-                onChange={(e) => setForm({ ...form, currency: e.target.value })}
-              />
+              <Input value="EGP" readOnly disabled aria-label="العملة" />
+              <p className="text-xs text-muted-foreground">الجنيه المصري ثابت لكل النظام.</p>
             </div>
             <div className="space-y-2">
               <Label>المنطقة الزمنية</Label>
@@ -138,7 +135,7 @@ export function BusinessSettingsTab({ org }: BusinessSettingsTabProps) {
                 try {
                   await updateOrgSettingsAction({
                     name: form.name,
-                    currency: form.currency,
+                    currency: "EGP",
                     timezone: form.timezone,
                     country: form.country,
                     phone: form.phone,

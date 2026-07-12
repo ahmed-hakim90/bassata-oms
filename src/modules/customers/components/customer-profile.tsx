@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Heart, Receipt, ShoppingBag } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { LoyaltyLedgerEntry } from "@/lib/types";
 import type { CustomerProfile } from "@/modules/customers/services/customer.service";
@@ -15,25 +14,7 @@ interface CustomerProfileViewProps {
 
 export function CustomerProfileView({ profile, ledger }: CustomerProfileViewProps) {
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
-      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="إجمالي المشتريات"
-          value={formatCurrency(profile.total_spent)}
-          icon={<ShoppingBag className="size-5" />}
-        />
-        <KpiCard label="عدد الزيارات" value={String(profile.visit_count)} />
-        <KpiCard
-          label="متوسط الطلب"
-          value={formatCurrency(profile.avgOrderValue)}
-        />
-        <KpiCard
-          label="نقاط الولاء"
-          value={String(profile.loyaltyBalance)}
-          icon={<Heart className="size-5" />}
-        />
-      </div>
-
+    <div className="flex flex-col gap-[var(--mds-space-6)]">
       <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-2">
         <OperationalCard title="المنتجات المفضلة">
           {profile.favoriteProducts.length === 0 ? (
@@ -82,7 +63,10 @@ export function CustomerProfileView({ profile, ledger }: CustomerProfileViewProp
         </OperationalCard>
       </div>
 
-      <OperationalCard title="سجل الولاء">
+      <OperationalCard
+        title="سجل الولاء"
+        description={`الرصيد الحالي ${profile.loyaltyBalance} نقطة`}
+      >
         {ledger.length === 0 ? (
           <p className="text-sm text-muted-foreground">مفيش حركات نقاط لسة</p>
         ) : (
@@ -109,11 +93,11 @@ export function CustomerProfileView({ profile, ledger }: CustomerProfileViewProp
         )}
       </OperationalCard>
 
-      {profile.notes && (
+      {profile.notes ? (
         <OperationalCard title="ملاحظات">
-          <p className="text-sm text-muted-foreground">{profile.notes}</p>
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{profile.notes}</p>
         </OperationalCard>
-      )}
+      ) : null}
     </div>
   );
 }

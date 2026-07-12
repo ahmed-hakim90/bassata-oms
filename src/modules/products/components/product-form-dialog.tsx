@@ -87,7 +87,7 @@ export function ProductFormDialog({
   productTemplates,
   businessActivitySettings,
   onSaved,
-  currency = "USD",
+  currency = "EGP",
   existingSkus = [],
 }: ProductFormDialogProps) {
   const isEdit = Boolean(product);

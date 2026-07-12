@@ -32,7 +32,7 @@ interface ProductGridProps {
 
 export function ProductGrid({
   items,
-  currency = "USD",
+  currency = "EGP",
   priceMode = "sale",
   showEdit = true,
   onEdit,

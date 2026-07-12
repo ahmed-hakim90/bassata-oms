@@ -125,14 +125,26 @@ export function SupplierDetailPage({
   }`;
 
   const { supplier } = statement;
+  const periodLabel = hasDateFilter ? "الفترة" : "الكشف";
 
   return (
-    <>
+    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
       <PageHeader
+        breadcrumb={
+          <span className="flex flex-wrap items-center gap-1">
+            <Link href="/inventory/suppliers" className="text-primary hover:underline">
+              الموردين
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/inventory/purchases" className="text-primary hover:underline">
+              المشتريات
+            </Link>
+          </span>
+        }
         title={supplier.name}
         description={supplier.contact_info || "كشف حساب المورد"}
         action={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
             {canEditSupplier ? (
               <Button variant="outline" onClick={() => setShowEdit(true)}>
                 <Pencil className="size-4" /> تعديل
@@ -165,77 +177,74 @@ export function SupplierDetailPage({
         }
       />
 
-      <p className="mb-[var(--mds-space-4)] text-sm text-muted-foreground">
-        <Link href="/inventory/suppliers" className="text-primary hover:underline">
-          كل الموردين →
-        </Link>
-        {" · "}
-        <Link href="/inventory/purchases" className="text-primary hover:underline">
-          المشتريات
-        </Link>
-      </p>
-
-      <div className="mb-[var(--mds-space-6)] grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="الرصيد المستحق"
           value={formatCurrency(kpis.balance, currency)}
           icon={<Landmark className="size-5" />}
         />
         <KpiCard
-          label={`${hasDateFilter ? "الفترة" : "الكشف"} - المشتريات`}
+          label={`${periodLabel} — المشتريات`}
           value={formatCurrency(kpis.purchased, currency)}
         />
-        <KpiCard label={`${hasDateFilter ? "الفترة" : "الكشف"} - الدفعات`} value={formatCurrency(kpis.paid, currency)} />
+        <KpiCard
+          label={`${periodLabel} — الدفعات`}
+          value={formatCurrency(kpis.paid, currency)}
+        />
         <KpiCard
           label="رصيد افتتاحي"
           value={formatCurrency(statement.openingBalance, currency)}
         />
       </div>
 
-      <OperationalCard title="نطاق التاريخ" className="mb-[var(--mds-space-6)]">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-2">
-            <Label>من</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>إلى</Label>
-            <Input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              placeholder={from ? "الافتراضي اليوم" : undefined}
-            />
-          </div>
-          <Button onClick={applyFilter} disabled={pending}>
-            تطبيق
-          </Button>
-          <Button variant="outline" onClick={clearFilter} disabled={pending}>
-            مسح
-          </Button>
-        </div>
-        {from && !to ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            تاريخ النهاية يكون اليوم تلقائيًا عند تحديد تاريخ البداية فقط.
-          </p>
-        ) : null}
-      </OperationalCard>
-
       <OperationalCard
         title="كشف الحساب"
         description={`الرصيد الختامي ${formatCurrency(statement.closingBalance, currency)}`}
       >
+        <div className="mb-[var(--mds-space-4)] flex flex-wrap items-end gap-[var(--mds-space-3)] rounded-[var(--mds-radius-md)] border border-border/60 bg-muted/30 p-[var(--mds-space-3)]">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">من</Label>
+            <Input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="h-9 w-[9.5rem] bg-background"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">إلى</Label>
+            <Input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="h-9 w-[9.5rem] bg-background"
+            />
+          </div>
+          <Button size="sm" onClick={applyFilter} disabled={pending}>
+            تطبيق
+          </Button>
+          {hasDateFilter ? (
+            <Button size="sm" variant="outline" onClick={clearFilter} disabled={pending}>
+              مسح
+            </Button>
+          ) : null}
+          {from && !to ? (
+            <p className="basis-full text-xs text-muted-foreground">
+              تاريخ النهاية يكون اليوم تلقائيًا عند تحديد تاريخ البداية فقط.
+            </p>
+          ) : null}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b text-start text-muted-foreground">
-                <th className="py-2 ps-4">التاريخ</th>
-                <th className="py-2 ps-4">النوع</th>
-                <th className="py-2 ps-4">المرجع</th>
-                <th className="py-2 ps-4">الوصف</th>
-                <th className="py-2 ps-4 text-end">مدين</th>
-                <th className="py-2 ps-4 text-end">دائن</th>
-                <th className="py-2 text-end">الرصيد</th>
+                <th className="py-2 ps-4 font-medium">التاريخ</th>
+                <th className="py-2 ps-4 font-medium">النوع</th>
+                <th className="py-2 ps-4 font-medium">المرجع</th>
+                <th className="py-2 ps-4 font-medium">الوصف</th>
+                <th className="py-2 ps-4 text-end font-medium">مدين</th>
+                <th className="py-2 ps-4 text-end font-medium">دائن</th>
+                <th className="py-2 text-end font-medium">الرصيد</th>
                 {canManagePayments ? <th className="py-2 pe-2" /> : null}
               </tr>
             </thead>
@@ -246,7 +255,7 @@ export function SupplierDetailPage({
                 </td>
                 <td className="py-2 ps-4 text-end" />
                 <td className="py-2 ps-4 text-end" />
-                <td className="py-2 text-end font-medium">
+                <td className="py-2 text-end font-medium tabular-nums">
                   {formatCurrency(statement.openingBalance, currency)}
                 </td>
                 {canManagePayments ? <td /> : null}
@@ -261,8 +270,8 @@ export function SupplierDetailPage({
                   </td>
                 </tr>
               ) : (
-                  statement.transactions.map((t) => (
-                  <tr key={t.id} className="border-b">
+                statement.transactions.map((t) => (
+                  <tr key={t.id} className="border-b border-border/40">
                     <td className="whitespace-nowrap py-2 ps-4">{formatDateTime(t.at)}</td>
                     <td className="py-2 ps-4">
                       <StatusPill
@@ -357,6 +366,6 @@ export function SupplierDetailPage({
         destructive
         onConfirm={confirmVoidPayment}
       />
-    </>
+    </div>
   );
 }

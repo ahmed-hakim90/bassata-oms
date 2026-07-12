@@ -27,8 +27,8 @@ export const onboardingPayloadSchema = z.object({
   organization: z.object({
     name: z.string().min(2, "اسم المؤسسة مطلوب"),
     logoUrl: z.string().optional(),
-    currency: z.string().min(1).default("USD"),
-    timezone: z.string().min(1).default("America/New_York"),
+    currency: z.string().min(1).default("EGP"),
+    timezone: z.string().min(1).default("Africa/Cairo"),
     country: z.string().min(1, "الدولة مطلوبة"),
     taxEnabled: z.boolean(),
     taxRate: z.number().min(0).max(100),

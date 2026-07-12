@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { LogOut, Menu, Search, ShoppingCart, Store, UserRound } from "lucide-react";
+import { LogOut, Menu, Search, ShoppingCart, Store } from "lucide-react";
 import { logoutAction } from "@/modules/auth/actions/logout.action";
 import { setActiveStoreAction } from "@/modules/auth/actions/set-store.action";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -152,28 +152,34 @@ export function AppShellHeader({
             </SheetContent>
           </Sheet>
 
-          {/* user avatar initial — desktop only */}
-          <span
-            className="hidden size-7 shrink-0 select-none items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary md:flex dark:bg-primary/15"
-            aria-hidden
+          <Link
+            href="/account"
+            className="flex min-w-0 items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label={t("Account")}
           >
-            {userName.charAt(0)}
-          </span>
+            {/* user avatar initial — desktop only */}
+            <span
+              className="hidden size-7 shrink-0 select-none items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary md:flex dark:bg-primary/15"
+              aria-hidden
+            >
+              {userName.charAt(0)}
+            </span>
 
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight text-foreground">{userName}</p>
-            <p className="truncate text-[11px] leading-tight text-muted-foreground">
-              {roleLabel}
-              {stores.find((s) => s.id === selectedId)?.name
-                ? ` · ${stores.find((s) => s.id === selectedId)!.name}`
-                : ""}
-            </p>
-          </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold leading-tight text-foreground">{userName}</p>
+              <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                {roleLabel}
+                {stores.find((s) => s.id === selectedId)?.name
+                  ? ` · ${stores.find((s) => s.id === selectedId)!.name}`
+                  : ""}
+              </p>
+            </div>
+          </Link>
         </div>
 
         <div className="flex-1" />
 
-        {/* ── Right: search · store · account · POS · logout ── */}
+        {/* ── Right: search · store · POS · logout ── */}
         <div className="flex shrink-0 items-center gap-[var(--mds-space-2)]">
           {/* search */}
           <Tooltip>
@@ -259,36 +265,7 @@ export function AppShellHeader({
             </>
           )}
 
-          {/* identity + exit group */}
           <span className="h-5 w-px bg-border" aria-hidden />
-
-          <Link
-            href="/account"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden rounded-[var(--mds-radius-md)] sm:inline-flex"
-            )}
-          >
-            <UserRound className="size-4" />
-            {t("Account")}
-          </Link>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Link
-                  href="/account"
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
-                    "rounded-[var(--mds-radius-md)] sm:hidden"
-                  )}
-                  aria-label={t("Account")}
-                />
-              }
-            >
-              <UserRound className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{t("Account")}</TooltipContent>
-          </Tooltip>
 
           <Link
             href={posHref}
@@ -303,19 +280,8 @@ export function AppShellHeader({
             <span className="sm:hidden">{cta.short}</span>
           </Link>
 
-          <form action={logoutAction} className="hidden sm:block">
-            <Button
-              type="submit"
-              variant="outline"
-              size="sm"
-              className="rounded-[var(--mds-radius-md)]"
-            >
-              <LogOut className="size-4" />
-              {t("Sign out")}
-            </Button>
-          </form>
           <Tooltip>
-            <form action={logoutAction} className="sm:hidden">
+            <form action={logoutAction}>
               <TooltipTrigger
                 render={
                   <Button

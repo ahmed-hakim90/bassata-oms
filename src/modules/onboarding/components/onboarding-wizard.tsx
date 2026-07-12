@@ -59,9 +59,9 @@ export function OnboardingWizard() {
   const [organization, setOrganization] = useState({
     name: "",
     logoUrl: "",
-    currency: "USD",
-    timezone: "America/New_York",
-    country: "",
+    currency: "EGP",
+    timezone: "Africa/Cairo",
+    country: "EG",
     taxEnabled: true,
     taxRate: 0,
     taxInclusive: true,
@@ -70,7 +70,7 @@ export function OnboardingWizard() {
     name: "",
     address: "",
     phone: "",
-    timezone: "America/New_York",
+    timezone: "Africa/Cairo",
   });
   const [owner, setOwner] = useState({
     name: "",
