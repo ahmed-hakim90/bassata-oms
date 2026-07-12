@@ -529,9 +529,9 @@ export function CartPanel({
             );
           })}
         </div>
-        {payDisabled && hasCart ? (
+        {hasCart && checkoutBlockedReason ? (
           <p className="mt-2 text-center text-xs text-amber-800 dark:text-amber-200">
-            {checkoutBlockedReason ?? "أكمل تجهيز نقطة البيع قبل الدفع"}
+            {checkoutBlockedReason}
           </p>
         ) : null}
       </div>

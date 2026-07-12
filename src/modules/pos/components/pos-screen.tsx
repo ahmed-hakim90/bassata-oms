@@ -30,6 +30,7 @@ import { PosReadinessBanner } from "@/components/SweetFlow/pos-readiness-banner"
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { PosPinSwitch } from "@/modules/pos/components/pos-pin-switch";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness-copy";
+import { POS_READINESS_COPY } from "@/lib/auth/pos-readiness-copy";
 import { ExpenseWizard } from "@/modules/expenses/components/expense-wizard";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -162,14 +163,19 @@ export function PosScreen({
   const loyaltyEnabled = featureFlags.loyalty !== false;
   const cartTotal = getCartTotal(cart, discountAmount);
   const cartItemCount = cart.reduce((total, line) => total + line.quantity, 0);
-  const checkoutBlockedReason =
-    readinessState === "session_expired"
-      ? "أغلق الوردية لمتابعة البيع"
+  const noPaymentMethods = enabledPaymentMethods.length === 0;
+  const checkoutBlockedReason = pending
+    ? "جاري إتمام البيع…"
+    : readinessState === "session_expired"
+      ? "أقفل الوردية عشان تكمّل البيع"
       : readinessState === "no_session"
-        ? "افتح جلسة كاشير لإتمام البيع"
+        ? "افتح جلسة كاشير الأول"
         : checkoutBlocked
-          ? "أكمل تجهيز نقطة البيع قبل الدفع"
-          : null;
+          ? POS_READINESS_COPY[readinessState]?.title ?? "الكاشير مش جاهز للبيع دلوقتي"
+          : noPaymentMethods
+            ? "مفيش طريقة دفع مفعّلة من الإعدادات"
+            : null;
+  const payLocked = checkoutBlocked || pending || noPaymentMethods;
 
   function cartCheckout(method?: PaymentMethod) {
     if (!method) return;
@@ -626,7 +632,7 @@ export function PosScreen({
         <aside className="hidden min-h-0 w-[min(420px,32vw)] shrink-0 flex-col xl:flex">
           <CartPanel
             onCheckout={cartCheckout}
-            checkoutDisabled={checkoutBlocked || cart.length === 0 || pending}
+            checkoutDisabled={payLocked || cart.length === 0}
             checkoutBlockedReason={checkoutBlockedReason}
             discountsEnabled={discountsEnabled}
             loyaltyEnabled={loyaltyEnabled}
@@ -641,11 +647,7 @@ export function PosScreen({
           {checkoutBlocked ? (
             <div className="mt-2.5 space-y-2.5 rounded-2xl border border-amber-500/25 bg-amber-50/80 p-3.5 text-center dark:bg-amber-500/10">
               <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                {readinessState === "session_expired"
-                  ? "أغلق الوردية لمتابعة البيع"
-                  : readinessState === "no_session"
-                    ? "افتح جلسة كاشير لإتمام البيع"
-                    : "أكمل تجهيز نقطة البيع قبل الدفع"}
+                {checkoutBlockedReason}
               </p>
               {readinessState === "no_session" ? (
                 <QuickOpenSessionButton className="w-full" label="ابدأ البيع الآن" />
@@ -668,7 +670,7 @@ export function PosScreen({
                   setCartOpen(false);
                   cartCheckout(method);
                 }}
-                checkoutDisabled={checkoutBlocked || cart.length === 0 || pending}
+                checkoutDisabled={payLocked || cart.length === 0}
                 checkoutBlockedReason={checkoutBlockedReason}
                 discountsEnabled={discountsEnabled}
                 loyaltyEnabled={loyaltyEnabled}
@@ -683,11 +685,7 @@ export function PosScreen({
               {checkoutBlocked ? (
                 <div className="space-y-2.5 border-t border-border/60 p-4 text-center">
                   <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                    {readinessState === "session_expired"
-                      ? "أغلق الوردية لمتابعة البيع"
-                      : readinessState === "no_session"
-                        ? "افتح جلسة كاشير لإتمام البيع"
-                        : "أكمل تجهيز نقطة البيع قبل الدفع"}
+                    {checkoutBlockedReason}
                   </p>
                   {readinessState === "no_session" ? (
                     <QuickOpenSessionButton className="w-full" label="ابدأ البيع الآن" />
