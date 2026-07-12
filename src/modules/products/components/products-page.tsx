@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import {
   FileSpreadsheet,
+  LayoutGrid,
+  List,
   MoreHorizontal,
   Package,
   Plus,
@@ -21,6 +23,7 @@ import {
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { ProductGrid, type ProductGridItem } from "./product-grid";
+import { ProductTable } from "./product-table";
 import { CategoryList } from "./category-list";
 import { CafeMenuItemDialog } from "./cafe-menu-item-dialog";
 import { CafeIngredientDialog } from "./cafe-ingredient-dialog";
@@ -35,6 +38,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 type CatalogView = "menu" | "ingredients";
+type LayoutView = "grid" | "table";
 
 interface ProductsPageProps {
   initialProducts: (ProductGridItem & { hasRecipe?: boolean })[];
@@ -55,6 +59,7 @@ export function ProductsPage({
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [view, setView] = useState<CatalogView>("menu");
+  const [layout, setLayout] = useState<LayoutView>("table");
   const [cafeDialogOpen, setCafeDialogOpen] = useState(false);
   const [ingredientDialogOpen, setIngredientDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -166,6 +171,19 @@ export function ProductsPage({
     });
   }
 
+  const emptyAction =
+    view === "ingredients" ? (
+      <Button type="button" onClick={openCreateIngredient}>
+        <Plus className="size-4" />
+        مكوّن جديد
+      </Button>
+    ) : (
+      <Button type="button" onClick={openCreate}>
+        <Plus className="size-4" />
+        صنف منيو جديد
+      </Button>
+    );
+
   return (
     <div className="flex flex-col gap-[var(--mds-space-6)]">
       <PageHeader
@@ -188,7 +206,7 @@ export function ProductsPage({
             </Button>
             <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
               <FileSpreadsheet className="size-4" />
-              استيراد
+              استيراد / تصدير
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -284,19 +302,55 @@ export function ProductsPage({
               </button>
             </div>
 
-            <div className="relative min-w-0 flex-1 sm:max-w-md">
-              <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="h-10 border-border/70 bg-background pe-3 ps-9"
-                placeholder={
-                  view === "ingredients"
-                    ? "ابحث في المكونات بالاسم أو الكود…"
-                    : "ابحث بالاسم أو الكود أو الباركود…"
-                }
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="بحث المنتجات"
-              />
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-lg sm:justify-end">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="h-10 border-border/70 bg-background pe-3 ps-9"
+                  placeholder={
+                    view === "ingredients"
+                      ? "ابحث في المكونات بالاسم أو الكود…"
+                      : "ابحث بالاسم أو الكود أو الباركود…"
+                  }
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  aria-label="بحث المنتجات"
+                />
+              </div>
+              <div
+                className="inline-flex shrink-0 rounded-[var(--mds-radius-md)] bg-muted/60 p-1"
+                role="group"
+                aria-label="شكل العرض"
+              >
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-[var(--mds-radius-sm)] p-2 transition-colors",
+                    layout === "table"
+                      ? "bg-card text-foreground shadow-[var(--mds-elevation-1)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-pressed={layout === "table"}
+                  aria-label="عرض جدول"
+                  onClick={() => setLayout("table")}
+                >
+                  <List className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-[var(--mds-radius-sm)] p-2 transition-colors",
+                    layout === "grid"
+                      ? "bg-card text-foreground shadow-[var(--mds-elevation-1)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-pressed={layout === "grid"}
+                  aria-label="عرض كروت"
+                  onClick={() => setLayout("grid")}
+                >
+                  <LayoutGrid className="size-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -304,30 +358,30 @@ export function ProductsPage({
             <span>
               عرض {filtered.length} من {visibleSource.length}
               {categoryId ? " · تصنيف محدد" : ""}
+              {layout === "table" ? " · عدّل السعر مباشرة من الجدول" : ""}
             </span>
             {pending ? <span>جاري التحديث…</span> : null}
           </div>
 
-          <ProductGrid
-            items={filtered}
-            currency={currency}
-            priceMode={view === "ingredients" ? "cost" : "sale"}
-            onEdit={view === "ingredients" ? openEditIngredient : openEdit}
-            onDelete={handleDelete}
-            emptyAction={
-              view === "ingredients" ? (
-                <Button type="button" onClick={openCreateIngredient}>
-                  <Plus className="size-4" />
-                  مكوّن جديد
-                </Button>
-              ) : (
-                <Button type="button" onClick={openCreate}>
-                  <Plus className="size-4" />
-                  صنف منيو جديد
-                </Button>
-              )
-            }
-          />
+          {layout === "table" ? (
+            <ProductTable
+              items={filtered}
+              currency={currency}
+              priceMode={view === "ingredients" ? "cost" : "sale"}
+              onEdit={view === "ingredients" ? openEditIngredient : openEdit}
+              onDelete={handleDelete}
+              emptyAction={emptyAction}
+            />
+          ) : (
+            <ProductGrid
+              items={filtered}
+              currency={currency}
+              priceMode={view === "ingredients" ? "cost" : "sale"}
+              onEdit={view === "ingredients" ? openEditIngredient : openEdit}
+              onDelete={handleDelete}
+              emptyAction={emptyAction}
+            />
+          )}
         </div>
       </div>
 

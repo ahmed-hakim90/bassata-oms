@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/SweetFlow/glass-panel";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import {
+  exportProductsDataAction,
   exportProductsTemplateAction,
   importProductsAction,
   parseProductsFileAction,
@@ -28,7 +29,8 @@ type ImportStage =
   | "ready"
   | "importing"
   | "imported"
-  | "template";
+  | "template"
+  | "exporting";
 
 function downloadBase64(base64: string, filename: string) {
   const link = document.createElement("a");
@@ -80,7 +82,9 @@ export function ImportProductsDialog({
               ? "Import completed"
               : stage === "template"
                 ? "Preparing template"
-                : "";
+                : stage === "exporting"
+                  ? "Exporting catalog"
+                  : "";
 
   async function handleFile(file: File | null) {
     if (!file) return;
@@ -151,6 +155,25 @@ export function ImportProductsDialog({
       const { base64, filename } = await exportProductsTemplateAction();
       setProgress(100);
       downloadBase64(base64, filename);
+      toast.success("Template downloaded");
+    } catch {
+      toast.error("Could not download template");
+    } finally {
+      setStage(parsed ? "ready" : "idle");
+      setProgress(parsed ? 100 : 0);
+    }
+  }
+
+  async function handleExportCatalog() {
+    setStage("exporting");
+    setProgress(45);
+    try {
+      const { base64, filename } = await exportProductsDataAction();
+      setProgress(100);
+      downloadBase64(base64, filename);
+      toast.success("Catalog exported — edit prices or fields, then re-upload");
+    } catch {
+      toast.error("Could not export catalog");
     } finally {
       setStage(parsed ? "ready" : "idle");
       setProgress(parsed ? 100 : 0);
@@ -161,17 +184,24 @@ export function ImportProductsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Import products</DialogTitle>
+          <DialogTitle>Import / export products</DialogTitle>
           <DialogDescription>
-            Upload menu items without recipes, then add ingredients and sizes later from product edit.
+            Export the live catalog, edit in Excel, then re-upload. Matching SKUs upsert products,
+            variants, and recipes.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
-          <Button variant="outline" type="button" onClick={handleTemplate} disabled={pending}>
-            <Download className="size-4" />
-            Download simple Excel template
-          </Button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button variant="outline" type="button" onClick={handleExportCatalog} disabled={pending}>
+              <Download className="size-4" />
+              Export current catalog
+            </Button>
+            <Button variant="outline" type="button" onClick={handleTemplate} disabled={pending}>
+              <Download className="size-4" />
+              Download empty template
+            </Button>
+          </div>
 
           <GlassPanel className="flex flex-col items-center gap-3 p-6 text-center">
             <Upload className="size-8 text-muted-foreground" />

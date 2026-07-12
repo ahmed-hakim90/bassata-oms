@@ -1,4 +1,6 @@
 import * as XLSX from "xlsx";
+import * as catalogRepo from "@/lib/repositories/catalog.repository";
+import * as recipeRepo from "@/lib/repositories/recipe.repository";
 import * as productService from "@/modules/products/services/product.service";
 import {
   EXPIRY_POLICIES,
@@ -15,11 +17,6 @@ import {
   PRODUCT_RECIPE_IMPORT_COLUMNS,
   PRODUCT_VARIANT_IMPORT_COLUMNS,
 } from "./import.service";
-
-async function categoryName(categoryId: string): Promise<string> {
-  const categories = await productService.listCategories();
-  return categories.find((c) => c.id === categoryId)?.name ?? "";
-}
 
 export function buildProductsTemplateWorkbook(): ArrayBuffer {
   const header = [...PRODUCT_IMPORT_SIMPLE_COLUMNS];
@@ -150,10 +147,11 @@ function buildReadmeSheet(): XLSX.WorkSheet {
     ["SKU", "Optional for standalone products. Required when the product is referenced from Variants or Recipes."],
     ["Menu items", "Put sizes and selling prices in Variants. base_price can stay blank for menu items with sizes."],
     ["Recipes", "Optional. Missing recipes import as warnings only; profit and inventory deduction stay zero until recipes are added."],
-    ["Updating", "Upload the same SKU again with import_action upsert or update. Rows with no changes are reported as unchanged."],
+    ["Updating", "Export current catalog, edit rows, then re-upload the same file. Matching SKUs upsert. Rows with no changes are reported as unchanged."],
     ["Cancel", "Use import_action cancel or deactivate with product SKU or variant SKU. This disables the product/size; it does not delete history."],
     ["definition", "Optional. Blank means menu_item. Use ingredient, service, or retail_product only when needed."],
     ["base_price", "Unit cost for ingredients. For simple menu items without variants it can be the selling price."],
+    ["Variants sheet", "Selling prices for sizes live here. Edit the price column and re-upload to update POS prices."],
     ["Arabic headers", "Products: اسم المنتج، كود المنتج، التصنيف، التعريف، السعر، الباركود، الوحدة، تتبع المخزون."],
     ["Arabic headers", "Variants: كود المنتج، الحجم، كود الحجم، سعر الحجم، الباركود، نشط."],
     ["Arabic headers", "Recipes: كود المنتج، كود الحجم، كود المكون، الكمية، الوحدة."],
@@ -180,52 +178,128 @@ function buildOptionsSheet(): XLSX.WorkSheet {
 }
 
 export async function buildProductsExportWorkbook(): Promise<ArrayBuffer> {
-  const products = await productService.listProducts();
-  const rows = await Promise.all(
-    products.map(async (p) => ({
-      name: p.name,
-      sku: p.sku,
-      barcode: p.barcode,
-      category: await categoryName(p.category_id),
-      definition:
-        p.product_type === "ingredient" || p.product_type === "raw_material"
-          ? "ingredient"
-          : p.product_type === "service"
-            ? "service"
-            : p.track_inventory
-              ? "retail_product"
-              : "menu_item",
-      base_price: p.base_price,
-      sale_price: p.sale_price ?? "",
-      description: p.description,
-      image_url: p.image_url ?? "",
-      import_action: "upsert",
-      product_type: p.product_type,
-      sales_unit_type: p.sales_unit_type ?? "piece",
-      unit: p.unit,
-      base_unit: p.base_unit ?? p.unit,
-      sale_unit: p.sale_unit ?? p.unit,
-      cost_unit: p.cost_unit,
-      is_active: p.is_active,
-      is_popular: p.is_popular,
-      track_inventory: p.track_inventory,
-      inventory_tracking_mode: p.inventory_tracking_mode ?? "standard",
-      inventory_rotation_method: p.inventory_rotation_method ?? "FIFO",
-      expiry_tracking_enabled: p.expiry_tracking_enabled ?? false,
-      expiry_policy: p.expiry_policy ?? "warn_only",
-      shelf_life_value: p.shelf_life_value ?? 0,
-      shelf_life_unit: p.shelf_life_unit ?? "days",
-      allow_fractional_quantity: p.allow_fractional_quantity ?? false,
-      allow_price_input: p.allow_price_input ?? false,
-      wholesale_enabled: p.wholesale_enabled ?? false,
-      supports_weight_sale: p.supports_weight_sale ?? false,
-      supports_amount_sale: p.supports_amount_sale ?? false,
-    }))
-  );
-  const sheet = XLSX.utils.json_to_sheet(rows, { header: [...PRODUCT_IMPORT_COLUMNS] });
+  const [products, categories] = await Promise.all([
+    productService.listProducts(),
+    productService.listCategories(),
+  ]);
+  const categoryById = new Map(categories.map((c) => [c.id, c.name]));
+  const productById = new Map(products.map((p) => [p.id, p]));
+  const variantMap = await catalogRepo.listVariantsForProducts(products.map((p) => p.id));
+
+  const productRows = products.map((p) => ({
+    name: p.name,
+    sku: p.sku,
+    barcode: p.barcode,
+    category: categoryById.get(p.category_id) ?? "",
+    definition:
+      p.product_type === "ingredient" || p.product_type === "raw_material"
+        ? "ingredient"
+        : p.product_type === "service"
+          ? "service"
+          : p.track_inventory
+            ? "retail_product"
+            : "menu_item",
+    base_price: p.base_price,
+    sale_price: p.sale_price ?? "",
+    description: p.description,
+    image_url: p.image_url ?? "",
+    import_action: "upsert",
+    product_type: p.product_type,
+    sales_unit_type: p.sales_unit_type ?? "piece",
+    unit: p.unit,
+    base_unit: p.base_unit ?? p.unit,
+    sale_unit: p.sale_unit ?? p.unit,
+    cost_unit: p.cost_unit,
+    is_active: p.is_active,
+    is_popular: p.is_popular,
+    track_inventory: p.track_inventory,
+    inventory_tracking_mode: p.inventory_tracking_mode ?? "standard",
+    inventory_rotation_method: p.inventory_rotation_method ?? "FIFO",
+    expiry_tracking_enabled: p.expiry_tracking_enabled ?? false,
+    expiry_policy: p.expiry_policy ?? "warn_only",
+    shelf_life_value: p.shelf_life_value ?? 0,
+    shelf_life_unit: p.shelf_life_unit ?? "days",
+    allow_fractional_quantity: p.allow_fractional_quantity ?? false,
+    allow_price_input: p.allow_price_input ?? false,
+    wholesale_enabled: p.wholesale_enabled ?? false,
+    supports_weight_sale: p.supports_weight_sale ?? false,
+    supports_amount_sale: p.supports_amount_sale ?? false,
+  }));
+
+  const variantRows: Record<string, string | number | boolean>[] = [];
+  const variantSkuById = new Map<string, string>();
+  for (const product of products) {
+    const variants = variantMap.get(product.id) ?? [];
+    for (const variant of variants) {
+      if (variant.sku) variantSkuById.set(variant.id, variant.sku);
+      variantRows.push({
+        product_sku: product.sku,
+        variant_name: variant.name,
+        variant_sku: variant.sku,
+        barcode: variant.barcode ?? "",
+        price: variant.price ?? variant.fixed_price ?? "",
+        is_active: variant.is_active,
+        import_action: "upsert",
+      });
+    }
+  }
+
+  const recipeLinesByKey = await recipeRepo.listAllRecipeLinesByProductKey();
+  const recipeRows: Record<string, string | number>[] = [];
+  for (const [key, lines] of recipeLinesByKey) {
+    const [productId, variantIdRaw] = key.split(":");
+    const product = productById.get(productId);
+    if (!product?.sku) continue;
+    const variantSku =
+      variantIdRaw && variantIdRaw.length > 0
+        ? (variantSkuById.get(variantIdRaw) ?? "")
+        : "";
+    for (const line of lines) {
+      const ingredient = productById.get(line.ingredient_product_id);
+      if (!ingredient?.sku) continue;
+      recipeRows.push({
+        product_sku: product.sku,
+        variant_sku: variantSku,
+        ingredient_sku: ingredient.sku,
+        quantity: line.quantity,
+        unit: line.unit,
+      });
+    }
+  }
+
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, "Products");
+  XLSX.utils.book_append_sheet(
+    workbook,
+    sheetFromRows(productRows, PRODUCT_IMPORT_COLUMNS),
+    "Products"
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    sheetFromRows(variantRows, PRODUCT_VARIANT_IMPORT_COLUMNS),
+    "Variants"
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    sheetFromRows(recipeRows, PRODUCT_RECIPE_IMPORT_COLUMNS),
+    "Recipes"
+  );
+  XLSX.utils.book_append_sheet(workbook, buildReadmeSheet(), "README");
+  XLSX.utils.book_append_sheet(workbook, buildOptionsSheet(), "Options");
   return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+}
+
+function sheetFromRows(
+  rows: Record<string, string | number | boolean>[],
+  headers: readonly string[]
+): XLSX.WorkSheet {
+  const sheet =
+    rows.length > 0
+      ? XLSX.utils.json_to_sheet(rows, { header: [...headers] })
+      : XLSX.utils.aoa_to_sheet([[...headers]]);
+  sheet["!cols"] = headers.map((name) => ({
+    wch: Math.max(name.length + 2, 16),
+  }));
+  return sheet;
 }
 
 export function workbookToBase64(buffer: ArrayBuffer): string {
