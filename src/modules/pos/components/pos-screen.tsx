@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Archive, Banknote, ClipboardList, Search, ShoppingCart, Wallet } from "lucide-react";
 import { CategoryRail } from "@/modules/pos/components/category-rail";
@@ -11,8 +11,8 @@ import {
   openCashDrawerHook,
   triggerReceiptPrint,
 } from "@/modules/pos/components/receipt-print";
-import { checkoutAction } from "@/modules/pos/actions/checkout.action";
 import { openCashDrawerAction } from "@/modules/pos/actions/cash-drawer.action";
+import type { CheckoutFlowResult } from "@/modules/pos/services/pos-checkout-flow.service";
 import type { POSProduct, POSVariant } from "@/modules/pos/services/catalog.service";
 import {
   buildWhatsAppReceiptUrl,
@@ -21,9 +21,9 @@ import {
 import { printReceiptViaUsb } from "@/modules/pos/services/receipt-usb-printer.service";
 import { findPosProductByBarcode } from "@/modules/pos/utils/barcode-lookup";
 import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
-import type { Category, CostCenter, ExpenseCategory, Product } from "@/lib/types";
-import type { ExpenseSettings, PaymentMethod, PaymentSplit } from "@/lib/types";
-import type { FeatureFlag } from "@/lib/constants";
+import type { Category, CostCenter, ExpenseCategory, ExpenseSettings, Product } from "@/lib/types";
+import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
+import type { FeatureFlag, SalesMode } from "@/lib/constants";
 import type { ReportBranding } from "@/modules/reports/core/report-context";
 import { usePosStore, getCartTotal } from "@/stores/pos-store";
 import { PosReadinessBanner } from "@/components/SweetFlow/pos-readiness-banner";
@@ -46,7 +46,6 @@ import { PosCloseSessionDialog } from "@/modules/pos/components/pos-close-sessio
 import { ManagerOverrideDialog } from "@/modules/pos/components/manager-override-dialog";
 import { PosCreditCheckoutDialog } from "@/modules/pos/components/pos-credit-checkout-dialog";
 import type { CreditCheckoutConfirm } from "@/modules/pos/components/pos-credit-checkout-dialog";
-import { recordCustomerPaymentAction } from "@/modules/customers/actions/customer.actions";
 import { PosCollectFlowDialog } from "@/modules/pos/components/pos-collect-flow-dialog";
 import { PosReceiptSuccessDialog } from "@/modules/pos/components/pos-receipt-success-dialog";
 import { QuickOpenSessionButton } from "@/modules/sessions/components/quick-open-session-button";
@@ -58,6 +57,88 @@ import type {
   OnlineOrderWithItems,
   StaffOnlineProductOption,
 } from "@/modules/online-orders/services/online-order.service";
+
+function money(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function toStaffOnlineProductOptions(products: POSProduct[]): StaffOnlineProductOption[] {
+  return products
+    .filter(
+      (product) =>
+        product.product_type === "finished" &&
+        product.inventory_product_type === "finished_product" &&
+        (product.sale_price ?? product.base_price) > 0
+    )
+    .map((product) => ({
+      id: product.id,
+      name: product.name,
+      price: money(product.sale_price ?? product.base_price),
+      variants: product.variants.map((variant) => ({
+        id: variant.id,
+        name: variant.name,
+        price: money(variant.price),
+      })),
+    }));
+}
+
+async function postPosCheckout(input: {
+  cart: CartLine[];
+  customer: Customer | null;
+  paymentMethod: PaymentMethod;
+  payments: PaymentSplit[];
+  salesMode: SalesMode;
+  discount: number;
+  loyaltyPoints?: number;
+  override?: {
+    discount?: boolean;
+    expiredSession?: boolean;
+    reason?: string;
+  };
+}): Promise<CheckoutFlowResult> {
+  const started = performance.now();
+  const res = await fetch("/api/pos/checkout", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json()) as CheckoutFlowResult | { error?: string };
+  const elapsedMs = Math.round(performance.now() - started);
+  if (!data || typeof data !== "object" || !("success" in data)) {
+    const message =
+      data && typeof data === "object" && "error" in data && typeof data.error === "string"
+        ? data.error
+        : "فشل إتمام البيع";
+    console.info(`[pos-checkout] ${elapsedMs}ms`, message);
+    return { success: false, error: message };
+  }
+  console.info(
+    `[pos-checkout] ${elapsedMs}ms`,
+    data.success ? data.orderNumber : data.error
+  );
+  return data;
+}
+
+async function postPosCustomerPayment(input: {
+  customerId: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  reference?: string;
+  notes?: string;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const res = await fetch("/api/pos/customer-payment", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json()) as { success?: boolean; error?: string };
+  if (!res.ok || !data.success) {
+    return { success: false, error: data.error || "تعذر تسجيل التحصيل" };
+  }
+  return { success: true };
+}
 
 interface PosScreenProps {
   categories: Category[];
@@ -93,10 +174,12 @@ interface PosScreenProps {
   storeDevices?: Device[];
   /** Locked next-shift float from cashier vault (POS open cannot edit). */
   pendingOpeningFloat?: number;
+  /** Load catalog/online via API to keep RSC remounts light. */
+  loadCatalogClient?: boolean;
 }
 
 export function PosScreen({
-  categories,
+  categories: categoriesProp,
   initialProducts,
   hasActiveSession,
   enabledPaymentMethods,
@@ -117,8 +200,8 @@ export function PosScreen({
   loyaltyRedemptionRate = null,
   minimumLoyaltyRedeemPoints = 0,
   receiptBranding,
-  onlineOrders = [],
-  onlineOrderProducts = [],
+  onlineOrders: onlineOrdersProp = [],
+  onlineOrderProducts: onlineOrderProductsProp = [],
   stores = [],
   activeSession = null,
   sessionReconciliation = null,
@@ -128,6 +211,7 @@ export function PosScreen({
   expenseCategoryMap,
   storeDevices = [],
   pendingOpeningFloat = 0,
+  loadCatalogClient = false,
 }: PosScreenProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [creditOpen, setCreditOpen] = useState(false);
@@ -140,6 +224,12 @@ export function PosScreen({
   const [pickerProduct, setPickerProduct] = useState<POSProduct | null>(null);
   const [lastReceipt, setLastReceipt] = useState<ReceiptPayload | null>(null);
   const [pending, startTransition] = useTransition();
+  const [catalogCategories, setCatalogCategories] = useState<Category[]>(categoriesProp);
+  const [catalogProducts, setCatalogProducts] = useState<POSProduct[]>(initialProducts);
+  const [liveOnlineOrders, setLiveOnlineOrders] =
+    useState<OnlineOrderWithItems[]>(onlineOrdersProp);
+  const [catalogLoading, setCatalogLoading] = useState(loadCatalogClient);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const addItem = usePosStore((s) => s.addItem);
   const clearCart = usePosStore((s) => s.clearCart);
   const cart = usePosStore((s) => s.cart);
@@ -157,6 +247,67 @@ export function PosScreen({
     payments?: PaymentSplit[];
     accountCollection?: number;
   } | null>(null);
+
+  const categories = catalogCategories;
+  const initialProductsLive = catalogProducts;
+  const onlineOrders = liveOnlineOrders;
+  const onlineOrderProducts = useMemo(
+    () =>
+      onlineOrderProductsProp.length > 0
+        ? onlineOrderProductsProp
+        : toStaffOnlineProductOptions(catalogProducts),
+    [onlineOrderProductsProp, catalogProducts]
+  );
+
+  useEffect(() => {
+    if (!loadCatalogClient) return;
+    let cancelled = false;
+
+    async function load() {
+      setCatalogLoading(true);
+      setCatalogError(null);
+      try {
+        const [catalogRes, ordersRes] = await Promise.all([
+          fetch("/api/pos/catalog", { credentials: "same-origin" }),
+          fetch("/api/pos/online-orders", { credentials: "same-origin" }),
+        ]);
+        const catalogJson = (await catalogRes.json()) as {
+          categories?: Category[];
+          products?: POSProduct[];
+          error?: string;
+        };
+        if (!catalogRes.ok) {
+          throw new Error(catalogJson.error || "فشل تحميل المنتجات");
+        }
+        if (!cancelled) {
+          setCatalogCategories(catalogJson.categories ?? []);
+          setCatalogProducts(catalogJson.products ?? []);
+        }
+
+        if (ordersRes.ok) {
+          const ordersJson = (await ordersRes.json()) as {
+            orders?: OnlineOrderWithItems[];
+          };
+          if (!cancelled) {
+            setLiveOnlineOrders(ordersJson.orders ?? []);
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCatalogError(
+            error instanceof Error ? error.message : "فشل تحميل المنتجات"
+          );
+        }
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadCatalogClient, storeId]);
 
   const barcodeEnabled = featureFlags.barcode_scanner !== false;
   const receiptEnabled = featureFlags.receipt_printing !== false;
@@ -203,8 +354,8 @@ export function PosScreen({
   const products = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const categoryProducts = categoryId
-      ? initialProducts.filter((p) => p.category_id === categoryId)
-      : initialProducts;
+      ? initialProductsLive.filter((p) => p.category_id === categoryId)
+      : initialProductsLive;
 
     if (!normalizedSearch) return categoryProducts;
 
@@ -228,7 +379,7 @@ export function PosScreen({
 
       return searchableText.includes(normalizedSearch);
     });
-  }, [categoryId, initialProducts, searchTerm]);
+  }, [categoryId, initialProductsLive, searchTerm]);
 
   function addToCart(product: POSProduct, variant: POSVariant | null) {
     const name = variant ? `${product.name} — ${variant.name}` : product.name;
@@ -258,7 +409,7 @@ export function PosScreen({
 
   function handleBarcodeSubmit(raw: string) {
     const trimmed = raw.trim();
-    const match = barcodeEnabled ? findPosProductByBarcode(initialProducts, trimmed) : null;
+    const match = barcodeEnabled ? findPosProductByBarcode(initialProductsLive, trimmed) : null;
 
     if (!match && products.length !== 1) {
       playPosErrorSound();
@@ -297,7 +448,7 @@ export function PosScreen({
       const receiptDiscount = discountAmount + redemptionAmount;
       const receiptTotal = Math.max(0, getCartTotal(cart, discountAmount) - redemptionAmount);
       try {
-        const result = await checkoutAction({
+        const result = await postPosCheckout({
           cart,
           customer,
           paymentMethod: checkoutPaymentMethod,
@@ -321,26 +472,6 @@ export function PosScreen({
           throw new Error("فشل إتمام البيع");
         }
 
-        let collectionNote = "";
-        if (
-          accountCollection > 0.001 &&
-          attachedCustomer &&
-          collectionMethod !== "credit"
-        ) {
-          const collected = await recordCustomerPaymentAction({
-            customerId: attachedCustomer.id,
-            amount: accountCollection,
-            paymentMethod: collectionMethod,
-            reference: result.orderNumber,
-            notes: `تحصيل مع فاتورة ${result.orderNumber}`,
-          });
-          if (!collected.success) {
-            toast.error(`تم البيع، لكن تحصيل المستحق فشل: ${collected.error}`);
-          } else {
-            collectionNote = ` · وتحصيل ${formatCurrency(accountCollection)} من الحساب`;
-          }
-        }
-
         setOverrideDialog(null);
         if (cashDrawerEnabled && payments.some((payment) => payment.method === "cash")) {
           openCashDrawerHook();
@@ -361,6 +492,27 @@ export function PosScreen({
         clearCart();
         setCreditOpen(false);
         playPosSuccessSound();
+
+        let collectionNote = "";
+        if (
+          accountCollection > 0.001 &&
+          attachedCustomer &&
+          collectionMethod !== "credit"
+        ) {
+          const collected = await postPosCustomerPayment({
+            customerId: attachedCustomer.id,
+            amount: accountCollection,
+            paymentMethod: collectionMethod,
+            reference: result.orderNumber,
+            notes: `تحصيل مع فاتورة ${result.orderNumber}`,
+          });
+          if (!collected.success) {
+            toast.error(`تم البيع، لكن تحصيل المستحق فشل: ${collected.error}`);
+          } else {
+            collectionNote = ` · وتحصيل ${formatCurrency(accountCollection)} من الحساب`;
+          }
+        }
+
         toast.success(`تم إتمام الطلب ${result.orderNumber}${collectionNote}`);
       } catch (error) {
         playPosErrorSound();
@@ -648,7 +800,19 @@ export function PosScreen({
             </Button>
           </form>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl bg-muted/50 p-3 pb-24 ring-1 ring-border/70 sm:p-4 xl:pb-4">
-            {products.length === 0 ? (
+            {catalogLoading ? (
+              <EmptyStateBlock
+                title="جاري تحميل المنتجات…"
+                description="ثواني ونرجع للقائمة."
+                className="flex min-h-48 flex-col items-center justify-center border-border/70 bg-card/80 p-4 py-10"
+              />
+            ) : catalogError ? (
+              <EmptyStateBlock
+                title="تعذر تحميل المنتجات"
+                description={catalogError}
+                className="flex min-h-48 flex-col items-center justify-center border-border/70 bg-card/80 p-4 py-10"
+              />
+            ) : products.length === 0 ? (
               <EmptyStateBlock
                 title={searchTerm.trim() ? "لا نتائج" : "لا توجد منتجات"}
                 description={

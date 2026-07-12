@@ -100,7 +100,7 @@ export async function openSessionAction(openingCash?: number | null) {
   });
 
   revalidatePath("/sessions");
-  revalidatePath("/pos");
+  // Avoid revalidatePath("/pos") mid-sale; POS clients call router.refresh when needed.
   return session;
 }
 
@@ -163,7 +163,6 @@ export async function closeSessionAction(input: {
 
   revalidatePath("/sessions");
   revalidatePath("/");
-  revalidatePath("/pos");
   return session;
 }
 
@@ -199,7 +198,6 @@ export async function forceCloseSessionAction(input: {
 
   revalidatePath("/sessions");
   revalidatePath("/");
-  revalidatePath("/pos");
   return session;
 }
 

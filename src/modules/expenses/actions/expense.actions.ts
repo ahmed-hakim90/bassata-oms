@@ -34,7 +34,7 @@ export async function createExpenseAction(
   const expense = await createExpense(input, user, options);
   revalidatePath("/expenses");
   revalidatePath("/sessions");
-  revalidatePath("/pos");
+  // Avoid revalidatePath("/pos") — remounts the cashier screen mid-shift.
   revalidatePath("/reports");
   return expense;
 }

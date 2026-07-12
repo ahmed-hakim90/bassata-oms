@@ -4,6 +4,7 @@ import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import { getDb } from "@/lib/repositories/client";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
+import { normalizeEgyptPhone, phoneSearchDigits } from "@/lib/phone";
 import type { Customer, LoyaltyLedgerEntry, Order, OrderItem } from "@/lib/types";
 
 export interface CustomerProfile extends Customer {
@@ -14,7 +15,16 @@ export interface CustomerProfile extends Customer {
 }
 
 export async function listCustomers(search?: string): Promise<Customer[]> {
-  return customerRepo.listCustomers(search);
+  const trimmed = search?.trim();
+  if (!trimmed) return customerRepo.listCustomers();
+  const normalized = normalizeEgyptPhone(trimmed);
+  const digits = phoneSearchDigits(trimmed);
+  // Prefer digit/phone-normalized query when the input looks like a phone.
+  const query =
+    digits.length >= 3 && digits.length >= trimmed.replace(/\s+/g, "").length * 0.5
+      ? digits
+      : trimmed;
+  return customerRepo.listCustomers(query || normalized || trimmed);
 }
 
 export async function getCustomer(id: string): Promise<Customer | null> {
@@ -69,14 +79,23 @@ export async function createCustomer(input: {
   notes?: string;
   userId: string;
 }): Promise<Customer> {
-  const existing = (await customerRepo.listCustomers(input.phone)).find(
-    (c) => c.phone === input.phone
-  );
+  const phone = normalizeEgyptPhone(input.phone);
+  if (!phone) throw new Error("اكتب رقم الهاتف");
+  if (phone === "+10000000000" || phone === "01000000000" || phone === "10000000000") {
+    throw new Error("أدخل رقم هاتف حقيقي للعميل");
+  }
+
+  const digits = phoneSearchDigits(phone);
+  const candidates = await customerRepo.listCustomers(digits.length >= 3 ? digits : phone);
+  const existing = candidates.find((c) => {
+    const existingDigits = phoneSearchDigits(c.phone);
+    return c.phone === phone || (existingDigits.length >= 8 && existingDigits === digits);
+  });
   if (existing) throw new Error("Phone number already registered");
 
   const customer = await customerRepo.createCustomer({
-    name: input.name,
-    phone: input.phone,
+    name: input.name.trim(),
+    phone,
     email: input.email ?? null,
     notes: input.notes ?? "",
     credit_limit: 0,
@@ -101,7 +120,11 @@ export async function updateCustomer(
   >,
   userId: string
 ): Promise<Customer | null> {
-  const customer = await customerRepo.updateCustomer(id, input);
+  const patch = { ...input };
+  if (typeof patch.phone === "string") {
+    patch.phone = normalizeEgyptPhone(patch.phone);
+  }
+  const customer = await customerRepo.updateCustomer(id, patch);
   if (customer) {
     const orgId = await getOrgId();
     await writeAuditLog({

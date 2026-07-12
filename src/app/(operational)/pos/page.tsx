@@ -2,11 +2,6 @@ import { getValidatedActiveStoreId } from "@/lib/auth/guards";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness-copy";
 import { PosScreen } from "@/modules/pos/components/pos-screen";
-import {
-  getCategoriesForPOS,
-  getProductsForPOS,
-  type POSProduct,
-} from "@/modules/pos/services/catalog.service";
 import { getActiveSession } from "@/modules/sessions/services/session.service";
 import { getPendingOpeningFloat } from "@/modules/sessions/services/cashier-vault.service";
 import {
@@ -17,10 +12,6 @@ import {
 import { getCurrentUser } from "@/lib/auth/session";
 import { getLoyaltyRule } from "@/modules/loyalty/services/loyalty.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
-import {
-  listActiveOnlineOrdersWithItems,
-  type StaffOnlineProductOption,
-} from "@/modules/online-orders/services/online-order.service";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import { loadSessionCashBundle } from "@/modules/sessions/services/reconciliation.service";
@@ -42,30 +33,6 @@ const GATE_ONLY_STATES = new Set<PosReadinessState>([
   "role_denied",
   "cashier_required",
 ]);
-
-function money(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function toStaffOnlineProductOptions(products: POSProduct[]): StaffOnlineProductOption[] {
-  return products
-    .filter(
-      (product) =>
-        product.product_type === "finished" &&
-        product.inventory_product_type === "finished_product" &&
-        (product.sale_price ?? product.base_price) > 0
-    )
-    .map((product) => ({
-      id: product.id,
-      name: product.name,
-      price: money(product.sale_price ?? product.base_price),
-      variants: product.variants.map((variant) => ({
-        id: variant.id,
-        name: variant.name,
-        price: money(variant.price),
-      })),
-    }));
-}
 
 async function settled<T>(promise: Promise<T>, fallback: T, label: string): Promise<T> {
   try {
@@ -124,13 +91,13 @@ export default async function PosPage() {
         featureFlags={flags}
         canManagerOverride={user?.role === "owner" || user?.role === "manager"}
         currentUserName={user?.name ?? null}
+        loadCatalogClient
       />
     );
   }
 
+  // Catalog + online orders load on the client (API) so RSC remounts stay light.
   const [
-    categories,
-    products,
     session,
     flags,
     expenseSettings,
@@ -138,25 +105,26 @@ export default async function PosPage() {
     costCenters,
     expenseCategories,
     receiptBranding,
-    onlineOrders,
     allStores,
   ] = await Promise.all([
-    settled(getCategoriesForPOS(), [], "categories"),
-    getProductsForPOS(storeId),
     readiness.cashierId
       ? settled(getActiveSession(storeId, readiness.cashierId), null, "session")
       : Promise.resolve(null),
     getFeatureFlags(),
-    settled(getExpenseSettings(), {
-      approval_required: false,
-      cashier_can_add_session_expense: false,
-      cashier_max_expense_amount: null,
-      allow_inventory_purchase_from_session: true,
-      default_cost_center_packaging: null,
-      default_cost_center_cleaning: null,
-      default_cost_center_utilities: null,
-      prevent_expenses_in_closed_periods: true,
-    }, "expenseSettings"),
+    settled(
+      getExpenseSettings(),
+      {
+        approval_required: false,
+        cashier_can_add_session_expense: false,
+        cashier_max_expense_amount: null,
+        allow_inventory_purchase_from_session: true,
+        default_cost_center_packaging: null,
+        default_cost_center_cleaning: null,
+        default_cost_center_utilities: null,
+        prevent_expenses_in_closed_periods: true,
+      },
+      "expenseSettings"
+    ),
     getSessionSettings(),
     settled(listCostCenters(storeId), [], "costCenters"),
     settled(listExpenseCategories(), [], "expenseCategories"),
@@ -174,11 +142,8 @@ export default async function PosPage() {
       },
       "receiptBranding"
     ),
-    settled(listActiveOnlineOrdersWithItems(storeId), [], "onlineOrders"),
     settled(storeRepo.listStores(), [], "stores"),
   ]);
-
-  const onlineOrderProducts = toStaffOnlineProductOptions(products);
 
   const needsInventoryProducts =
     flags.session_expenses &&
@@ -242,13 +207,10 @@ export default async function PosPage() {
     ? loyaltyRule.minimum_redeem_points
     : 0;
 
-  const canAddSessionExpense = Boolean(canAddSessionExpensePerm);
-  const canCollectPayment = Boolean(canCollectPaymentPerm);
-
   return (
     <PosScreen
-      categories={categories}
-      initialProducts={products}
+      categories={[]}
+      initialProducts={[]}
       hasActiveSession={Boolean(session)}
       enabledPaymentMethods={enabledPaymentMethods}
       readinessState={readiness.state}
@@ -259,17 +221,17 @@ export default async function PosPage() {
       expenseCategories={expenseCategories}
       inventoryProducts={inventoryProducts}
       expenseSettings={expenseSettings}
-      canAddSessionExpense={canAddSessionExpense}
+      canAddSessionExpense={Boolean(canAddSessionExpensePerm)}
       featureFlags={flags}
       canManagerOverride={user?.role === "owner" || user?.role === "manager"}
-      canCollectPayment={canCollectPayment}
+      canCollectPayment={Boolean(canCollectPaymentPerm)}
       managerDiscountOverrideAmount={sessionSettings.manager_discount_override_amount}
       currentUserName={user?.name ?? null}
       loyaltyRedemptionRate={loyaltyRedemptionRate}
       minimumLoyaltyRedeemPoints={minimumLoyaltyRedeemPoints}
       receiptBranding={receiptBranding}
-      onlineOrders={onlineOrders}
-      onlineOrderProducts={onlineOrderProducts}
+      onlineOrders={[]}
+      onlineOrderProducts={[]}
       stores={stores}
       activeSession={session}
       sessionReconciliation={sessionReconciliation}
@@ -279,6 +241,7 @@ export default async function PosPage() {
       expenseCategoryMap={expenseCategoryMap}
       storeDevices={[]}
       pendingOpeningFloat={pendingOpeningFloat}
+      loadCatalogClient
     />
   );
 }

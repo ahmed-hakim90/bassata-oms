@@ -19,12 +19,29 @@ import { PAYMENT_METHODS } from "@/lib/constants";
 import type { PaymentMethod } from "@/lib/types";
 import {
   listOutstandingCustomersAction,
-  recordCustomerPaymentAction,
 } from "@/modules/customers/actions/customer.actions";
 import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
 import { usePosStore } from "@/stores/pos-store";
 import { cn } from "@/lib/utils";
 
+async function postPosCustomerPayment(input: {
+  customerId: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  reference?: string;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const res = await fetch("/api/pos/customer-payment", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = (await res.json()) as { success?: boolean; error?: string };
+  if (!res.ok || !data.success) {
+    return { success: false, error: data.error || "تعذر تسجيل التحصيل" };
+  }
+  return { success: true };
+}
 const METHOD_META: {
   id: Exclude<PaymentMethod, "credit">;
   label: string;
@@ -172,7 +189,7 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     if (!selected || !canSubmit) return;
     startTransition(async () => {
       try {
-        const result = await recordCustomerPaymentAction({
+        const result = await postPosCustomerPayment({
           customerId: selected.id,
           amount: value,
           paymentMethod: method,

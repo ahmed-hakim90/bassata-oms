@@ -25,7 +25,6 @@ export async function updateOnlineOrderDetailsAction(
   const user = await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
   const order = await updateOnlineOrderDetails(orderId, input, user.id);
   revalidatePath("/online-orders");
-  revalidatePath("/pos");
   revalidatePath(`/online-orders/${orderId}`);
   return order;
 }
@@ -40,7 +39,6 @@ export async function updateOnlineOrderStatusAction(
       : await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
   const order = await updateOnlineOrderStatus(orderId, status, user.id);
   revalidatePath("/online-orders");
-  revalidatePath("/pos");
   revalidatePath(`/online-orders/${orderId}`);
   return order;
 }
@@ -87,7 +85,6 @@ export async function invoiceOnlineOrderAction(
   });
 
   revalidatePath("/online-orders");
-  revalidatePath("/pos");
   revalidatePath(`/online-orders/${orderId}`);
   revalidatePath("/orders");
   revalidatePath(`/orders/${result.order_id}`);
