@@ -97,9 +97,9 @@ export async function invoiceOnlineOrderAction(
 export async function getOnlineOrderReceiptPayloadAction(onlineOrderId: string) {
   await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
   const onlineOrder = await getOnlineOrderWithItems(onlineOrderId);
-  if (!onlineOrder?.order_id) throw new Error("Receipt not available yet");
+  if (!onlineOrder?.order_id) throw new Error("الإيصال غير متاح بعد");
   const order = await getOrder(onlineOrder.order_id);
-  if (!order) throw new Error("Order not found");
+  if (!order) throw new Error("الطلب غير موجود");
   const branding = await getReportBranding(order.store_id);
   return buildReceiptPayloadFromOrder(order, branding);
 }

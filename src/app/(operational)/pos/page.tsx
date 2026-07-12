@@ -85,8 +85,8 @@ export default async function PosPage() {
     user?.role === "owner" || user?.role === "manager"
       ? allStores
       : allStores.filter((store) => user?.store_ids.includes(store.id) ?? false);
-  const costCenterMap = new Map(costCenters.map((center) => [center.id, center.name]));
-  const expenseCategoryMap = new Map(
+  const costCenterMap = Object.fromEntries(costCenters.map((center) => [center.id, center.name]));
+  const expenseCategoryMap = Object.fromEntries(
     expenseCategories.map((category) => [category.id, category.name])
   );
 

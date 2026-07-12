@@ -85,8 +85,8 @@ interface PosScreenProps {
   sessionReconciliation?: SessionReconciliation | null;
   sessionExpenses?: Expense[];
   cashierName?: string | null;
-  costCenterMap?: Map<string, string>;
-  expenseCategoryMap?: Map<string, string>;
+  costCenterMap?: Record<string, string>;
+  expenseCategoryMap?: Record<string, string>;
   storeDevices?: Device[];
 }
 

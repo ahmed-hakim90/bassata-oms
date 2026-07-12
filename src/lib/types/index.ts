@@ -509,7 +509,7 @@ export interface OnlineOrder {
   store_id: string;
   order_id: string | null;
   customer_name: string;
-  customer_phone: string;
+  customer_phone: string | null;
   status: OnlineOrderStatus;
   subtotal: number;
   discount: number;

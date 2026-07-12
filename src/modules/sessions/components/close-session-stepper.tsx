@@ -20,8 +20,8 @@ interface CloseSessionStepperProps {
   reconciliation: SessionReconciliation;
   sessionExpenses: Expense[];
   cashierName: string;
-  costCenterMap?: Map<string, string>;
-  categoryMap?: Map<string, string>;
+  costCenterMap?: Record<string, string>;
+  categoryMap?: Record<string, string>;
 }
 
 export function CloseSessionStepper({
@@ -29,8 +29,8 @@ export function CloseSessionStepper({
   reconciliation,
   sessionExpenses,
   cashierName,
-  costCenterMap = new Map(),
-  categoryMap = new Map(),
+  costCenterMap = {},
+  categoryMap = {},
 }: CloseSessionStepperProps) {
   const [step, setStep] = useState(0);
   const [actualCash, setActualCash] = useState("");
@@ -127,8 +127,8 @@ export function CloseSessionStepper({
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {costCenterMap.get(e.cost_center_id) ?? "—"} ·{" "}
-                      {categoryMap.get(e.expense_category_id) ?? "—"}
+                      {costCenterMap[e.cost_center_id] ?? "—"} ·{" "}
+                      {categoryMap[e.expense_category_id] ?? "—"}
                     </p>
                   </li>
                 ))}

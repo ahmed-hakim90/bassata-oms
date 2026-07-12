@@ -65,17 +65,17 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
       ? sessions
       : sessions.filter((s) => s.store_id === storeId);
 
-  const storeMap = new Map(stores.map((s) => [s.id, s.name]));
-  const userMap = new Map(users.map((u) => [u.id, u.name]));
-  const deviceMap = new Map(devices.map((d) => [d.id, d.name]));
-  const costCenterMap = new Map(costCenters.map((c) => [c.id, c.name]));
-  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+  const storeMap = Object.fromEntries(stores.map((s) => [s.id, s.name]));
+  const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
+  const deviceMap = Object.fromEntries(devices.map((d) => [d.id, d.name]));
+  const costCenterMap = Object.fromEntries(costCenters.map((c) => [c.id, c.name]));
+  const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
 
   const openSummaries = await getOpenSessionSummaries({
     storeId: canViewAll ? (filteredStoreId ?? undefined) : storeId,
-    storeMap,
-    userMap,
-    deviceMap,
+    storeMap: new Map(Object.entries(storeMap)),
+    userMap: new Map(Object.entries(userMap)),
+    deviceMap: new Map(Object.entries(deviceMap)),
   });
 
   const closedSessions = scopedSessions
@@ -87,10 +87,10 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
     });
   const closedRows = closedSessions.map((s) => ({
     session: s,
-    storeName: storeMap.get(s.store_id) ?? "—",
-    cashierName: userMap.get(s.cashier_id) ?? "الكاشير",
-    closedByName: s.closed_by ? (userMap.get(s.closed_by) ?? null) : null,
-    deviceName: s.device_id ? (deviceMap.get(s.device_id) ?? null) : null,
+    storeName: storeMap[s.store_id] ?? "—",
+    cashierName: userMap[s.cashier_id] ?? "الكاشير",
+    closedByName: s.closed_by ? (userMap[s.closed_by] ?? null) : null,
+    deviceName: s.device_id ? (deviceMap[s.device_id] ?? null) : null,
   }));
 
   const [reconciliation, sessionExpenses] = active
@@ -126,7 +126,7 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
           value={active ? "نشطة" : "لا توجد"}
           subtitle={
             active
-              ? (userMap.get(active.cashier_id) ?? "الكاشير")
+              ? (userMap[active.cashier_id] ?? "الكاشير")
               : "افتح جلسة للبيع"
           }
         />
@@ -169,7 +169,7 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
             session={active}
             reconciliation={reconciliation}
             sessionExpenses={sessionExpenses}
-            cashierName={userMap.get(active.cashier_id) ?? "الكاشير"}
+            cashierName={userMap[active.cashier_id] ?? "الكاشير"}
             costCenterMap={costCenterMap}
             categoryMap={categoryMap}
           />

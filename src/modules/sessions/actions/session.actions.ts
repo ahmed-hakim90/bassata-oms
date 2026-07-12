@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth, requirePermissionOrRole } from "@/lib/auth/guards";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
-import { requirePosAccess, getPosAccessOrNull } from "@/lib/auth/pos-access";
+import { requirePosAccess, getPosAccessOrNull, PosAccessError } from "@/lib/auth/pos-access";
 import { calcExpectedCash } from "@/modules/sessions/services/reconciliation.service";
 import {
   closeSession,
@@ -15,9 +15,27 @@ import { getSessionSettings } from "@/modules/system/services/settings.service";
 
 export async function openSessionAction(openingCash: number) {
   await requirePermissionOrRole("session_open", ["owner", "manager", "cashier"]);
-  const ctx = await requirePosAccess();
+  let ctx;
+  try {
+    ctx = await requirePosAccess();
+  } catch (error) {
+    if (error instanceof PosAccessError) {
+      const messages: Record<PosAccessError["code"], string> = {
+        login_required: "سجّل الدخول أولاً",
+        no_device: "اربط جهاز نقطة البيع من شاشة POS ثم أعد المحاولة",
+        device_inactive: "الجهاز غير نشط — فعّله من الإعدادات",
+        store_mismatch: "الجهاز لا يتبع الفرع الحالي — غيّر الفرع أو الجهاز",
+        store_required: "اختر الفرع أولاً قبل فتح الجلسة",
+        access_denied: "ليس لديك صلاحية على هذا الفرع",
+        cashier_required: "حدد الكاشير النشط على الجهاز",
+        role_denied: "دورك لا يسمح بفتح جلسة كاشير",
+      };
+      throw new Error(messages[error.code] ?? error.message);
+    }
+    throw new Error(error instanceof Error ? error.message : "تعذر فتح الجلسة");
+  }
   if (ctx.user.role === "cashier" && ctx.activeCashierId !== ctx.user.id) {
-    throw new Error("Switch back to your account or sign in to open a session");
+    throw new Error("ارجع لحسابك أو سجّل دخولك لفتح الجلسة");
   }
 
   const session = await openSession({

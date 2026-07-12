@@ -531,7 +531,7 @@ function CafeMenuItemDialogContent({
               <div className="space-y-3">
                 {variantDrafts.map((variant, variantIndex) => (
                   <div key={variant.key} className="space-y-3 rounded-xl border border-border/70 p-3">
-                    <div className="grid gap-3 sm:grid-cols-[1fr_140px_1fr_1fr_auto]">
+                    <div className="grid gap-3 sm:grid-cols-[1fr_140px_auto]">
                       <div className="grid gap-1">
                         <Label className="text-xs">الحجم</Label>
                         <Input
@@ -551,24 +551,6 @@ function CafeMenuItemDialogContent({
                           value={variant.price}
                           onChange={(event) =>
                             updateVariant(variantIndex, { price: event.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="grid gap-1">
-                        <Label className="text-xs">SKU</Label>
-                        <Input
-                          value={variant.sku ?? ""}
-                          onChange={(event) =>
-                            updateVariant(variantIndex, { sku: event.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="grid gap-1">
-                        <Label className="text-xs">باركود</Label>
-                        <Input
-                          value={variant.barcode ?? ""}
-                          onChange={(event) =>
-                            updateVariant(variantIndex, { barcode: event.target.value })
                           }
                         />
                       </div>

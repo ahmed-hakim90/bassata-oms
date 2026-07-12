@@ -74,10 +74,10 @@ export async function checkoutAction(input: {
   const overrideThreshold = settings.manager_discount_override_amount;
   if (requiresManagerDiscountOverride(discount, overrideThreshold)) {
     if (!input.override?.discount) {
-      throw new Error("Manager override required for this discount");
+      throw new Error("هذا الخصم يحتاج موافقة المدير");
     }
     if (user.role !== "owner" && user.role !== "manager") {
-      throw new Error("Owner or manager override required");
+      throw new Error("موافقة المالك أو المدير مطلوبة");
     }
     const orgId = await getOrgId();
     await writeAuditLog({
@@ -98,11 +98,11 @@ export async function checkoutAction(input: {
   const lifecycle = computeSessionLifecycle(session, settings);
   if (lifecycle.blocksSales) {
     if (!input.override?.expiredSession) {
-      throw new Error("Session expired — close shift to continue");
+      throw new Error("انتهت الجلسة — أغلق الوردية للمتابعة");
     }
     if (settings.require_manager_override_for_expired_sale) {
       if (user.role !== "owner" && user.role !== "manager") {
-        throw new Error("Owner or manager override required");
+        throw new Error("موافقة المالك أو المدير مطلوبة");
       }
       const orgId = await getOrgId();
       await writeAuditLog({

@@ -578,7 +578,7 @@ export type OnlineOrderRow = {
   store_id: string;
   order_id: string | null;
   customer_name: string;
-  customer_phone: string;
+  customer_phone: string | null;
   status: string;
   subtotal: number;
   discount: number;

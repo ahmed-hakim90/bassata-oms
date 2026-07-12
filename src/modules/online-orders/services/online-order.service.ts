@@ -61,7 +61,7 @@ function normalizeLineInputs(lines: OnlineOrderLineInput[]) {
     const variantId = line.variantId?.trim() || null;
     const quantity = Math.floor(Number(line.quantity));
     if (!productId || !Number.isFinite(quantity) || quantity <= 0) continue;
-    if (quantity > 99) throw new Error("Maximum quantity per line is 99");
+    if (quantity > 99) throw new Error("الحد الأقصى للكمية في السطر هو 99");
     const key = `${productId}:${variantId ?? ""}`;
     const existing = merged.get(key);
     merged.set(key, {
@@ -71,8 +71,8 @@ function normalizeLineInputs(lines: OnlineOrderLineInput[]) {
     });
   }
   const result = [...merged.values()];
-  if (result.length === 0) throw new Error("Add at least one item");
-  if (result.length > 50) throw new Error("Maximum order size is 50 lines");
+  if (result.length === 0) throw new Error("أضف صنفاً واحداً على الأقل");
+  if (result.length > 50) throw new Error("الحد الأقصى للطلب 50 سطراً");
   return result;
 }
 
@@ -120,10 +120,10 @@ async function priceLinesForPublicOrder(storeOrgId: string, lines: OnlineOrderLi
       product.product_type !== "finished" ||
       product.inventory_product_type !== "finished_product"
     ) {
-      throw new Error("One or more items are not available");
+      throw new Error("بعض الأصناف غير متاحة");
     }
     if (productsWithVariants.has(product.id) && !line.variantId) {
-      throw new Error(`Choose an option for ${product.name}`);
+      throw new Error(`اختر خياراً لـ ${product.name}`);
     }
 
     const basePrice = Number(product.sale_price ?? product.base_price);
@@ -132,7 +132,7 @@ async function priceLinesForPublicOrder(storeOrgId: string, lines: OnlineOrderLi
     if (line.variantId) {
       const variant = variantMap.get(line.variantId);
       if (!variant || !variant.is_active || variant.product_id !== product.id) {
-        throw new Error("One or more selected options are not available");
+        throw new Error("بعض الخيارات المحددة غير متاحة");
       }
       variantName = variant.name;
       unitPrice = variant.price == null ? basePrice + Number(variant.price_delta) : Number(variant.price);
@@ -166,17 +166,17 @@ async function priceLinesForStaffOrder(lines: OnlineOrderLineInput[]) {
       product.product_type !== "finished" ||
       product.inventory_product_type !== "finished_product"
     ) {
-      throw new Error("One or more items are not available");
+      throw new Error("بعض الأصناف غير متاحة");
     }
 
     const variants = (await catalogRepo.listVariants(product.id)).filter((variant) => variant.is_active);
     if (variants.length > 0 && !line.variantId) {
-      throw new Error(`Choose an option for ${product.name}`);
+      throw new Error(`اختر خياراً لـ ${product.name}`);
     }
 
     const variant = line.variantId ? variants.find((candidate) => candidate.id === line.variantId) : null;
     if (line.variantId && !variant) {
-      throw new Error("One or more selected options are not available");
+      throw new Error("بعض الخيارات المحددة غير متاحة");
     }
 
     const unitPrice = variant
@@ -232,9 +232,9 @@ async function ensureCustomerForPublicOrder(input: {
 
 async function findOnlineOrderCustomerId(input: {
   orgId: string;
-  phone: string;
+  phone: string | null | undefined;
 }): Promise<string | null> {
-  const phone = input.phone.trim();
+  const phone = input.phone?.trim() ?? "";
   if (!phone) return null;
 
   const admin = createAdminClient();
@@ -253,13 +253,13 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone?.trim() ?? "";
   const notes = input.notes?.trim() ?? "";
-  if (!slug) throw new Error("Menu link is invalid");
-  if (customerName.length < 2) throw new Error("Customer name is required");
+  if (!slug) throw new Error("رابط المنيو غير صالح");
+  if (customerName.length < 2) throw new Error("الاسم مطلوب");
   if (customerPhone && customerPhone.length < 5) {
-    throw new Error("Enter a valid phone number or leave it empty");
+    throw new Error("رقم الهاتف قصير أو غير صالح — صحّحه أو اتركه فارغًا");
   }
   if (customerName.length > 120 || customerPhone.length > 40 || notes.length > 500) {
-    throw new Error("Order details are too long");
+    throw new Error("تفاصيل الطلب طويلة جدًا");
   }
 
   const admin = createAdminClient();
@@ -270,11 +270,11 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     .filter("settings->>online_menu_slug", "eq", slug)
     .maybeSingle();
   if (storeError) throw new Error(storeError.message);
-  if (!store) throw new Error("Menu is not available");
+  if (!store) throw new Error("المنيو غير متاح");
 
   const settings = asRecord(store.settings);
   if (settings.online_menu_enabled !== true || settings.online_menu_ordering_enabled !== true) {
-    throw new Error("Online ordering is currently unavailable");
+    throw new Error("الطلب الأونلاين غير متاح حاليًا");
   }
 
   const priced = await priceLinesForPublicOrder(store.org_id, input.lines);
@@ -291,7 +291,7 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     .insert({
       store_id: store.id,
       customer_name: customerName,
-      customer_phone: customerPhone,
+      customer_phone: customerPhone || null,
       notes,
       subtotal: priced.subtotal,
       total: priced.subtotal,
@@ -301,7 +301,13 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     })
     .select()
     .single();
-  if (orderError || !order) throw new Error(orderError?.message ?? "Could not submit order");
+  if (orderError || !order) {
+    const msg = orderError?.message ?? "";
+    if (msg.includes("online_orders_customer_phone_not_blank") || msg.includes("customer_phone")) {
+      throw new Error("رقم الهاتف مطلوب أو اتركه فارغًا حسب إعداد المتجر");
+    }
+    throw new Error(msg || "تعذر إرسال الطلب");
+  }
 
   const { error: itemsError } = await admin
     .from("online_order_items")
@@ -374,18 +380,21 @@ export async function updateOnlineOrderDetails(
 ) {
   const existing = await onlineOrderRepo.getOnlineOrder(id);
   if (!existing || existing.status === "cancelled" || existing.status === "invoiced") {
-    throw new Error("Order cannot be edited");
+    throw new Error("لا يمكن تعديل هذا الطلب");
   }
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.trim();
-  if (customerName.length < 2 || customerPhone.length < 5) {
-    throw new Error("Customer name and phone are required");
+  if (customerName.length < 2) {
+    throw new Error("اسم العميل مطلوب");
+  }
+  if (customerPhone && customerPhone.length < 5) {
+    throw new Error("رقم الهاتف قصير أو غير صالح — صحّحه أو اتركه فارغًا");
   }
 
   const priced = await priceLinesForStaffOrder(input.lines);
   await onlineOrderRepo.updateOnlineOrder(id, {
     customer_name: customerName,
-    customer_phone: customerPhone,
+    customer_phone: customerPhone || null,
     notes: input.notes?.trim() ?? "",
     subtotal: priced.subtotal,
     total: priced.subtotal,
@@ -413,12 +422,12 @@ export async function updateOnlineOrderStatus(
   userId: string
 ) {
   const existing = await onlineOrderRepo.getOnlineOrder(id);
-  if (!existing || existing.status === "invoiced") throw new Error("Order cannot be updated");
+  if (!existing || existing.status === "invoiced") throw new Error("لا يمكن تحديث هذا الطلب");
   if (existing.status === "cancelled" && status !== "cancelled") {
-    throw new Error("Cancelled orders cannot be reopened");
+    throw new Error("لا يمكن إعادة فتح طلب ملغي");
   }
   const updated = await onlineOrderRepo.updateOnlineOrder(id, { status });
-  if (!updated) throw new Error("Order not found");
+  if (!updated) throw new Error("الطلب غير موجود");
 
   const orgId = await getOrgId();
   await writeAuditLog({
@@ -444,13 +453,13 @@ export async function invoiceOnlineOrder(input: {
   payments: { method: import("@/lib/types").PaymentMethod; amount: number }[];
 }) {
   const order = await getOnlineOrderWithItems(input.onlineOrderId);
-  if (!order) throw new Error("Online order not found");
-  if (order.store_id !== input.storeId) throw new Error("Online order belongs to another store");
-  if (order.status === "cancelled") throw new Error("Cancelled orders cannot be invoiced");
-  if (order.status === "invoiced") throw new Error("Order already invoiced");
+  if (!order) throw new Error("الطلب الأونلاين غير موجود");
+  if (order.store_id !== input.storeId) throw new Error("الطلب يتبع فرعاً آخر");
+  if (order.status === "cancelled") throw new Error("لا يمكن فوترة طلب ملغي");
+  if (order.status === "invoiced") throw new Error("الطلب مُفوتر مسبقاً");
 
   const store = await storeRepo.getStore(input.storeId);
-  if (!store) throw new Error("Store not found");
+  if (!store) throw new Error("الفرع غير موجود");
 
   const lines = order.items.map((item) => ({
     product_id: item.product_id,

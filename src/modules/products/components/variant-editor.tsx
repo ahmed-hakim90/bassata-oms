@@ -149,7 +149,7 @@ export function VariantEditor({
   }
 
   if (loading) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">Loading variants…</p>;
+    return <p className="py-8 text-center text-sm text-muted-foreground">جاري تحميل الأحجام…</p>;
   }
 
   return (
@@ -214,8 +214,8 @@ export function VariantEditor({
                 setDraft((d) => ({ ...d, variant_kind: e.target.value as ProductVariant["variant_kind"] }))
               }
             >
-              <option value="standard">standard</option>
-              <option value="weight_portion">weight_portion</option>
+              <option value="standard">قياسي</option>
+              <option value="weight_portion">وزن / حصة</option>
             </select>
           </div>
           <Button size="sm" onClick={handleCreate} disabled={pending}>
@@ -259,8 +259,8 @@ export function VariantEditor({
                     }))
                   }
                 >
-                  <option value="calculate_from_unit_price">calculate_from_unit_price</option>
-                  <option value="fixed_price">fixed_price</option>
+                  <option value="calculate_from_unit_price">حساب من سعر الوحدة</option>
+                  <option value="fixed_price">سعر ثابت</option>
                 </select>
               </div>
               <div className="grid gap-1">
@@ -365,7 +365,7 @@ export function VariantEditor({
               </p>
               {recipesEnabled ? (
                 <div className="rounded-xl border p-3">
-                  <p className="mb-2 text-sm font-medium">Recipe for {variant.name}</p>
+                  <p className="mb-2 text-sm font-medium">وصفة {variant.name}</p>
                   <RecipeEditor
                     product={product}
                     currency={currency}

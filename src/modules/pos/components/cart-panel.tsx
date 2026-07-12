@@ -342,7 +342,7 @@ export function CartPanel({
           <div className="mb-2 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-400/30 dark:bg-amber-400/10">
             <p className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-200">
               <Star className="size-3.5" />
-              نقاط الولاء: {loyaltyBalance}
+              استبدال النقاط: {loyaltyBalance}
               {canRedeemLoyalty
                 ? ` · حتى ${formatCurrency(maxRedeemableAmount)}`
                 : ` · الحد الأدنى ${minimumLoyaltyRedeemPoints} نقطة`}
@@ -354,7 +354,7 @@ export function CartPanel({
                   min={minimumLoyaltyRedeemPoints}
                   max={maxRedeemablePoints}
                   value={loyaltyRedemption?.points ?? ""}
-                  placeholder="النقاط"
+                  placeholder="كم نقطة؟"
                   aria-label="نقاط للاستبدال"
                   onChange={(e) => applyRedemption(Number(e.target.value))}
                   className="h-10 rounded-xl bg-background"
@@ -367,7 +367,7 @@ export function CartPanel({
                   className="h-10 shrink-0 rounded-xl"
                   onClick={() => applyRedemption(maxRedeemablePoints)}
                 >
-                  الكل
+                  استبدال الكل
                 </Button>
                 {loyaltyRedemption ? (
                   <Button
@@ -381,8 +381,16 @@ export function CartPanel({
                   </Button>
                 ) : null}
               </div>
-            ) : null}
+            ) : (
+              <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80">
+                العميل محتاج على الأقل {minimumLoyaltyRedeemPoints} نقطة للاستبدال.
+              </p>
+            )}
           </div>
+        ) : loyaltyEnabled && !customer && hasCart ? (
+          <p className="mb-2 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
+            لاختيار استبدال النقاط: اربط عميلاً بالسلة أولاً.
+          </p>
         ) : null}
 
         {discountsEnabled && discountOpen ? (

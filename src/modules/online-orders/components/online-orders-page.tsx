@@ -104,7 +104,7 @@ function formatOrderDate(value: string) {
 function makeDraft(order: OnlineOrderWithItems): Draft {
   return {
     customerName: order.customer_name,
-    customerPhone: order.customer_phone,
+    customerPhone: order.customer_phone ?? "",
     notes: order.notes,
     lines: order.items.map((item) => ({
       key: item.id,
@@ -471,6 +471,39 @@ function OnlineOrderCard({
 
           {isEditingItems ? (
             <>
+              <section className={cn("border border-border bg-background/60", compact ? "rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "rounded-[var(--mds-radius-lg)] p-[var(--mds-space-3)]")}>
+                <h3 className={cn("font-medium", compact ? "mb-[var(--mds-space-1)] text-sm" : "mb-[var(--mds-space-3)]")}>بيانات العميل</h3>
+                <div className={cn("grid gap-[var(--mds-space-2)] sm:grid-cols-2")}>
+                  <Input
+                    value={draft.customerName}
+                    disabled={isLocked}
+                    placeholder="اسم العميل"
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, customerName: event.target.value }))
+                    }
+                    className={cn("rounded-[var(--mds-radius-md)]", compact ? "h-8 text-xs" : "h-10")}
+                  />
+                  <Input
+                    value={draft.customerPhone}
+                    disabled={isLocked}
+                    placeholder="رقم الهاتف (اختياري)"
+                    dir="ltr"
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, customerPhone: event.target.value }))
+                    }
+                    className={cn("rounded-[var(--mds-radius-md)]", compact ? "h-8 text-xs" : "h-10")}
+                  />
+                  <Input
+                    value={draft.notes}
+                    disabled={isLocked}
+                    placeholder="ملاحظات"
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, notes: event.target.value }))
+                    }
+                    className={cn("rounded-[var(--mds-radius-md)] sm:col-span-2", compact ? "h-8 text-xs" : "h-10")}
+                  />
+                </div>
+              </section>
               <section className={cn("border border-border bg-background/60", compact ? "rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "rounded-[var(--mds-radius-lg)] p-[var(--mds-space-3)]")}>
                 <div className={cn("flex items-center justify-between gap-[var(--mds-space-3)]", compact ? "mb-[var(--mds-space-1)]" : "mb-[var(--mds-space-3)]")}>
                   <h3 className={cn("font-medium", compact && "text-sm")}>تعديل الأصناف</h3>

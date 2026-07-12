@@ -96,19 +96,19 @@ export async function bulkDisableMenuInventoryTrackingAction() {
 export async function uploadProductImageAction(productId: string, formData: FormData) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   const product = await productService.getProduct(productId);
-  if (!product) throw new Error("Product not found");
+  if (!product) throw new Error("المنتج غير موجود");
 
   const file = formData.get("image");
   if (!(file instanceof File) || file.size === 0) {
-    throw new Error("Product image is required.");
+    throw new Error("صورة المنتج مطلوبة.");
   }
   if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
-    throw new Error("Product image must be 5 MB or smaller.");
+    throw new Error("حجم صورة المنتج يجب ألا يتجاوز 5 ميجابايت.");
   }
 
   const ext = PRODUCT_IMAGE_EXTENSIONS[file.type];
   if (!ext) {
-    throw new Error("Product image must be JPEG, PNG, WebP, or GIF.");
+    throw new Error("صورة المنتج يجب أن تكون JPEG أو PNG أو WebP أو GIF.");
   }
 
   const orgId = await getOrgId();
@@ -326,7 +326,7 @@ export async function updateCafeIngredientAction(productId: string, input: CafeI
     },
     user.id
   );
-  if (!ingredient) throw new Error("Ingredient not found");
+  if (!ingredient) throw new Error("المكوّن غير موجود");
   revalidatePath("/products");
   revalidatePath("/inventory");
   return ingredient;
@@ -360,10 +360,10 @@ export async function saveCafeMenuItemAction(input: CafeMenuItemInput) {
   }
 
   if (!input.name.trim() || !input.category_id || salePrice < 0) {
-    throw new Error("Menu item name and category are required");
+    throw new Error("اسم الصنف والفئة مطلوبان");
   }
   if (!input.productId && variants.length === 0 && salePrice <= 0) {
-    throw new Error("Add at least one size and price");
+    throw new Error("أضف حجماً وسعراً واحداً على الأقل");
   }
 
   const hasRecipeLines =
@@ -377,7 +377,7 @@ export async function saveCafeMenuItemAction(input: CafeMenuItemInput) {
   const product = input.productId
     ? await productService.updateProduct(input.productId, productInput, user.id)
     : await productService.createProduct(productInput, user.id);
-  if (!product) throw new Error("Could not save menu item");
+  if (!product) throw new Error("تعذر حفظ صنف المنيو");
 
   if (ingredients.length > 0) {
     await recipeService.saveRecipe(product.id, ingredients, user.id, null);

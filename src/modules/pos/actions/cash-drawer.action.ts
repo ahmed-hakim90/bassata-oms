@@ -11,7 +11,7 @@ export async function openCashDrawerAction(reason?: string) {
   await requireFeature("cash_drawer");
 
   if (user.role !== "owner" && user.role !== "manager") {
-    throw new Error("Owner or manager override required");
+    throw new Error("موافقة المالك أو المدير مطلوبة");
   }
 
   const orgId = await getOrgId();

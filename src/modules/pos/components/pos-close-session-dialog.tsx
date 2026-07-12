@@ -13,8 +13,8 @@ interface PosCloseSessionDialogProps {
   reconciliation: SessionReconciliation;
   sessionExpenses: Expense[];
   cashierName: string;
-  costCenterMap?: Map<string, string>;
-  categoryMap?: Map<string, string>;
+  costCenterMap?: Record<string, string>;
+  categoryMap?: Record<string, string>;
   triggerChildren?: ReactNode;
   triggerClassName?: string;
   triggerSize?: "default" | "sm" | "lg" | "icon";

@@ -159,7 +159,7 @@ export async function updateUser(
       (u) => u.role === "owner" && u.is_active && u.id !== id
     );
     if (owners.length === 0) {
-      throw new Error("At least one active owner is required");
+      throw new Error("يجب الإبقاء على مالك نشط واحد على الأقل");
     }
   }
   const updated = await userRepo.updateUser(id, {
@@ -192,7 +192,7 @@ export async function deactivateUser(id: string, userId: string): Promise<boolea
       (u) => u.role === "owner" && u.is_active && u.id !== id
     );
     if (owners.length === 0) {
-      throw new Error("At least one active owner is required");
+      throw new Error("يجب الإبقاء على مالك نشط واحد على الأقل");
     }
   }
   const updated = await userRepo.updateUser(id, { is_active: false });
