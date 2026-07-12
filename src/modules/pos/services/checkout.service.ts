@@ -3,6 +3,7 @@ import * as sessionRepo from "@/lib/repositories/session.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
+import * as deviceRepo from "@/lib/repositories/device.repository";
 import {
   earnPoints,
   getCustomerLoyaltyBalance,
@@ -60,8 +61,13 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   if (!session || session.status !== "open" || session.store_id !== input.storeId) {
     throw new Error("جلسة الكاشير غير صالحة أو مغلقة");
   }
-  if (input.deviceId && session.device_id && session.device_id !== input.deviceId) {
-    throw new Error("الجلسة لا تتطابق مع هذا الجهاز");
+  // Same open session may continue on any paired device for this store
+  // (phone + register). Still require an active device registered to the store.
+  if (input.deviceId) {
+    const device = await deviceRepo.getDevice(input.deviceId);
+    if (!device || !device.is_active || device.store_id !== session.store_id) {
+      throw new Error("الجهاز غير صالح لهذا الفرع");
+    }
   }
 
   const settings = await getSessionSettings();

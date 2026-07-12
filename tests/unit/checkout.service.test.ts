@@ -5,6 +5,7 @@ import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
+import * as deviceRepo from "@/lib/repositories/device.repository";
 import * as settingsService from "@/modules/system/services/settings.service";
 import * as loyaltyService from "@/modules/loyalty/services/loyalty.service";
 import { assertPeriodOpen, PeriodClosedError } from "@/lib/services/period-lock.service";
@@ -14,6 +15,7 @@ vi.mock("@/lib/repositories/catalog.repository");
 vi.mock("@/lib/repositories/order.repository");
 vi.mock("@/lib/repositories/inventory.repository");
 vi.mock("@/lib/repositories/warehouse.repository");
+vi.mock("@/lib/repositories/device.repository");
 vi.mock("@/modules/system/services/settings.service");
 vi.mock("@/modules/loyalty/services/loyalty.service", () => ({
   earnPoints: vi.fn(),
@@ -545,7 +547,7 @@ describe("completeCheckout session expiry", () => {
     expect(orderRepo.completeCheckoutRpc).not.toHaveBeenCalled();
   });
 
-  it("rejects checkout when session device does not match register", async () => {
+  it("allows checkout from another paired device in the same store", async () => {
     vi.mocked(assertPeriodOpen).mockResolvedValue(undefined);
     vi.mocked(sessionRepo.getSession).mockResolvedValue({
       id: "s1",
@@ -564,6 +566,11 @@ describe("completeCheckout session expiry", () => {
       close_reason: null,
       force_closed: false,
     });
+    vi.mocked(deviceRepo.getDevice).mockResolvedValue({
+      id: "device-b",
+      store_id: "store1",
+      is_active: true,
+    } as Awaited<ReturnType<typeof deviceRepo.getDevice>>);
 
     await expect(
       completeCheckout({
@@ -575,6 +582,44 @@ describe("completeCheckout session expiry", () => {
         customer: null,
         paymentMethod: "cash",
       })
-    ).rejects.toThrow("الجلسة لا تتطابق مع هذا الجهاز");
+    ).rejects.toThrow("السلة فارغة");
+  });
+
+  it("rejects checkout when device is not active for the session store", async () => {
+    vi.mocked(assertPeriodOpen).mockResolvedValue(undefined);
+    vi.mocked(sessionRepo.getSession).mockResolvedValue({
+      id: "s1",
+      store_id: "store1",
+      device_id: "device-a",
+      cashier_id: "c1",
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+      opening_cash: 0,
+      expected_cash: null,
+      actual_cash: null,
+      variance: null,
+      status: "open",
+      notes: null,
+      closed_by: null,
+      close_reason: null,
+      force_closed: false,
+    });
+    vi.mocked(deviceRepo.getDevice).mockResolvedValue({
+      id: "device-b",
+      store_id: "store2",
+      is_active: true,
+    } as Awaited<ReturnType<typeof deviceRepo.getDevice>>);
+
+    await expect(
+      completeCheckout({
+        storeId: "store1",
+        sessionId: "s1",
+        cashierId: "c1",
+        deviceId: "device-b",
+        cart: [],
+        customer: null,
+        paymentMethod: "cash",
+      })
+    ).rejects.toThrow("الجهاز غير صالح لهذا الفرع");
   });
 });
