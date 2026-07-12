@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import {
   quickCreateCustomerAction,
   searchCustomersAction,
+  type PosCustomerSearchResult,
 } from "@/modules/pos/actions/customer-attach.action";
 import { getCustomerLoyaltyBalanceAction } from "@/modules/pos/actions/loyalty-balance.action";
 import { usePosStore } from "@/stores/pos-store";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { formatCurrency } from "@/lib/format";
-import type { Customer } from "@/lib/types";
 
 export function CustomerAttach({
   loyaltyEnabled = false,
@@ -31,9 +31,8 @@ export function CustomerAttach({
   const setCustomerLoyaltyBalance = usePosStore((s) => s.setCustomerLoyaltyBalance);
   const [phone, setPhone] = useState("");
   const [expandedInternal, setExpandedInternal] = useState(false);
-  const [results, setResults] = useState<
-    Awaited<ReturnType<typeof searchCustomersAction>>
-  >([]);
+  const [results, setResults] = useState<PosCustomerSearchResult[]>([]);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
   const [, startTransition] = useTransition();
 
   const controlled = expandedProp !== undefined;
@@ -48,7 +47,7 @@ export function CustomerAttach({
     onExpandedChange?.(next);
   }
 
-  function attachCustomer(c: Customer) {
+  function attachCustomer(c: PosCustomerSearchResult) {
     setCustomer(c);
     setExpanded(false);
     setPhone("");
@@ -56,19 +55,36 @@ export function CustomerAttach({
     if (c.account_balance > 0) {
       toast.info(`${c.name}: مستحق ${formatCurrency(c.account_balance)}`);
     }
-    if (loyaltyEnabled) {
-      startTransition(async () => {
-        try {
-          const balance = await getCustomerLoyaltyBalanceAction(c.id);
-          setCustomerLoyaltyBalance(balance);
-          if (balance > 0) {
-            toast.info(`${c.name}: ${balance} ${t("points")} - ${t("can be used at payment")}`);
-          }
-        } catch {
-          setCustomerLoyaltyBalance(null);
-        }
-      });
+    if (!loyaltyEnabled) {
+      setCustomerLoyaltyBalance(null);
+      setLoyaltyLoading(false);
+      return;
     }
+
+    if (typeof c.loyalty_balance === "number") {
+      setCustomerLoyaltyBalance(c.loyalty_balance);
+      setLoyaltyLoading(false);
+      if (c.loyalty_balance > 0) {
+        toast.info(`${c.name}: ${c.loyalty_balance} نقطة جاهزة للاستبدال`);
+      }
+      return;
+    }
+
+    setLoyaltyLoading(true);
+    setCustomerLoyaltyBalance(null);
+    startTransition(async () => {
+      try {
+        const balance = await getCustomerLoyaltyBalanceAction(c.id);
+        setCustomerLoyaltyBalance(balance);
+        if (balance > 0) {
+          toast.info(`${c.name}: ${balance} نقطة جاهزة للاستبدال`);
+        }
+      } catch {
+        setCustomerLoyaltyBalance(0);
+      } finally {
+        setLoyaltyLoading(false);
+      }
+    });
   }
 
   function handlePhoneChange(value: string) {
@@ -113,7 +129,13 @@ export function CustomerAttach({
                   مستحق {formatCurrency(customer.account_balance)}
                 </span>
               ) : null}
-              {loyaltyEnabled && loyaltyBalance !== null ? (
+              {loyaltyEnabled && loyaltyLoading ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  <Star className="size-3 animate-pulse" />
+                  جاري جلب النقاط…
+                </span>
+              ) : null}
+              {loyaltyEnabled && !loyaltyLoading && loyaltyBalance !== null ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
                   <Star className="size-3" />
                   {loyaltyBalance} {t("points")}
@@ -126,7 +148,10 @@ export function CustomerAttach({
             size="icon-xs"
             className="size-9 shrink-0 rounded-xl"
             aria-label="إزالة العميل"
-            onClick={() => setCustomer(null)}
+            onClick={() => {
+              setCustomer(null);
+              setLoyaltyLoading(false);
+            }}
           >
             <X className="size-4" aria-hidden />
           </Button>
@@ -162,11 +187,19 @@ export function CustomerAttach({
                         {c.phone}
                       </p>
                     </div>
-                    {c.account_balance > 0 ? (
-                      <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-200">
-                        {formatCurrency(c.account_balance)}
-                      </span>
-                    ) : null}
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {c.account_balance > 0 ? (
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-200">
+                          {formatCurrency(c.account_balance)}
+                        </span>
+                      ) : null}
+                      {loyaltyEnabled && typeof c.loyalty_balance === "number" && c.loyalty_balance > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                          <Star className="size-3" />
+                          {c.loyalty_balance}
+                        </span>
+                      ) : null}
+                    </div>
                   </button>
                 </li>
               ))}

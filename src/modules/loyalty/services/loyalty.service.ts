@@ -94,6 +94,12 @@ export async function getCustomerLoyaltyBalance(customerId: string): Promise<num
   return customerRepo.getLoyaltyBalance(customerId);
 }
 
+export async function getCustomerLoyaltyBalances(
+  customerIds: string[]
+): Promise<Map<string, number>> {
+  return customerRepo.getLoyaltyBalancesByCustomerIds(customerIds);
+}
+
 export async function listLoyaltyHistory(customerId: string) {
   return customerRepo.listLoyaltyLedger(customerId);
 }

@@ -276,43 +276,44 @@ export function PaymentPanel({
 
         {!useFixedTotal && loyaltyAvailable ? (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-400/30 dark:bg-amber-400/10">
-            <div className="flex items-center justify-between gap-2">
-              <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
-                <Star className="size-4" />
-                {t("Loyalty points")}: {loyaltyBalance}
-              </p>
-              {loyaltyRedemption ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 rounded-lg text-amber-800 dark:text-amber-200"
-                  onClick={() => setLoyaltyRedemption(null)}
-                >
-                  {t("Remove")}
-                </Button>
-              ) : null}
-            </div>
+            <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
+              <Star className="size-4" />
+              {t("Loyalty points")}: {loyaltyBalance}
+            </p>
             {canRedeemLoyalty ? (
-              <div className="mt-2 flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={minimumLoyaltyRedeemPoints}
-                  max={maxRedeemablePoints}
-                  value={loyaltyRedemption?.points ?? ""}
-                  placeholder={t("Points to redeem")}
-                  onChange={(e) => applyRedemption(Number(e.target.value))}
-                  className="h-10 rounded-xl bg-background"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10 shrink-0 rounded-xl"
-                  onClick={() => applyRedemption(maxRedeemablePoints)}
-                >
-                  {t("Use max")}
-                </Button>
-              </div>
+              <>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-11 rounded-xl"
+                    variant={loyaltyRedemption ? "default" : "outline"}
+                    onClick={() => applyRedemption(maxRedeemablePoints)}
+                  >
+                    استخدم النقاط
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-11 rounded-xl"
+                    variant={!loyaltyRedemption ? "default" : "outline"}
+                    onClick={() => setLoyaltyRedemption(null)}
+                  >
+                    بدون نقاط
+                  </Button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={minimumLoyaltyRedeemPoints}
+                    max={maxRedeemablePoints}
+                    value={loyaltyRedemption?.points ?? ""}
+                    placeholder={t("Points to redeem")}
+                    onChange={(e) => applyRedemption(Number(e.target.value))}
+                    className="h-10 rounded-xl bg-background"
+                  />
+                </div>
+              </>
             ) : null}
             {loyaltyRedemption ? (
               <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">

@@ -338,55 +338,72 @@ export function CartPanel({
           </div>
         </div>
 
+        {loyaltyEnabled && customer && loyaltyBalance === null && hasCart ? (
+          <p className="mb-2 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
+            جاري جلب نقاط الولاء…
+          </p>
+        ) : null}
+
         {loyaltyAvailable ? (
           <div className="mb-2 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-400/30 dark:bg-amber-400/10">
             <p className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-200">
               <Star className="size-3.5" />
-              استبدال النقاط: {loyaltyBalance}
+              رصيد النقاط: {loyaltyBalance}
               {canRedeemLoyalty
-                ? ` · حتى ${formatCurrency(maxRedeemableAmount)}`
+                ? ` · توفّر خصم حتى ${formatCurrency(maxRedeemableAmount)}`
                 : ` · الحد الأدنى ${minimumLoyaltyRedeemPoints} نقطة`}
             </p>
             {canRedeemLoyalty ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={minimumLoyaltyRedeemPoints}
-                  max={maxRedeemablePoints}
-                  value={loyaltyRedemption?.points ?? ""}
-                  placeholder="كم نقطة؟"
-                  aria-label="نقاط للاستبدال"
-                  onChange={(e) => applyRedemption(Number(e.target.value))}
-                  className="h-10 rounded-xl bg-background"
-                  inputMode="numeric"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10 shrink-0 rounded-xl"
-                  onClick={() => applyRedemption(maxRedeemablePoints)}
-                >
-                  استبدال الكل
-                </Button>
-                {loyaltyRedemption ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
                   <Button
                     type="button"
-                    variant="ghost"
                     size="sm"
-                    className="h-10 shrink-0 rounded-xl"
+                    className="h-11 rounded-xl"
+                    variant={loyaltyRedemption ? "default" : "outline"}
+                    onClick={() => applyRedemption(maxRedeemablePoints)}
+                  >
+                    استخدم النقاط
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={!loyaltyRedemption ? "default" : "outline"}
+                    className="h-11 rounded-xl"
                     onClick={() => setLoyaltyRedemption(null)}
                   >
-                    إلغاء
+                    بدون نقاط
                   </Button>
-                ) : null}
-              </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={minimumLoyaltyRedeemPoints}
+                    max={maxRedeemablePoints}
+                    value={loyaltyRedemption?.points ?? ""}
+                    placeholder="أو اكتب عدد النقاط"
+                    aria-label="نقاط للاستبدال"
+                    onChange={(e) => applyRedemption(Number(e.target.value))}
+                    className="h-10 rounded-xl bg-background"
+                    inputMode="numeric"
+                  />
+                  {loyaltyRedemption ? (
+                    <span className="shrink-0 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      -{formatCurrency(loyaltyRedemption.amount)}
+                    </span>
+                  ) : null}
+                </div>
+              </>
             ) : (
               <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80">
                 العميل محتاج على الأقل {minimumLoyaltyRedeemPoints} نقطة للاستبدال.
               </p>
             )}
           </div>
+        ) : loyaltyEnabled && customer && (loyaltyBalance ?? 0) > 0 && !loyaltyRedemptionRate && hasCart ? (
+          <p className="mb-2 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
+            النقاط موجودة لكن إعداد الاستبدال غير مفعّل. راجع الولاء من الإعدادات.
+          </p>
         ) : loyaltyEnabled && !customer && hasCart ? (
           <p className="mb-2 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
             لاختيار استبدال النقاط: اربط عميلاً بالسلة أولاً.

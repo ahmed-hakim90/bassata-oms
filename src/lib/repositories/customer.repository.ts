@@ -176,7 +176,34 @@ export async function getLoyaltyBalance(customerId: string): Promise<number> {
     .limit(1)
     .maybeSingle();
   if (error) throwDbError(error, "getLoyaltyBalance");
-  return data?.balance_after ?? 0;
+  return Number(data?.balance_after ?? 0);
+}
+
+/** Latest loyalty balance per customer (one round-trip for POS search). */
+export async function getLoyaltyBalancesByCustomerIds(
+  customerIds: string[]
+): Promise<Map<string, number>> {
+  const unique = [...new Set(customerIds.filter(Boolean))];
+  const result = new Map<string, number>();
+  if (unique.length === 0) return result;
+
+  const db = await getDb();
+  const { data, error } = await db
+    .from("loyalty_ledger")
+    .select("customer_id, balance_after, created_at")
+    .in("customer_id", unique)
+    .order("created_at", { ascending: false });
+  if (error) throwDbError(error, "getLoyaltyBalancesByCustomerIds");
+
+  for (const row of data ?? []) {
+    const id = row.customer_id as string;
+    if (result.has(id)) continue;
+    result.set(id, Number(row.balance_after ?? 0));
+  }
+  for (const id of unique) {
+    if (!result.has(id)) result.set(id, 0);
+  }
+  return result;
 }
 
 export async function addLoyaltyEntry(

@@ -5,21 +5,39 @@ import {
   quickCreateCustomer,
   searchCustomersForPOS,
 } from "@/modules/pos/services/customer-attach.service";
+import { getCustomerLoyaltyBalances } from "@/modules/loyalty/services/loyalty.service";
+import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import type { Customer } from "@/lib/types";
 
-export async function searchCustomersAction(query: string): Promise<Customer[]> {
+export type PosCustomerSearchResult = Customer & {
+  loyalty_balance: number | null;
+};
+
+export async function searchCustomersAction(
+  query: string
+): Promise<PosCustomerSearchResult[]> {
   await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
-  return searchCustomersForPOS(query);
+  const customers = await searchCustomersForPOS(query);
+  const loyaltyOn = await isFeatureEnabled("loyalty");
+  if (!loyaltyOn || customers.length === 0) {
+    return customers.map((c) => ({ ...c, loyalty_balance: null }));
+  }
+  const balances = await getCustomerLoyaltyBalances(customers.map((c) => c.id));
+  return customers.map((c) => ({
+    ...c,
+    loyalty_balance: balances.get(c.id) ?? 0,
+  }));
 }
 
 export async function quickCreateCustomerAction(input: {
   name: string;
   phone: string;
-}): Promise<Customer> {
+}): Promise<PosCustomerSearchResult> {
   const user = await requirePermissionOrRole("customer_manage", [
     "owner",
     "manager",
     "cashier",
   ]);
-  return quickCreateCustomer({ ...input, userId: user.id });
+  const created = await quickCreateCustomer({ ...input, userId: user.id });
+  return { ...created, loyalty_balance: 0 };
 }
