@@ -298,6 +298,11 @@ describe("completeCheckout session expiry", () => {
       close_reason: null,
       force_closed: false,
     });
+    vi.mocked(deviceRepo.getDevice).mockResolvedValue({
+      id: "device-a",
+      store_id: "store1",
+      is_active: true,
+    } as Awaited<ReturnType<typeof deviceRepo.getDevice>>);
     vi.mocked(orderRepo.completeCheckoutRpc).mockResolvedValue({
       order_id: "o1",
       order_number: "SF-001",
