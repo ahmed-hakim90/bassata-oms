@@ -9,6 +9,9 @@ export interface SessionReconciliation {
   cashRefunds: number;
   expenses: number;
   expectedCash: number;
+  /** Completed order totals (all payment methods). */
+  totalSales: number;
+  orderCount: number;
 }
 
 export interface SessionCashBundle {
@@ -23,6 +26,8 @@ function emptyReconciliation(): SessionReconciliation {
     cashRefunds: 0,
     expenses: 0,
     expectedCash: 0,
+    totalSales: 0,
+    orderCount: 0,
   };
 }
 
@@ -75,10 +80,14 @@ export async function loadSessionCashBundle(sessionId: string): Promise<SessionC
 
   let cashSales = 0;
   let cashRefunds = 0;
+  let totalSales = 0;
+  let orderCount = 0;
   for (const order of orders) {
     const cashTotal = sumCashPayments(paymentsByOrder.get(order.id) ?? []);
     if (order.status === "completed") {
       cashSales += cashTotal;
+      totalSales += order.total;
+      orderCount += 1;
     } else if (order.status === "voided" || order.status === "refunded") {
       cashRefunds += cashTotal;
     }
@@ -94,6 +103,8 @@ export async function loadSessionCashBundle(sessionId: string): Promise<SessionC
       cashRefunds,
       expenses: expenseTotal,
       expectedCash,
+      totalSales,
+      orderCount,
     },
     expenses,
   };

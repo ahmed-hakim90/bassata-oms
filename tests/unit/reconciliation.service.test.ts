@@ -113,5 +113,7 @@ describe("calcExpectedCash", () => {
     expect(result.cashRefunds).toBe(20);
     expect(result.expenses).toBe(15);
     expect(result.expectedCash).toBe(115);
+    expect(result.totalSales).toBe(50);
+    expect(result.orderCount).toBe(1);
   });
 });

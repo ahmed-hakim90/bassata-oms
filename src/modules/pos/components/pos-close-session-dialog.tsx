@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CloseSessionStepper } from "@/modules/sessions/components/close-session-stepper";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,10 +21,16 @@ interface PosCloseSessionDialogProps {
   triggerVariant?: "default" | "outline" | "destructive" | "secondary" | "ghost" | "link";
 }
 
+type SessionCashResponse = {
+  reconciliation: SessionReconciliation;
+  expenses: Expense[];
+  error?: string;
+};
+
 export function PosCloseSessionDialog({
   session,
-  reconciliation,
-  sessionExpenses,
+  reconciliation: initialReconciliation,
+  sessionExpenses: initialExpenses,
   cashierName,
   costCenterMap,
   categoryMap,
@@ -34,6 +40,43 @@ export function PosCloseSessionDialog({
   triggerVariant = "outline",
 }: PosCloseSessionDialogProps) {
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reconciliation, setReconciliation] =
+    useState<SessionReconciliation>(initialReconciliation);
+  const [sessionExpenses, setSessionExpenses] = useState<Expense[]>(initialExpenses);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/pos/session-cash", { cache: "no-store" });
+        const body = (await res.json()) as SessionCashResponse;
+        if (!res.ok) {
+          throw new Error(body.error ?? "تعذر تحميل ملخص الجلسة");
+        }
+        if (cancelled) return;
+        setReconciliation(body.reconciliation);
+        setSessionExpenses(body.expenses ?? []);
+      } catch (error) {
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : "تعذر تحميل ملخص الجلسة");
+        setReconciliation(initialReconciliation);
+        setSessionExpenses(initialExpenses);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initialReconciliation, initialExpenses]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -50,14 +93,27 @@ export function PosCloseSessionDialog({
         <DialogHeader>
           <DialogTitle>إغلاق جلسة الكاشير</DialogTitle>
         </DialogHeader>
-        <CloseSessionStepper
-          session={session}
-          reconciliation={reconciliation}
-          sessionExpenses={sessionExpenses}
-          cashierName={cashierName}
-          costCenterMap={costCenterMap}
-          categoryMap={categoryMap}
-        />
+        {loading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            جاري تحميل ملخص المبيعات…
+          </p>
+        ) : (
+          <>
+            {loadError ? (
+              <p className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+                {loadError} — معروض آخر ملخص محفوظ على الشاشة.
+              </p>
+            ) : null}
+            <CloseSessionStepper
+              session={session}
+              reconciliation={reconciliation}
+              sessionExpenses={sessionExpenses}
+              cashierName={cashierName}
+              costCenterMap={costCenterMap}
+              categoryMap={categoryMap}
+            />
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

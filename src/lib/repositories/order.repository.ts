@@ -52,12 +52,11 @@ export async function listOrders(
 export async function listOrdersBySessionIds(sessionIds: string[]): Promise<Order[]> {
   if (sessionIds.length === 0) return [];
   const db = await getDb();
-  const storeIds = (await listStores()).map((store) => store.id);
-  if (storeIds.length === 0) return [];
+  // Scope via orders RLS (has_store_access). Do not gate on listStores() —
+  // an empty store list would hide real session sales used for close/admin.
   const { data, error } = await db
     .from("orders")
     .select("*")
-    .in("store_id", storeIds)
     .in("session_id", sessionIds)
     .order("created_at", { ascending: false });
   if (error) throwDbError(error, "listOrdersBySessionIds");

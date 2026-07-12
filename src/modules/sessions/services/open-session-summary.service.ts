@@ -87,7 +87,10 @@ export async function getOpenSessionSummaries(input: {
 
     const cashSales = sumPayments(completedIds, payments, "cash");
     const cardSales = sumPayments(completedIds, payments, "card");
-    const otherSales = sumPayments(completedIds, payments, "other");
+    const otherSales =
+      sumPayments(completedIds, payments, "other") +
+      sumPayments(completedIds, payments, "wallet") +
+      sumPayments(completedIds, payments, "credit");
     const cashRefunds = sumPayments(refundedIds, payments, "cash");
 
     const sessionExpenseTotal = (expensesBySession.get(session.id) ?? [])

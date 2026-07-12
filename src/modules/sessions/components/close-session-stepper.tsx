@@ -96,6 +96,14 @@ export function CloseSessionStepper({
               <dd className="tabular-nums">{formatCurrency(reconciliation.openingCash)}</dd>
             </div>
             <div className="flex justify-between">
+              <dt className="text-muted-foreground">إجمالي المبيعات</dt>
+              <dd className="tabular-nums">{formatCurrency(reconciliation.totalSales)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">عدد الطلبات</dt>
+              <dd className="tabular-nums">{reconciliation.orderCount}</dd>
+            </div>
+            <div className="flex justify-between">
               <dt className="text-muted-foreground">مبيعات نقدية</dt>
               <dd className="tabular-nums">+{formatCurrency(reconciliation.cashSales)}</dd>
             </div>
