@@ -115,11 +115,11 @@ function pushRecent(href: NavHref) {
 
 export function CommandPalette({
   userRole,
-  permissions = new Set<PermissionKey>(),
+  permissions = [],
   featureFlags,
 }: {
   userRole: UserRole;
-  permissions?: Set<PermissionKey>;
+  permissions?: PermissionKey[];
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
 }) {
   const { t } = useTranslation();
@@ -128,9 +128,10 @@ export function CommandPalette({
   const setOpen = useUiStore((s) => s.setCommandPaletteOpen);
   const shortcutLabel = useModShortcutLabel("k");
 
+  const permissionSet = useMemo(() => new Set(permissions), [permissions]);
   const navGroups = useMemo(
-    () => filterNavByAccess(userRole, permissions, featureFlags),
-    [userRole, permissions, featureFlags]
+    () => filterNavByAccess(userRole, permissionSet, featureFlags),
+    [userRole, permissionSet, featureFlags]
   );
 
   const allItems = useMemo(

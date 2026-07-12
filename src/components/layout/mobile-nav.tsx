@@ -67,17 +67,19 @@ function priorityForRole(role: UserRole): string[] {
 export function MobileNav({
   userRole,
   featureFlags,
-  permissions = new Set<PermissionKey>(),
+  permissions = [],
 }: {
   userRole: UserRole;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
-  permissions?: Set<PermissionKey>;
+  permissions?: PermissionKey[];
 }) {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const allItems = filterNavByAccess(userRole, permissions, featureFlags).flatMap(
-    (group) => group.items
-  );
+  const allItems = filterNavByAccess(
+    userRole,
+    new Set(permissions),
+    featureFlags
+  ).flatMap((group) => group.items);
   const allowedItems = new Set<string>(allItems.map((item) => item.href));
   const allHrefs = allItems.map((item) => item.href);
   const priority = priorityForRole(userRole);

@@ -15,7 +15,7 @@ interface AppShellProps {
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   stores?: Store[];
   activeStoreId?: string | null;
-  permissions?: Set<PermissionKey>;
+  permissions?: PermissionKey[];
   posReadinessState?: PosReadinessState;
 }
 
@@ -26,7 +26,7 @@ export function AppShell({
   featureFlags,
   stores = [],
   activeStoreId = null,
-  permissions = new Set(),
+  permissions = [],
   posReadinessState,
 }: AppShellProps) {
   return (

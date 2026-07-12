@@ -39,7 +39,7 @@ interface AppShellHeaderProps {
   stores: StoreType[];
   activeStoreId: string | null;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
-  permissions?: Set<PermissionKey>;
+  permissions?: PermissionKey[];
   posReadinessState?: PosReadinessState;
 }
 
@@ -82,7 +82,7 @@ export function AppShellHeader({
   stores,
   activeStoreId,
   featureFlags,
-  permissions = new Set(),
+  permissions = [],
   posReadinessState,
 }: AppShellHeaderProps) {
   const { t } = useTranslation();

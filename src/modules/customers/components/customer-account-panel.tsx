@@ -60,12 +60,16 @@ export function CustomerAccountPanel({
     }
     startTransition(async () => {
       try {
-        await recordCustomerPaymentAction({
+        const result = await recordCustomerPaymentAction({
           customerId,
           amount: value,
           paymentMethod: method,
           reference,
         });
+        if (!result.success) {
+          toast.error(result.error);
+          return;
+        }
         setAmount("");
         setReference("");
         toast.success("تم تسجيل التحصيل");

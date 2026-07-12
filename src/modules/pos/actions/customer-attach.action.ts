@@ -3,13 +3,13 @@
 import { requirePermissionOrRole } from "@/lib/auth/guards";
 import {
   quickCreateCustomer,
-  searchCustomersByPhone,
+  searchCustomersForPOS,
 } from "@/modules/pos/services/customer-attach.service";
 import type { Customer } from "@/lib/types";
 
-export async function searchCustomersAction(phone: string): Promise<Customer[]> {
+export async function searchCustomersAction(query: string): Promise<Customer[]> {
   await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
-  return searchCustomersByPhone(phone);
+  return searchCustomersForPOS(query);
 }
 
 export async function quickCreateCustomerAction(input: {

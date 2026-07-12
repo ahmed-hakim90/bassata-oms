@@ -90,13 +90,13 @@ const ROLE_SUBTITLE: Record<UserRole, string> = {
 export function AppSidebar({
   userRole,
   featureFlags,
-  permissions = new Set<PermissionKey>(),
+  permissions = [],
   className,
   forceExpanded = false,
 }: {
   userRole: UserRole;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
-  permissions?: Set<PermissionKey>;
+  permissions?: PermissionKey[];
   className?: string;
   forceExpanded?: boolean;
 }) {
@@ -105,7 +105,11 @@ export function AppSidebar({
   const { sidebarCollapsed, toggleSidebar, collapsedGroups, toggleGroup } =
     useUiStore();
   const collapsed = forceExpanded ? false : sidebarCollapsed;
-  const navGroups = filterNavByAccess(userRole, permissions, featureFlags);
+  const navGroups = filterNavByAccess(
+    userRole,
+    new Set(permissions),
+    featureFlags
+  );
   const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
 
   return (

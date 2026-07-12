@@ -74,6 +74,20 @@ interface PosCollectFlowDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function toCollectCustomer(customer: {
+  id: string;
+  name: string;
+  phone: string;
+  account_balance: number;
+}): CollectCustomer {
+  return {
+    id: customer.id,
+    name: customer.name,
+    phone: customer.phone,
+    account_balance: customer.account_balance,
+  };
+}
+
 export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialogProps) {
   const cartCustomer = usePosStore((s) => s.customer);
   const setCartCustomer = usePosStore((s) => s.setCustomer);
@@ -94,42 +108,46 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     setReference("");
   }
 
-  function loadOutstanding() {
+  useEffect(() => {
+    if (!open) return;
+
+    setQuery("");
+    setSearchResults([]);
+    const preselect =
+      cartCustomer && cartCustomer.account_balance > 0
+        ? toCollectCustomer(cartCustomer)
+        : null;
+    resetForm(preselect);
+
+    let cancelled = false;
     startListTransition(async () => {
       try {
         const rows = await listOutstandingCustomersAction();
-        setOutstanding(rows);
+        if (!cancelled) setOutstanding(rows.map(toCollectCustomer));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "تعذر تحميل العملاء المستحقين");
-        setOutstanding([]);
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error ? error.message : "تعذر تحميل العملاء المستحقين"
+          );
+          setOutstanding([]);
+        }
       }
     });
-  }
 
-  const [initOpen, setInitOpen] = useState(open);
-  if (open !== initOpen) {
-    setInitOpen(open);
-    if (open) {
-      setQuery("");
-      setSearchResults([]);
-      const preselect =
-        cartCustomer && cartCustomer.account_balance > 0
-          ? {
-              id: cartCustomer.id,
-              name: cartCustomer.name,
-              phone: cartCustomer.phone,
-              account_balance: cartCustomer.account_balance,
-            }
-          : null;
-      resetForm(preselect);
-      loadOutstanding();
-    }
-  }
+    return () => {
+      cancelled = true;
+    };
+    // Only re-init when the dialog opens; cart customer is read at open time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open gate
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const trimmed = query.trim();
-    if (trimmed.length < 2) return;
+    if (trimmed.length < 2) {
+      setSearchResults([]);
+      return;
+    }
     const handle = window.setTimeout(() => {
       startListTransition(async () => {
         try {
@@ -137,12 +155,7 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
           setSearchResults(
             found
               .filter((c) => c.account_balance > 0)
-              .map((c) => ({
-                id: c.id,
-                name: c.name,
-                phone: c.phone,
-                account_balance: c.account_balance,
-              }))
+              .map(toCollectCustomer)
           );
         } catch {
           setSearchResults([]);
@@ -176,21 +189,21 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     onOpenChange(next);
   }
 
-  function handleQueryChange(value: string) {
-    setQuery(value);
-    if (value.trim().length < 2) setSearchResults([]);
-  }
-
   function handleCollect() {
     if (!selected || !canSubmit) return;
     startTransition(async () => {
       try {
-        await recordCustomerPaymentAction({
+        const result = await recordCustomerPaymentAction({
           customerId: selected.id,
           amount: value,
           paymentMethod: method,
           reference: reference.trim() || undefined,
         });
+        if (!result.success) {
+          playPosErrorSound();
+          toast.error(result.error);
+          return;
+        }
         const nextBalance = Math.max(0, Math.round((owed - value) * 100) / 100);
         toast.success(`تم تحصيل ${formatCurrency(value)} من ${selected.name}`);
         playPosSuccessSound();
@@ -227,7 +240,7 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
                 <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={query}
-                  onChange={(e) => handleQueryChange(e.target.value)}
+                  onChange={(e) => setQuery(e.target.value)}
                   placeholder="ابحث بالاسم أو رقم الهاتف…"
                   aria-label="بحث عن عميل للتحصيل"
                   className="h-11 rounded-xl ps-10"

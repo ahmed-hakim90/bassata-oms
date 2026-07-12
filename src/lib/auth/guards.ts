@@ -85,7 +85,7 @@ export async function requireCatalogRead(): Promise<AppUser> {
   }
 }
 
-/** Permission check with role fallback when RBAC tables are not seeded yet. */
+/** Permission check with explicit role allow-list (roles always allowed). */
 export async function requirePermissionOrRole(
   key: PermissionKey,
   roles: UserRole[]
@@ -98,13 +98,13 @@ export async function requirePermissionOrRole(
   if (Array.isArray(keyOrRoles)) {
     return requireRole(keyOrRoles);
   }
-  if (!roles) throw new AuthError("Insufficient permissions");
+  if (!roles) throw new AuthError("مفيش صلاحية للعملية دي");
   const user = await requireAuth();
   if (user.role === "owner") return user;
+  // Explicit role allow-list always wins (call sites pass product roles).
+  if (roles.includes(user.role)) return user;
   if (await permissionRepo.hasPermission(keyOrRoles)) return user;
-  const rbacSeeded = await permissionRepo.isRbacSeeded();
-  if (!rbacSeeded && roles.includes(user.role)) return user;
-  throw new AuthError("Insufficient permissions");
+  throw new AuthError("مفيش صلاحية للعملية دي");
 }
 
 export async function requireStoreAccess(storeId: string): Promise<AppUser> {

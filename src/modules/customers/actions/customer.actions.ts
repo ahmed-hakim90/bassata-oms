@@ -79,33 +79,50 @@ export async function recordCustomerPaymentAction(input: {
   paymentMethod: PaymentMethod;
   reference?: string;
   notes?: string;
-}) {
-  const user = await requirePermissionOrRole("customer_payment_receive", [
-    "owner",
-    "manager",
-    "cashier",
-  ]);
-  const storeId = await getValidatedActiveStoreId();
-  await recordCustomerPayment({
-    ...input,
-    storeId,
-    userId: user.id,
-  });
-  revalidatePath("/customers");
-  revalidatePath(`/customers/${input.customerId}`);
-  revalidatePath("/pos");
+}): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const user = await requirePermissionOrRole("customer_payment_receive", [
+      "owner",
+      "manager",
+      "cashier",
+    ]);
+    if (!(input.amount > 0) || !Number.isFinite(input.amount)) {
+      return { success: false, error: "أدخل مبلغ تحصيل صحيح" };
+    }
+    const storeId = await getValidatedActiveStoreId();
+    await recordCustomerPayment({
+      ...input,
+      storeId,
+      userId: user.id,
+    });
+    revalidatePath("/customers");
+    revalidatePath(`/customers/${input.customerId}`);
+    // Avoid revalidatePath("/pos") — remounting POS mid-session freezes the screen.
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "تعذر تسجيل التحصيل",
+    };
+  }
 }
 
 export async function listOutstandingCustomersAction() {
-  await requirePermissionOrRole("customer_payment_receive", [
-    "owner",
-    "manager",
-    "cashier",
-  ]);
-  const { getOutstandingBalances } = await import(
-    "@/modules/customers/services/customer-account.service"
-  );
-  return getOutstandingBalances();
+  try {
+    await requirePermissionOrRole("customer_payment_receive", [
+      "owner",
+      "manager",
+      "cashier",
+    ]);
+    const { getOutstandingBalances } = await import(
+      "@/modules/customers/services/customer-account.service"
+    );
+    return getOutstandingBalances();
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "تعذر تحميل العملاء المستحقين"
+    );
+  }
 }
 
 export async function getCustomerAccountsReportData() {

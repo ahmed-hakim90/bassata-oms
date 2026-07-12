@@ -51,7 +51,7 @@ export default async function ShellLayout({
       featureFlags={featureFlags}
       stores={stores}
       activeStoreId={activeStoreId}
-      permissions={permissions}
+      permissions={[...permissions]}
       posReadinessState={posReadiness.state}
     >
       {denial ? (
