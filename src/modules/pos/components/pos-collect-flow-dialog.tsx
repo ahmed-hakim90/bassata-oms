@@ -21,7 +21,6 @@ import {
   listOutstandingCustomersAction,
   recordCustomerPaymentAction,
 } from "@/modules/customers/actions/customer.actions";
-import { searchCustomersAction } from "@/modules/pos/actions/customer-attach.action";
 import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
 import { usePosStore } from "@/stores/pos-store";
 import { cn } from "@/lib/utils";
@@ -95,7 +94,6 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
   const [loadingList, startListTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [outstanding, setOutstanding] = useState<CollectCustomer[]>([]);
-  const [searchResults, setSearchResults] = useState<CollectCustomer[]>([]);
   const [selected, setSelected] = useState<CollectCustomer | null>(null);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<Exclude<PaymentMethod, "credit">>("cash");
@@ -112,7 +110,6 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     if (!open) return;
 
     setQuery("");
-    setSearchResults([]);
     const preselect =
       cartCustomer && cartCustomer.account_balance > 0
         ? toCollectCustomer(cartCustomer)
@@ -141,35 +138,18 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open gate
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    const handle = window.setTimeout(() => {
-      startListTransition(async () => {
-        try {
-          const found = await searchCustomersAction(trimmed);
-          setSearchResults(
-            found
-              .filter((c) => c.account_balance > 0)
-              .map(toCollectCustomer)
-          );
-        } catch {
-          setSearchResults([]);
-        }
-      });
-    }, 250);
-    return () => window.clearTimeout(handle);
-  }, [open, query]);
-
   const list = useMemo(() => {
-    const trimmed = query.trim();
-    if (trimmed.length >= 2) return searchResults;
-    return outstanding;
-  }, [outstanding, query, searchResults]);
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) return outstanding;
+    const digits = trimmed.replace(/\D/g, "");
+    return outstanding.filter((c) => {
+      const nameMatch = c.name.toLowerCase().includes(trimmed);
+      const phoneMatch =
+        c.phone.toLowerCase().includes(trimmed) ||
+        (digits.length >= 2 && c.phone.replace(/\D/g, "").includes(digits));
+      return nameMatch || phoneMatch;
+    });
+  }, [outstanding, query]);
 
   const owed = selected?.account_balance ?? 0;
   const value = Number(amount);
@@ -183,7 +163,6 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
   function handleOpenChange(next: boolean) {
     if (!next) {
       setQuery("");
-      setSearchResults([]);
       resetForm(null);
     }
     onOpenChange(next);
@@ -252,8 +231,8 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
                 <p className="py-8 text-center text-sm text-muted-foreground">جاري التحميل…</p>
               ) : list.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  {query.trim().length >= 2
-                    ? "لا يوجد عميل بمستحقات مطابقة"
+                  {query.trim()
+                    ? "لا يوجد عميل بمستحقات مطابقة للبحث"
                     : "لا توجد مستحقات حاليًا"}
                 </p>
               ) : (

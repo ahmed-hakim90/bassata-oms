@@ -66,6 +66,12 @@ export type Database = {
       stock_counts: TableDef<StockCountRow>;
       stock_count_lines: TableDef<StockCountLineRow>;
       cashier_sessions: TableDef<SessionRow>;
+      cashier_vaults: TableDef<CashierVaultRow>;
+      cashier_vault_ledger: TableDef<
+        CashierVaultLedgerRow,
+        Partial<CashierVaultLedgerRow>,
+        never
+      >;
       customers: TableDef<CustomerRow>;
       orders: TableDef<OrderRow>;
       order_items: TableDef<OrderItemRow, Partial<OrderItemRow>, never>;
@@ -507,6 +513,30 @@ export type SessionRow = {
   closed_by: string | null;
   close_reason: string | null;
   force_closed: boolean;
+};
+export type CashierVaultRow = {
+  id: string;
+  org_id: string;
+  store_id: string;
+  cashier_id: string;
+  balance: number;
+  pending_opening_float: number;
+  created_at: string;
+  updated_at: string;
+};
+export type CashierVaultLedgerRow = {
+  id: string;
+  org_id: string;
+  store_id: string;
+  cashier_id: string;
+  vault_id: string;
+  entry_type: string;
+  amount: number;
+  balance_after: number;
+  session_id: string | null;
+  notes: string;
+  created_by: string;
+  created_at: string;
 };
 export type CustomerRow = {
   id: string;

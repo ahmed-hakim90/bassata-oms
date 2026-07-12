@@ -14,6 +14,7 @@ import { CloseSessionStepper } from "@/modules/sessions/components/close-session
 import { OpenSessionsTable } from "@/modules/sessions/components/open-sessions-table";
 import { ClosedSessionsTable } from "@/modules/sessions/components/closed-sessions-table";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
+import { CashierVaultPanel } from "@/modules/sessions/components/cashier-vault-panel";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { calcExpectedCash } from "@/modules/sessions/services/reconciliation.service";
 import { getOpenSessionSummaries } from "@/modules/sessions/services/open-session-summary.service";
@@ -21,6 +22,7 @@ import {
   listSessions,
   getActiveSession,
 } from "@/modules/sessions/services/session.service";
+import { listStoreCashierVaults } from "@/modules/sessions/services/cashier-vault.service";
 import { listExpenses } from "@/modules/expenses/services/expense.service";
 import { getSessionSettings } from "@/modules/system/services/settings.service";
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
@@ -37,23 +39,39 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
   const canViewAll = await permissionRepo.hasPermission("session_view_all");
   const canForceClose = await permissionRepo.hasPermission("session_force_close");
   const user = await getCurrentUser();
+  const canManageVault = user?.role === "owner" || user?.role === "manager";
   const deviceCtx = await getRegisteredDeviceContext();
   const cashierId =
     user && deviceCtx?.storeId === storeId
       ? await getActiveCashierId(storeId, deviceCtx.deviceId, user)
       : null;
 
-  const [sessions, active, stores, users, devices, sessionSettings, costCenters, categories] =
-    await Promise.all([
-      listSessions(canViewAll ? undefined : storeId),
-      cashierId ? getActiveSession(storeId, cashierId) : null,
-      storeRepo.listStores(),
-      userRepo.listUsers(),
-      listDevices(),
-      getSessionSettings(),
-      listCostCenters(storeId),
-      listExpenseCategories(),
-    ]);
+  const vaultStoreId =
+    canViewAll && filterStoreId !== "all" ? filterStoreId : storeId;
+
+  const [
+    sessions,
+    active,
+    stores,
+    users,
+    devices,
+    sessionSettings,
+    costCenters,
+    categories,
+    vaultRows,
+  ] = await Promise.all([
+    listSessions(canViewAll ? undefined : storeId),
+    cashierId ? getActiveSession(storeId, cashierId) : null,
+    storeRepo.listStores(),
+    userRepo.listUsers(),
+    listDevices(),
+    getSessionSettings(),
+    listCostCenters(storeId),
+    listExpenseCategories(),
+    canManageVault || user?.role === "cashier"
+      ? listStoreCashierVaults(vaultStoreId)
+      : Promise.resolve([]),
+  ]);
 
   const filteredStoreId =
     canViewAll && filterStoreId !== "all" && stores.some((s) => s.id === filterStoreId)
@@ -101,6 +119,10 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
     ? computeSessionLifecycle(active, sessionSettings)
     : null;
 
+  const visibleVaultRows = canManageVault
+    ? vaultRows
+    : vaultRows.filter((row) => row.cashierId === (cashierId ?? user?.id));
+
   return (
     <div className="flex flex-col gap-[var(--mds-space-6)]">
       <PageHeader
@@ -111,7 +133,13 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
             ? "الجلسات المفتوحة على كل الفروع — راقب وافتح إغلاق إجباري عند الحاجة"
             : "افتح واقفل جلستك وعدّ الدرج قبل ما تمشي"
         }
-        action={<OpenSessionDialog disabled={Boolean(active)} />}
+        action={
+          <OpenSessionDialog
+            disabled={Boolean(active)}
+            canEditOpeningFloat={canManageVault}
+            lockOpeningFloat={!canManageVault}
+          />
+        }
       />
 
       <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">
@@ -137,6 +165,15 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
           accent="var(--mds-color-feedback-info)"
         />
       </div>
+
+      {(canManageVault || visibleVaultRows.length > 0) && (
+        <CashierVaultPanel
+          storeId={vaultStoreId}
+          storeName={storeMap[vaultStoreId] ?? "الفرع"}
+          rows={visibleVaultRows}
+          canManage={Boolean(canManageVault)}
+        />
+      )}
 
       <section className="flex flex-col gap-[var(--mds-space-3)]">
         <div className="flex flex-wrap items-center justify-between gap-[var(--mds-space-3)]">

@@ -41,8 +41,11 @@ export async function earnPoints(input: {
   customerId: string;
   orderId: string;
   orderTotal: number;
+  /** Skip a second rule read when caller already loaded it. */
+  rule?: LoyaltyRule | null;
 }): Promise<LoyaltyLedgerEntry | null> {
-  const rule = await customerRepo.getLoyaltyRule();
+  const rule =
+    input.rule !== undefined ? input.rule : await customerRepo.getLoyaltyRule();
   if (!rule?.is_active) return null;
   const points = Math.floor(input.orderTotal * rule.points_per_currency);
   if (points <= 0) return null;
@@ -62,9 +65,12 @@ export async function redeemPoints(input: {
   reason: string;
   userId: string;
   storeId: string;
+  /** Skip a second rule read when caller already validated against it. */
+  rule?: LoyaltyRule | null;
 }): Promise<LoyaltyLedgerEntry> {
   await assertPeriodOpen(input.storeId);
-  const rule = await customerRepo.getLoyaltyRule();
+  const rule =
+    input.rule !== undefined ? input.rule : await customerRepo.getLoyaltyRule();
   const minimumRedeemPoints = rule?.minimum_redeem_points ?? 0;
   if (input.points < minimumRedeemPoints) {
     throw new Error(`Minimum redemption is ${minimumRedeemPoints} points`);

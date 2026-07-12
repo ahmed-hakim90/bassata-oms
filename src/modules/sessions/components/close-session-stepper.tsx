@@ -108,6 +108,10 @@ export function CloseSessionStepper({
               <dd className="tabular-nums">{formatCurrency(reconciliation.expectedCash)}</dd>
             </div>
           </dl>
+          <p className="text-xs text-muted-foreground">
+            عدّ درج الوردية فقط — بعد الإغلاق المبلغ الفعلي بيتسجّل في خزينة الكاشير
+            (مش بيتضاف على رصيد بداية الوردية الجاية لوحده).
+          </p>
 
           <div className="space-y-2">
             <p className="text-sm font-medium">مصروفات الجلسة</p>

@@ -317,8 +317,10 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
   return { id: order.id, total: Number(order.total), storeName: store.name };
 }
 
-export async function listOnlineOrders(storeId?: string) {
-  return onlineOrderRepo.listOnlineOrders(storeId);
+export async function listOnlineOrders(
+  storeIdOrFilters?: string | onlineOrderRepo.OnlineOrderListFilters
+) {
+  return onlineOrderRepo.listOnlineOrders(storeIdOrFilters);
 }
 
 export async function getOnlineOrderWithItems(id: string): Promise<OnlineOrderWithItems | null> {
@@ -331,8 +333,17 @@ export async function getOnlineOrderWithItems(id: string): Promise<OnlineOrderWi
   return { ...order, items, storeName: store?.name ?? "Store" };
 }
 
-export async function listOnlineOrdersWithItems(storeId?: string): Promise<OnlineOrderWithItems[]> {
-  const orders = await onlineOrderRepo.listOnlineOrders(storeId);
+const ACTIVE_ONLINE_ORDER_STATUSES: OnlineOrderStatus[] = [
+  "pending",
+  "accepted",
+  "preparing",
+  "ready",
+];
+
+export async function listOnlineOrdersWithItems(
+  storeIdOrFilters?: string | onlineOrderRepo.OnlineOrderListFilters
+): Promise<OnlineOrderWithItems[]> {
+  const orders = await onlineOrderRepo.listOnlineOrders(storeIdOrFilters);
   if (orders.length === 0) return [];
 
   const [itemsByOrder, stores] = await Promise.all([
@@ -346,6 +357,18 @@ export async function listOnlineOrdersWithItems(storeId?: string): Promise<Onlin
     items: itemsByOrder.get(order.id) ?? [],
     storeName: storeNameById.get(order.store_id) ?? "Store",
   }));
+}
+
+/** Active queue only — used by POS (excludes cancelled/invoiced history). */
+export async function listActiveOnlineOrdersWithItems(
+  storeId: string,
+  limit = 50
+): Promise<OnlineOrderWithItems[]> {
+  return listOnlineOrdersWithItems({
+    storeId,
+    statuses: ACTIVE_ONLINE_ORDER_STATUSES,
+    limit,
+  });
 }
 
 export async function listStaffOnlineProductOptions(): Promise<StaffOnlineProductOption[]> {

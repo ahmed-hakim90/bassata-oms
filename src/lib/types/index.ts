@@ -414,6 +414,38 @@ export interface CashierSession {
   force_closed: boolean;
 }
 
+export type CashierVaultEntryType =
+  | "session_close_deposit"
+  | "session_open_float"
+  | "admin_withdraw";
+
+/** Per cashier amanah (خزينة) at a store — separate from session drawer (درج). */
+export interface CashierVault {
+  id: string;
+  org_id: string;
+  store_id: string;
+  cashier_id: string;
+  balance: number;
+  pending_opening_float: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashierVaultLedgerEntry {
+  id: string;
+  org_id: string;
+  store_id: string;
+  cashier_id: string;
+  vault_id: string;
+  entry_type: CashierVaultEntryType;
+  amount: number;
+  balance_after: number;
+  session_id: string | null;
+  notes: string;
+  created_by: string;
+  created_at: string;
+}
+
 export interface SessionSettings {
   max_open_hours: number;
   warn_after_hours: number;

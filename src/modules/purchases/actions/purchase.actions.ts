@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 import { requireFeature, requirePermissionOrRole, getValidatedActiveStoreId } from "@/lib/auth/guards";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as orgRepo from "@/lib/repositories/organization.repository";
+import * as purchaseRepo from "@/lib/repositories/purchase.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import {
   addPurchaseLine,
   createDraftPurchase,
   deleteDraftPurchase,
+  enrichPurchases,
   getPurchase,
-  listPurchases,
   receivePurchase,
   removePurchaseLine,
   updateDraftPurchase,
@@ -192,13 +193,27 @@ export async function getPurchasesData() {
   await requireFeature("purchases");
   await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
   const storeId = await getValidatedActiveStoreId();
-  const org = await orgRepo.getOrganization();
-  const warehouses = await warehouseRepo.listWarehouses(storeId);
+
+  const [org, warehouses, invoices, suppliers, products] = await Promise.all([
+    orgRepo.getOrganization(),
+    warehouseRepo.listWarehouses(storeId),
+    purchaseRepo.listPurchases(storeId),
+    listSuppliers(),
+    catalogRepo.listProducts(),
+  ]);
+
+  const purchases = await enrichPurchases(invoices, { suppliers, warehouses });
+  const priceHistory = await getSupplierPriceHistory(storeId, {
+    purchases,
+    suppliers,
+    products,
+  });
+
   return {
-    purchases: await listPurchases(storeId),
-    priceHistory: await getSupplierPriceHistory(storeId),
-    suppliers: await listSuppliers(),
-    products: await catalogRepo.listProducts({ activeOnly: true }),
+    purchases,
+    priceHistory,
+    suppliers,
+    products: products.filter((p) => p.is_active),
     warehouses,
     storeId,
     currency: org.currency,

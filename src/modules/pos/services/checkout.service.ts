@@ -99,13 +99,14 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   }));
 
   const productIds = [...new Set(input.cart.map((line) => line.productId))];
-  const [variantMap, productMap, inventoryPolicy, preventNegativeStock, warehouse] =
+  const [variantMap, productMap, inventoryPolicy, preventNegativeStock, warehouse, loyaltyEnabled] =
     await Promise.all([
       catalogRepo.listVariantsForProducts(productIds),
       catalogRepo.getProductsByIds(productIds),
       getInventoryPolicySettings(),
       isFeatureEnabled("prevent_negative_stock"),
       warehouseRepo.getDefaultWarehouse(input.storeId),
+      isFeatureEnabled("loyalty"),
     ]);
 
   for (const line of input.cart) {
@@ -116,9 +117,19 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   }
 
   const warehouseId = warehouse?.id ?? null;
-  const allBatches = warehouseId
-    ? await inventoryRepo.listInventoryBatches(input.storeId, warehouseId)
-    : [];
+  const batchTrackedProductIds = [...productMap.values()]
+    .filter((product) => product.inventory_tracking_mode === "batch_and_expiry")
+    .map((product) => product.id)
+    .filter((id) => productIds.includes(id));
+
+  const allBatches =
+    warehouseId && batchTrackedProductIds.length > 0
+      ? await inventoryRepo.listInventoryBatchesForProducts(
+          input.storeId,
+          warehouseId,
+          batchTrackedProductIds
+        )
+      : [];
   const today = new Date();
   const nearExpiryThreshold = Number(
     Array.isArray(inventoryPolicy.alert_days) ? inventoryPolicy.alert_days[0] : 7
@@ -131,11 +142,17 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     if (!product || product.inventory_tracking_mode !== "batch_and_expiry") continue;
 
     const productBatches = allBatches
-      .filter((batch) => batch.product_id === line.productId && (batch.variant_id ?? null) === (line.variantId ?? null))
+      .filter(
+        (batch) =>
+          batch.product_id === line.productId &&
+          (batch.variant_id ?? null) === (line.variantId ?? null)
+      )
       .filter((batch) => batch.remaining_quantity > 0);
     if (productBatches.length === 0) continue;
 
-    const expired = productBatches.some((batch) => batch.expiry_date && new Date(batch.expiry_date) < today);
+    const expired = productBatches.some(
+      (batch) => batch.expiry_date && new Date(batch.expiry_date) < today
+    );
     if (preventNegativeStock && expired && (product.expiry_policy ?? "block_sale") === "block_sale") {
       throw new Error(`مخزون ${line.name} منتهي الصلاحية وممنوع بيعه حسب السياسة`);
     }
@@ -155,22 +172,23 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   // Loyalty redemption: validate before the order exists, deduct points after.
   const requestedPoints = Math.floor(input.loyaltyPoints ?? 0);
   let loyaltyDiscount = 0;
+  const loyaltyRule =
+    requestedPoints > 0 || loyaltyEnabled ? await getLoyaltyRule() : null;
   if (requestedPoints > 0) {
     if (!input.customer?.id) {
       throw new Error("اختر عميلاً لاستبدال نقاط الولاء");
     }
-    const rule = await getLoyaltyRule();
-    if (!rule?.is_active || rule.redemption_rate <= 0) {
+    if (!loyaltyRule?.is_active || loyaltyRule.redemption_rate <= 0) {
       throw new Error("برنامج الولاء غير مفعل");
     }
-    if (requestedPoints < rule.minimum_redeem_points) {
-      throw new Error(`الحد الأدنى لاستبدال النقاط هو ${rule.minimum_redeem_points} نقطة`);
+    if (requestedPoints < loyaltyRule.minimum_redeem_points) {
+      throw new Error(`الحد الأدنى لاستبدال النقاط هو ${loyaltyRule.minimum_redeem_points} نقطة`);
     }
     const balance = await getCustomerLoyaltyBalance(input.customer.id);
     if (requestedPoints > balance) {
       throw new Error("رصيد نقاط العميل غير كافٍ");
     }
-    loyaltyDiscount = Math.round(requestedPoints * rule.redemption_rate * 100) / 100;
+    loyaltyDiscount = Math.round(requestedPoints * loyaltyRule.redemption_rate * 100) / 100;
     const maxDiscount = Math.max(0, subtotal - orderDiscount);
     if (loyaltyDiscount > maxDiscount + 0.01) {
       throw new Error("قيمة النقاط المستبدلة أكبر من إجمالي الفاتورة");
@@ -237,8 +255,28 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     throw error;
   }
 
-  const order = await orderRepo.getOrder(result.order_id);
-  if (!order) throw new Error("لم يتم العثور على الطلب بعد إتمام البيع");
+  // RPC already returns the fields callers need — avoid a post-checkout getOrder round-trip.
+  const usesCredit = payments.some((payment) => payment.method === "credit");
+  const order: Order = {
+    id: result.order_id,
+    store_id: input.storeId,
+    session_id: input.sessionId,
+    order_number: result.order_number,
+    customer_id: input.customer?.id ?? null,
+    status: "completed",
+    subtotal: result.subtotal,
+    discount: roundMoney(orderDiscount + loyaltyDiscount),
+    tax: result.tax,
+    total: result.total,
+    payment_status: usesCredit
+      ? payments.length === 1
+        ? "unpaid"
+        : "partial"
+      : "paid",
+    created_by: input.cashierId,
+    created_at: new Date().toISOString(),
+    sales_mode: input.salesMode ?? "retail",
+  };
 
   if (input.customer?.id && requestedPoints > 0) {
     await redeemPoints({
@@ -247,14 +285,16 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
       reason: `استبدال نقاط - طلب ${result.order_number}`,
       userId: input.cashierId,
       storeId: input.storeId,
+      rule: loyaltyRule,
     });
   }
 
-  if (input.customer?.id && (await isFeatureEnabled("loyalty"))) {
+  if (input.customer?.id && loyaltyEnabled && loyaltyRule?.is_active) {
     await earnPoints({
       customerId: input.customer.id,
       orderId: order.id,
       orderTotal: order.total,
+      rule: loyaltyRule,
     });
   }
 

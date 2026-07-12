@@ -40,20 +40,59 @@ export function allocateLandedCosts(
   return allocations;
 }
 
+function enrichPurchasesInMemory(
+  invoices: PurchaseInvoice[],
+  lines: PurchaseInvoiceLine[],
+  suppliers: Awaited<ReturnType<typeof purchaseRepo.listSuppliers>>,
+  warehouses: Awaited<ReturnType<typeof warehouseRepo.listWarehouses>>
+): PurchaseWithLines[] {
+  const supplierMap = new Map(suppliers.map((s) => [s.id, s.name]));
+  const warehouseMap = new Map(warehouses.map((w) => [w.id, w.name]));
+  const linesByInvoice = new Map<string, PurchaseInvoiceLine[]>();
+  for (const line of lines) {
+    const list = linesByInvoice.get(line.invoice_id) ?? [];
+    list.push(line);
+    linesByInvoice.set(line.invoice_id, list);
+  }
+  return invoices.map((invoice) => ({
+    ...invoice,
+    lines: linesByInvoice.get(invoice.id) ?? [],
+    supplierName: supplierMap.get(invoice.supplier_id) ?? "Unknown",
+    warehouseName: warehouseMap.get(invoice.warehouse_id) ?? "Unknown warehouse",
+  }));
+}
+
 async function enrichPurchase(invoice: PurchaseInvoice): Promise<PurchaseWithLines> {
-  const [suppliers, warehouses] = await Promise.all([
+  const [suppliers, warehouses, lines] = await Promise.all([
     purchaseRepo.listSuppliers(),
     warehouseRepo.listWarehouses(invoice.store_id),
+    purchaseRepo.getPurchaseLines(invoice.id),
   ]);
-  const supplier = suppliers.find((s) => s.id === invoice.supplier_id);
-  const warehouse = warehouses.find((w) => w.id === invoice.warehouse_id);
-  const lines = await purchaseRepo.getPurchaseLines(invoice.id);
-  return {
-    ...invoice,
-    lines,
-    supplierName: supplier?.name ?? "Unknown",
-    warehouseName: warehouse?.name ?? "Unknown warehouse",
-  };
+  return enrichPurchasesInMemory([invoice], lines, suppliers, warehouses)[0]!;
+}
+
+/** Batch-enrich invoices with one lines/suppliers/warehouses pass. */
+export async function enrichPurchases(
+  invoices: PurchaseInvoice[],
+  options?: {
+    suppliers?: Awaited<ReturnType<typeof purchaseRepo.listSuppliers>>;
+    warehouses?: Awaited<ReturnType<typeof warehouseRepo.listWarehouses>>;
+  }
+): Promise<PurchaseWithLines[]> {
+  if (invoices.length === 0) return [];
+  const storeIds = [...new Set(invoices.map((i) => i.store_id))];
+  const [suppliers, warehouses, lines] = await Promise.all([
+    options?.suppliers
+      ? Promise.resolve(options.suppliers)
+      : purchaseRepo.listSuppliers(),
+    options?.warehouses
+      ? Promise.resolve(options.warehouses)
+      : storeIds.length === 1
+        ? warehouseRepo.listWarehouses(storeIds[0])
+        : warehouseRepo.listWarehouses(),
+    purchaseRepo.getPurchaseLinesForInvoices(invoices.map((i) => i.id)),
+  ]);
+  return enrichPurchasesInMemory(invoices, lines, suppliers, warehouses);
 }
 
 async function assertWarehouseBelongsToStore(
@@ -68,7 +107,7 @@ async function assertWarehouseBelongsToStore(
 
 export async function listPurchases(storeId?: string): Promise<PurchaseWithLines[]> {
   const invoices = await purchaseRepo.listPurchases(storeId);
-  return Promise.all(invoices.map(enrichPurchase));
+  return enrichPurchases(invoices);
 }
 
 export async function getPurchase(id: string): Promise<PurchaseWithLines | null> {

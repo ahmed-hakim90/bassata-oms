@@ -106,6 +106,20 @@ export async function getPurchaseLines(invoiceId: string): Promise<PurchaseInvoi
   return (data ?? []).map(mapPurchaseLine);
 }
 
+/** Batch-load lines for many invoices — avoids N+1 on purchase list/history. */
+export async function getPurchaseLinesForInvoices(
+  invoiceIds: string[]
+): Promise<PurchaseInvoiceLine[]> {
+  if (invoiceIds.length === 0) return [];
+  const db = await getDb();
+  const { data, error } = await db
+    .from("purchase_invoice_lines")
+    .select("*")
+    .in("invoice_id", invoiceIds);
+  if (error) throwDbError(error, "getPurchaseLinesForInvoices");
+  return (data ?? []).map(mapPurchaseLine);
+}
+
 export async function insertPurchase(
   invoice: Omit<PurchaseInvoice, "id" | "created_at">,
   lines: Omit<PurchaseInvoiceLine, "id" | "invoice_id">[]

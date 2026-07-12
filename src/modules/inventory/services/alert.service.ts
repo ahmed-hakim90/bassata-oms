@@ -44,12 +44,16 @@ function levelToAlert(level: StockLevelView): InventoryAlert {
   };
 }
 
-export async function getAlerts(storeId: string, warehouseId?: string): Promise<InventoryAlert[]> {
-  const low = await getLowStock(storeId, warehouseId);
+export function levelsToAlerts(low: StockLevelView[]): InventoryAlert[] {
   return low
     .map(levelToAlert)
     .sort((a, b) => {
       const order = { danger: 0, warning: 1, info: 2 };
       return order[a.severity] - order[b.severity];
     });
+}
+
+export async function getAlerts(storeId: string, warehouseId?: string): Promise<InventoryAlert[]> {
+  const low = await getLowStock(storeId, warehouseId);
+  return levelsToAlerts(low);
 }

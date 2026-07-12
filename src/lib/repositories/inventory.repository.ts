@@ -220,10 +220,33 @@ export async function listInventoryBatches(
   return (data ?? []) as unknown as InventoryBatch[];
 }
 
+/** Batches for specific products only — used by POS checkout expiry checks. */
+export async function listInventoryBatchesForProducts(
+  storeId: string,
+  warehouseId: string,
+  productIds: string[]
+): Promise<InventoryBatch[]> {
+  if (productIds.length === 0) return [];
+  const db = await getDb();
+  const { data, error } = await db
+    .from("inventory_batches")
+    .select("*")
+    .eq("store_id", storeId)
+    .eq("warehouse_id", warehouseId)
+    .in("product_id", productIds)
+    .order("expiry_date", { ascending: true });
+  if (error) throwDbError(error, "listInventoryBatchesForProducts");
+  return (data ?? []) as unknown as InventoryBatch[];
+}
+
 export async function listMovements(
   storeId?: string,
   warehouseId?: string,
-  limit = 200
+  limit = 200,
+  options?: {
+    from?: string;
+    movementTypes?: MovementType[];
+  }
 ): Promise<InventoryMovement[]> {
   const db = await getDb();
   let q = db
@@ -233,6 +256,10 @@ export async function listMovements(
     .limit(limit);
   if (storeId) q = q.eq("store_id", storeId);
   if (warehouseId) q = q.eq("warehouse_id", warehouseId);
+  if (options?.from) q = q.gte("created_at", options.from);
+  if (options?.movementTypes && options.movementTypes.length > 0) {
+    q = q.in("movement_type", options.movementTypes);
+  }
   const { data, error } = await q;
   if (error) throwDbError(error, "listMovements");
   return (data ?? []).map(mapMovement);

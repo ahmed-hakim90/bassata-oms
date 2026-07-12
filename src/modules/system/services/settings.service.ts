@@ -307,13 +307,13 @@ export async function updateExpenseSettings(
   return upsertSetting("expense_settings", { ...current, ...input }, userId);
 }
 
-export async function getSessionSettings() {
+export const getSessionSettings = cache(async () => {
   const setting = await getSetting("session_settings");
   return {
     ...DEFAULT_SESSION_SETTINGS,
     ...(setting?.value ?? {}),
   };
-}
+});
 
 export async function getInventoryPolicySettings() {
   const setting = await getSetting("inventory_policy");

@@ -3,6 +3,8 @@ import type {
   AppUser,
   AuditLog,
   CashierSession,
+  CashierVault,
+  CashierVaultLedgerEntry,
   Category,
   Customer,
   Device,
@@ -68,6 +70,8 @@ import type {
   PurchaseLineRow,
   PurchaseRow,
   SupplierPaymentRow,
+  CashierVaultLedgerRow,
+  CashierVaultRow,
   SessionRow,
   StockCountLineRow,
   StockCountRow,
@@ -342,6 +346,36 @@ export function mapSession(row: SessionRow): CashierSession {
     closed_by: row.closed_by ?? null,
     close_reason: row.close_reason ?? null,
     force_closed: row.force_closed ?? false,
+  };
+}
+
+export function mapCashierVault(row: CashierVaultRow): CashierVault {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    store_id: row.store_id,
+    cashier_id: row.cashier_id,
+    balance: num(row.balance),
+    pending_opening_float: num(row.pending_opening_float),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export function mapCashierVaultLedger(row: CashierVaultLedgerRow): CashierVaultLedgerEntry {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    store_id: row.store_id,
+    cashier_id: row.cashier_id,
+    vault_id: row.vault_id,
+    entry_type: row.entry_type as CashierVaultLedgerEntry["entry_type"],
+    amount: num(row.amount),
+    balance_after: num(row.balance_after),
+    session_id: row.session_id,
+    notes: row.notes ?? "",
+    created_by: row.created_by,
+    created_at: row.created_at,
   };
 }
 

@@ -41,7 +41,7 @@ describe("calcExpectedCash", () => {
       close_reason: null,
       force_closed: false,
     });
-    vi.mocked(orderRepo.listOrders).mockResolvedValue([
+    vi.mocked(orderRepo.listOrdersBySessionIds).mockResolvedValue([
       {
         id: "o1",
         store_id: "store1",
@@ -73,9 +73,10 @@ describe("calcExpectedCash", () => {
         created_at: new Date().toISOString(),
       },
     ]);
-    vi.mocked(orderRepo.getOrderPayments)
-      .mockResolvedValueOnce([{ id: "p1", order_id: "o1", method: "cash", amount: 50, reference: null }])
-      .mockResolvedValueOnce([{ id: "p2", order_id: "o2", method: "cash", amount: 20, reference: null }]);
+    vi.mocked(orderRepo.getOrderPaymentsForOrders).mockResolvedValue([
+      { id: "p1", order_id: "o1", method: "cash", amount: 50, reference: null },
+      { id: "p2", order_id: "o2", method: "cash", amount: 20, reference: null },
+    ]);
     vi.mocked(expenseRepo.listExpenses).mockResolvedValue([
       {
         id: "e1",
@@ -103,6 +104,10 @@ describe("calcExpectedCash", () => {
 
     const result = await calcExpectedCash("s1");
 
+    expect(orderRepo.listOrdersBySessionIds).toHaveBeenCalledWith(["s1"]);
+    expect(orderRepo.getOrderPaymentsForOrders).toHaveBeenCalledWith(["o1", "o2"]);
+    expect(orderRepo.listOrders).not.toHaveBeenCalled();
+    expect(orderRepo.getOrderPayments).not.toHaveBeenCalled();
     expect(result.openingCash).toBe(100);
     expect(result.cashSales).toBe(50);
     expect(result.cashRefunds).toBe(20);

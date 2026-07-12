@@ -1,11 +1,29 @@
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapOnlineOrder, mapOnlineOrderItem } from "@/lib/repositories/mappers";
-import type { OnlineOrder, OnlineOrderItem } from "@/lib/types";
+import type { OnlineOrder, OnlineOrderItem, OnlineOrderStatus } from "@/lib/types";
 
-export async function listOnlineOrders(storeId?: string): Promise<OnlineOrder[]> {
+export interface OnlineOrderListFilters {
+  storeId?: string;
+  statuses?: OnlineOrderStatus[];
+  limit?: number;
+}
+
+/** Accepts storeId string (legacy) or filter object. */
+export async function listOnlineOrders(
+  storeIdOrFilters?: string | OnlineOrderListFilters
+): Promise<OnlineOrder[]> {
+  const filters: OnlineOrderListFilters =
+    typeof storeIdOrFilters === "string" || storeIdOrFilters === undefined
+      ? { storeId: storeIdOrFilters }
+      : storeIdOrFilters;
+
   const db = await getDb();
   let q = db.from("online_orders").select("*").order("created_at", { ascending: false });
-  if (storeId) q = q.eq("store_id", storeId);
+  if (filters.storeId) q = q.eq("store_id", filters.storeId);
+  if (filters.statuses && filters.statuses.length > 0) {
+    q = q.in("status", filters.statuses);
+  }
+  if (filters.limit != null) q = q.limit(filters.limit);
   const { data, error } = await q;
   if (error) throwDbError(error, "listOnlineOrders");
   return (data ?? []).map(mapOnlineOrder);

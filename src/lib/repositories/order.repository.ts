@@ -11,13 +11,39 @@ import type {
   SalesMode,
 } from "@/lib/types";
 
-export async function listOrders(storeId?: string): Promise<Order[]> {
+export interface OrderListFilters {
+  storeId?: string;
+  status?: Order["status"] | Order["status"][];
+  from?: string;
+  to?: string;
+  limit?: number;
+  sessionId?: string;
+}
+
+/** Accepts storeId string (legacy) or filter object. */
+export async function listOrders(
+  storeIdOrFilters?: string | OrderListFilters
+): Promise<Order[]> {
+  const filters: OrderListFilters =
+    typeof storeIdOrFilters === "string" || storeIdOrFilters === undefined
+      ? { storeId: storeIdOrFilters }
+      : storeIdOrFilters;
+
   const db = await getDb();
   const storeIds = (await listStores()).map((store) => store.id);
   if (storeIds.length === 0) return [];
   let q = db.from("orders").select("*").order("created_at", { ascending: false });
   q = q.in("store_id", storeIds);
-  if (storeId) q = q.eq("store_id", storeId);
+  if (filters.storeId) q = q.eq("store_id", filters.storeId);
+  if (filters.sessionId) q = q.eq("session_id", filters.sessionId);
+  if (filters.status) {
+    q = Array.isArray(filters.status)
+      ? q.in("status", filters.status)
+      : q.eq("status", filters.status);
+  }
+  if (filters.from) q = q.gte("created_at", filters.from);
+  if (filters.to) q = q.lte("created_at", filters.to);
+  if (filters.limit != null) q = q.limit(filters.limit);
   const { data, error } = await q;
   if (error) throwDbError(error, "listOrders");
   return (data ?? []).map(mapOrder);

@@ -1,6 +1,7 @@
 import { formatUnit } from "@/lib/units";
 import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
+import type { InventoryMovement, MovementType, Warehouse } from "@/lib/types";
 import type { StockLevelView } from "@/modules/inventory/services/stock.service";
 import { getLowStock } from "@/modules/inventory/services/stock.service";
 
@@ -20,7 +21,7 @@ export interface ReorderSuggestion {
   message: string;
 }
 
-const CONSUMPTION_MOVEMENT_TYPES = new Set(["sale", "waste", "transfer_out"]);
+const CONSUMPTION_MOVEMENT_TYPES: MovementType[] = ["sale", "waste", "transfer_out"];
 const CONSUMPTION_LOOKBACK_DAYS = 30;
 const TARGET_COVER_DAYS = 14;
 
@@ -70,37 +71,44 @@ export function stockLevelToReorderSuggestion(
   };
 }
 
-async function getAverageDailyUsageByStockKey(storeId: string, warehouseId?: string) {
-  const movements = await inventoryRepo.listMovements(storeId, warehouseId, 1000);
+function consumptionCutoffIso(lookbackDays = CONSUMPTION_LOOKBACK_DAYS): string {
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - CONSUMPTION_LOOKBACK_DAYS);
+  cutoff.setDate(cutoff.getDate() - lookbackDays);
+  return cutoff.toISOString();
+}
+
+export function averageDailyUsageByStockKey(
+  movements: InventoryMovement[],
+  lookbackDays = CONSUMPTION_LOOKBACK_DAYS
+): Map<string, number> {
+  const consumptionTypes = new Set<string>(CONSUMPTION_MOVEMENT_TYPES);
   const usage = new Map<string, number>();
 
   for (const movement of movements) {
-    if (new Date(movement.created_at) < cutoff) continue;
-    if (!CONSUMPTION_MOVEMENT_TYPES.has(movement.movement_type)) continue;
+    if (!consumptionTypes.has(movement.movement_type)) continue;
     if (movement.quantity_delta >= 0) continue;
     const key = getConsumptionKey(movement);
     usage.set(key, (usage.get(key) ?? 0) + Math.abs(movement.quantity_delta));
   }
 
   return new Map(
-    [...usage.entries()].map(([key, quantity]) => [
-      key,
-      quantity / CONSUMPTION_LOOKBACK_DAYS,
-    ])
+    [...usage.entries()].map(([key, quantity]) => [key, quantity / lookbackDays])
   );
 }
 
-export async function getReorderSuggestions(
-  storeId: string,
-  warehouseId?: string
-): Promise<ReorderSuggestion[]> {
-  const [levels, warehouses] = await Promise.all([
-    getLowStock(storeId, warehouseId),
-    warehouseRepo.listWarehouses(storeId),
-  ]);
-  const usageByKey = await getAverageDailyUsageByStockKey(storeId, warehouseId);
+async function getAverageDailyUsageByStockKey(storeId: string, warehouseId?: string) {
+  const movements = await inventoryRepo.listMovements(storeId, warehouseId, 1000, {
+    from: consumptionCutoffIso(),
+    movementTypes: CONSUMPTION_MOVEMENT_TYPES,
+  });
+  return averageDailyUsageByStockKey(movements);
+}
+
+export function buildReorderSuggestions(
+  levels: StockLevelView[],
+  warehouses: Warehouse[],
+  usageByKey: Map<string, number>
+): ReorderSuggestion[] {
   const warehouseMap = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse.name]));
 
   return levels
@@ -116,4 +124,28 @@ export async function getReorderSuggestions(
       const priority = { urgent: 0, soon: 1 };
       return priority[a.priority] - priority[b.priority] || b.estimatedCost - a.estimatedCost;
     });
+}
+
+export async function getReorderSuggestions(
+  storeId: string,
+  warehouseId?: string,
+  preloaded?: {
+    levels?: StockLevelView[];
+    warehouses?: Warehouse[];
+    consumptionMovements?: InventoryMovement[];
+  }
+): Promise<ReorderSuggestion[]> {
+  const [levels, warehouses] = await Promise.all([
+    preloaded?.levels
+      ? Promise.resolve(preloaded.levels)
+      : getLowStock(storeId, warehouseId),
+    preloaded?.warehouses
+      ? Promise.resolve(preloaded.warehouses)
+      : warehouseRepo.listWarehouses(storeId),
+  ]);
+  const usageByKey = preloaded?.consumptionMovements
+    ? averageDailyUsageByStockKey(preloaded.consumptionMovements)
+    : await getAverageDailyUsageByStockKey(storeId, warehouseId);
+
+  return buildReorderSuggestions(levels, warehouses, usageByKey);
 }

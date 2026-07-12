@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAuth, requirePermissionOrRole } from "@/lib/auth/guards";
+import { requireAuth, requirePermissionOrRole, requireStoreAccess } from "@/lib/auth/guards";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { requirePosAccess, getPosAccessOrNull, PosAccessError } from "@/lib/auth/pos-access";
 import { calcExpectedCash } from "@/modules/sessions/services/reconciliation.service";
@@ -11,26 +11,73 @@ import {
   openSession,
   getSessionById,
 } from "@/modules/sessions/services/session.service";
+import {
+  getCashierVault,
+  getPendingOpeningFloat,
+  withdrawFromCashierVault,
+} from "@/modules/sessions/services/cashier-vault.service";
 import { getSessionSettings } from "@/modules/system/services/settings.service";
 
-export async function openSessionAction(openingCash: number) {
+function money(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function mapPosAccessError(error: PosAccessError): string {
+  const messages: Record<PosAccessError["code"], string> = {
+    login_required: "سجّل الدخول أولاً",
+    no_device: "اربط جهاز نقطة البيع من شاشة POS ثم أعد المحاولة",
+    device_inactive: "الجهاز غير نشط — فعّله من الإعدادات",
+    store_mismatch: "الجهاز لا يتبع الفرع الحالي — غيّر الفرع أو الجهاز",
+    store_required: "اختر الفرع أولاً قبل فتح الجلسة",
+    access_denied: "ليس لديك صلاحية على هذا الفرع",
+    cashier_required: "حدد الكاشير النشط على الجهاز",
+    role_denied: "دورك لا يسمح بفتح جلسة كاشير",
+  };
+  return messages[error.code] ?? error.message;
+}
+
+/**
+ * Resolve opening float:
+ * - Cashier (POS): locked to pending_opening_float (cannot invent float).
+ * - Owner/manager: may pass openingCash, else falls back to pending.
+ */
+export async function resolveOpeningCashForOpen(input: {
+  storeId: string;
+  cashierId: string;
+  role: string;
+  requestedOpeningCash?: number | null;
+}): Promise<number> {
+  const vault = await getCashierVault(input.storeId, input.cashierId);
+  const pending = vault.pending_opening_float;
+
+  if (input.role === "cashier") {
+    return pending;
+  }
+
+  if (input.requestedOpeningCash == null || Number.isNaN(input.requestedOpeningCash)) {
+    return pending;
+  }
+
+  const requested = money(input.requestedOpeningCash);
+  if (requested < 0) {
+    throw new Error("رصيد بداية الوردية لازم يكون صفر أو أكبر");
+  }
+  if (requested > vault.balance + 1e-9) {
+    throw new Error(
+      `رصيد الخزينة (${vault.balance}) غير كافٍ لرصيد بداية الوردية المطلوب`
+    );
+  }
+  return requested;
+}
+
+export async function openSessionAction(openingCash?: number | null) {
   await requirePermissionOrRole("session_open", ["owner", "manager", "cashier"]);
   let ctx;
   try {
     ctx = await requirePosAccess();
   } catch (error) {
     if (error instanceof PosAccessError) {
-      const messages: Record<PosAccessError["code"], string> = {
-        login_required: "سجّل الدخول أولاً",
-        no_device: "اربط جهاز نقطة البيع من شاشة POS ثم أعد المحاولة",
-        device_inactive: "الجهاز غير نشط — فعّله من الإعدادات",
-        store_mismatch: "الجهاز لا يتبع الفرع الحالي — غيّر الفرع أو الجهاز",
-        store_required: "اختر الفرع أولاً قبل فتح الجلسة",
-        access_denied: "ليس لديك صلاحية على هذا الفرع",
-        cashier_required: "حدد الكاشير النشط على الجهاز",
-        role_denied: "دورك لا يسمح بفتح جلسة كاشير",
-      };
-      throw new Error(messages[error.code] ?? error.message);
+      throw new Error(mapPosAccessError(error));
     }
     throw new Error(error instanceof Error ? error.message : "تعذر فتح الجلسة");
   }
@@ -38,16 +85,49 @@ export async function openSessionAction(openingCash: number) {
     throw new Error("ارجع لحسابك أو سجّل دخولك لفتح الجلسة");
   }
 
+  const resolvedOpeningCash = await resolveOpeningCashForOpen({
+    storeId: ctx.storeId,
+    cashierId: ctx.activeCashierId,
+    role: ctx.user.role,
+    requestedOpeningCash: openingCash,
+  });
+
   const session = await openSession({
     storeId: ctx.storeId,
     cashierId: ctx.activeCashierId,
     deviceId: ctx.deviceId,
-    openingCash,
+    openingCash: resolvedOpeningCash,
   });
 
   revalidatePath("/sessions");
   revalidatePath("/pos");
   return session;
+}
+
+/** POS quick-open: always uses locked pending float (or 0). */
+export async function quickOpenSessionAction() {
+  return openSessionAction(null);
+}
+
+export async function getPendingOpeningFloatAction(): Promise<{
+  pendingOpeningFloat: number;
+  vaultBalance: number;
+}> {
+  await requirePermissionOrRole("session_open", ["owner", "manager", "cashier"]);
+  let ctx;
+  try {
+    ctx = await requirePosAccess();
+  } catch (error) {
+    if (error instanceof PosAccessError) {
+      throw new Error(mapPosAccessError(error));
+    }
+    throw error;
+  }
+  const vault = await getCashierVault(ctx.storeId, ctx.activeCashierId);
+  return {
+    pendingOpeningFloat: vault.pending_opening_float,
+    vaultBalance: vault.balance,
+  };
 }
 
 export async function closeSessionAction(input: {
@@ -121,4 +201,32 @@ export async function forceCloseSessionAction(input: {
   revalidatePath("/");
   revalidatePath("/pos");
   return session;
+}
+
+export async function withdrawCashierVaultAction(input: {
+  storeId: string;
+  cashierId: string;
+  withdrawAmount: number;
+  nextOpeningFloat: number;
+  notes?: string;
+}) {
+  await requirePermissionOrRole(["owner", "manager"]);
+  await requireStoreAccess(input.storeId);
+
+  const vault = await withdrawFromCashierVault({
+    storeId: input.storeId,
+    cashierId: input.cashierId,
+    withdrawAmount: input.withdrawAmount,
+    nextOpeningFloat: input.nextOpeningFloat,
+    notes: input.notes,
+  });
+
+  revalidatePath("/sessions");
+  return vault;
+}
+
+export async function getCashierPendingFloatPreviewAction(storeId: string, cashierId: string) {
+  await requireAuth();
+  await requireStoreAccess(storeId);
+  return getPendingOpeningFloat(storeId, cashierId);
 }

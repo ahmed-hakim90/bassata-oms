@@ -1,7 +1,10 @@
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as purchaseRepo from "@/lib/repositories/purchase.repository";
 import type { Product, Supplier } from "@/lib/types";
-import type { PurchaseWithLines } from "@/modules/purchases/services/purchase.service";
+import {
+  enrichPurchases,
+  type PurchaseWithLines,
+} from "@/modules/purchases/services/purchase.service";
 
 export interface SupplierPriceHistoryEntry {
   id: string;
@@ -86,20 +89,23 @@ export function buildSupplierPriceHistory(
 }
 
 export async function getSupplierPriceHistory(
-  storeId: string
+  storeId: string,
+  preloaded?: {
+    purchases?: PurchaseWithLines[];
+    suppliers?: Supplier[];
+    products?: Product[];
+  }
 ): Promise<SupplierPriceSummary[]> {
-  const [invoices, suppliers, products] = await Promise.all([
-    purchaseRepo.listPurchases(storeId),
-    purchaseRepo.listSuppliers(),
-    catalogRepo.listProducts(),
+  const [purchases, suppliers, products] = await Promise.all([
+    preloaded?.purchases
+      ? Promise.resolve(preloaded.purchases)
+      : purchaseRepo.listPurchases(storeId).then((invoices) => enrichPurchases(invoices)),
+    preloaded?.suppliers
+      ? Promise.resolve(preloaded.suppliers)
+      : purchaseRepo.listSuppliers(),
+    preloaded?.products
+      ? Promise.resolve(preloaded.products)
+      : catalogRepo.listProducts(),
   ]);
-  const purchases: PurchaseWithLines[] = await Promise.all(
-    invoices.map(async (invoice) => ({
-      ...invoice,
-      lines: await purchaseRepo.getPurchaseLines(invoice.id),
-      supplierName: suppliers.find((supplier) => supplier.id === invoice.supplier_id)?.name ?? "Unknown",
-      warehouseName: "",
-    }))
-  );
   return buildSupplierPriceHistory(purchases, suppliers, products);
 }

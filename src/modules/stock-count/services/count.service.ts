@@ -26,7 +26,18 @@ async function enrichCount(count: StockCount): Promise<StockCountWithLines> {
 
 export async function listStockCounts(storeId?: string): Promise<StockCountWithLines[]> {
   const counts = await countRepo.listStockCounts(storeId);
-  return Promise.all(counts.map(enrichCount));
+  if (counts.length === 0) return [];
+  const lines = await countRepo.getStockCountLinesForCounts(counts.map((c) => c.id));
+  const linesByCount = new Map<string, StockCountLine[]>();
+  for (const line of lines) {
+    const list = linesByCount.get(line.count_id) ?? [];
+    list.push(line);
+    linesByCount.set(line.count_id, list);
+  }
+  return counts.map((count) => ({
+    ...count,
+    lines: linesByCount.get(count.id) ?? [],
+  }));
 }
 
 export async function getStockCount(id: string): Promise<StockCountWithLines | null> {

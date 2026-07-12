@@ -91,6 +91,8 @@ interface PosScreenProps {
   costCenterMap?: Record<string, string>;
   expenseCategoryMap?: Record<string, string>;
   storeDevices?: Device[];
+  /** Locked next-shift float from cashier vault (POS open cannot edit). */
+  pendingOpeningFloat?: number;
 }
 
 export function PosScreen({
@@ -125,6 +127,7 @@ export function PosScreen({
   costCenterMap,
   expenseCategoryMap,
   storeDevices = [],
+  pendingOpeningFloat = 0,
 }: PosScreenProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [creditOpen, setCreditOpen] = useState(false);
@@ -439,7 +442,11 @@ export function PosScreen({
 
   const sessionBannerAction =
     readinessState === "no_session" ? (
-      <QuickOpenSessionButton size="sm" label="ابدأ البيع" />
+      <QuickOpenSessionButton
+        size="sm"
+        label="ابدأ البيع"
+        pendingOpeningFloat={pendingOpeningFloat}
+      />
     ) : activeSession && sessionReconciliation ? (
       <PosCloseSessionDialog
         session={activeSession}
@@ -688,7 +695,11 @@ export function PosScreen({
                 {checkoutBlockedReason}
               </p>
               {readinessState === "no_session" ? (
-                <QuickOpenSessionButton className="w-full" label="ابدأ البيع الآن" />
+                <QuickOpenSessionButton
+                  className="w-full"
+                  label="ابدأ البيع الآن"
+                  pendingOpeningFloat={pendingOpeningFloat}
+                />
               ) : null}
               {readinessState === "session_expired" && sessionBannerAction ? (
                 <div className="flex justify-center">{sessionBannerAction}</div>
@@ -726,7 +737,11 @@ export function PosScreen({
                     {checkoutBlockedReason}
                   </p>
                   {readinessState === "no_session" ? (
-                    <QuickOpenSessionButton className="w-full" label="ابدأ البيع الآن" />
+                    <QuickOpenSessionButton
+                      className="w-full"
+                      label="ابدأ البيع الآن"
+                      pendingOpeningFloat={pendingOpeningFloat}
+                    />
                   ) : null}
                   {readinessState === "session_expired" && sessionBannerAction ? (
                     <div className="flex justify-center">{sessionBannerAction}</div>

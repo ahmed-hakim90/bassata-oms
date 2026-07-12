@@ -1,14 +1,13 @@
 import { getValidatedActiveStoreId } from "@/lib/auth/guards";
 import * as orgRepo from "@/lib/repositories/organization.repository";
+import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import {
   getActiveSessions,
-  getLiveStats,
-  getLowStock,
-  getRecentOrders,
-  getTopProducts,
+  getDashboardInventory,
+  getDashboardSales,
 } from "@/modules/dashboard/services/dashboard.service";
 import { LiveSalesPulse } from "@/modules/dashboard/components/live-sales-pulse";
 import { QuickActionsBar } from "@/modules/dashboard/components/quick-actions-bar";
@@ -16,33 +15,20 @@ import { ActiveSessionsWidget } from "@/modules/dashboard/components/active-sess
 import { RecentOrdersFeed } from "@/modules/dashboard/components/recent-orders-feed";
 import { TopProductsRanking } from "@/modules/dashboard/components/top-products-ranking";
 import { formatCurrency } from "@/lib/format";
-import { listStockLevels, listInventoryBatches } from "@/lib/repositories/inventory.repository";
-import { listProducts } from "@/lib/repositories/catalog.repository";
 
 export async function DashboardPage() {
   const storeId = await getValidatedActiveStoreId();
   const org = await orgRepo.getOrganization();
 
-  const [stats, lowStock, recentOrders, topProducts, activeSessions, stockLevels, batches, products] =
-    await Promise.all([
-      getLiveStats(storeId),
-      getLowStock(storeId),
-      getRecentOrders(storeId),
-      getTopProducts(storeId),
-      getActiveSessions(storeId),
-      listStockLevels(storeId),
-      listInventoryBatches(storeId),
-      listProducts(),
-    ]);
+  const products = await catalogRepo.listProducts();
+  const [sales, inventory, activeSessions] = await Promise.all([
+    getDashboardSales(storeId, { products }),
+    getDashboardInventory(storeId, products),
+    getActiveSessions(storeId),
+  ]);
 
-  const productCostMap = new Map(products.map((product) => [product.id, product.base_price]));
-  const inventoryValue = stockLevels.reduce((total, level) => {
-    const cost = productCostMap.get(level.product_id) ?? 0;
-    return total + level.quantity * cost;
-  }, 0);
-  const nearExpiryCount = batches.filter(
-    (batch) => Boolean(batch.expiry_date) && !batch.is_expired && batch.remaining_quantity > 0
-  ).length;
+  const { stats, topProducts, recentOrders } = sales;
+  const { lowStock, inventoryValue, nearExpiryCount } = inventory;
 
   return (
     <div className="flex flex-col gap-[var(--mds-space-6)]">

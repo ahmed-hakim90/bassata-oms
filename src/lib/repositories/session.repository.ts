@@ -54,9 +54,9 @@ export async function openSession(input: {
   cashierId: string;
   deviceId: string;
   openingCash: number;
-}): Promise<CashierSession> {
+}): Promise<{ session: CashierSession; created: boolean }> {
   const existing = await getActiveSession(input.storeId, input.cashierId);
-  if (existing) return existing;
+  if (existing) return { session: existing, created: false };
   const db = await getDb();
   const { data, error } = await db
     .from("cashier_sessions")
@@ -70,7 +70,7 @@ export async function openSession(input: {
     .select()
     .single();
   if (error || !data) throwDbError(error, "openSession");
-  return mapSession(data);
+  return { session: mapSession(data), created: true };
 }
 
 export async function closeSession(input: {

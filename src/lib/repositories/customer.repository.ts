@@ -6,19 +6,25 @@ import type { Customer, LoyaltyLedgerEntry, LoyaltyRule } from "@/lib/types";
 export async function listCustomers(search?: string): Promise<Customer[]> {
   const db = await getDb();
   const orgId = await getOrgId();
-  const { data, error } = await db.from("customers").select("*").eq("org_id", orgId);
-  if (error) throwDbError(error, "listCustomers");
-  let result = (data ?? []).map(mapCustomer).sort((a, b) => b.total_spent - a.total_spent);
-  if (search?.trim()) {
-    const q = search.trim().toLowerCase();
-    result = result.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.phone.includes(q) ||
-        (c.email?.toLowerCase().includes(q) ?? false)
-    );
+  let q = db.from("customers").select("*").eq("org_id", orgId);
+
+  const trimmed = search?.trim();
+  if (trimmed) {
+    // Strip PostgREST filter metacharacters; keep Arabic/letters/digits/spaces.
+    const safe = trimmed.replace(/[%_,.()"'\\]/g, "").trim();
+    if (!safe) return [];
+    const pattern = `"%${safe}%"`;
+    const digits = trimmed.replace(/\D/g, "");
+    const filters = [`name.ilike.${pattern}`, `phone.ilike.${pattern}`, `email.ilike.${pattern}`];
+    if (digits.length >= 3) {
+      filters.push(`phone.ilike."%${digits}%"`);
+    }
+    q = q.or(filters.join(",")).limit(25);
   }
-  return result;
+
+  const { data, error } = await q.order("total_spent", { ascending: false });
+  if (error) throwDbError(error, "listCustomers");
+  return (data ?? []).map(mapCustomer);
 }
 
 export async function getCustomer(id: string): Promise<Customer | null> {

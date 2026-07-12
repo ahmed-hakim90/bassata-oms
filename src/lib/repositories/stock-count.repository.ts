@@ -28,6 +28,20 @@ export async function getStockCountLines(countId: string): Promise<StockCountLin
   return (data ?? []).map(mapStockCountLine);
 }
 
+/** Batch-load lines for many counts — avoids N+1 on stock-count list. */
+export async function getStockCountLinesForCounts(
+  countIds: string[]
+): Promise<StockCountLine[]> {
+  if (countIds.length === 0) return [];
+  const db = await getDb();
+  const { data, error } = await db
+    .from("stock_count_lines")
+    .select("*")
+    .in("count_id", countIds);
+  if (error) throwDbError(error, "getStockCountLinesForCounts");
+  return (data ?? []).map(mapStockCountLine);
+}
+
 export async function createStockCount(
   input: Omit<StockCount, "id" | "started_at" | "completed_at">
 ): Promise<StockCount> {

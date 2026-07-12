@@ -18,32 +18,37 @@ export interface StockCategoryGroup {
   lowCount: number;
 }
 
-export async function listStockWithProducts(
-  storeId: string,
-  warehouseId?: string
-): Promise<StockWithProduct[]> {
-  const rawLevels = await inventoryRepo.listStockLevels(storeId, warehouseId);
-  const levels = warehouseId
-    ? rawLevels
-    : Array.from(
-        rawLevels
-          .reduce((map, level) => {
-            const key = `${level.product_id}:${level.variant_id ?? ""}`;
-            const existing = map.get(key);
-            if (!existing) {
-              map.set(key, { ...level, id: key, warehouse_id: "" });
-            } else {
-              existing.quantity += level.quantity;
-              existing.reorder_point += level.reorder_point;
-              if (level.updated_at > existing.updated_at) existing.updated_at = level.updated_at;
-            }
-            return map;
-          }, new Map<string, StockLevel>())
-          .values()
-      );
-  const products = await catalogRepo.listProducts();
-  const productMap = new Map(products.map((p) => [p.id, p]));
+function aggregateLevelsAcrossWarehouses(rawLevels: StockLevel[]): StockLevel[] {
+  return Array.from(
+    rawLevels
+      .reduce((map, level) => {
+        const key = `${level.product_id}:${level.variant_id ?? ""}`;
+        const existing = map.get(key);
+        if (!existing) {
+          map.set(key, { ...level, id: key, warehouse_id: "" });
+        } else {
+          existing.quantity += level.quantity;
+          existing.reorder_point += level.reorder_point;
+          if (level.updated_at > existing.updated_at) existing.updated_at = level.updated_at;
+        }
+        return map;
+      }, new Map<string, StockLevel>())
+      .values()
+  );
+}
 
+export function resolveStockLevels(
+  rawLevels: StockLevel[],
+  warehouseId?: string
+): StockLevel[] {
+  return warehouseId ? rawLevels : aggregateLevelsAcrossWarehouses(rawLevels);
+}
+
+export function attachProductsToLevels(
+  levels: StockLevel[],
+  products: Product[]
+): StockWithProduct[] {
+  const productMap = new Map(products.map((p) => [p.id, p]));
   return levels.map((level) => {
     const product = productMap.get(level.product_id);
     return {
@@ -54,9 +59,10 @@ export async function listStockWithProducts(
   });
 }
 
-export async function getLowStock(storeId: string, warehouseId?: string): Promise<StockLevelView[]> {
-  const levels = await listStockWithProducts(storeId, warehouseId);
-  const products = await catalogRepo.listProducts();
+export function toLowStockViews(
+  levels: StockWithProduct[],
+  products: Product[]
+): StockLevelView[] {
   const productMap = new Map(products.map((p) => [p.id, p]));
   return levels
     .filter((l) => l.quantity <= l.reorder_point)
@@ -67,16 +73,12 @@ export async function getLowStock(storeId: string, warehouseId?: string): Promis
     .filter((l) => l.product?.track_inventory);
 }
 
-export async function groupStockByCategory(
-  storeId: string,
-  warehouseId?: string,
+export function buildStockCategoryGroups(
+  levels: StockWithProduct[],
+  categories: Category[],
+  products: Product[],
   productType?: ProductType
-): Promise<StockCategoryGroup[]> {
-  const [levels, categories, products] = await Promise.all([
-    listStockWithProducts(storeId, warehouseId),
-    catalogRepo.listCategories(),
-    catalogRepo.listProducts(),
-  ]);
+): StockCategoryGroup[] {
   const productMap = new Map(products.map((p) => [p.id, p]));
   const byCategory = new Map<string, StockLevelView[]>();
 
@@ -102,4 +104,55 @@ export async function groupStockByCategory(
       };
     })
     .filter((group) => group.items.length > 0);
+}
+
+export async function listStockWithProducts(
+  storeId: string,
+  warehouseId?: string,
+  preloaded?: { levels?: StockLevel[]; products?: Product[] }
+): Promise<StockWithProduct[]> {
+  const [rawLevels, products] = await Promise.all([
+    preloaded?.levels
+      ? Promise.resolve(preloaded.levels)
+      : inventoryRepo.listStockLevels(storeId, warehouseId),
+    preloaded?.products
+      ? Promise.resolve(preloaded.products)
+      : catalogRepo.listProducts(),
+  ]);
+  return attachProductsToLevels(resolveStockLevels(rawLevels, warehouseId), products);
+}
+
+export async function getLowStock(
+  storeId: string,
+  warehouseId?: string,
+  preloaded?: { levels?: StockLevel[]; products?: Product[] }
+): Promise<StockLevelView[]> {
+  const products =
+    preloaded?.products ?? (await catalogRepo.listProducts());
+  const levels = await listStockWithProducts(storeId, warehouseId, {
+    levels: preloaded?.levels,
+    products,
+  });
+  return toLowStockViews(levels, products);
+}
+
+export async function groupStockByCategory(
+  storeId: string,
+  warehouseId?: string,
+  productType?: ProductType,
+  preloaded?: { levels?: StockLevel[]; products?: Product[]; categories?: Category[] }
+): Promise<StockCategoryGroup[]> {
+  const [rawLevels, categories, products] = await Promise.all([
+    preloaded?.levels
+      ? Promise.resolve(preloaded.levels)
+      : inventoryRepo.listStockLevels(storeId, warehouseId),
+    preloaded?.categories
+      ? Promise.resolve(preloaded.categories)
+      : catalogRepo.listCategories(),
+    preloaded?.products
+      ? Promise.resolve(preloaded.products)
+      : catalogRepo.listProducts(),
+  ]);
+  const levels = attachProductsToLevels(resolveStockLevels(rawLevels, warehouseId), products);
+  return buildStockCategoryGroups(levels, categories, products, productType);
 }

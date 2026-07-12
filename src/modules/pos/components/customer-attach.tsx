@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Search, Star, UserPlus, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { getCustomerLoyaltyBalanceAction } from "@/modules/pos/actions/loyalty-b
 import { usePosStore } from "@/stores/pos-store";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { formatCurrency } from "@/lib/format";
+
+const SEARCH_DEBOUNCE_MS = 250;
 
 export function CustomerAttach({
   loyaltyEnabled = false,
@@ -34,14 +36,24 @@ export function CustomerAttach({
   const [results, setResults] = useState<PosCustomerSearchResult[]>([]);
   const [loyaltyLoading, setLoyaltyLoading] = useState(false);
   const [, startTransition] = useTransition();
+  const searchSeqRef = useRef(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const controlled = expandedProp !== undefined;
   const expanded = controlled ? expandedProp : expandedInternal;
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   function setExpanded(next: boolean) {
     if (!next) {
       setPhone("");
       setResults([]);
+      searchSeqRef.current += 1;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     }
     if (!controlled) setExpandedInternal(next);
     onExpandedChange?.(next);
@@ -89,14 +101,23 @@ export function CustomerAttach({
 
   function handlePhoneChange(value: string) {
     setPhone(value);
-    if (value.length >= 3) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (value.length < 3) {
+      searchSeqRef.current += 1;
+      setResults([]);
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => {
+      const seq = ++searchSeqRef.current;
+      const query = value;
       startTransition(async () => {
-        const found = await searchCustomersAction(value);
+        const found = await searchCustomersAction(query);
+        if (seq !== searchSeqRef.current) return;
         setResults(found);
       });
-    } else {
-      setResults([]);
-    }
+    }, SEARCH_DEBOUNCE_MS);
   }
 
   function handleQuickCreate() {

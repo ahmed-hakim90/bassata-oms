@@ -9,7 +9,7 @@ import {
   canProductHaveRecipe,
 } from "@/modules/products/services/recipe.service";
 import { getFeatureFlags } from "@/modules/system/services/settings.service";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, StockLevel } from "@/lib/types";
 
 export type StockBadge = "in_stock" | "low" | "out" | "untracked";
 
@@ -69,6 +69,29 @@ function computeMakeableFromLines(
   return { qty, badge: computeStockBadge(qty, 5) };
 }
 
+function emptyLevelMaps(): {
+  baseLevelMap: Map<string, StockLevel>;
+  variantLevelMap: Map<string, StockLevel>;
+} {
+  return {
+    baseLevelMap: new Map(),
+    variantLevelMap: new Map(),
+  };
+}
+
+function buildLevelMaps(levels: StockLevel[]) {
+  return {
+    baseLevelMap: new Map(
+      levels.filter((l) => !l.variant_id).map((l) => [l.product_id, l])
+    ),
+    variantLevelMap: new Map(
+      levels
+        .filter((l) => l.variant_id)
+        .map((l) => [`${l.product_id}:${l.variant_id}`, l])
+    ),
+  };
+}
+
 export async function getProductsForPOS(
   storeId: string,
   categoryId?: string
@@ -76,46 +99,48 @@ export async function getProductsForPOS(
   const defaultWarehouse = await warehouseRepo.getDefaultWarehouse(storeId);
   if (!defaultWarehouse) throw new Error("Default warehouse not found");
 
-  const [categories, levels, flags, recipeKeys] = await Promise.all([
+  const [categories, flags, recipeKeys, productsRaw] = await Promise.all([
     catalogRepo.listCategories(),
-    inventoryRepo.listStockLevels(storeId, defaultWarehouse.id),
     getFeatureFlags(),
     recipeRepo.listRecipeKeys(),
+    catalogRepo.listProducts({
+      categoryId,
+      activeOnly: true,
+    }),
   ]);
 
+  const products = productsRaw.filter(canProductHaveRecipe);
   const recipesEnabled = flags.recipes === true;
   const recipeProductSet = new Set(recipeKeys.map((k) => k.productId));
   const recipeByKey = new Map(
     recipeKeys.map((k) => [`${k.productId}:${k.variantId ?? ""}`, k])
   );
 
+  const anyTracked = products.some((p) => p.track_inventory);
+  const anyRecipeOnCatalog =
+    recipesEnabled && products.some((p) => recipeProductSet.has(p.id));
+  const needsStock = anyTracked || anyRecipeOnCatalog;
+
+  const [variantMap, levels, recipeLinesCache, ingredientUnitMap] = await Promise.all([
+    catalogRepo.listVariantsForProducts(products.map((p) => p.id)),
+    needsStock
+      ? inventoryRepo.listStockLevels(storeId, defaultWarehouse.id)
+      : Promise.resolve([] as StockLevel[]),
+    anyRecipeOnCatalog
+      ? recipeRepo.listAllRecipeLinesByProductKey()
+      : Promise.resolve(new Map<string, Awaited<ReturnType<typeof recipeRepo.getRecipeLines>>>()),
+    anyRecipeOnCatalog
+      ? catalogRepo.listProducts().then((all) => {
+          const ingredients = all.filter(canProductBeRecipeIngredient);
+          return new Map(ingredients.map((p) => [p.id, p.unit]));
+        })
+      : Promise.resolve(new Map<string, string>()),
+  ]);
+
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
-  const baseLevelMap = new Map(
-    levels.filter((l) => !l.variant_id).map((l) => [l.product_id, l])
-  );
-  const variantLevelMap = new Map(
-    levels.filter((l) => l.variant_id).map((l) => [`${l.product_id}:${l.variant_id}`, l])
-  );
-
-  const products = (
-    await catalogRepo.listProducts({
-    categoryId,
-    activeOnly: true,
-    })
-  ).filter(canProductHaveRecipe);
-
-  const variantMap = await catalogRepo.listVariantsForProducts(products.map((p) => p.id));
-
-  const recipeLinesCache = new Map<string, Awaited<ReturnType<typeof recipeRepo.getRecipeLines>>>();
-  if (recipesEnabled) {
-    const allLines = await recipeRepo.listAllRecipeLinesByProductKey();
-    for (const [key, lines] of allLines) {
-      recipeLinesCache.set(key, lines);
-    }
-  }
-
-  const ingredientProducts = (await catalogRepo.listProducts()).filter(canProductBeRecipeIngredient);
-  const ingredientUnitMap = new Map(ingredientProducts.map((p) => [p.id, p.unit]));
+  const { baseLevelMap, variantLevelMap } = needsStock
+    ? buildLevelMaps(levels)
+    : emptyLevelMaps();
   const ingredientLevelMap = baseLevelMap;
 
   return products.map((product) => {
