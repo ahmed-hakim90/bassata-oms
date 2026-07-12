@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Banknote, CreditCard, UserCircle, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,12 @@ const PAY_NOW_METHODS: {
   },
 ];
 
+export type CreditCheckoutConfirm = {
+  payments: PaymentSplit[];
+  /** Extra cash/card applied to existing account debt (not part of this invoice). */
+  accountCollection: number;
+};
+
 interface PosCreditCheckoutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -60,7 +66,7 @@ interface PosCreditCheckoutDialogProps {
   customer: Customer | null;
   enabledMethods: PaymentMethod[];
   loading?: boolean;
-  onConfirm: (payments: PaymentSplit[]) => void;
+  onConfirm: (result: CreditCheckoutConfirm) => void;
 }
 
 export function PosCreditCheckoutDialog({
@@ -81,41 +87,62 @@ export function PosCreditCheckoutDialog({
     [enabledMethods]
   );
 
-  const [initOpen, setInitOpen] = useState(open);
-  if (open !== initOpen) {
-    setInitOpen(open);
-    if (open) {
-      setPayNow(false);
-      setAmountPaid("");
-      setPayMethod(availablePayMethods[0]?.id ?? "cash");
-    }
-  }
+  const owed = customer?.account_balance ?? 0;
+  const maxPayableNow = Math.round((total + Math.max(0, owed)) * 100) / 100;
+
+  useEffect(() => {
+    if (!open) return;
+    setPayNow(false);
+    setAmountPaid("");
+    setPayMethod(availablePayMethods[0]?.id ?? "cash");
+  }, [open, availablePayMethods]);
 
   const paidValue = Number(amountPaid);
   const paid = payNow && Number.isFinite(paidValue) ? Math.max(0, paidValue) : 0;
-  const creditRemainder = Math.round(Math.max(0, total - paid) * 100) / 100;
   const paidRounded = Math.round(paid * 100) / 100;
-  const amountTooHigh = payNow && paidRounded > total + 0.001;
+  const invoiceCovered = Math.min(paidRounded, total);
+  const creditRemainder = Math.round(Math.max(0, total - invoiceCovered) * 100) / 100;
+  const accountCollection = Math.round(Math.max(0, paidRounded - total) * 100) / 100;
+  const amountTooHigh = payNow && paidRounded > maxPayableNow + 0.001;
   const amountInvalid = payNow && (!Number.isFinite(paidValue) || paidValue < 0);
+  const balanceAfter =
+    Math.round((Math.max(0, owed) - accountCollection + creditRemainder) * 100) / 100;
+
   const canSubmit =
     Boolean(customer) &&
     total > 0 &&
     !loading &&
     !amountTooHigh &&
     !amountInvalid &&
-    creditRemainder > 0.001 &&
     (!payNow || paidRounded > 0);
 
   function handleConfirm() {
     if (!canSubmit || !customer) return;
+
     if (!payNow || paidRounded <= 0) {
-      onConfirm([{ method: "credit", amount: total }]);
+      onConfirm({
+        payments: [{ method: "credit", amount: total }],
+        accountCollection: 0,
+      });
       return;
     }
-    onConfirm([
-      { method: payMethod, amount: paidRounded },
-      { method: "credit", amount: creditRemainder },
-    ]);
+
+    if (creditRemainder > 0.001) {
+      onConfirm({
+        payments: [
+          { method: payMethod, amount: invoiceCovered },
+          { method: "credit", amount: creditRemainder },
+        ],
+        accountCollection: 0,
+      });
+      return;
+    }
+
+    // Fully covers invoice; any surplus is collected against account debt.
+    onConfirm({
+      payments: [{ method: payMethod, amount: total }],
+      accountCollection,
+    });
   }
 
   return (
@@ -135,9 +162,9 @@ export function PosCreditCheckoutDialog({
 
         {customer ? (
           <div className="space-y-4">
-            {customer.account_balance > 0 ? (
+            {owed > 0 ? (
               <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                مستحق حاليًا على الحساب: {formatCurrency(customer.account_balance)}
+                مستحق حاليًا على الحساب: {formatCurrency(owed)}
               </p>
             ) : null}
 
@@ -170,8 +197,10 @@ export function PosCreditCheckoutDialog({
                     : "border-border hover:border-muted-foreground/30"
                 )}
               >
-                <p className="text-sm font-semibold">هيدفع جزء</p>
-                <p className="mt-1 text-xs text-muted-foreground">والباقي يتسجل آجل</p>
+                <p className="text-sm font-semibold">هيدفع دلوقتي</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  جزء أو أكتر — الزيادة تنزل من المستحق
+                </p>
               </button>
             </div>
 
@@ -183,7 +212,7 @@ export function PosCreditCheckoutDialog({
                     id="credit-pay-now-amount"
                     type="number"
                     min={0}
-                    max={total}
+                    max={maxPayableNow}
                     step="0.01"
                     value={amountPaid}
                     onChange={(e) => setAmountPaid(e.target.value)}
@@ -191,8 +220,19 @@ export function PosCreditCheckoutDialog({
                     autoFocus
                     placeholder="0.00"
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    أقصى مبلغ: {formatCurrency(maxPayableNow)}
+                    {owed > 0 ? ` (الفاتورة + المستحق)` : ""}
+                  </p>
                   {amountTooHigh ? (
-                    <p className="text-xs text-destructive">المبلغ أكبر من إجمالي الفاتورة</p>
+                    <p className="text-xs text-destructive">
+                      المبلغ أكبر من الفاتورة والمستحق معًا
+                    </p>
+                  ) : null}
+                  {accountCollection > 0.001 ? (
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      منها {formatCurrency(accountCollection)} تحصيل على الحساب القديم
+                    </p>
                   ) : null}
                 </div>
                 {availablePayMethods.length > 0 ? (
@@ -231,20 +271,24 @@ export function PosCreditCheckoutDialog({
                   {formatCurrency(paidRounded)}
                 </span>
               </div>
+              {accountCollection > 0.001 ? (
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">ينزل من المستحق</span>
+                  <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    -{formatCurrency(accountCollection)}
+                  </span>
+                </div>
+              ) : null}
               <div className="flex justify-between gap-2 border-t border-amber-200/70 pt-2 dark:border-amber-500/20">
-                <span className="font-medium">هيفضل آجل</span>
+                <span className="font-medium">هيفضل آجل من الفاتورة</span>
                 <span className="font-bold tabular-nums text-amber-800 dark:text-amber-200">
                   {formatCurrency(creditRemainder)}
                 </span>
               </div>
-              {customer.account_balance > 0 ? (
+              {owed > 0 || creditRemainder > 0 || accountCollection > 0 ? (
                 <div className="flex justify-between gap-2 text-xs text-muted-foreground">
                   <span>مستحق بعد العملية</span>
-                  <span className="tabular-nums">
-                    {formatCurrency(
-                      Math.round((customer.account_balance + creditRemainder) * 100) / 100
-                    )}
-                  </span>
+                  <span className="tabular-nums">{formatCurrency(balanceAfter)}</span>
                 </div>
               ) : null}
             </div>

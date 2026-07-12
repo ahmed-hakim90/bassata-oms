@@ -45,6 +45,8 @@ import { PosAccessDenied } from "@/modules/pos/components/pos-access-denied";
 import { PosCloseSessionDialog } from "@/modules/pos/components/pos-close-session-dialog";
 import { ManagerOverrideDialog } from "@/modules/pos/components/manager-override-dialog";
 import { PosCreditCheckoutDialog } from "@/modules/pos/components/pos-credit-checkout-dialog";
+import type { CreditCheckoutConfirm } from "@/modules/pos/components/pos-credit-checkout-dialog";
+import { recordCustomerPaymentAction } from "@/modules/customers/actions/customer.actions";
 import { PosCollectFlowDialog } from "@/modules/pos/components/pos-collect-flow-dialog";
 import { PosReceiptSuccessDialog } from "@/modules/pos/components/pos-receipt-success-dialog";
 import { QuickOpenSessionButton } from "@/modules/sessions/components/quick-open-session-button";
@@ -150,6 +152,7 @@ export function PosScreen({
     title: string;
     defaultReason: string;
     payments?: PaymentSplit[];
+    accountCollection?: number;
   } | null>(null);
 
   const barcodeEnabled = featureFlags.barcode_scanner !== false;
@@ -269,7 +272,11 @@ export function PosScreen({
     setSearchTerm("");
   }
 
-  function runCheckout(payments: PaymentSplit[], overrideReason?: string) {
+  function runCheckout(
+    payments: PaymentSplit[],
+    overrideReason?: string,
+    accountCollection = 0
+  ) {
     const checkoutPaymentMethod = payments[0]?.method ?? paymentMethod;
     const needsDiscountOverride = requiresManagerDiscountOverride(
       discountAmount,
@@ -280,6 +287,9 @@ export function PosScreen({
     startTransition(async () => {
       const receiptCart = [...cart];
       const receiptCustomer = customer ? { name: customer.name, phone: customer.phone } : null;
+      const attachedCustomer = customer;
+      const collectionMethod =
+        payments.find((payment) => payment.method !== "credit")?.method ?? "cash";
       const redemptionAmount = loyaltyRedemption?.amount ?? 0;
       const receiptDiscount = discountAmount + redemptionAmount;
       const receiptTotal = Math.max(0, getCartTotal(cart, discountAmount) - redemptionAmount);
@@ -304,7 +314,27 @@ export function PosScreen({
         if (!result?.orderNumber) {
           throw new Error("فشل إتمام البيع");
         }
-        // Success UI only after a confirmed order number — never on failure.
+
+        let collectionNote = "";
+        if (
+          accountCollection > 0.001 &&
+          attachedCustomer &&
+          collectionMethod !== "credit"
+        ) {
+          const collected = await recordCustomerPaymentAction({
+            customerId: attachedCustomer.id,
+            amount: accountCollection,
+            paymentMethod: collectionMethod,
+            reference: result.orderNumber,
+            notes: `تحصيل مع فاتورة ${result.orderNumber}`,
+          });
+          if (!collected.success) {
+            toast.error(`تم البيع، لكن تحصيل المستحق فشل: ${collected.error}`);
+          } else {
+            collectionNote = ` · وتحصيل ${formatCurrency(accountCollection)} من الحساب`;
+          }
+        }
+
         setOverrideDialog(null);
         if (cashDrawerEnabled && payments.some((payment) => payment.method === "cash")) {
           openCashDrawerHook();
@@ -325,7 +355,7 @@ export function PosScreen({
         clearCart();
         setCreditOpen(false);
         playPosSuccessSound();
-        toast.success(`تم إتمام الطلب ${result.orderNumber}`);
+        toast.success(`تم إتمام الطلب ${result.orderNumber}${collectionNote}`);
       } catch (error) {
         playPosErrorSound();
         toast.error(error instanceof Error ? error.message : "فشل إتمام البيع");
@@ -333,7 +363,11 @@ export function PosScreen({
     });
   }
 
-  function handleComplete(payments: PaymentSplit[]) {
+  function handleCreditConfirm({ payments, accountCollection }: CreditCheckoutConfirm) {
+    handleComplete(payments, accountCollection);
+  }
+
+  function handleComplete(payments: PaymentSplit[], accountCollection = 0) {
     if (payments.some((payment) => payment.method === "credit") && !customer) {
       playPosErrorSound();
       toast.error("اختر عميلًا للبيع الآجل");
@@ -365,10 +399,11 @@ export function PosScreen({
             ? "تمت الموافقة على بيع بعد انتهاء الجلسة"
             : "تمت الموافقة على الخصم",
         payments,
+        accountCollection,
       });
       return;
     }
-    runCheckout(payments);
+    runCheckout(payments, undefined, accountCollection);
   }
 
   if (readinessState === "no_device") {
@@ -709,7 +744,7 @@ export function PosScreen({
           customer={customer}
           enabledMethods={enabledPaymentMethods}
           loading={pending}
-          onConfirm={handleComplete}
+          onConfirm={handleCreditConfirm}
         />
 
         <VariantPickerDialog
@@ -808,7 +843,11 @@ export function PosScreen({
           return;
         }
         if (overrideDialog.payments) {
-          runCheckout(overrideDialog.payments, reason);
+          runCheckout(
+            overrideDialog.payments,
+            reason,
+            overrideDialog.accountCollection ?? 0
+          );
         }
       }}
     />
