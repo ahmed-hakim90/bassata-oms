@@ -38,6 +38,18 @@ export async function quickCreateCustomerAction(input: {
     "manager",
     "cashier",
   ]);
-  const created = await quickCreateCustomer({ ...input, userId: user.id });
-  return { ...created, loyalty_balance: 0 };
+  try {
+    const created = await quickCreateCustomer({
+      name: input.name.trim(),
+      phone: input.phone.trim(),
+      userId: user.id,
+    });
+    return { ...created, loyalty_balance: 0 };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Phone number already registered")) {
+      throw new Error("رقم الهاتف مسجل من قبل");
+    }
+    throw error instanceof Error ? error : new Error("فشل إضافة العميل");
+  }
 }

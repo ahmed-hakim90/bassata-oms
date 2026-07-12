@@ -17,6 +17,15 @@ import { formatCurrency } from "@/lib/format";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
+function splitQueryHint(query: string): { name: string; phone: string } {
+  const trimmed = query.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length >= 3 && digits.length >= trimmed.replace(/\s+/g, "").length * 0.6) {
+    return { name: "", phone: trimmed };
+  }
+  return { name: trimmed, phone: "" };
+}
+
 export function CustomerAttach({
   loyaltyEnabled = false,
   expanded: expandedProp,
@@ -32,10 +41,13 @@ export function CustomerAttach({
   const setCustomer = usePosStore((s) => s.setCustomer);
   const setCustomerLoyaltyBalance = usePosStore((s) => s.setCustomerLoyaltyBalance);
   const [phone, setPhone] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createPhone, setCreatePhone] = useState("");
   const [expandedInternal, setExpandedInternal] = useState(false);
   const [results, setResults] = useState<PosCustomerSearchResult[]>([]);
   const [loyaltyLoading, setLoyaltyLoading] = useState(false);
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
   const searchSeqRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -52,6 +64,9 @@ export function CustomerAttach({
     if (!next) {
       setPhone("");
       setResults([]);
+      setCreateOpen(false);
+      setCreateName("");
+      setCreatePhone("");
       searchSeqRef.current += 1;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     }
@@ -120,13 +135,35 @@ export function CustomerAttach({
     }, SEARCH_DEBOUNCE_MS);
   }
 
-  function handleQuickCreate() {
+  function openCreateForm() {
+    const hint = splitQueryHint(phone);
+    setCreateName(hint.name || "زائر");
+    setCreatePhone(hint.phone);
+    setCreateOpen(true);
+  }
+
+  function handleCreate() {
+    const name = createName.trim();
+    const phoneValue = createPhone.trim();
+    if (!name) {
+      toast.error("اكتب اسم العميل");
+      return;
+    }
+    if (!phoneValue) {
+      toast.error("اكتب رقم الهاتف");
+      return;
+    }
     startTransition(async () => {
-      const created = await quickCreateCustomerAction({
-        name: "زائر",
-        phone: phone || "+10000000000",
-      });
-      attachCustomer(created);
+      try {
+        const created = await quickCreateCustomerAction({
+          name,
+          phone: phoneValue,
+        });
+        toast.success(`تم إضافة ${created.name}`);
+        attachCustomer(created);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "فشل إضافة العميل");
+      }
     });
   }
 
@@ -176,6 +213,46 @@ export function CustomerAttach({
           >
             <X className="size-4" aria-hidden />
           </Button>
+        </div>
+      ) : createOpen ? (
+        <div className="space-y-2">
+          <Input
+            placeholder="اسم العميل"
+            aria-label="اسم العميل"
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+            className="h-11 rounded-xl"
+            autoFocus
+          />
+          <Input
+            placeholder="رقم الهاتف"
+            aria-label="رقم الهاتف"
+            value={createPhone}
+            onChange={(e) => setCreatePhone(e.target.value)}
+            className="h-11 rounded-xl"
+            dir="ltr"
+            inputMode="tel"
+          />
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-11 flex-1 rounded-xl"
+              onClick={() => setCreateOpen(false)}
+              disabled={pending}
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              size="sm"
+              className="h-11 flex-1 rounded-xl"
+              onClick={handleCreate}
+              disabled={pending}
+            >
+              <UserPlus className="size-3.5" />
+              حفظ وربط
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -242,7 +319,7 @@ export function CustomerAttach({
             <Button
               size="sm"
               className="h-11 flex-1 rounded-xl"
-              onClick={handleQuickCreate}
+              onClick={openCreateForm}
             >
               <UserPlus className="size-3.5" />
               {t("New guest")}

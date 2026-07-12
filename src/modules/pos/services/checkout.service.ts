@@ -10,6 +10,7 @@ import { getSessionSettings, isFeatureEnabled } from "@/modules/system/services/
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
 import type { CartLine, CashierSession, Customer, Order, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { SalesMode } from "@/lib/constants";
+import { after } from "next/server";
 
 export interface CheckoutInput {
   storeId: string;
@@ -91,21 +92,13 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   const requestedPoints = Math.floor(input.loyaltyPoints ?? 0);
   let loyaltyDiscount = 0;
   let loyaltyRule = null;
-  let loyaltyEnabled = false;
 
-  if (requestedPoints > 0 || input.customer?.id) {
-    const [enabled, rule] = await Promise.all([
-      isFeatureEnabled("loyalty"),
-      getLoyaltyRule(),
-    ]);
-    loyaltyEnabled = enabled;
-    loyaltyRule = rule;
-  }
-
+  // Only block the sale for redemption validation. Earn runs after response.
   if (requestedPoints > 0) {
     if (!input.customer?.id) {
       throw new Error("اختر عميلاً لاستبدال نقاط الولاء");
     }
+    loyaltyRule = await getLoyaltyRule();
     if (!loyaltyRule?.is_active || loyaltyRule.redemption_rate <= 0) {
       throw new Error("برنامج الولاء غير مفعل");
     }
@@ -222,12 +215,24 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     });
   }
 
-  if (input.customer?.id && loyaltyEnabled && loyaltyRule?.is_active) {
-    await earnPoints({
-      customerId: input.customer.id,
-      orderId: order.id,
-      orderTotal: order.total,
-      rule: loyaltyRule,
+  // Earn after the cashier gets success — do not block invoice/toast.
+  if (input.customer?.id) {
+    const customerId = input.customer.id;
+    const orderId = order.id;
+    const orderTotal = order.total;
+    after(() => {
+      void (async () => {
+        try {
+          if (!(await isFeatureEnabled("loyalty"))) return;
+          await earnPoints({
+            customerId,
+            orderId,
+            orderTotal,
+          });
+        } catch (error) {
+          console.error("[checkout] deferred loyalty earn failed", error);
+        }
+      })();
     });
   }
 

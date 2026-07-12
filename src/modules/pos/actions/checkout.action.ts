@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireFeatures, requirePermissionOrRole } from "@/lib/auth/guards";
 import { requirePosAccess, getActiveSessionForPos } from "@/lib/auth/pos-access";
@@ -149,9 +150,10 @@ export async function checkoutAction(input: {
       },
     });
 
-    revalidatePath("/orders");
-    // Avoid revalidatePath("/pos") — remounting POS mid-sale surfaces Next.js
-    // production digests and can freeze/interrupt the cashier screen.
+    // Do not delay cashier success toast / receipt for cache revalidation.
+    after(() => {
+      revalidatePath("/orders");
+    });
 
     return { success: true, ...result };
   } catch (error) {
