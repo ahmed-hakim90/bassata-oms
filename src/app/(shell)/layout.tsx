@@ -4,30 +4,20 @@ import { headers } from "next/headers";
 import { AppShell } from "@/components/layout/app-shell";
 import { AccessDenied } from "@/components/SweetFlow/access-denied";
 import { getActiveStoreId, getCurrentUser } from "@/lib/auth/session";
+import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
 import { getPageAccessDenial } from "@/lib/auth/page-access";
 import { requireStoreAccess } from "@/lib/auth/guards";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
 import { getFeatureFlags } from "@/modules/system/services/settings.service";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import * as storeRepo from "@/lib/repositories/store.repository";
-import { resolvePlatformAdmin } from "@/modules/platform/services/platform-admin.service";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 
 export default async function ShellLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
-  if (!user) {
-    // Platform-only admins have auth but no tenant users row — send them to control plane.
-    if (await resolvePlatformAdmin()) redirect("/platform");
-    // Unprovisioned auth session: sign out to avoid login ↔ / redirect loops.
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-    redirect("/login");
-  }
+  const user = await ensureTenantUser(await getCurrentUser());
   const [featureFlags, allStores, cookieStoreId, permissions, posReadiness] = await Promise.all([
     getFeatureFlags(),
     storeRepo.listStores(),

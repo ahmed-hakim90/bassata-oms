@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { PosPinSwitch } from "@/modules/pos/components/pos-pin-switch";
 import { PosSetupStepper } from "@/modules/pos/components/pos-setup-stepper";
+import { selectLabelById } from "@/lib/select-label";
 import type { Store as StoreType } from "@/lib/types";
 
 interface PosStoreGateProps {
@@ -75,11 +76,13 @@ export function PosStoreGate({
             <Label htmlFor="pos-store">الفرع</Label>
             <Select value={selectedId} onValueChange={(value) => setSelectedId(value ?? "")}>
               <SelectTrigger id="pos-store" className="h-11 rounded-xl">
-                <SelectValue placeholder="اختر الفرع" />
+                <SelectValue placeholder="اختر الفرع">
+                  {(value) => selectLabelById(stores, value, (s) => s.name)}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {stores.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
+                  <SelectItem key={store.id} value={store.id} label={store.name}>
                     {store.name}
                   </SelectItem>
                 ))}

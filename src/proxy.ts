@@ -10,7 +10,7 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/onboarding",
-  "/auth/callback",
+  "/auth",
   "/menu",
   "/track",
 ];
@@ -39,9 +39,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { response: supabaseResponse, user: authUser } = await updateSession(request);
+  const { response: supabaseResponse, hasSession: hasAuthSession } =
+    await updateSession(request);
 
-  const hasAuthSession = Boolean(authUser);
   const isPublic = isPublicPath(pathname);
 
   if (!hasAuthSession && !isPublic) {
@@ -50,8 +50,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Skip bounce when landing after forced sign-out / auth errors (avoids stale-cookie loops).
   if (hasAuthSession && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", request.url));
+    const { searchParams } = request.nextUrl;
+    if (!searchParams.has("error") && !searchParams.has("signedout")) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
   }
 
   const needsDevice =

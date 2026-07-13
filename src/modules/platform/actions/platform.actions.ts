@@ -7,10 +7,16 @@ import {
   revokeCompanyInvite,
 } from "@/modules/platform/services/platform-invite.service";
 import { setOrganizationStatus } from "@/modules/platform/services/platform-org.service";
+import { exportPlatformOrganizationsReport } from "@/modules/platform/services/platform-report.service";
 
 export type PlatformActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: string };
+
+function revalidatePlatformOrg(orgId?: string) {
+  revalidatePath("/platform");
+  if (orgId) revalidatePath(`/platform/orgs/${orgId}`);
+}
 
 export async function suspendOrganizationAction(
   orgId: string
@@ -18,7 +24,7 @@ export async function suspendOrganizationAction(
   try {
     const admin = await requirePlatformAdmin();
     await setOrganizationStatus(admin, orgId, "suspended");
-    revalidatePath("/platform");
+    revalidatePlatformOrg(orgId);
     return { ok: true, data: undefined };
   } catch (error) {
     return {
@@ -34,7 +40,7 @@ export async function reactivateOrganizationAction(
   try {
     const admin = await requirePlatformAdmin();
     await setOrganizationStatus(admin, orgId, "active");
-    revalidatePath("/platform");
+    revalidatePlatformOrg(orgId);
     return { ok: true, data: undefined };
   } catch (error) {
     return {
@@ -82,6 +88,21 @@ export async function revokeCompanyInviteAction(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "فشل إلغاء الدعوة",
+    };
+  }
+}
+
+export async function exportPlatformOrganizationsExcelAction(): Promise<
+  PlatformActionResult<{ base64: string; fileName: string }>
+> {
+  try {
+    await requirePlatformAdmin();
+    const report = await exportPlatformOrganizationsReport();
+    return { ok: true, data: report };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "فشل تصدير التقرير",
     };
   }
 }

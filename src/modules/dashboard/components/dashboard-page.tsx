@@ -1,4 +1,6 @@
-import { getValidatedActiveStoreId, requireAuth } from "@/lib/auth/guards";
+import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { getCurrentUser } from "@/lib/auth/session";
+import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import { PageHeader } from "@/components/SweetFlow/page-header";
@@ -20,7 +22,7 @@ import { OwnerFinanceOverview } from "@/modules/dashboard/components/owner-finan
 import { formatCurrency } from "@/lib/format";
 
 export async function DashboardPage() {
-  const user = await requireAuth();
+  const user = await ensureTenantUser(await getCurrentUser());
   const isOwner = user.role === "owner";
   const storeId = await getValidatedActiveStoreId();
   const org = await orgRepo.getOrganization();

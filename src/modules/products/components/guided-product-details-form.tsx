@@ -398,7 +398,11 @@ export function GuidedProductDetailsForm({
                   }}
                 >
                   <SelectTrigger aria-invalid={!!errors.sales_unit_type}>
-                    <SelectValue />
+                    <SelectValue>
+                      {(value) =>
+                        salesUnitChoices.find((u) => u.id === value)?.label ?? null
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {salesUnitChoices.map((u) => (

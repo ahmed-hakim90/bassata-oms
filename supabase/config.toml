@@ -27,6 +27,8 @@ additional_redirect_urls = [
   "http://localhost:3000/auth/callback?next=/reset-password",
 ]
 enable_signup = false
+# Access token lifetime; refresh cookies keep the user signed in across browser restarts.
+jwt_expiry = 3600
 
 [studio]
 enabled = true

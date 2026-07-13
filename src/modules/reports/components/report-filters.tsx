@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PAYMENT_METHODS } from "@/lib/constants";
+import { selectLabelById } from "@/lib/select-label";
 import type { Store } from "@/lib/types";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { ReportFilters } from "@/modules/reports/core/report-filters.schema";
@@ -122,12 +123,20 @@ export function ReportFiltersBar({
             onValueChange={(v) => apply({ storeId: v === "all" ? undefined : v ?? undefined })}
           >
             <SelectTrigger className="w-[180px] rounded-[var(--mds-radius-md)]">
-              <SelectValue />
+              <SelectValue>
+                {(value) =>
+                  value === "all"
+                    ? t("All stores")
+                    : selectLabelById(stores, value, (s) => s.name)
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("All stores")}</SelectItem>
+              <SelectItem value="all" label={t("All stores")}>
+                {t("All stores")}
+              </SelectItem>
               {stores.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
+                <SelectItem key={s.id} value={s.id} label={s.name}>
                   {s.name}
                 </SelectItem>
               ))}
@@ -146,12 +155,16 @@ export function ReportFiltersBar({
             }
           >
             <SelectTrigger className="w-[160px] rounded-[var(--mds-radius-md)]">
-              <SelectValue />
+              <SelectValue>
+                {(value) => (value === "all" ? t("All") : value ? t(String(value)) : null)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("All")}</SelectItem>
+              <SelectItem value="all" label={t("All")}>
+                {t("All")}
+              </SelectItem>
               {PAYMENT_METHODS.map((m) => (
-                <SelectItem key={m} value={m}>
+                <SelectItem key={m} value={m} label={t(m)}>
                   {t(m)}
                 </SelectItem>
               ))}

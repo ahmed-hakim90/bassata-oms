@@ -47,6 +47,11 @@ export default async function PlatformLayout({
             <Link href="/platform" className="truncate text-base font-semibold text-foreground">
               {APP_NAME} Platform
             </Link>
+            <nav className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
+              <Link href="/platform" className="hover:text-foreground hover:underline">
+                الشركات
+              </Link>
+            </nav>
           </div>
           <div className="flex shrink-0 items-center gap-[var(--mds-space-2)]">
             <span className="hidden max-w-[220px] truncate text-sm text-muted-foreground sm:inline">

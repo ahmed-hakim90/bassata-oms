@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermissionOrRole, AuthError } from "@/lib/auth/guards";
+import { requirePermissionOrRole, requireRole, AuthError } from "@/lib/auth/guards";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { getAuditLogs } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -26,6 +26,10 @@ import {
   createDevice,
   createUser,
   deactivateUser,
+  deleteStorePermanently,
+  deleteUserPermanently,
+  StoreDeleteBlockedError,
+  UserDeleteBlockedError,
   listDevices,
   listStores,
   listUsers,
@@ -338,8 +342,11 @@ export async function updateUserAction(
   }
 }
 
-function userAdminAuthErrorMessage(action: "deactivate" | "pin" | "password"): string {
+function userAdminAuthErrorMessage(
+  action: "deactivate" | "delete" | "pin" | "password"
+): string {
   if (action === "deactivate") return "ليس لديك صلاحية تعطيل المستخدمين.";
+  if (action === "delete") return "ليس لديك صلاحية حذف المستخدمين.";
   if (action === "pin") return "ليس لديك صلاحية إعادة ضبط PIN.";
   return "ليس لديك صلاحية إعادة ضبط كلمة المرور.";
 }
@@ -364,13 +371,52 @@ export async function deactivateUserAction(
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (message.toLowerCase().includes("at least one active owner")) {
+    if (
+      message.includes("مالك نشط") ||
+      message.toLowerCase().includes("at least one active owner")
+    ) {
       return {
         success: false,
         error: "لازم يفضل مالك نشط واحد على الأقل. مش هتقدر تعطّل المالك الوحيد.",
       };
     }
     return { success: false, error: "تعذر تعطيل المستخدم." };
+  }
+}
+
+export async function deleteUserPermanentlyAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  let actor;
+  try {
+    actor = await requirePermissionOrRole("user_manage", ["owner"]);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { success: false, error: userAdminAuthErrorMessage("delete") };
+    }
+    return { success: false, error: "تعذر حذف المستخدم." };
+  }
+
+  try {
+    await deleteUserPermanently(id, actor.id);
+    revalidatePath("/users");
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof UserDeleteBlockedError) {
+      return { success: false, error: error.message };
+    }
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("مالك نشط")) {
+      return {
+        success: false,
+        error: "لازم يفضل مالك نشط واحد على الأقل. مش هتقدر تمسح المالك الوحيد.",
+      };
+    }
+    if (message) {
+      return { success: false, error: message };
+    }
+    return { success: false, error: "تعذر حذف المستخدم نهائيًا." };
   }
 }
 
@@ -442,6 +488,36 @@ export async function createStoreAction(input: {
   revalidatePath("/settings");
   revalidatePath("/", "layout");
   return store;
+}
+
+export async function deleteStorePermanentlyAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  let actor;
+  try {
+    actor = await requireRole(["owner"]);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { success: false, error: "الحذف النهائي للفرع متاح للمالك فقط." };
+    }
+    return { success: false, error: "تعذر حذف الفرع." };
+  }
+
+  try {
+    await deleteStorePermanently(id, actor.id);
+    revalidatePath("/settings");
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof StoreDeleteBlockedError) {
+      return { success: false, error: error.message };
+    }
+    const message = error instanceof Error ? error.message : "";
+    if (message) {
+      return { success: false, error: message };
+    }
+    return { success: false, error: "تعذر حذف الفرع نهائيًا." };
+  }
 }
 
 export async function updateStoreAction(

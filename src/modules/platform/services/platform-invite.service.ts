@@ -39,6 +39,16 @@ export async function listCompanyInvites(limit = 50): Promise<PlatformInviteRow[
   return data ?? [];
 }
 
+export async function countPendingCompanyInvites(): Promise<number> {
+  const admin = createAdminClient();
+  const { count, error } = await admin
+    .from("platform_company_invites")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+  if (error) throw new Error(`platform_company_invites count failed: ${error.message}`);
+  return count ?? 0;
+}
+
 export async function createCompanyInvite(
   platformAdmin: PlatformAdmin,
   input: {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Pencil, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import type { AppUser, Store, Permission, PermissionKey } from "@/lib/types";
 import type { UserRole } from "@/lib/constants";
 import { ROLE_LABELS } from "@/lib/constants";
@@ -35,6 +37,7 @@ import { UserPermissionOverrides } from "@/modules/accounting/components/user-pe
 import {
   createUserAction,
   deactivateUserAction,
+  deleteUserPermanentlyAction,
   resetUserPinAction,
   resetUserPasswordAction,
   updateUserAction,
@@ -77,8 +80,10 @@ export function UsersPage({
   permissionsData,
   embedded,
 }: UsersPageProps) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
   const [pinValue, setPinValue] = useState("");
   const [passwordValue, setPasswordValue] = useState("");
   const [form, setForm] = useState({
@@ -609,7 +614,7 @@ export function UsersPage({
                   </div>
                 ) : null}
               </div>
-              <SheetFooter className="gap-2 sm:flex-row">
+              <SheetFooter className="gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
                   disabled={pending}
@@ -627,6 +632,7 @@ export function UsersPage({
                       if (result.success) {
                         toast.success("تم تعطيل المستخدم");
                         setEditingUserId(null);
+                        router.refresh();
                         return;
                       }
                       toast.error(result.error ?? "تعذر تعطيل المستخدم");
@@ -635,11 +641,46 @@ export function UsersPage({
                 >
                   تعطيل
                 </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={pending}
+                  onClick={() => setUserToDelete(editingUser)}
+                >
+                  حذف نهائي
+                </Button>
               </SheetFooter>
             </>
           ) : null}
         </SheetContent>
       </Sheet>
+
+      <ConfirmActionDialog
+        open={userToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setUserToDelete(null);
+        }}
+        title="حذف المستخدم نهائيًا؟"
+        description={
+          userToDelete
+            ? `هيتشال ${userToDelete.name} (${userToDelete.email}) من الداتابيز وحساب الدخول. لو عنده طلبات أو جلسات أو مصروفات أو حركات مخزون، العملية هتترفض وعليك تستخدم التعطيل.`
+            : ""
+        }
+        confirmLabel="حذف نهائي"
+        destructive
+        onConfirm={async () => {
+          if (!userToDelete) return;
+          const result = await deleteUserPermanentlyAction(userToDelete.id);
+          if (!result.success) {
+            toast.error(result.error ?? "تعذر حذف المستخدم نهائيًا");
+            throw new Error(result.error ?? "delete failed");
+          }
+          toast.success("تم حذف المستخدم نهائيًا");
+          setUserToDelete(null);
+          setEditingUserId(null);
+          router.refresh();
+        }}
+      />
     </>
   );
 }

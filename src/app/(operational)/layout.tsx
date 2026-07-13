@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { redirect } from "next/navigation";
+import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
 import { AccessDenied } from "@/components/SweetFlow/access-denied";
 import {
   getEffectivePermissions,
@@ -13,8 +13,7 @@ export default async function OperationalLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await ensureTenantUser(await getCurrentUser());
 
   const [permissions, rbacSeeded] = await Promise.all([
     getEffectivePermissions(user),

@@ -37,6 +37,7 @@ import type {
   ProductStockCardLine,
   ProductStockCardReport,
 } from "@/modules/reports/services/product-stock-card.service";
+import { selectLabelById } from "@/lib/select-label";
 import type { Store, Warehouse as WarehouseType } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -273,7 +274,9 @@ export function ProductStockCardView({
               onValueChange={(v) => apply({ productId: v || undefined })}
             >
               <SelectTrigger className="w-[220px] rounded-[var(--mds-radius-md)]">
-                <SelectValue placeholder="اختر صنف…" />
+                <SelectValue placeholder="اختر صنف…">
+                  {(value) => selectLabelById(products, value, (p) => p.name)}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {products.length === 0 ? (
@@ -282,7 +285,11 @@ export function ProductStockCardView({
                   </SelectItem>
                 ) : (
                   products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
+                    <SelectItem
+                      key={p.id}
+                      value={p.id}
+                      label={p.sku ? `${p.name} · ${p.sku}` : p.name}
+                    >
                       {p.name}
                       {p.sku ? ` · ${p.sku}` : ""}
                     </SelectItem>
@@ -305,11 +312,13 @@ export function ProductStockCardView({
                 }
               >
                 <SelectTrigger className="w-[160px] rounded-[var(--mds-radius-md)]">
-                  <SelectValue />
+                  <SelectValue>
+                    {(value) => selectLabelById(stores, value, (s) => s.name)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {stores.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
+                    <SelectItem key={s.id} value={s.id} label={s.name}>
                       {s.name}
                     </SelectItem>
                   ))}
@@ -327,12 +336,20 @@ export function ProductStockCardView({
               }
             >
               <SelectTrigger className="w-[160px] rounded-[var(--mds-radius-md)]">
-                <SelectValue />
+                <SelectValue>
+                  {(value) =>
+                    value === "all"
+                      ? "كل المخازن"
+                      : selectLabelById(warehouses, value, (w) => w.name)
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">كل المخازن</SelectItem>
+                <SelectItem value="all" label="كل المخازن">
+                  كل المخازن
+                </SelectItem>
                 {warehouses.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>
+                  <SelectItem key={w.id} value={w.id} label={w.name}>
                     {w.name}
                   </SelectItem>
                 ))}

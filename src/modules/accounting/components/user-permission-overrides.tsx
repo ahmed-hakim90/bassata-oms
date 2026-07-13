@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import type { AppUser, Permission } from "@/lib/types";
 import type { PermissionKey } from "@/lib/constants";
+import { selectLabelById } from "@/lib/select-label";
 import { updateUserPermissionGrantsAction } from "@/modules/accounting/actions/permission.actions";
 
 interface UserPermissionOverridesProps {
@@ -65,14 +66,28 @@ export function UserPermissionOverrides({
     return acc;
   }, {});
 
+  const eligibleUsers = users.filter((u) => u.role !== "owner");
+
   return (
     <OperationalCard title="User permission overrides" description="Grant or deny specific permissions per user (owner only)">
       <div className="mb-4 max-w-sm">
         <Select value={userId} onValueChange={(v) => { setUserId(v ?? ""); setOverrides({}); }}>
-          <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
+          <SelectTrigger>
+            <SelectValue placeholder="Select user">
+              {(value) =>
+                selectLabelById(
+                  eligibleUsers,
+                  value,
+                  (u) => `${u.name} (${u.role})`
+                )
+              }
+            </SelectValue>
+          </SelectTrigger>
           <SelectContent>
-            {users.filter((u) => u.role !== "owner").map((u) => (
-              <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
+            {eligibleUsers.map((u) => (
+              <SelectItem key={u.id} value={u.id} label={`${u.name} (${u.role})`}>
+                {u.name} ({u.role})
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
