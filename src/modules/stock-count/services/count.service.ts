@@ -30,8 +30,54 @@ export function isActiveStockCountStatus(status: StockCountStatus): boolean {
   return ACTIVE_STOCK_COUNT_STATUSES.includes(status);
 }
 
+async function buildLinesForProducts(
+  count: StockCount,
+  products: Awaited<ReturnType<typeof catalogRepo.listProducts>>
+): Promise<Omit<StockCountLine, "id">[]> {
+  const lines: Omit<StockCountLine, "id">[] = [];
+  for (const product of products) {
+    const expected = await getStockLevel(
+      count.store_id,
+      count.warehouse_id,
+      product.id,
+      null
+    );
+    lines.push({
+      count_id: count.id,
+      product_id: product.id,
+      variant_id: null,
+      expected_qty: expected,
+      counted_qty: expected,
+      variance: 0,
+    });
+  }
+  return lines;
+}
+
+/**
+ * Ensures an in-progress count has lines for every active tracked product.
+ * Heals empty/orphan counts created before products existed or after a failed insert.
+ */
+export async function syncCountLines(count: StockCount): Promise<StockCountLine[]> {
+  const existing = await countRepo.getStockCountLines(count.id);
+  if (count.status !== "in_progress") return existing;
+
+  const tracked = (await catalogRepo.listProducts({ activeOnly: true })).filter(
+    (p) => p.track_inventory
+  );
+  const existingIds = new Set(existing.map((l) => l.product_id));
+  const missing = tracked.filter((p) => !existingIds.has(p.id));
+  if (missing.length === 0) return existing;
+
+  await countRepo.insertStockCountLines(await buildLinesForProducts(count, missing));
+  return countRepo.getStockCountLines(count.id);
+}
+
 async function enrichCount(count: StockCount): Promise<StockCountWithLines> {
-  const lines = await countRepo.getStockCountLines(count.id);
+  const lines =
+    count.status === "in_progress"
+      ? await syncCountLines(count)
+      : await countRepo.getStockCountLines(count.id);
   return { ...count, lines };
 }
 
@@ -76,20 +122,10 @@ export async function startStockCount(input: {
     created_by: input.createdBy,
   });
 
-  const products = await catalogRepo.listProducts({ activeOnly: true });
-  const lines: Omit<StockCountLine, "id">[] = [];
-  for (const product of products.filter((p) => p.track_inventory)) {
-    const expected = await getStockLevel(input.storeId, input.warehouseId, product.id, null);
-    lines.push({
-      count_id: count.id,
-      product_id: product.id,
-      variant_id: null,
-      expected_qty: expected,
-      counted_qty: expected,
-      variance: 0,
-    });
-  }
-  await countRepo.insertStockCountLines(lines);
+  const tracked = (await catalogRepo.listProducts({ activeOnly: true })).filter(
+    (p) => p.track_inventory
+  );
+  await countRepo.insertStockCountLines(await buildLinesForProducts(count, tracked));
 
   const orgId = await getOrgId();
   await writeAuditLog({
@@ -99,7 +135,10 @@ export async function startStockCount(input: {
     action: "stock_count.started",
     entityType: "stock_count",
     entityId: count.id,
-    metadata: { warehouseId: input.warehouseId },
+    metadata: {
+      warehouseId: input.warehouseId,
+      lineCount: tracked.length,
+    },
   });
 
   return enrichCount(count);

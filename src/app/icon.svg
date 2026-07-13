@@ -1,20 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
   <defs>
     <linearGradient id="bg" x1="6" y1="2" x2="26" y2="30" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3B82F6"/>
-      <stop offset="1" stop-color="#1D4ED8"/>
+      <stop stop-color="#0e7490"/>
+      <stop offset="1" stop-color="#155e75"/>
     </linearGradient>
   </defs>
   <rect width="32" height="32" rx="8" fill="url(#bg)"/>
-  <g transform="translate(16 15.5) scale(1.15) translate(-12 -12)">
-    <path d="M17 7A5 5 0 0 0 7 7" fill="#FFFFFF"/>
-    <path d="M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4" fill="#FFFFFF"/>
-    <path
-      d="m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11"
-      stroke="#FFFFFF"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-  </g>
+  <text
+    x="16"
+    y="22"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-size="16"
+    font-weight="700"
+    fill="#FFFFFF"
+  >V</text>
 </svg>

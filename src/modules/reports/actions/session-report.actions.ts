@@ -113,6 +113,6 @@ export async function exportSessionsReportExcel(params: Record<string, string | 
   });
   return {
     base64: workbookToBase64(workbook),
-    filename: `CafeFlow-sessions-${data.range.days}d.xlsx`,
+    filename: `Velora-sessions-${data.range.days}d.xlsx`,
   };
 }

@@ -26,11 +26,7 @@ export function OrderDetailDialog({
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!open || !orderId) {
-      setOrder(null);
-      setError(null);
-      return;
-    }
+    if (!open || !orderId) return;
 
     let cancelled = false;
     startTransition(async () => {
@@ -55,6 +51,16 @@ export function OrderDetailDialog({
       cancelled = true;
     };
   }, [open, orderId]);
+
+  // Clear stale detail when dialog closes (adjust during render).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) {
+      setOrder(null);
+      setError(null);
+    }
+  }
 
   const title = order?.order_number ?? "تفاصيل الفاتورة";
   const description = order

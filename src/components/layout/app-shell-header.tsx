@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { LogOut, Menu, Search, ShoppingCart, Store } from "lucide-react";
 import { logoutAction } from "@/modules/auth/actions/logout.action";
 import { setActiveStoreAction } from "@/modules/auth/actions/set-store.action";
@@ -89,6 +89,7 @@ export function AppShellHeader({
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [navPathname, setNavPathname] = useState(pathname);
   const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen);
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
@@ -98,9 +99,11 @@ export function AppShellHeader({
   const posHref = cta.href ?? "/pos";
   const roleLabel = ROLE_LABELS_AR[userRole];
 
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [pathname]);
+  // Close mobile nav on route change (adjust state during render — React-recommended).
+  if (pathname !== navPathname) {
+    setNavPathname(pathname);
+    if (mobileNavOpen) setMobileNavOpen(false);
+  }
 
   const openPalette = () => setCommandPaletteOpen(true);
   const paletteTooltip =

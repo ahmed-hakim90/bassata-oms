@@ -50,10 +50,10 @@ export function PosCloseSessionDialog({
     if (!open) return;
 
     let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
 
     void (async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
         const res = await fetch("/api/pos/session-cash", { cache: "no-store" });
         const body = (await res.json()) as SessionCashResponse;

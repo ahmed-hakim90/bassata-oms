@@ -1,12 +1,20 @@
 import { asJson, getDb, throwDbError } from "@/lib/repositories/client";
+import { listStores } from "@/lib/repositories/store.repository";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
 export type PosHeldCartRow = Database["public"]["Tables"]["pos_held_carts"]["Row"];
+
+async function orgStoreIds(): Promise<string[]> {
+  return (await listStores()).map((store) => store.id);
+}
 
 export async function listHeldCartsForDevice(input: {
   storeId: string;
   deviceId: string;
 }): Promise<PosHeldCartRow[]> {
+  const storeIds = await orgStoreIds();
+  if (!storeIds.includes(input.storeId)) return [];
+
   const db = await getDb();
   const { data, error } = await db
     .from("pos_held_carts")
@@ -19,8 +27,16 @@ export async function listHeldCartsForDevice(input: {
 }
 
 export async function getHeldCart(id: string): Promise<PosHeldCartRow | null> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return null;
+
   const db = await getDb();
-  const { data, error } = await db.from("pos_held_carts").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db
+    .from("pos_held_carts")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
   if (error) throwDbError(error, "getHeldCart");
   return (data as PosHeldCartRow | null) ?? null;
 }

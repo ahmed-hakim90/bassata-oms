@@ -70,7 +70,7 @@ export async function exportCustomerStatementExcel(
 
   return {
     base64: workbookToBase64(workbook),
-    filename: `CafeFlow-customer-${statement.customerName.replace(/\s+/g, "-").toLowerCase()}.xlsx`,
+    filename: `Velora-customer-${statement.customerName.replace(/\s+/g, "-").toLowerCase()}.xlsx`,
     currency: org.currency,
     statement,
   };
@@ -134,7 +134,7 @@ export async function exportSupplierStatementExcel(
 
   return {
     base64: workbookToBase64(workbook),
-    filename: `CafeFlow-supplier-${statement.supplier.name.replace(/\s+/g, "-").toLowerCase()}.xlsx`,
+    filename: `Velora-supplier-${statement.supplier.name.replace(/\s+/g, "-").toLowerCase()}.xlsx`,
     currency: org.currency,
     statement,
   };

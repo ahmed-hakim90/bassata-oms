@@ -137,7 +137,7 @@ export default async function PosPage() {
     settled(
       getReportBranding(storeId),
       {
-        orgName: "SweetFlow",
+        orgName: "Velora",
         orgLogoUrl: null,
         currency: "EGP",
         storeName: null,

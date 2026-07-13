@@ -40,7 +40,7 @@ const ownerUserId = "00000000-0000-4000-8000-000000000201";
 const storeFrom = "00000000-0000-4000-8000-000000000102";
 const storeTo = "00000000-0000-4000-8000-000000000101";
 const storePurchase = "00000000-0000-4000-8000-000000000101";
-const supplierId = "00000000-0000-4000-8000-000000000601";
+const supplierId = "00000000-0000-4000-8000-000000000501";
 
 if (!url || !anonKey) {
   console.error("Missing Supabase env");

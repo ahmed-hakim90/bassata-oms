@@ -64,7 +64,7 @@ Quick login: any seeded email below with password **`demo1234`** (from `scripts/
 
 One-liner demo DB: `npm run db:reset-demo`
 
-> **Note:** Product name is **CafeFlow ERP & POS** (`cafeflow-erp-pos`).
+> **Note:** Product name is **Velora** (package: `cafeflow-erp-pos`). Tagline: نظام كاشير وإدارة فروع.
 
 ## Supabase Setup (Production)
 

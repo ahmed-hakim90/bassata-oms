@@ -1446,7 +1446,11 @@ export type Database = {
           created_at: string
           customer_name: string
           customer_phone: string | null
+          delivery_address: string
+          delivery_area: string
+          delivery_fee: number
           discount: number
+          fulfillment_type: string | null
           id: string
           notes: string
           order_id: string | null
@@ -1461,7 +1465,11 @@ export type Database = {
           created_at?: string
           customer_name: string
           customer_phone?: string | null
+          delivery_address?: string
+          delivery_area?: string
+          delivery_fee?: number
           discount?: number
+          fulfillment_type?: string | null
           id?: string
           notes?: string
           order_id?: string | null
@@ -1476,7 +1484,11 @@ export type Database = {
           created_at?: string
           customer_name?: string
           customer_phone?: string | null
+          delivery_address?: string
+          delivery_area?: string
+          delivery_fee?: number
           discount?: number
+          fulfillment_type?: string | null
           id?: string
           notes?: string
           order_id?: string | null
@@ -2400,6 +2412,7 @@ export type Database = {
           supports_weight_sale: boolean
           track_inventory: boolean
           unit: Database["public"]["Enums"]["measurement_unit"]
+          units_per_purchase_unit: number
           updated_at: string
           wholesale_enabled: boolean
         }
@@ -2437,6 +2450,7 @@ export type Database = {
           supports_weight_sale?: boolean
           track_inventory?: boolean
           unit?: Database["public"]["Enums"]["measurement_unit"]
+          units_per_purchase_unit?: number
           updated_at?: string
           wholesale_enabled?: boolean
         }
@@ -2474,6 +2488,7 @@ export type Database = {
           supports_weight_sale?: boolean
           track_inventory?: boolean
           unit?: Database["public"]["Enums"]["measurement_unit"]
+          units_per_purchase_unit?: number
           updated_at?: string
           wholesale_enabled?: boolean
         }
@@ -2982,18 +2997,21 @@ export type Database = {
           contact_info: string
           id: string
           name: string
+          opening_balance: number
           org_id: string
         }
         Insert: {
           contact_info?: string
           id?: string
           name: string
+          opening_balance?: number
           org_id: string
         }
         Update: {
           contact_info?: string
           id?: string
           name?: string
+          opening_balance?: number
           org_id?: string
         }
         Relationships: [
@@ -3458,6 +3476,15 @@ export type Database = {
     Functions: {
       assert_device_pairing_rate_limit: {
         Args: { p_org_id: string }
+        Returns: undefined
+      }
+      assert_and_record_online_public_rate_limit: {
+        Args: {
+          p_bucket_key: string
+          p_action: string
+          p_max_events?: number
+          p_window_seconds?: number
+        }
         Returns: undefined
       }
       auth_app_user_id: { Args: never; Returns: string }

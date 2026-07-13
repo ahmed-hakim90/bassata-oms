@@ -47,7 +47,6 @@ function buildPosterSvg(input: {
   storeCode: string;
   address?: string | null;
   phone?: string | null;
-  menuUrl: string;
   qrDataUrl: string;
 }): string {
   const palette = paletteFor(input.storeCode || input.storeName);
@@ -55,7 +54,6 @@ function buildPosterSvg(input: {
   const storeCode = escapeXml(input.storeCode || "MENU");
   const address = escapeXml(truncateText(input.address?.trim() || "امسح الكود وشوف المنيو", 58));
   const phone = escapeXml(input.phone?.trim() || "");
-  const menuUrl = escapeXml(truncateText(input.menuUrl, 70));
   const initial = escapeXml(input.storeName.trim().slice(0, 1) || "M");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -94,8 +92,7 @@ function buildPosterSvg(input: {
 
     <rect x="250" y="1460" width="700" height="92" rx="46" fill="#FFFFFF" opacity="0.18"/>
     <text x="600" y="1522" text-anchor="middle" font-size="34" font-weight="800" fill="#FFFFFF">فرع ${storeCode}</text>
-    ${phone ? `<text x="600" y="1598" text-anchor="middle" font-size="32" font-weight="700" fill="#FFFFFF" opacity="0.9">للطلب: ${phone}</text>` : ""}
-    <text x="600" y="1662" text-anchor="middle" font-size="24" fill="#FFFFFF" opacity="0.78">${menuUrl}</text>
+    ${phone ? `<text x="600" y="1620" text-anchor="middle" font-size="32" font-weight="700" fill="#FFFFFF" opacity="0.9">للطلب: ${phone}</text>` : ""}
   </g>
 </svg>`;
 }
@@ -118,17 +115,15 @@ export function BranchQrDownloadCard({
   phone,
   onlineMenuHref,
 }: BranchQrDownloadCardProps) {
-  const [origin, setOrigin] = useState("");
+  const [origin] = useState(() =>
+    typeof window !== "undefined" ? window.location.origin : ""
+  );
   const [qrDataUrl, setQrDataUrl] = useState("");
 
   const menuUrl = useMemo(() => {
     if (!origin) return onlineMenuHref;
     return new URL(onlineMenuHref, origin).toString();
   }, [onlineMenuHref, origin]);
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,10 +155,9 @@ export function BranchQrDownloadCard({
       storeCode,
       address,
       phone,
-      menuUrl,
       qrDataUrl,
     });
-  }, [address, menuUrl, phone, qrDataUrl, storeCode, storeName]);
+  }, [address, phone, qrDataUrl, storeCode, storeName]);
 
   const posterDataUrl = posterSvg
     ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(posterSvg)}`

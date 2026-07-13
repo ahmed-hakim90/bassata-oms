@@ -142,6 +142,6 @@ export async function exportSalesReportExcel(params: Record<string, string | und
 
   return {
     base64: workbookToBase64(workbook),
-    filename: `CafeFlow-sales-${range.days}d.xlsx`,
+    filename: `Velora-sales-${range.days}d.xlsx`,
   };
 }

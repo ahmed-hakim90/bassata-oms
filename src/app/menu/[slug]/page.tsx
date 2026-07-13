@@ -21,14 +21,47 @@ function firstSearchParam(value: string | string[] | undefined): string | undefi
 export async function generateMetadata({ params, searchParams }: MenuPageProps): Promise<Metadata> {
   const { slug } = await params;
   const token = firstSearchParam((await searchParams).token);
-  const menu = await getOnlineMenuBySlug(slug, { token });
-  if (!menu) return { title: "منيو أونلاين", robots: { index: false, follow: false } };
+  const menu = await getOnlineMenuBySlug(slug, { token, skipRateLimit: true });
+  if (!menu) {
+    return {
+      title: { absolute: "منيو أونلاين" },
+      robots: { index: false, follow: false },
+    };
+  }
+
+  // Public menu must read as the merchant (النشاط), never the Velora product brand.
+  const businessName =
+    menu.organization.name.trim() || menu.store.name.trim() || "منيو أونلاين";
+  const description =
+    menu.store.description.trim() ||
+    `منيو ${businessName}${menu.store.name && menu.store.name !== businessName ? ` — ${menu.store.name}` : ""}`;
+  const noIndex = Boolean(token);
+
   return {
-    title: `منيو ${menu.store.name}`,
-    description: menu.store.description || `المنيو العام لـ ${menu.store.name}`,
-    robots: token ? { index: false, follow: false } : undefined,
+    title: { absolute: businessName },
+    description,
+    applicationName: businessName,
+    authors: [{ name: businessName }],
+    creator: businessName,
+    publisher: businessName,
+    robots: noIndex
+      ? { index: false, follow: false }
+      : { index: true, follow: true },
+    openGraph: {
+      type: "website",
+      locale: "ar_EG",
+      siteName: businessName,
+      title: businessName,
+      description,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: businessName,
+      description,
+    },
   };
 }
+
 
 export default async function OnlineMenuPage({ params, searchParams }: MenuPageProps) {
   const { slug } = await params;
@@ -70,8 +103,10 @@ export default async function OnlineMenuPage({ params, searchParams }: MenuPageP
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">منيو أونلاين</Badge>
-              {menu.store.orderingEnabled ? (
+              {menu.store.canOrder ? (
                 <Badge>الطلبات متاحة</Badge>
+              ) : menu.store.orderingEnabled ? (
+                <Badge variant="outline">مغلق للطلب الآن</Badge>
               ) : (
                 <Badge variant="outline">للعرض فقط</Badge>
               )}
@@ -80,6 +115,14 @@ export default async function OnlineMenuPage({ params, searchParams }: MenuPageP
           {menu.store.description ? (
             <div className="border-t border-border/40 px-6 py-4 text-sm text-muted-foreground">
               {menu.store.description}
+            </div>
+          ) : null}
+          {!menu.store.canOrder ? (
+            <div className="border-t border-amber-200/60 bg-amber-50 px-6 py-4 text-sm text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+              <p className="font-medium">المنيو مفتوح للتصفح — الطلب غير متاح حالياً</p>
+              <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
+                {menu.store.availability.messageAr}
+              </p>
             </div>
           ) : null}
         </section>

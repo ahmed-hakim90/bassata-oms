@@ -11,3 +11,21 @@ export function slugifyBranchName(name: string, storeId?: string): string {
   const short = storeId?.replaceAll("-", "").slice(-8) ?? "branch";
   return `branch-${short}`;
 }
+
+/**
+ * Normalize a public menu slug from a route param or query.
+ * Non-ASCII segments may arrive still percent-encoded from the URL.
+ */
+export function normalizeOnlineMenuSlug(slug: string): string {
+  const trimmed = slug.trim();
+  if (!trimmed) return "";
+  let decoded = trimmed;
+  try {
+    if (/%[0-9A-Fa-f]{2}/.test(trimmed)) {
+      decoded = decodeURIComponent(trimmed);
+    }
+  } catch {
+    decoded = trimmed;
+  }
+  return decoded.trim().toLowerCase();
+}

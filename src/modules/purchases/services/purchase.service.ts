@@ -1,12 +1,15 @@
 import * as purchaseRepo from "@/lib/repositories/purchase.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
+import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
-import { adjustStock } from "@/lib/services/inventory-movement.service";
+import { adjustStock, getStockLevel } from "@/lib/services/inventory-movement.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import { calculateExpiryDate, toIsoDate } from "@/lib/inventory/expiry";
-import type { PurchaseInvoice, PurchaseInvoiceLine } from "@/lib/types";
+import { convertPurchaseEntryToBase, productPurchaseFactor } from "@/lib/units";
+import type { MeasurementUnit, PaymentMethod, PurchaseInvoice, PurchaseInvoiceLine } from "@/lib/types";
+import { createSupplierPayment } from "@/modules/suppliers/services/supplier.service";
 
 export interface PurchaseWithLines extends PurchaseInvoice {
   lines: PurchaseInvoiceLine[];
@@ -161,6 +164,8 @@ export async function addPurchaseLine(input: {
   variantId?: string | null;
   quantity: number;
   unitCost: number;
+  /** Unit the operator entered (base piece or purchase carton). Defaults to base. */
+  entryUnit?: MeasurementUnit;
   batchNumber?: string | null;
   productionDate?: string | null;
   expiryDate?: string | null;
@@ -168,6 +173,21 @@ export async function addPurchaseLine(input: {
   const invoice = await purchaseRepo.getPurchase(input.invoiceId);
   if (!invoice) throw new Error("Purchase not found");
   if (invoice.status !== "draft") throw new Error("Cannot edit received purchase");
+
+  const product = await catalogRepo.getProduct(input.productId);
+  if (!product) throw new Error("Product not found");
+
+  const baseUnit = product.base_unit ?? product.unit;
+  const purchaseUnit = product.cost_unit ?? baseUnit;
+  const factor = productPurchaseFactor(product);
+  const converted = convertPurchaseEntryToBase({
+    quantity: input.quantity,
+    unitCost: input.unitCost,
+    entryUnit: input.entryUnit ?? baseUnit,
+    baseUnit,
+    purchaseUnit,
+    unitsPerPurchaseUnit: factor,
+  });
 
   const lines = await purchaseRepo.getPurchaseLines(input.invoiceId);
   const existing = lines.find(
@@ -178,11 +198,17 @@ export async function addPurchaseLine(input: {
 
   let line: PurchaseInvoiceLine;
   if (existing) {
-    const qty = existing.quantity + input.quantity;
+    const qty = existing.quantity + converted.quantity;
+    const blendedCost =
+      qty > 0
+        ? Number(
+            ((existing.quantity * existing.unit_cost + converted.quantity * converted.unitCost) / qty).toFixed(4)
+          )
+        : converted.unitCost;
     line = (await purchaseRepo.updatePurchaseLine(existing.id, {
       quantity: qty,
-      unit_cost: input.unitCost,
-      line_total: qty * input.unitCost,
+      unit_cost: blendedCost,
+      line_total: Number((qty * blendedCost).toFixed(2)),
       landed_unit_cost: null,
       landed_line_total: null,
       batch_number: input.batchNumber ?? null,
@@ -194,9 +220,9 @@ export async function addPurchaseLine(input: {
       invoice_id: input.invoiceId,
       product_id: input.productId,
       variant_id: input.variantId ?? null,
-      quantity: input.quantity,
-      unit_cost: input.unitCost,
-      line_total: input.quantity * input.unitCost,
+      quantity: converted.quantity,
+      unit_cost: converted.unitCost,
+      line_total: converted.lineTotal,
       landed_unit_cost: null,
       landed_line_total: null,
       batch_number: input.batchNumber ?? null,
@@ -219,12 +245,31 @@ export async function removePurchaseLine(lineId: string): Promise<void> {
 
 export async function receivePurchase(
   invoiceId: string,
-  userId: string
+  userId: string,
+  options?: {
+    amountPaid?: number;
+    paymentMethod?: PaymentMethod;
+  }
 ): Promise<PurchaseInvoice> {
   const invoice = await purchaseRepo.getPurchase(invoiceId);
   if (!invoice) throw new Error("Purchase not found");
   if (invoice.status === "received") throw new Error("Already received");
+  if (invoice.status !== "draft") throw new Error("Only draft purchases can be received");
   await assertPeriodOpen(invoice.store_id);
+
+  const amountPaid = options?.amountPaid ?? 0;
+  if (!Number.isFinite(amountPaid) || amountPaid < 0) {
+    throw new Error("مبلغ الدفعة لازم يكون صفر أو أكبر");
+  }
+  if (amountPaid > invoice.total) {
+    throw new Error("مبلغ الدفعة لا يمكن أن يتجاوز إجمالي الفاتورة");
+  }
+  if (amountPaid > 0) {
+    const method = options?.paymentMethod ?? "cash";
+    if (method === "credit") {
+      throw new Error("Cannot record a supplier payment as credit");
+    }
+  }
 
   const lines = await purchaseRepo.getPurchaseLines(invoiceId);
   if (lines.length === 0) throw new Error("Add at least one line");
@@ -276,7 +321,7 @@ export async function receivePurchase(
     if (product) {
       await catalogRepo.updateProduct(line.product_id, {
         last_unit_cost: landed.landedUnitCost,
-        cost_unit: product.unit,
+        cost_unit: product.cost_unit ?? product.unit,
       });
     }
   }
@@ -287,6 +332,18 @@ export async function receivePurchase(
   });
   if (!updated) throw new Error("Failed to update purchase");
 
+  if (amountPaid > 0) {
+    await createSupplierPayment({
+      storeId: invoice.store_id,
+      supplierId: invoice.supplier_id,
+      amount: amountPaid,
+      paymentMethod: options?.paymentMethod ?? "cash",
+      reference: invoice.invoice_number,
+      notes: `دفعة مع استلام فاتورة ${invoice.invoice_number}`,
+      createdBy: userId,
+    });
+  }
+
   const orgId = await getOrgId();
   await writeAuditLog({
     orgId,
@@ -295,7 +352,11 @@ export async function receivePurchase(
     action: "purchase.received",
     entityType: "purchase_invoice",
     entityId: invoiceId,
-    metadata: { total: updated.total, lineCount: lines.length },
+    metadata: {
+      total: updated.total,
+      lineCount: lines.length,
+      amountPaid,
+    },
   });
 
   return updated;
@@ -368,6 +429,11 @@ export async function deleteDraftPurchase(invoiceId: string, userId: string): Pr
   });
 }
 
+/**
+ * Reverse stock from a received purchase and reopen it as draft
+ * so the operator can fix lines and receive again.
+ * Legacy `cancelled` invoices stay cancelled (not reopened).
+ */
 export async function voidReceivedPurchase(
   invoiceId: string,
   userId: string
@@ -382,41 +448,89 @@ export async function voidReceivedPurchase(
 
   await assertPeriodOpen(invoice.store_id);
   const lines = await purchaseRepo.getPurchaseLines(invoiceId);
+  const invoiceBatches = await inventoryRepo.listInventoryBatchesForPurchaseInvoice(invoiceId);
+  const batchesByProduct = new Map<string, typeof invoiceBatches>();
+  for (const batch of invoiceBatches) {
+    const key = `${batch.product_id}:${batch.variant_id ?? ""}`;
+    const list = batchesByProduct.get(key) ?? [];
+    list.push(batch);
+    batchesByProduct.set(key, list);
+  }
+
   for (const line of lines) {
-    await adjustStock({
-      storeId: invoice.store_id,
-      warehouseId: invoice.warehouse_id,
-      productId: line.product_id,
-      variantId: line.variant_id,
-      quantityDelta: -line.quantity,
-      movementType: "purchase",
-      referenceType: "purchase_invoice",
-      referenceId: invoiceId,
-      createdBy: userId,
-      batch: {
-        batchNumber:
-          line.batch_number ??
-          `${invoice.invoice_number}-${line.product_id.slice(0, 6)}-${line.id.slice(0, 6)}`,
-        sourceType: "purchase",
-        sourceDocumentId: invoice.id,
-      },
+    const lineKey = `${line.product_id}:${line.variant_id ?? ""}`;
+    const linkedBatches = batchesByProduct.get(lineKey) ?? [];
+    const remainingBatches = linkedBatches.filter((b) => b.remaining_quantity > 0);
+
+    if (remainingBatches.length > 0) {
+      for (const batch of remainingBatches) {
+        await adjustStock({
+          storeId: invoice.store_id,
+          warehouseId: invoice.warehouse_id,
+          productId: line.product_id,
+          variantId: line.variant_id,
+          quantityDelta: -batch.remaining_quantity,
+          movementType: "purchase",
+          referenceType: "purchase_invoice",
+          referenceId: invoiceId,
+          createdBy: userId,
+          reason: "reopen purchase as draft",
+          batch: {
+            batchNumber: batch.batch_number,
+            sourceType: "purchase",
+            sourceDocumentId: invoice.id,
+            purchaseInvoiceId: invoice.id,
+          },
+        });
+      }
+    } else {
+      // Line never created a batch (e.g. track_inventory was off at receive).
+      // Reverse whatever stock still exists, without inventing a missing batch number.
+      const current = await getStockLevel(
+        invoice.store_id,
+        invoice.warehouse_id,
+        line.product_id,
+        line.variant_id
+      );
+      const qtyToReverse = Math.min(current, line.quantity);
+      if (qtyToReverse > 0) {
+        await adjustStock({
+          storeId: invoice.store_id,
+          warehouseId: invoice.warehouse_id,
+          productId: line.product_id,
+          variantId: line.variant_id,
+          quantityDelta: -qtyToReverse,
+          movementType: "purchase",
+          referenceType: "purchase_invoice",
+          referenceId: invoiceId,
+          createdBy: userId,
+          reason: "reopen purchase as draft",
+        });
+      }
+    }
+
+    await purchaseRepo.updatePurchaseLine(line.id, {
+      landed_unit_cost: null,
+      landed_line_total: null,
     });
   }
 
   const updated = await purchaseRepo.updatePurchase(invoiceId, {
-    status: "cancelled",
-    cancelled_at: new Date().toISOString(),
+    status: "draft",
+    received_at: null,
+    cancelled_at: null,
   });
-  if (!updated) throw new Error("Failed to void purchase");
+  if (!updated) throw new Error("Failed to reopen purchase");
 
   const orgId = await getOrgId();
   await writeAuditLog({
     orgId,
     storeId: invoice.store_id,
     userId,
-    action: "purchase.voided",
+    action: "purchase.reopened",
     entityType: "purchase_invoice",
     entityId: invoiceId,
+    metadata: { previousStatus: "received", lineCount: lines.length },
   });
   return updated;
 }

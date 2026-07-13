@@ -29,11 +29,20 @@ export function EditSupplierDialog({
   onSuccess,
 }: EditSupplierDialogProps) {
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState({ name: supplier.name, contact_info: supplier.contact_info });
+  const [form, setForm] = useState({
+    name: supplier.name,
+    contact_info: supplier.contact_info,
+    opening_balance: String(supplier.opening_balance ?? 0),
+  });
 
   const submit = () => {
     if (!form.name.trim()) {
       toast.error("الاسم مطلوب");
+      return;
+    }
+    const opening = parseFloat(form.opening_balance);
+    if (!Number.isFinite(opening) || opening < 0) {
+      toast.error("رصيد مستحق سابق لازم يكون صفر أو أكبر");
       return;
     }
     startTransition(async () => {
@@ -41,6 +50,7 @@ export function EditSupplierDialog({
         id: supplier.id,
         name: form.name.trim(),
         contact_info: form.contact_info.trim(),
+        opening_balance: opening,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -57,7 +67,11 @@ export function EditSupplierDialog({
       open={open}
       onOpenChange={(next) => {
         if (next) {
-          setForm({ name: supplier.name, contact_info: supplier.contact_info });
+          setForm({
+            name: supplier.name,
+            contact_info: supplier.contact_info,
+            opening_balance: String(supplier.opening_balance ?? 0),
+          });
         }
         onOpenChange(next);
       }}
@@ -81,6 +95,19 @@ export function EditSupplierDialog({
               value={form.contact_info}
               onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>رصيد مستحق سابق</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.opening_balance}
+              onChange={(e) => setForm({ ...form, opening_balance: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              المبلغ المستحق على المحل قبل أي فواتير في النظام.
+            </p>
           </div>
           <Button onClick={submit} disabled={pending}>
             حفظ

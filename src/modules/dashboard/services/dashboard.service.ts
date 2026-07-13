@@ -2,14 +2,30 @@ import * as orderRepo from "@/lib/repositories/order.repository";
 import * as sessionRepo from "@/lib/repositories/session.repository";
 import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
+import * as accountRepo from "@/lib/repositories/customer-account.repository";
+import * as paymentRepo from "@/lib/repositories/supplier-payment.repository";
 import { getDb } from "@/lib/repositories/client";
 import type { CashierSession, Order, Product } from "@/lib/types";
+import { listSupplierSummaries } from "@/modules/suppliers/services/supplier.service";
 
 export interface DashboardStats {
   todaySales: number;
   todayOrders: number;
   avgTicket: number;
   salesSparkline: { hour: string; total: number }[];
+}
+
+export interface PeriodSalesSummary {
+  revenue: number;
+  orderCount: number;
+  avgTicket: number;
+}
+
+export interface OwnerFinanceSnapshot {
+  customerOutstanding: number;
+  customerCollectionsMtd: number;
+  supplierOutstanding: number;
+  supplierPaymentsMtd: number;
 }
 
 export interface TopProduct {
@@ -43,6 +59,27 @@ function todayRange() {
   return {
     from: `${todayPrefix}T00:00:00.000Z`,
     to: `${todayPrefix}T23:59:59.999Z`,
+  };
+}
+
+/** Calendar month-to-date in UTC/ISO (aligned with existing dashboard day ranges). */
+export function monthToDateRange(now = new Date()) {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const from = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
+  return { from, to: now.toISOString() };
+}
+
+export function summarizePeriodSales(orders: Order[]): PeriodSalesSummary {
+  const eligible = orders.filter(
+    (o) => o.status === "completed" && o.payment_status !== "unpaid"
+  );
+  const revenue = eligible.reduce((s, o) => s + o.total, 0);
+  const orderCount = eligible.length;
+  return {
+    revenue,
+    orderCount,
+    avgTicket: orderCount > 0 ? revenue / orderCount : 0,
   };
 }
 
@@ -131,6 +168,55 @@ export async function getLiveStats(storeId: string): Promise<DashboardStats> {
     to,
   });
   return buildLiveStats(orders);
+}
+
+export async function getMonthToDateSales(storeId: string): Promise<PeriodSalesSummary> {
+  const { from, to } = monthToDateRange();
+  const orders = await orderRepo.listOrders({
+    storeId,
+    status: "completed",
+    from,
+    to,
+  });
+  return summarizePeriodSales(orders);
+}
+
+export async function getOwnerFinanceSnapshot(
+  storeId: string
+): Promise<OwnerFinanceSnapshot> {
+  const { from, to } = monthToDateRange();
+  const [customersWithBalance, customerCollectionsMtd, supplierSummaries, supplierPayments] =
+    await Promise.all([
+      accountRepo.listCustomersWithBalance(),
+      accountRepo.sumPaymentsForStoreInRange(storeId, from, to),
+      listSupplierSummaries(storeId),
+      paymentRepo.listPaymentsForStore(storeId),
+    ]);
+
+  const customerOutstanding = customersWithBalance.reduce(
+    (sum, c) => sum + Math.max(0, c.account_balance),
+    0
+  );
+  const supplierOutstanding = supplierSummaries.reduce(
+    (sum, s) => sum + Math.max(0, s.balanceDue),
+    0
+  );
+  const fromTs = new Date(from).getTime();
+  const toTs = new Date(to).getTime();
+  const supplierPaymentsMtd = supplierPayments
+    .filter((p) => {
+      if (p.voided_at) return false;
+      const ts = new Date(p.paid_at).getTime();
+      return ts >= fromTs && ts <= toTs;
+    })
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  return {
+    customerOutstanding,
+    customerCollectionsMtd,
+    supplierOutstanding,
+    supplierPaymentsMtd,
+  };
 }
 
 export async function getActiveSessions(storeId?: string): Promise<CashierSession[]> {

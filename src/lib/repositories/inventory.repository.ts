@@ -1,8 +1,13 @@
 import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapMovement, mapStockLevel } from "@/lib/repositories/mappers";
+import { listStores } from "@/lib/repositories/store.repository";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import { calculateExpiryDate } from "@/lib/inventory/expiry";
 import type { InventoryBatch, InventoryMovement, MovementType, StockLevel } from "@/lib/types";
+
+async function orgStoreIds(): Promise<string[]> {
+  return (await listStores()).map((store) => store.id);
+}
 
 interface BatchInput {
   batchNumber?: string | null;
@@ -38,8 +43,12 @@ export async function getStockLevel(
 }
 
 export async function listStockLevels(storeId?: string, warehouseId?: string): Promise<StockLevel[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (storeId && !storeIds.includes(storeId)) return [];
+
   const db = await getDb();
-  let q = db.from("stock_levels").select("*");
+  let q = db.from("stock_levels").select("*").in("store_id", storeIds);
   if (storeId) q = q.eq("store_id", storeId);
   if (warehouseId) q = q.eq("warehouse_id", warehouseId);
   const { data, error } = await q;
@@ -211,8 +220,16 @@ export async function listInventoryBatches(
   storeId?: string,
   warehouseId?: string
 ): Promise<InventoryBatch[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (storeId && !storeIds.includes(storeId)) return [];
+
   const db = await getDb();
-  let q = db.from("inventory_batches").select("*").order("expiry_date", { ascending: true });
+  let q = db
+    .from("inventory_batches")
+    .select("*")
+    .in("store_id", storeIds)
+    .order("expiry_date", { ascending: true });
   if (storeId) q = q.eq("store_id", storeId);
   if (warehouseId) q = q.eq("warehouse_id", warehouseId);
   const { data, error } = await q;
@@ -227,6 +244,9 @@ export async function listInventoryBatchesForProducts(
   productIds: string[]
 ): Promise<InventoryBatch[]> {
   if (productIds.length === 0) return [];
+  const storeIds = await orgStoreIds();
+  if (!storeIds.includes(storeId)) return [];
+
   const db = await getDb();
   const { data, error } = await db
     .from("inventory_batches")
@@ -239,29 +259,123 @@ export async function listInventoryBatchesForProducts(
   return (data ?? []) as unknown as InventoryBatch[];
 }
 
+/** Batches created from a purchase invoice — used when voiding/reopening receipt. */
+export async function listInventoryBatchesForPurchaseInvoice(
+  purchaseInvoiceId: string
+): Promise<InventoryBatch[]> {
+  const db = await getDb();
+  const { data, error } = await db
+    .from("inventory_batches")
+    .select("*")
+    .eq("purchase_invoice_id", purchaseInvoiceId)
+    .order("created_at", { ascending: true });
+  if (error) throwDbError(error, "listInventoryBatchesForPurchaseInvoice");
+  return (data ?? []) as unknown as InventoryBatch[];
+}
+
 export async function listMovements(
   storeId?: string,
   warehouseId?: string,
   limit = 200,
   options?: {
     from?: string;
+    to?: string;
+    productId?: string;
     movementTypes?: MovementType[];
   }
 ): Promise<InventoryMovement[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (storeId && !storeIds.includes(storeId)) return [];
+
   const db = await getDb();
   let q = db
     .from("inventory_movements")
     .select("*")
+    .in("store_id", storeIds)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (storeId) q = q.eq("store_id", storeId);
   if (warehouseId) q = q.eq("warehouse_id", warehouseId);
+  if (options?.productId) q = q.eq("product_id", options.productId);
   if (options?.from) q = q.gte("created_at", options.from);
+  if (options?.to) q = q.lte("created_at", options.to);
   if (options?.movementTypes && options.movementTypes.length > 0) {
     q = q.in("movement_type", options.movementTypes);
   }
   const { data, error } = await q;
   if (error) throwDbError(error, "listMovements");
+  return (data ?? []).map(mapMovement);
+}
+
+const PRODUCT_MOVEMENT_PAGE = 1000;
+const PRODUCT_MOVEMENT_MAX_ROWS = 20_000;
+
+/**
+ * All movements for one product up to `to` (inclusive), oldest first.
+ * Used for period stock cards (opening + running balance).
+ */
+export async function listAllMovementsForProduct(options: {
+  storeId: string;
+  productId: string;
+  warehouseId?: string;
+  /** Inclusive upper bound (ISO). */
+  to?: string;
+}): Promise<InventoryMovement[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (!storeIds.includes(options.storeId)) return [];
+
+  const db = await getDb();
+  const rows: InventoryMovement[] = [];
+  let from = 0;
+
+  while (rows.length < PRODUCT_MOVEMENT_MAX_ROWS) {
+    const to = from + PRODUCT_MOVEMENT_PAGE - 1;
+    let q = db
+      .from("inventory_movements")
+      .select("*")
+      .eq("store_id", options.storeId)
+      .eq("product_id", options.productId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (options.warehouseId) q = q.eq("warehouse_id", options.warehouseId);
+    if (options.to) q = q.lte("created_at", options.to);
+
+    const { data, error } = await q;
+    if (error) throwDbError(error, "listAllMovementsForProduct");
+    const batch = (data ?? []).map(mapMovement);
+    rows.push(...batch);
+    if (batch.length < PRODUCT_MOVEMENT_PAGE) break;
+    from += PRODUCT_MOVEMENT_PAGE;
+  }
+
+  return rows;
+}
+
+/** Movements for a single document (e.g. online_order reservation). */
+export async function listMovementsByReference(
+  referenceType: string,
+  referenceId: string,
+  movementTypes?: MovementType[]
+): Promise<InventoryMovement[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+
+  const db = await getDb();
+  let q = db
+    .from("inventory_movements")
+    .select("*")
+    .in("store_id", storeIds)
+    .eq("reference_type", referenceType)
+    .eq("reference_id", referenceId)
+    .order("created_at", { ascending: true });
+  if (movementTypes && movementTypes.length > 0) {
+    q = q.in("movement_type", movementTypes);
+  }
+  const { data, error } = await q;
+  if (error) throwDbError(error, "listMovementsByReference");
   return (data ?? []).map(mapMovement);
 }
 

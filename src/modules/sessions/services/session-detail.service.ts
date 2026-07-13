@@ -34,9 +34,12 @@ export async function getSessionDetail(
     return null;
   }
 
-  const [orders, store, users, devices] = await Promise.all([
+  // Defense-in-depth: canViewAll must still stay inside the caller's org.
+  const store = await storeRepo.getStore(session.store_id);
+  if (!store) return null;
+
+  const [orders, users, devices] = await Promise.all([
     orderRepo.listOrdersBySessionIds([sessionId]),
-    storeRepo.getStore(session.store_id),
     userRepo.listUsers(),
     deviceRepo.listDevices(),
   ]);
@@ -61,7 +64,7 @@ export async function getSessionDetail(
 
   return {
     session,
-    storeName: store?.name ?? "الفرع",
+    storeName: store.name,
     cashierName: userMap.get(session.cashier_id) ?? "الكاشير",
     deviceName: session.device_id
       ? (deviceMap.get(session.device_id) ?? null)

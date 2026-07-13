@@ -49,21 +49,21 @@ export function OpenSessionDialog({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoadingVault(true);
-    getPendingOpeningFloatAction()
-      .then((result) => {
+    void (async () => {
+      setLoadingVault(true);
+      try {
+        const result = await getPendingOpeningFloatAction();
         if (cancelled) return;
         setPendingFloat(result.pendingOpeningFloat);
         setVaultBalance(result.vaultBalance);
         setCash(String(result.pendingOpeningFloat));
-      })
-      .catch((error) => {
+      } catch (error) {
         if (cancelled) return;
         toast.error(error instanceof Error ? error.message : "تعذر قراءة خزينة الكاشير");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoadingVault(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };

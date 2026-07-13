@@ -177,7 +177,7 @@ export async function listSupplierSummaries(storeId: string): Promise<SupplierLi
       ...supplier,
       totalPurchased,
       totalPaid,
-      balanceDue: totalPurchased - totalPaid,
+      balanceDue: supplier.opening_balance + totalPurchased - totalPaid,
       invoiceCount: supplierInvoices.filter((i) => i.status === "received").length,
       lastActivityAt,
     };
@@ -203,7 +203,8 @@ export async function getSupplierStatement(
     ...buildEventsFromPayments(payments),
   ]);
 
-  let openingBalance = 0;
+  // Prior AP (org-level) always seeds the running balance for this store view.
+  let openingBalance = supplier.opening_balance;
   if (from) {
     for (const e of allEvents) {
       if (beforePeriod(e.at, from)) {

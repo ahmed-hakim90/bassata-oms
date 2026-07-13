@@ -35,6 +35,12 @@ const statusVariant: Record<
   cancelled: "danger",
 };
 
+const statusLabels: Record<PurchaseWithLines["status"], string> = {
+  draft: "مسودة",
+  received: "مستلمة",
+  cancelled: "ملغاة",
+};
+
 export function PurchasesPage({
   purchases,
   priceHistory,
@@ -54,8 +60,12 @@ export function PurchasesPage({
     return (
       <>
         <PageHeader
-          title={activeEditingId ? "فاتورة شراء" : "استلام مشتريات"}
-          description={activeEditingId ? "عرض أو تعديل الفاتورة" : "امسح الأصناف واستلمها في المخزون"}
+          title={activeEditingId ? "فاتورة شراء" : "فاتورة شراء جديدة"}
+          description={
+            activeEditingId
+              ? "أكمل المسودة ثم احفظ نهائيًا لتحديث المخزون"
+              : "مسودة سريعة → أصناف → حفظ نهائي"
+          }
         />
         <PurchaseForm
           suppliers={suppliers}
@@ -78,16 +88,19 @@ export function PurchasesPage({
     <>
       <PageHeader
         title="المشتريات"
-        description="استلام فواتير الموردين وتحديث المخزون"
+        description="مسودة مؤقتة ثم حفظ نهائي يحدّث المخزون"
         action={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             <Link
               href="/inventory/suppliers"
-              className={cn(buttonVariants({ variant: "outline" }))}
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "min-h-11 justify-center"
+              )}
             >
               إدارة الموردين
             </Link>
-            <Button onClick={() => setCreating(true)}>
+            <Button className="min-h-11" onClick={() => setCreating(true)}>
               <Plus className="size-4" /> شراء جديد
             </Button>
           </div>
@@ -97,42 +110,61 @@ export function PurchasesPage({
       {purchases.length === 0 ? (
         <EmptyStateBlock
           title="لا توجد مشتريات بعد"
-          description="أنشئ أول فاتورة شراء لاستلام المخزون."
+          description="أنشئ فاتورة كمسودة، أضف الأصناف، ثم احفظ نهائيًا لتحديث المخزون."
           action={
-            <Button onClick={() => setCreating(true)}>
+            <Button className="min-h-11" onClick={() => setCreating(true)}>
               <Plus className="size-4" /> شراء جديد
             </Button>
           }
         />
       ) : (
-        <div className="grid gap-[var(--mds-space-4)]">
-          <SupplierPriceHistory history={priceHistory} currency={currency} />
+        <div className="grid gap-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="hidden sm:block">
+            <SupplierPriceHistory history={priceHistory} currency={currency} />
+          </div>
           <p className="text-sm text-muted-foreground">{purchases.length} فاتورة</p>
-          {purchases.map((p) => (
-            <OperationalCard key={p.id} accent="var(--mds-color-action-primary)">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold">{p.invoice_number}</h3>
-                    <StatusPill label={p.status} variant={statusVariant[p.status]} />
+          {purchases.map((p) => {
+            const isDraft = p.status === "draft";
+            return (
+              <OperationalCard key={p.id} accent="var(--mds-color-action-primary)">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold">{p.invoice_number}</h3>
+                        <StatusPill
+                          label={statusLabels[p.status]}
+                          variant={statusVariant[p.status]}
+                        />
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {p.supplierName} · {p.lines.length} أصناف
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {p.warehouseName} · {formatDateTime(p.created_at)}
+                      </p>
+                      {isDraft ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          مسودة محفوظة — المخزون لم يتحدث بعد
+                        </p>
+                      ) : null}
+                    </div>
+                    <p className="shrink-0 text-lg font-semibold tabular-nums sm:text-xl">
+                      {formatCurrency(p.total, currency)}
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {p.supplierName} · {p.warehouseName} · {p.lines.length} أصناف ·{" "}
-                    {formatDateTime(p.created_at)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <p className="text-xl font-semibold">
-                    {formatCurrency(p.total, currency)}
-                  </p>
-                  <Button variant="outline" onClick={() => setEditingId(p.id)}>
+                  <Button
+                    variant={isDraft ? "default" : "outline"}
+                    className="min-h-11 w-full sm:w-auto sm:self-end"
+                    onClick={() => setEditingId(p.id)}
+                  >
                     <Pencil className="size-4" />
-                    فتح
+                    {isDraft ? "متابعة" : "فتح"}
                   </Button>
                 </div>
-              </div>
-            </OperationalCard>
-          ))}
+              </OperationalCard>
+            );
+          })}
         </div>
       )}
     </>

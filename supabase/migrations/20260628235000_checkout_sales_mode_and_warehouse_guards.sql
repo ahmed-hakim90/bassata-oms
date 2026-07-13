@@ -301,11 +301,13 @@ BEGIN
       NEW.warehouse_id, NEW.store_id, TG_TABLE_NAME;
   END IF;
 
-  IF TG_TABLE_NAME = 'inventory_batches'
-    AND NEW.org_id IS DISTINCT FROM v_warehouse_org_id
-  THEN
-    RAISE EXCEPTION 'Warehouse % does not belong to org % on %',
-      NEW.warehouse_id, NEW.org_id, TG_TABLE_NAME;
+  -- Access org_id via jsonb: this function is shared with stock_levels / movements
+  -- which lack org_id. Direct NEW.org_id errors with "record new has no field org_id".
+  IF TG_TABLE_NAME = 'inventory_batches' THEN
+    IF (to_jsonb(NEW)->>'org_id')::uuid IS DISTINCT FROM v_warehouse_org_id THEN
+      RAISE EXCEPTION 'Warehouse % does not belong to org % on %',
+        NEW.warehouse_id, (to_jsonb(NEW)->>'org_id')::uuid, TG_TABLE_NAME;
+    END IF;
   END IF;
 
   RETURN NEW;

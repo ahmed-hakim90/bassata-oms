@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { APP_NAME, APP_THEME_COLOR } from "@/lib/constants";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
@@ -8,31 +9,21 @@ export default function AppleIcon() {
     (
       <div
         style={{
-          background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
+          background: `linear-gradient(135deg, ${APP_THEME_COLOR} 0%, #155e75 100%)`,
           width: "100%",
           height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           borderRadius: 40,
+          color: "#FFFFFF",
+          fontSize: 96,
+          fontWeight: 700,
+          letterSpacing: -2,
+          fontFamily: "system-ui, sans-serif",
         }}
       >
-        <svg
-          width="108"
-          height="108"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
-          <path d="M17 7A5 5 0 0 0 7 7" fill="#FFFFFF" />
-          <path d="M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4" fill="#FFFFFF" />
-          <path
-            d="m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11"
-            stroke="#FFFFFF"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        {APP_NAME.slice(0, 1)}
       </div>
     ),
     { ...size }

@@ -123,15 +123,21 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     setReference("");
   }
 
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setQuery("");
+      const preselect =
+        cartCustomer && cartCustomer.account_balance > 0
+          ? toCollectCustomer(cartCustomer)
+          : null;
+      resetForm(preselect);
+    }
+  }
+
   useEffect(() => {
     if (!open) return;
-
-    setQuery("");
-    const preselect =
-      cartCustomer && cartCustomer.account_balance > 0
-        ? toCollectCustomer(cartCustomer)
-        : null;
-    resetForm(preselect);
 
     let cancelled = false;
     startListTransition(async () => {
@@ -151,8 +157,6 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     return () => {
       cancelled = true;
     };
-    // Only re-init when the dialog opens; cart customer is read at open time.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- open gate
   }, [open]);
 
   const list = useMemo(() => {

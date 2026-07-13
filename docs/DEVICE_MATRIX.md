@@ -1,25 +1,25 @@
-# Device Matrix
+# Device Matrix — S16 status (2026-07-13)
 
 Target hardware for SweetFlow POS and shell. Pilot must validate **Required** rows on real devices.
 
-| Device / peripheral | Priority | Target use | Status |
-|---------------------|----------|------------|--------|
-| Windows 10/11 laptop or POS PC (Chrome/Edge) | Required | Admin shell + POS | Untested until Pilot |
-| macOS (Chrome/Safari) | Required | Admin / owner ops | Dev primary |
-| Android tablet (Chrome) | Required | POS touch | Untested until Pilot |
-| iPad (Safari/Chrome) | Best-effort | POS touch if deployed | Not committed for MVP |
-| Touch screen (≥10″) | Required | POS tiles, payment, cart sheet | Validate hit targets ≥44px |
-| Barcode scanner (HID keyboard wedge) | Required if SKUs scanned | Focus search + scan-to-add | Untested until Pilot |
-| Receipt printer (USB / browser print) | Required for pilot store | POS receipt + `(print)` routes | Partial (code paths exist) |
-| Cash drawer (kick via printer ESC/POS) | Required if cash sales | Open drawer on cash sale / manager override | Validate with store hardware |
+| Device / peripheral | Priority | Target use | Status (S16) |
+|---------------------|----------|------------|--------------|
+| Windows 10/11 laptop or POS PC (Chrome/Edge) | Required | Admin shell + POS | **Untested** — no Windows pilot device in this session |
+| macOS (Chrome/Safari) | Required | Admin / owner ops | **Partial** — primary local dev (Chrome); not a formal pilot pass checklist |
+| Android tablet (Chrome) | Required | POS touch | **Untested** |
+| iPad (Safari/Chrome) | Best-effort | POS touch if deployed | Not committed for MVP — **Untested** |
+| Touch screen (≥10″) | Required | POS tiles, payment, cart sheet | **Untested** on real ≥10″ touch hardware |
+| Barcode scanner (HID keyboard wedge) | Required if SKUs scanned | Focus search + scan-to-add | **Untested** |
+| Receipt printer (USB / browser print) | Required for pilot store | POS receipt + `(print)` routes | **Partial** — print routes exist in code; no store printer proof |
+| Cash drawer (kick via printer ESC/POS) | Required if cash sales | Open drawer on cash sale / manager override | **Untested** |
 
 ## Breakpoints to verify
 
-| Width | Expectation |
-|-------|-------------|
-| 768px | Mobile nav; POS cart in sheet; readable lists |
-| 1024px | Tablet POS / dense tables usable |
-| 1280px+ | Full sidebar + multi-column ops |
+| Width | Expectation | S16 |
+|-------|-------------|-----|
+| 768px | Mobile nav; POS cart in sheet; readable lists | Untested formal pass |
+| 1024px | Tablet POS / dense tables usable | Untested formal pass |
+| 1280px+ | Full sidebar + multi-column ops | Dev observation only — not signed |
 
 ## Pilot checklist (per device)
 
@@ -30,4 +30,6 @@ Target hardware for SweetFlow POS and shell. Pilot must validate **Required** ro
 - [ ] Print failure recoverable
 - [ ] Close session
 
-Record results (device model, browser, date, pass/fail) in the pilot notes after Phase 4 starts.
+**S16:** None of the above checked on Required real devices. Record results (device model, browser, date, pass/fail) during pilot hardware day — then update this table from Untested → Pass/Fail.
+
+See also [docs/results/S16-smoke-results.md](./results/S16-smoke-results.md).

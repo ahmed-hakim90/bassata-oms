@@ -23,6 +23,14 @@ vi.mock("@/lib/repositories/import.repository");
 vi.mock("@/lib/repositories/organization.repository");
 vi.mock("@/lib/services/audit.service");
 vi.mock("@/lib/services/period-lock.service");
+vi.mock("@/modules/system/services/settings.service", () => ({
+  getBusinessActivitySettings: vi.fn(async () => ({
+    activity_type: "cafe",
+    enable_variants: true,
+    enable_weight_sales: false,
+    enable_price_by_amount: false,
+  })),
+}));
 
 function workbookBuffer(rows: Record<string, unknown>[]): ArrayBuffer {
   const sheet = XLSX.utils.json_to_sheet(rows, { header: [...PRODUCT_IMPORT_COLUMNS] });
@@ -136,12 +144,14 @@ describe("product import schema", () => {
     );
 
     expect(parsed.errors).toEqual([]);
+    // Arabic "سعر البيع" / "سعر التكلفة" map to base_price and last_unit_cost
+    // (sale_price is the optional promotional column, not the Arabic sell header).
     expect(parsed.rows[0]).toMatchObject({
       name: "قهوة",
       sku: "COF-1",
       category: "مشروبات",
-      base_price: "10",
-      sale_price: "15",
+      base_price: "15",
+      last_unit_cost: "10",
       is_active: "true",
     });
   });
@@ -275,6 +285,7 @@ describe("product import schema", () => {
         category: "",
         definition: "",
         base_price: "1",
+        last_unit_cost: "",
         sale_price: "",
         description: "",
         image_url: "",
@@ -299,6 +310,7 @@ describe("product import schema", () => {
         wholesale_enabled: "false",
         supports_weight_sale: "",
         supports_amount_sale: "",
+        units_per_purchase_unit: "1",
       },
     ]);
 
@@ -559,6 +571,7 @@ function importRow(overrides: Partial<Record<(typeof PRODUCT_IMPORT_COLUMNS)[num
     category: "General",
     definition: "",
     base_price: "1",
+    last_unit_cost: "",
     sale_price: "",
     description: "",
     image_url: "",
@@ -583,6 +596,7 @@ function importRow(overrides: Partial<Record<(typeof PRODUCT_IMPORT_COLUMNS)[num
     wholesale_enabled: "false",
     supports_weight_sale: "",
     supports_amount_sale: "",
+    units_per_purchase_unit: "1",
     ...overrides,
   };
 }
@@ -621,6 +635,7 @@ function product(id: string, sku: string, name: string): Product {
     supports_amount_sale: false,
     last_unit_cost: 0,
     cost_unit: "piece",
+    units_per_purchase_unit: 1,
     updated_at: new Date().toISOString(),
   };
 }

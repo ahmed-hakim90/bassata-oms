@@ -32,7 +32,7 @@ function divider(char = "-") {
 }
 
 function receiptTitle(payload: ReceiptPayload) {
-  return payload.branding.orgName || "CafeFlow POS";
+  return payload.branding.orgName || "Velora";
 }
 
 export function getReceiptSubtotal(payload: Pick<ReceiptPayload, "lines">) {

@@ -90,7 +90,7 @@ export default function GuidePage() {
     <>
       <PageHeader
         title="دليل الاستخدام"
-        description="CafeFlow ERP & POS — كل اللي تحتاجه علشان تجهّز المتجر وتشغّل الكاشير يوم بيوم"
+        description="Velora — كل اللي تحتاجه علشان تجهّز المتجر وتشغّل الكاشير يوم بيوم"
       />
 
       <OperationalCard

@@ -1,4 +1,14 @@
-export const APP_NAME = "CafeFlow ERP & POS";
+export const APP_NAME = "Velora";
+/** Short product pitch — UI / metadata (Arabic-first ops). */
+export const APP_TAGLINE_AR = "نظام كاشير وإدارة فروع";
+export const APP_TAGLINE = "POS and branch operations";
+export const APP_DESCRIPTION_AR =
+  "Velora — نظام كاشير وإدارة فروع للمقاهي والمطاعم والمتاجر: مبيعات، مخزون، مشتريات، وتقارير يومية.";
+export const APP_DESCRIPTION =
+  "Velora — POS and branch operations for cafés, restaurants, and retail: sales, inventory, purchasing, and daily reports.";
+/** Brand primary (light theme action). Used by icons / PWA / theme-color. */
+export const APP_THEME_COLOR = "#0e7490";
+export const APP_THEME_COLOR_DARK = "#22d3ee";
 
 export const ROLES = ["owner", "manager", "cashier", "inventory"] as const;
 export type UserRole = (typeof ROLES)[number];
@@ -185,8 +195,13 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/reports": "reports_view",
   "/reports/sales": "reports_view",
   "/reports/sessions": "reports_view",
+  "/reports/daily-close": "reports_view",
+  "/reports/aging": "reports_view",
+  "/reports/tax": "reports_view",
+  "/reports/replenishment": "reports_view",
   "/reports/profit": "profit_reports_view",
   "/reports/inventory": "inventory_view",
+  "/reports/product-card": "inventory_view",
   "/reports/expenses": "financial_reports_view",
   "/labels": "barcode_label_print",
   "/settings": [
@@ -326,6 +341,7 @@ export const NAV_GROUPS = [
       { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
       { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
       { label: "Stock Count", href: "/inventory/stock-count", icon: "ClipboardList" },
+      { label: "Product Card", href: "/reports/product-card", icon: "ClipboardList" },
     ],
   },
   {
@@ -350,6 +366,7 @@ export const NAV_GROUPS = [
       { label: "Sessions", href: "/reports/sessions", icon: "Clock" },
       { label: "Profit", href: "/reports/profit", icon: "CircleDollarSign" },
       { label: "Inventory", href: "/reports/inventory", icon: "Warehouse" },
+      { label: "Product Card", href: "/reports/product-card", icon: "ClipboardList" },
       { label: "Expenses", href: "/reports/expenses", icon: "Wallet" },
       { label: "Barcode Labels", href: "/labels", icon: "Barcode" },
     ],

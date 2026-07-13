@@ -97,6 +97,6 @@ export async function exportProfitReportExcel(params: Record<string, string | un
   });
   return {
     base64: workbookToBase64(workbook),
-    filename: `CafeFlow-profit-${data.range.days}d.xlsx`,
+    filename: `Velora-profit-${data.range.days}d.xlsx`,
   };
 }

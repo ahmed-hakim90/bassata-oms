@@ -8,6 +8,7 @@ const supplier: Supplier = {
   org_id: "org-1",
   name: "Fresh Co",
   contact_info: "",
+  opening_balance: 0,
 };
 
 const product: Product = {

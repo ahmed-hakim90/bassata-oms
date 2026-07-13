@@ -45,7 +45,7 @@ export function PosReceiptSuccessDialog({
         onBrowserPrint();
         return;
       }
-      if (typeof document !== "undefined" && !document.getElementById("CafeFlow-receipt")) {
+      if (typeof document !== "undefined" && !document.getElementById("Velora-receipt")) {
         toast.error("تعذرت طباعة الإيصال — الإيصال غير جاهز");
         return;
       }

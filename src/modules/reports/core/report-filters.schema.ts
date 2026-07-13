@@ -5,7 +5,15 @@ export const reportFiltersSchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
   days: z.coerce.number().int().positive().optional(),
+  /** Calendar month `YYYY-MM` (replenishment report). */
+  month: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .optional(),
+  /** Cover 1–3 months of the selected month's usage (replenishment). */
+  coverageMonths: z.coerce.number().int().min(1).max(3).optional(),
   storeId: z.string().optional(),
+  warehouseId: z.string().optional(),
   categoryId: z.string().optional(),
   productId: z.string().optional(),
   customerId: z.string().optional(),

@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   "/onboarding",
   "/auth/callback",
   "/menu",
+  "/track",
 ];
 
 function isPublicPath(pathname: string) {

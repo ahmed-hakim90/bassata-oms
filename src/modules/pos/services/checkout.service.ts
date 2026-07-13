@@ -177,7 +177,14 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
       throw new Error("الخيار مطلوب لأحد المنتجات في السلة");
     }
     if (message.includes("Insufficient stock")) {
-      throw new Error("المخزون غير كافٍ لأحد المنتجات");
+      throw new Error(
+        "المخزون غير كافٍ — البيع متوقف لأن إعداد «منع المخزون السالب» مفعّل. راجع الرصيد أو عطّل الإعداد من خصائص النظام."
+      );
+    }
+    if (message.includes("Insufficient batch stock")) {
+      throw new Error(
+        "رصيد التشغيلة غير كافٍ — البيع متوقف بسبب منع المخزون السالب. راجع التشغيلات أو عطّل الإعداد."
+      );
     }
     throw error;
   }

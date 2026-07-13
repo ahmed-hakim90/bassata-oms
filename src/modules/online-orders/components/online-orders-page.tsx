@@ -15,13 +15,20 @@ import {
   Store,
   Trash2,
   UserRound,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { cn } from "@/lib/utils";
+import {
+  allowedOnlineOrderStatusTransitions,
+  canCancelOnlineOrder,
+  primaryNextOnlineOrderStatus,
+} from "@/modules/online-orders/lib/online-order-status";
 import {
   getOnlineOrderReceiptPayloadAction,
   invoiceOnlineOrderAction,
@@ -78,13 +85,32 @@ const STATUS_STYLES: Record<OnlineOrderStatus, string> = {
   invoiced: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-200",
 };
 
-const EDITABLE_STATUSES: Exclude<OnlineOrderStatus, "invoiced">[] = [
-  "pending",
-  "accepted",
-  "preparing",
-  "ready",
-  "cancelled",
-];
+type BoardFilter = "active" | "pending" | "ready" | "all";
+
+const STATUS_SORT: Record<OnlineOrderStatus, number> = {
+  pending: 0,
+  accepted: 1,
+  preparing: 2,
+  ready: 3,
+  invoiced: 4,
+  cancelled: 5,
+};
+
+function filterOrders(orders: OnlineOrderWithItems[], filter: BoardFilter) {
+  switch (filter) {
+    case "pending":
+      return orders.filter((order) => order.status === "pending");
+    case "ready":
+      return orders.filter((order) => order.status === "ready");
+    case "active":
+      return orders.filter(
+        (order) => order.status !== "cancelled" && order.status !== "invoiced"
+      );
+    case "all":
+    default:
+      return orders;
+  }
+}
 
 function formatMoney(amount: number) {
   return new Intl.NumberFormat("ar-EG", {
@@ -144,6 +170,8 @@ export function OnlineOrdersPageClient({
   enabledPaymentMethods = ["cash", "card", "wallet", "other"],
   receiptBranding = null,
 }: OnlineOrdersPageClientProps) {
+  const [boardFilter, setBoardFilter] = useState<BoardFilter>("active");
+
   if (orders.length === 0) {
     return (
       <Card className="rounded-[var(--mds-radius-lg)] border-border shadow-[var(--mds-elevation-1)]">
@@ -157,6 +185,20 @@ export function OnlineOrdersPageClient({
   const activeOrders = orders.filter((order) => order.status !== "cancelled" && order.status !== "invoiced");
   const pendingOrders = orders.filter((order) => order.status === "pending");
   const readyOrders = orders.filter((order) => order.status === "ready");
+  const visibleOrders = filterOrders(orders, boardFilter)
+    .slice()
+    .sort((a, b) => {
+      const rank = STATUS_SORT[a.status] - STATUS_SORT[b.status];
+      if (rank !== 0) return rank;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+  const filters: { id: BoardFilter; label: string; count: number }[] = [
+    { id: "active", label: "نشطة", count: activeOrders.length },
+    { id: "pending", label: "معلقة", count: pendingOrders.length },
+    { id: "ready", label: "جاهزة", count: readyOrders.length },
+    { id: "all", label: "الكل", count: orders.length },
+  ];
 
   return (
     <div className={cn("grid", compact ? "gap-[var(--mds-space-2)]" : "gap-[var(--mds-space-4)]")} dir="rtl">
@@ -177,16 +219,42 @@ export function OnlineOrdersPageClient({
       </div>
       ) : null}
 
-      {orders.map((order) => (
-        <OnlineOrderCard
-          key={order.id}
-          order={order}
-          products={products}
-          compact={compact}
-          enabledPaymentMethods={enabledPaymentMethods}
-          receiptBranding={receiptBranding}
-        />
-      ))}
+      <div className="flex gap-[var(--mds-space-2)] overflow-x-auto pb-1">
+        {filters.map((filter) => (
+          <Button
+            key={filter.id}
+            type="button"
+            variant={boardFilter === filter.id ? "default" : "outline"}
+            size={compact ? "sm" : "default"}
+            className="shrink-0 rounded-[var(--mds-radius-md)]"
+            onClick={() => setBoardFilter(filter.id)}
+          >
+            {filter.label}
+            <Badge variant="secondary" className="ms-1 tabular-nums">
+              {filter.count}
+            </Badge>
+          </Button>
+        ))}
+      </div>
+
+      {visibleOrders.length === 0 ? (
+        <Card className="rounded-[var(--mds-radius-lg)] border-border shadow-[var(--mds-elevation-1)]">
+          <CardContent className="py-[var(--mds-space-6)] text-center text-muted-foreground">
+            لا توجد طلبات في هذا الفلتر.
+          </CardContent>
+        </Card>
+      ) : (
+        visibleOrders.map((order) => (
+          <OnlineOrderCard
+            key={order.id}
+            order={order}
+            products={products}
+            compact={compact}
+            enabledPaymentMethods={enabledPaymentMethods}
+            receiptBranding={receiptBranding}
+          />
+        ))
+      )}
     </div>
   );
 }
@@ -208,10 +276,16 @@ function OnlineOrderCard({
   const [isEditingItems, setIsEditingItems] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptPayload | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const isLocked = order.status === "cancelled" || order.status === "invoiced";
+  const nextStatus = primaryNextOnlineOrderStatus(order.status);
+  const transitionTargets = allowedOnlineOrderStatusTransitions(order.status).filter(
+    (status) => status !== "cancelled"
+  );
+  const canCancel = canCancelOnlineOrder(order.status);
   const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const draftTotal = useMemo(
     () =>
@@ -397,6 +471,24 @@ function OnlineOrderCard({
               <span className="truncate">{formatOrderDate(order.created_at)}</span>
             </span>
           </div>
+          {order.fulfillment_type ? (
+            <div className={cn("mt-2 flex flex-wrap gap-2 text-muted-foreground", compact ? "text-xs" : "text-sm")}>
+              <Badge variant="outline">
+                {order.fulfillment_type === "delivery" ? "توصيل" : "استلام"}
+              </Badge>
+              {order.fulfillment_type === "delivery" && order.delivery_area ? (
+                <span className="rounded-[var(--mds-radius-md)] bg-muted/40 px-2 py-1">
+                  {order.delivery_area}
+                  {order.delivery_fee > 0 ? ` · ${formatMoney(order.delivery_fee)}` : ""}
+                </span>
+              ) : null}
+              {order.fulfillment_type === "delivery" && order.delivery_address ? (
+                <span className="max-w-full truncate rounded-[var(--mds-radius-md)] bg-muted/40 px-2 py-1">
+                  {order.delivery_address}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap justify-start gap-[var(--mds-space-2)] sm:justify-end">
           {order.order_id ? (
@@ -616,44 +708,103 @@ function OnlineOrderCard({
         <aside className={cn("border border-border bg-muted/30", compact ? "space-y-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "space-y-[var(--mds-space-4)] rounded-[var(--mds-radius-lg)] p-[var(--mds-space-4)]")}>
           <div className={cn("bg-card shadow-[var(--mds-elevation-1)]", compact ? "rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "rounded-[var(--mds-radius-lg)] p-[var(--mds-space-4)]")}>
             <p className="text-sm text-muted-foreground">الإجمالي</p>
-            <p className={cn("mt-[var(--mds-space-1)] font-semibold tabular-nums", compact ? "text-lg" : "text-2xl")}>{formatMoney(draftTotal || order.total)}</p>
-            {Math.abs(draftTotal - order.total) > 0.01 ? (
+            <p className={cn("mt-[var(--mds-space-1)] font-semibold tabular-nums", compact ? "text-lg" : "text-2xl")}>{formatMoney(order.total)}</p>
+            {order.delivery_fee > 0 ? (
               <p className="mt-[var(--mds-space-1)] text-xs text-muted-foreground">
-                المسجل حاليًا: {formatMoney(order.total)}
+                أصناف {formatMoney(order.subtotal)} + توصيل {formatMoney(order.delivery_fee)}
+              </p>
+            ) : null}
+            {Math.abs(draftTotal - order.subtotal) > 0.01 ? (
+              <p className="mt-[var(--mds-space-1)] text-xs text-amber-700 dark:text-amber-300">
+                مسودة الأصناف: {formatMoney(draftTotal)} (الفوترة على الأصناف فقط)
+              </p>
+            ) : null}
+            {order.delivery_fee > 0 ? (
+              <p className="mt-[var(--mds-space-1)] text-xs text-muted-foreground">
+                رسوم التوصيل ظاهرة هنا — فاتورة الكاشير للأصناف فقط.
               </p>
             ) : null}
           </div>
 
           <div className="space-y-[var(--mds-space-2)]">
-            <p className="text-sm font-medium">تغيير الحالة</p>
-            <div className="flex gap-[var(--mds-space-2)] overflow-x-auto pb-1">
-            {EDITABLE_STATUSES.map((status) => (
+            <p className="text-sm font-medium">تحديث الحالة</p>
+            {!isLocked && nextStatus ? (
               <Button
-                key={status}
+                type="button"
+                className={cn(
+                  "w-full justify-center rounded-[var(--mds-radius-md)]",
+                  compact ? "h-9 text-xs" : "h-11",
+                  STATUS_STYLES[nextStatus]
+                )}
+                disabled={isPending}
+                onClick={() => changeStatus(nextStatus)}
+              >
+                <CheckCircle2 className="size-4" />
+                التالي: {STATUS_LABELS[nextStatus]}
+              </Button>
+            ) : null}
+            {!isLocked && transitionTargets.length > 1 ? (
+              <div className="flex flex-wrap gap-[var(--mds-space-2)]">
+                {transitionTargets
+                  .filter((status) => status !== nextStatus)
+                  .map((status) => (
+                    <Button
+                      key={status}
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "shrink-0 justify-center rounded-[var(--mds-radius-md)] border",
+                        compact ? "h-8 min-w-24 px-2 text-xs" : "h-10 min-w-28 px-3",
+                        STATUS_STYLES[status]
+                      )}
+                      disabled={isPending}
+                      onClick={() => changeStatus(status)}
+                    >
+                      <Clock3 className="size-4 text-muted-foreground" />
+                      {STATUS_LABELS[status]}
+                    </Button>
+                  ))}
+              </div>
+            ) : null}
+            {canCancel ? (
+              <Button
                 type="button"
                 variant="outline"
                 className={cn(
-                  "shrink-0 justify-center rounded-[var(--mds-radius-md)] border",
-                  compact ? "h-8 min-w-24 px-2 text-xs" : "h-10 min-w-28 px-3",
-                  STATUS_STYLES[status],
-                  order.status === status && "ring-2 ring-primary/30"
+                  "w-full justify-center rounded-[var(--mds-radius-md)] border border-destructive/30 text-destructive",
+                  compact ? "h-8 text-xs" : "h-10"
                 )}
-                disabled={isPending || order.status === "invoiced" || (order.status === "cancelled" && status !== "cancelled")}
-                onClick={() => changeStatus(status)}
+                disabled={isPending}
+                onClick={() => setCancelConfirmOpen(true)}
               >
-                {order.status === status ? (
-                  <CheckCircle2 className="size-4" />
-                ) : (
-                  <Clock3 className="size-4 text-muted-foreground" />
-                )}
-                {STATUS_LABELS[status]}
+                <XCircle className="size-4" />
+                إلغاء الطلب
               </Button>
-            ))}
-            </div>
+            ) : null}
+            {isLocked ? (
+              <p className="text-xs text-muted-foreground">
+                {order.status === "cancelled"
+                  ? "الطلب ملغي — لا يمكن تغيير حالته."
+                  : "الطلب مُفوتر — الحالة مقفلة."}
+              </p>
+            ) : null}
           </div>
         </aside>
       </CardContent>
     </Card>
+
+    <ConfirmActionDialog
+      open={cancelConfirmOpen}
+      onOpenChange={setCancelConfirmOpen}
+      title="إلغاء هذا الطلب؟"
+      description="سيتم تحرير أي حجز مخزون مرتبط، ولا يمكن إعادة فتح الطلب الملغي."
+      confirmLabel="تأكيد الإلغاء"
+      destructive
+      onConfirm={async () => {
+        setCancelConfirmOpen(false);
+        changeStatus("cancelled");
+      }}
+    />
 
     <PaymentPanel
       open={paymentOpen}
@@ -662,7 +813,7 @@ function OnlineOrderCard({
       enabledMethods={enabledPaymentMethods}
       customerName={draft.customerName || null}
       loading={isPending}
-      fixedTotal={draftTotal || order.total}
+      fixedTotal={draftTotal || order.subtotal}
       creditCustomerLinked={Boolean(draft.customerPhone?.trim())}
     />
     <PosReceiptSuccessDialog

@@ -1,10 +1,23 @@
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapStockCount, mapStockCountLine } from "@/lib/repositories/mappers";
+import { listStores } from "@/lib/repositories/store.repository";
 import type { StockCount, StockCountLine } from "@/lib/types";
 
+async function orgStoreIds(): Promise<string[]> {
+  return (await listStores()).map((store) => store.id);
+}
+
 export async function listStockCounts(storeId?: string): Promise<StockCount[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (storeId && !storeIds.includes(storeId)) return [];
+
   const db = await getDb();
-  let q = db.from("stock_counts").select("*").order("started_at", { ascending: false });
+  let q = db
+    .from("stock_counts")
+    .select("*")
+    .in("store_id", storeIds)
+    .order("started_at", { ascending: false });
   if (storeId) q = q.eq("store_id", storeId);
   const { data, error } = await q;
   if (error) throwDbError(error, "listStockCounts");
@@ -12,8 +25,16 @@ export async function listStockCounts(storeId?: string): Promise<StockCount[]> {
 }
 
 export async function getStockCount(id: string): Promise<StockCount | null> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return null;
+
   const db = await getDb();
-  const { data, error } = await db.from("stock_counts").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db
+    .from("stock_counts")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
   if (error) throwDbError(error, "getStockCount");
   return data ? mapStockCount(data) : null;
 }
@@ -69,6 +90,7 @@ export async function updateStockCount(
 export async function insertStockCountLines(
   lines: Omit<StockCountLine, "id">[]
 ): Promise<void> {
+  if (lines.length === 0) return;
   const db = await getDb();
   const { error } = await db.from("stock_count_lines").insert(lines);
   if (error) throwDbError(error, "insertStockCountLines");

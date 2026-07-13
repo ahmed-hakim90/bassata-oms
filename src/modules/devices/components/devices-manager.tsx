@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, MonitorSmartphone, Plus, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -42,11 +42,9 @@ export function DevicesManager({ stores, devices }: DevicesManagerProps) {
   const [addNames, setAddNames] = useState<Record<string, string>>({});
   const [pairing, setPairing] = useState<PairingInfo | null>(null);
   const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
-  const [pairUrl, setPairUrl] = useState(PAIR_PATH);
-
-  useEffect(() => {
-    setPairUrl(`${window.location.origin}${PAIR_PATH}`);
-  }, []);
+  const [pairUrl] = useState(() =>
+    typeof window !== "undefined" ? `${window.location.origin}${PAIR_PATH}` : PAIR_PATH
+  );
 
   function generateCode(device: Device) {
     startTransition(async () => {

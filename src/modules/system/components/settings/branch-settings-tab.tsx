@@ -25,8 +25,26 @@ import { registerBrowserDeviceAction } from "@/modules/auth/actions/device.actio
 import type { Store, Warehouse } from "@/lib/types";
 import { PosSetupGuide } from "@/modules/system/components/settings/pos-setup-guide";
 import { BranchQrDownloadCard } from "@/modules/system/components/settings/branch-qr-download-card";
+import {
+  WEEKDAY_KEYS,
+  WEEKDAY_LABELS_AR,
+  defaultOnlineOrderingHoursConfig,
+  parseOnlineOrderingHours,
+  type DayHours,
+  type OnlineOrderingHoursConfig,
+} from "@/modules/online-menu/lib/online-ordering-hours";
+import {
+  defaultOnlineFulfillmentConfig,
+  parseOnlineFulfillment,
+  type OnlineDeliveryZone,
+  type OnlineFulfillmentConfig,
+} from "@/modules/online-menu/lib/online-fulfillment";
 
 function storeEditDefaults(store: Store) {
+  const hours = parseOnlineOrderingHours(store.settings);
+  const seededHours =
+    Object.keys(hours.days).length > 0 ? hours : defaultOnlineOrderingHoursConfig();
+  const fulfillment = parseOnlineFulfillment(store.settings);
   return {
     name: store.name,
     code: store.code,
@@ -38,6 +56,13 @@ function storeEditDefaults(store: Store) {
     onlineMenuOrderingEnabled: store.settings.online_menu_ordering_enabled === true,
     onlineMenuSlug: getOnlineMenuSlug(store),
     onlineMenuUnlisted: store.settings.online_menu_unlisted === true,
+    onlineOrderingPaused: store.settings.online_ordering_paused === true,
+    orderingHoursEnforce: hours.enforce,
+    orderingHours: seededHours,
+    fulfillment:
+      fulfillment.zones.length > 0 || fulfillment.deliveryEnabled
+        ? fulfillment
+        : defaultOnlineFulfillmentConfig(),
   };
 }
 
@@ -344,6 +369,18 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <Checkbox
+                      checked={edit.onlineOrderingPaused}
+                      onCheckedChange={(v) =>
+                        setStoreEdits({
+                          ...storeEdits,
+                          [store.id]: { ...edit, onlineOrderingPaused: v === true },
+                        })
+                      }
+                    />
+                    إيقاف استقبال الطلبات مؤقتاً
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
                       checked={edit.onlineMenuUnlisted}
                       onCheckedChange={(v) =>
                         setStoreEdits({
@@ -394,6 +431,11 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                   orderingEnabled: edit.onlineMenuOrderingEnabled,
                                   slug: edit.onlineMenuSlug,
                                   unlisted: edit.onlineMenuUnlisted,
+                                  orderingPaused: edit.onlineOrderingPaused,
+                                  orderingHours: {
+                                    ...edit.orderingHours,
+                                    enforce: edit.orderingHoursEnforce,
+                                  },
                                   regenerateToken: true,
                                 },
                               });
@@ -410,6 +452,278 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                         تجديد التوكن
                       </Button>
                     </div>
+                  </div>
+
+                  <div className="grid gap-3 rounded-md border border-border/50 bg-muted/20 p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-medium">ساعات الطلب الأونلاين</p>
+                        <p className="text-xs text-muted-foreground">
+                          تُحفظ في إعدادات الفرع. بدون تفعيل الجدول يبقى الطلب متاحاً طالما السماح
+                          بالطلب مفعّل.
+                        </p>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={edit.orderingHoursEnforce}
+                          onCheckedChange={(v) =>
+                            setStoreEdits({
+                              ...storeEdits,
+                              [store.id]: { ...edit, orderingHoursEnforce: v === true },
+                            })
+                          }
+                        />
+                        فرض ساعات العمل
+                      </label>
+                    </div>
+                    <div className="grid gap-2">
+                      {WEEKDAY_KEYS.map((dayKey) => {
+                        const day = edit.orderingHours.days[dayKey];
+                        const closed = day?.closed === true;
+                        const window =
+                          !closed && day && "windows" in day && day.windows[0]
+                            ? day.windows[0]
+                            : { open: "10:00", close: "23:00" };
+                        return (
+                          <div
+                            key={dayKey}
+                            className="grid gap-2 rounded-md border border-border/40 bg-background/80 p-2 sm:grid-cols-[110px_auto_1fr_1fr]"
+                          >
+                            <label className="flex items-center gap-2 text-sm">
+                              <Checkbox
+                                checked={!closed}
+                                onCheckedChange={(v) => {
+                                  const nextDays: OnlineOrderingHoursConfig["days"] = {
+                                    ...edit.orderingHours.days,
+                                  };
+                                  if (v === true) {
+                                    nextDays[dayKey] = {
+                                      windows: [{ open: window.open, close: window.close }],
+                                    };
+                                  } else {
+                                    nextDays[dayKey] = { closed: true };
+                                  }
+                                  setStoreEdits({
+                                    ...storeEdits,
+                                    [store.id]: {
+                                      ...edit,
+                                      orderingHours: {
+                                        ...edit.orderingHours,
+                                        days: nextDays,
+                                      },
+                                    },
+                                  });
+                                }}
+                              />
+                              {WEEKDAY_LABELS_AR[dayKey]}
+                            </label>
+                            <span className="text-xs text-muted-foreground self-center">
+                              {closed ? "مغلق" : "مفتوح"}
+                            </span>
+                            <Input
+                              type="time"
+                              dir="ltr"
+                              disabled={closed}
+                              value={window.open}
+                              onChange={(e) => {
+                                const nextDay: DayHours = {
+                                  windows: [{ open: e.target.value, close: window.close }],
+                                };
+                                setStoreEdits({
+                                  ...storeEdits,
+                                  [store.id]: {
+                                    ...edit,
+                                    orderingHours: {
+                                      ...edit.orderingHours,
+                                      days: { ...edit.orderingHours.days, [dayKey]: nextDay },
+                                    },
+                                  },
+                                });
+                              }}
+                              className="h-9"
+                              aria-label={`فتح ${WEEKDAY_LABELS_AR[dayKey]}`}
+                            />
+                            <Input
+                              type="time"
+                              dir="ltr"
+                              disabled={closed}
+                              value={window.close}
+                              onChange={(e) => {
+                                const nextDay: DayHours = {
+                                  windows: [{ open: window.open, close: e.target.value }],
+                                };
+                                setStoreEdits({
+                                  ...storeEdits,
+                                  [store.id]: {
+                                    ...edit,
+                                    orderingHours: {
+                                      ...edit.orderingHours,
+                                      days: { ...edit.orderingHours.days, [dayKey]: nextDay },
+                                    },
+                                  },
+                                });
+                              }}
+                              className="h-9"
+                              aria-label={`إغلاق ${WEEKDAY_LABELS_AR[dayKey]}`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      التوقيت وفق منطقة الفرع الزمنية
+                      {edit.timezone ? ` (${edit.timezone})` : " (أو منطقة المؤسسة / القاهرة)"}.
+                      الفترات الليلية (مثل 22:00→02:00) مدعومة.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 rounded-md border border-border/50 bg-muted/20 p-3">
+                    <div>
+                      <p className="text-sm font-medium">الاستلام والتوصيل</p>
+                      <p className="text-xs text-muted-foreground">
+                        إعدادات first-party فقط (بدون منصات خارجية). الرسوم تُحسب من السيرفر حسب المنطقة.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={edit.fulfillment.pickupEnabled}
+                          onCheckedChange={(v) =>
+                            setStoreEdits({
+                              ...storeEdits,
+                              [store.id]: {
+                                ...edit,
+                                fulfillment: {
+                                  ...edit.fulfillment,
+                                  pickupEnabled: v === true,
+                                },
+                              },
+                            })
+                          }
+                        />
+                        استلام من الفرع
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={edit.fulfillment.deliveryEnabled}
+                          onCheckedChange={(v) =>
+                            setStoreEdits({
+                              ...storeEdits,
+                              [store.id]: {
+                                ...edit,
+                                fulfillment: {
+                                  ...edit.fulfillment,
+                                  deliveryEnabled: v === true,
+                                },
+                              },
+                            })
+                          }
+                        />
+                        توصيل
+                      </label>
+                    </div>
+                    {edit.fulfillment.deliveryEnabled ? (
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium text-muted-foreground">مناطق التوصيل والرسوم</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const nextZone: OnlineDeliveryZone = {
+                                id: crypto.randomUUID().replaceAll("-", "").slice(0, 12),
+                                name: "",
+                                fee: 0,
+                              };
+                              setStoreEdits({
+                                ...storeEdits,
+                                [store.id]: {
+                                  ...edit,
+                                  fulfillment: {
+                                    ...edit.fulfillment,
+                                    zones: [...edit.fulfillment.zones, nextZone],
+                                  },
+                                },
+                              });
+                            }}
+                          >
+                            إضافة منطقة
+                          </Button>
+                        </div>
+                        {edit.fulfillment.zones.length === 0 ? (
+                          <p className="text-xs text-amber-800 dark:text-amber-200">
+                            أضف منطقة واحدة على الأقل قبل تفعيل التوصيل.
+                          </p>
+                        ) : (
+                          edit.fulfillment.zones.map((zone, index) => (
+                            <div
+                              key={zone.id}
+                              className="grid gap-2 rounded-md border border-border/40 bg-background/80 p-2 sm:grid-cols-[1fr_120px_auto]"
+                            >
+                              <Input
+                                value={zone.name}
+                                placeholder="اسم المنطقة (مثال: المعادي)"
+                                onChange={(e) => {
+                                  const zones = edit.fulfillment.zones.map((candidate, i) =>
+                                    i === index ? { ...candidate, name: e.target.value } : candidate
+                                  );
+                                  setStoreEdits({
+                                    ...storeEdits,
+                                    [store.id]: {
+                                      ...edit,
+                                      fulfillment: { ...edit.fulfillment, zones },
+                                    },
+                                  });
+                                }}
+                              />
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                dir="ltr"
+                                value={zone.fee}
+                                placeholder="الرسوم"
+                                aria-label="رسوم التوصيل"
+                                onChange={(e) => {
+                                  const fee = Number(e.target.value);
+                                  const zones = edit.fulfillment.zones.map((candidate, i) =>
+                                    i === index
+                                      ? { ...candidate, fee: Number.isFinite(fee) ? fee : 0 }
+                                      : candidate
+                                  );
+                                  setStoreEdits({
+                                    ...storeEdits,
+                                    [store.id]: {
+                                      ...edit,
+                                      fulfillment: { ...edit.fulfillment, zones },
+                                    },
+                                  });
+                                }}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                onClick={() => {
+                                  const zones = edit.fulfillment.zones.filter((_, i) => i !== index);
+                                  setStoreEdits({
+                                    ...storeEdits,
+                                    [store.id]: {
+                                      ...edit,
+                                      fulfillment: { ...edit.fulfillment, zones },
+                                    },
+                                  });
+                                }}
+                              >
+                                حذف
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -433,6 +747,12 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                             orderingEnabled: edit.onlineMenuOrderingEnabled,
                             slug: edit.onlineMenuSlug,
                             unlisted: edit.onlineMenuUnlisted,
+                            orderingPaused: edit.onlineOrderingPaused,
+                            orderingHours: {
+                              ...edit.orderingHours,
+                              enforce: edit.orderingHoursEnforce,
+                            },
+                            fulfillment: edit.fulfillment as OnlineFulfillmentConfig,
                           },
                         });
                         toast.success("تم تحديث الفرع");

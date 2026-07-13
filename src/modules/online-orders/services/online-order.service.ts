@@ -7,6 +7,20 @@ import * as storeRepo from "@/lib/repositories/store.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { resolveVariantPrice } from "@/modules/products/services/variant.service";
+import {
+  releaseStockForOnlineOrder,
+  reserveStockForOnlineOrder,
+} from "@/modules/online-orders/services/online-order-reservation.service";
+import { evaluateOnlineOrderingAvailability } from "@/modules/online-menu/lib/online-ordering-hours";
+import {
+  parseOnlineFulfillment,
+  resolveOnlineFulfillmentFee,
+  type OnlineFulfillmentType,
+} from "@/modules/online-menu/lib/online-fulfillment";
+import { assertOnlinePublicRateLimit } from "@/modules/online-menu/lib/online-public-rate-limit";
+import { buildOnlineOrderTrackingPath } from "@/modules/online-orders/lib/online-order-tracking";
+import { canTransitionOnlineOrderStatus } from "@/modules/online-orders/lib/online-order-status";
+import { normalizeOnlineMenuSlug } from "@/lib/slugify";
 import type { OnlineOrder, OnlineOrderItem, OnlineOrderStatus } from "@/lib/types";
 
 type JsonRecord = Record<string, unknown>;
@@ -24,6 +38,9 @@ export type PublicOnlineOrderInput = {
   customerName: string;
   customerPhone?: string;
   notes?: string;
+  fulfillmentType: OnlineFulfillmentType;
+  zoneId?: string | null;
+  deliveryAddress?: string | null;
   lines: OnlineOrderLineInput[];
 };
 
@@ -274,7 +291,7 @@ async function findOnlineOrderCustomerId(input: {
 }
 
 export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
-  const slug = input.slug.trim().toLowerCase();
+  const slug = normalizeOnlineMenuSlug(input.slug);
   const menuToken = input.token?.trim() ?? "";
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone?.trim() ?? "";
@@ -288,10 +305,12 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     throw new Error("تفاصيل الطلب طويلة جدًا");
   }
 
+  await assertOnlinePublicRateLimit({ action: "order_create", slug });
+
   const admin = createAdminClient();
   const { data: store, error: storeError } = await admin
     .from("stores")
-    .select("id, org_id, name, is_active, settings")
+    .select("id, org_id, name, timezone, is_active, settings")
     .eq("is_active", true)
     .filter("settings->>online_menu_slug", "eq", slug)
     .maybeSingle();
@@ -299,7 +318,7 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
   if (!store) throw new Error("المنيو غير متاح");
 
   const settings = asRecord(store.settings);
-  if (settings.online_menu_enabled !== true || settings.online_menu_ordering_enabled !== true) {
+  if (settings.online_menu_enabled !== true) {
     throw new Error("الطلب الأونلاين غير متاح حاليًا");
   }
   if (settings.online_menu_unlisted === true) {
@@ -310,7 +329,24 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     }
   }
 
+  const availability = evaluateOnlineOrderingAvailability({
+    settings,
+    storeTimezone: store.timezone,
+  });
+  if (!availability.canOrder) {
+    throw new Error(availability.messageAr);
+  }
+
+  const fulfillmentConfig = parseOnlineFulfillment(settings);
+  const fulfillment = resolveOnlineFulfillmentFee(fulfillmentConfig, {
+    fulfillmentType: input.fulfillmentType,
+    zoneId: input.zoneId,
+    deliveryAddress: input.deliveryAddress,
+  });
+
   const priced = await priceLinesForPublicOrder(store.org_id, input.lines);
+  const total = money(priced.subtotal + fulfillment.deliveryFee);
+
   if (customerPhone) {
     await ensureCustomerForPublicOrder({
       orgId: store.org_id,
@@ -327,10 +363,14 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
       customer_phone: customerPhone || null,
       notes,
       subtotal: priced.subtotal,
-      total: priced.subtotal,
+      total,
       discount: 0,
       tax: 0,
       status: "pending",
+      fulfillment_type: fulfillment.fulfillmentType,
+      delivery_area: fulfillment.deliveryArea,
+      delivery_address: fulfillment.deliveryAddress,
+      delivery_fee: fulfillment.deliveryFee,
     })
     .select()
     .single();
@@ -347,7 +387,14 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     .insert(priced.items.map((item) => ({ online_order_id: order.id, ...item })));
   if (itemsError) throw new Error(itemsError.message);
 
-  return { id: order.id, total: Number(order.total), storeName: store.name };
+  return {
+    id: order.id,
+    total: Number(order.total),
+    deliveryFee: fulfillment.deliveryFee,
+    fulfillmentType: fulfillment.fulfillmentType,
+    storeName: store.name,
+    trackingPath: buildOnlineOrderTrackingPath(order.id),
+  };
 }
 
 export async function listOnlineOrders(
@@ -448,12 +495,13 @@ export async function updateOnlineOrderDetails(
   }
 
   const priced = await priceLinesForStaffOrder(input.lines);
+  const deliveryFee = money(existing.delivery_fee ?? 0);
   await onlineOrderRepo.updateOnlineOrder(id, {
     customer_name: customerName,
     customer_phone: customerPhone || null,
     notes: input.notes?.trim() ?? "",
     subtotal: priced.subtotal,
-    total: priced.subtotal,
+    total: money(priced.subtotal + deliveryFee),
     discount: 0,
     tax: 0,
   });
@@ -482,6 +530,23 @@ export async function updateOnlineOrderStatus(
   if (existing.status === "cancelled" && status !== "cancelled") {
     throw new Error("لا يمكن إعادة فتح طلب ملغي");
   }
+  if (!canTransitionOnlineOrderStatus(existing.status, status)) {
+    throw new Error("انتقال الحالة غير مسموح لهذا الطلب");
+  }
+
+  const fulfillmentStatuses: OnlineOrderStatus[] = ["accepted", "preparing", "ready"];
+  const becomingAccepted =
+    existing.status === "pending" && fulfillmentStatuses.includes(status);
+  const becomingCancelled =
+    status === "cancelled" && existing.status !== "cancelled";
+
+  if (becomingAccepted) {
+    await reserveStockForOnlineOrder(existing, userId);
+  }
+  if (becomingCancelled) {
+    await releaseStockForOnlineOrder(existing, userId, "إلغاء طلب أونلاين — تحرير الحجز");
+  }
+
   const updated = await onlineOrderRepo.updateOnlineOrder(id, { status });
   if (!updated) throw new Error("الطلب غير موجود");
 
@@ -543,6 +608,9 @@ export async function invoiceOnlineOrder(input: {
     throw new Error("البيع الآجل يحتاج رقم هاتف عميل مسجّل");
   }
 
+  // Release reservation before checkout sale deduction (avoids double-hold).
+  await releaseStockForOnlineOrder(order, input.userId, "فوترة طلب أونلاين — تحرير الحجز");
+
   let result;
   try {
     result =
@@ -587,6 +655,11 @@ export async function invoiceOnlineOrder(input: {
     }
     if (message.includes("Payment amount must be greater than zero")) {
       throw new Error("مبلغ الدفع يجب أن يكون أكبر من صفر");
+    }
+    if (message.includes("Insufficient stock") || message.includes("Insufficient batch stock")) {
+      throw new Error(
+        "المخزون غير كافٍ — الفوترة متوقفة لأن إعداد «منع المخزون السالب» مفعّل. راجع الرصيد أو عطّل الإعداد من خصائص النظام."
+      );
     }
     throw error;
   }

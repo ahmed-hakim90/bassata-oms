@@ -1,9 +1,14 @@
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { getDb, throwDbError } from "@/lib/repositories/client";
+import { listStores } from "@/lib/repositories/store.repository";
 import type { DeviceRow } from "@/lib/supabase/database.types";
 
 export type Device = DeviceRow;
+
+async function orgStoreIds(): Promise<string[]> {
+  return (await listStores()).map((store) => store.id);
+}
 
 function randomDeviceKey(): string {
   return crypto.randomBytes(24).toString("base64url");
@@ -14,8 +19,12 @@ export async function hashSecret(value: string): Promise<string> {
 }
 
 export async function listDevices(storeId?: string): Promise<Device[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (storeId && !storeIds.includes(storeId)) return [];
+
   const db = await getDb();
-  let q = db.from("devices").select("*").order("name");
+  let q = db.from("devices").select("*").in("store_id", storeIds).order("name");
   if (storeId) q = q.eq("store_id", storeId);
   const { data, error } = await q;
   if (error) throwDbError(error, "listDevices");
@@ -23,8 +32,16 @@ export async function listDevices(storeId?: string): Promise<Device[]> {
 }
 
 export async function getDevice(id: string): Promise<Device | null> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return null;
+
   const db = await getDb();
-  const { data, error } = await db.from("devices").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db
+    .from("devices")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
   if (error) throwDbError(error, "getDevice");
   return (data as Device | null) ?? null;
 }

@@ -52,7 +52,7 @@ export function autoFitColumns(sheet: XLSX.WorkSheet, colCount: number): void {
 
 export function buildMetadataSheet(context: ReportContext, title: string): XLSX.WorkSheet {
   const rows = [
-    ["CafeFlow Report"],
+    ["Velora Report"],
     ["Title", title],
     ["Organization", context.orgName],
     ["Store", context.storeName ?? "All"],

@@ -32,7 +32,7 @@ export default async function PrintReceiptPage({
       dir="rtl"
     >
       <header className="text-center">
-        <p className="text-sm font-bold">{branding.orgName || "CafeFlow POS"}</p>
+        <p className="text-sm font-bold">{branding.orgName || "Velora"}</p>
         {branding.storeName ? <p>{branding.storeName}</p> : null}
         {branding.storeAddress ? <p>{branding.storeAddress}</p> : null}
         {branding.storePhone ? <p dir="ltr">{branding.storePhone}</p> : null}

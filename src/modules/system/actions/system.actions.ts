@@ -459,6 +459,9 @@ export async function updateStoreAction(
       slug?: string;
       unlisted?: boolean;
       regenerateToken?: boolean;
+      orderingPaused?: boolean;
+      orderingHours?: unknown;
+      fulfillment?: unknown;
     };
   }
 ) {
@@ -498,6 +501,28 @@ export async function updateStoreAction(
         input.onlineMenu.unlisted ?? existing.settings.online_menu_unlisted === true,
       online_menu_token: nextToken,
     };
+
+    if (input.onlineMenu.orderingPaused !== undefined) {
+      settings.online_ordering_paused = input.onlineMenu.orderingPaused === true;
+    }
+
+    if (input.onlineMenu.orderingHours !== undefined) {
+      const {
+        validateOnlineOrderingHoursInput,
+        serializeOnlineOrderingHours,
+      } = await import("@/modules/online-menu/lib/online-ordering-hours");
+      const validated = validateOnlineOrderingHoursInput(input.onlineMenu.orderingHours);
+      settings.online_ordering_hours = serializeOnlineOrderingHours(validated);
+    }
+
+    if (input.onlineMenu.fulfillment !== undefined) {
+      const {
+        validateOnlineFulfillmentInput,
+        serializeOnlineFulfillment,
+      } = await import("@/modules/online-menu/lib/online-fulfillment");
+      const validated = validateOnlineFulfillmentInput(input.onlineMenu.fulfillment);
+      settings.online_fulfillment = serializeOnlineFulfillment(validated);
+    }
   }
 
   try {
@@ -818,7 +843,7 @@ export async function getUnifiedSettingsData(
   let sessionSettings = settingsBundle?.sessionSettings ?? null;
   let featureFlags = settingsBundle?.featureFlags ?? null;
   let receiptHeader = "";
-  let receiptFooter = "Thank you for visiting CafeFlow!";
+  let receiptFooter = "Thank you for visiting Velora!";
 
   if (sessionOnly) {
     const [session, flags, settings] = await Promise.all([
@@ -832,7 +857,7 @@ export async function getUnifiedSettingsData(
     const receipt = settings.find((s) => s.key === "receipt_footer");
     receiptHeader = (header?.value.text as string) ?? "";
     receiptFooter =
-      (receipt?.value.text as string) ?? "Thank you for visiting CafeFlow!";
+      (receipt?.value.text as string) ?? "Thank you for visiting Velora!";
   }
 
   if (settingsBundle) {
@@ -840,7 +865,7 @@ export async function getUnifiedSettingsData(
     const receipt = settingsBundle.settings.find((s) => s.key === "receipt_footer");
     receiptHeader = (header?.value.text as string) ?? "";
     receiptFooter =
-      (receipt?.value.text as string) ?? "Thank you for visiting CafeFlow!";
+      (receipt?.value.text as string) ?? "Thank you for visiting Velora!";
   }
 
   const usersBundle =

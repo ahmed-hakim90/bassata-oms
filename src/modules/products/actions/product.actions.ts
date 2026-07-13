@@ -93,6 +93,70 @@ export async function bulkDisableMenuInventoryTrackingAction() {
   return { count: productIds.length };
 }
 
+/** Enable/disable inventory tracking for selected products or a whole category. */
+export async function bulkSetInventoryTrackingAction(input: {
+  trackInventory: boolean;
+  productIds?: string[];
+  categoryId?: string | null;
+}) {
+  const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
+  const orgId = await getOrgId();
+  const db = await getDb();
+
+  const productIds = [...new Set((input.productIds ?? []).filter(Boolean))];
+  const categoryId = input.categoryId?.trim() || null;
+  if (productIds.length === 0 && !categoryId) {
+    throw new Error("اختر منتجات أو تصنيفًا أولًا");
+  }
+
+  let query = db
+    .from("products")
+    .update(
+      input.trackInventory
+        ? {
+            track_inventory: true,
+            inventory_tracking_mode: "standard",
+          }
+        : {
+            track_inventory: false,
+            inventory_tracking_mode: "none",
+            expiry_tracking_enabled: false,
+          }
+    )
+    .eq("org_id", orgId);
+
+  if (categoryId) {
+    query = query.eq("category_id", categoryId);
+  } else {
+    query = query.in("id", productIds);
+  }
+
+  const { data, error } = await query.select("id");
+  if (error) throw new Error(error.message);
+
+  const updatedIds = (data ?? []).map((row) => row.id);
+  await writeAuditLog({
+    orgId,
+    userId: user.id,
+    action: input.trackInventory
+      ? "product.bulk_track_inventory_enabled"
+      : "product.bulk_track_inventory_disabled",
+    entityType: "product",
+    entityId: categoryId ?? orgId,
+    metadata: {
+      count: updatedIds.length,
+      categoryId,
+      productIds: categoryId ? undefined : updatedIds,
+    },
+  });
+
+  revalidatePath("/products");
+  revalidatePath("/inventory");
+  revalidatePath("/inventory/stock-count");
+  revalidatePath("/pos");
+  return { count: updatedIds.length };
+}
+
 export async function uploadProductImageAction(productId: string, formData: FormData) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   const product = await productService.getProduct(productId);
@@ -420,12 +484,16 @@ import {
 } from "@/modules/system/services/settings.service";
 import * as recipeService from "@/modules/products/services/recipe.service";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
+import * as inventoryRepo from "@/lib/repositories/inventory.repository";
+import { getDefaultWarehouse } from "@/lib/repositories/warehouse.repository";
+import { getValidatedActiveStoreId } from "@/lib/auth/guards";
 
 export async function getProductsPageDataAction() {
   await requireCatalogRead();
   const org = await import("@/lib/repositories/organization.repository").then(
     (m) => m.getOrganization()
   );
+  const storeId = await getValidatedActiveStoreId();
   const [
     rows,
     categories,
@@ -435,6 +503,7 @@ export async function getProductsPageDataAction() {
     ingredients,
     businessActivity,
     productTemplates,
+    defaultWarehouse,
   ] =
     await Promise.all([
     productService.getProductsWithCategories(),
@@ -445,10 +514,24 @@ export async function getProductsPageDataAction() {
     recipeService.listIngredients(),
     getBusinessActivitySettings(),
     getProductTemplateSettings(),
+    getDefaultWarehouse(storeId),
   ]);
-  const variantMap = await catalogRepo.listVariantsForProducts(
-    rows.map(({ product }) => product.id)
-  );
+  const [variantMap, stockLevels] = await Promise.all([
+    catalogRepo.listVariantsForProducts(rows.map(({ product }) => product.id)),
+    defaultWarehouse
+      ? inventoryRepo.listStockLevels(storeId, defaultWarehouse.id)
+      : inventoryRepo.listStockLevels(storeId),
+  ]);
+  const availableStockByProductId: Record<string, number> = {};
+  const availableStockByVariantId: Record<string, number> = {};
+  for (const level of stockLevels) {
+    availableStockByProductId[level.product_id] =
+      (availableStockByProductId[level.product_id] ?? 0) + level.quantity;
+    if (level.variant_id) {
+      availableStockByVariantId[level.variant_id] =
+        (availableStockByVariantId[level.variant_id] ?? 0) + level.quantity;
+    }
+  }
   const recipeSet = new Set(recipeProductIds);
   const baseRecipeSet = new Set(
     recipeKeys.filter((key) => key.variantId == null).map((key) => key.productId)
@@ -465,6 +548,8 @@ export async function getProductsPageDataAction() {
     recipesEnabled: featureFlags.recipes === true,
     businessActivity,
     productTemplates,
+    availableStockByProductId,
+    availableStockByVariantId,
     products: rows.map(({ product, category }) => {
       const activeVariants = (variantMap.get(product.id) ?? []).filter((v) => v.is_active);
       const missingRecipeVariantCount =

@@ -21,16 +21,24 @@ export async function listWarehouses(storeId?: string): Promise<Warehouse[]> {
 
 export async function getWarehouse(id: string): Promise<Warehouse | null> {
   const db = await getDb();
-  const { data, error } = await db.from("warehouses").select("*").eq("id", id).maybeSingle();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("warehouses")
+    .select("*")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
   if (error) throwDbError(error, "getWarehouse");
   return data ? mapWarehouse(data) : null;
 }
 
 export async function getDefaultWarehouse(storeId: string): Promise<Warehouse | null> {
   const db = await getDb();
+  const orgId = await getOrgId();
   const { data, error } = await db
     .from("warehouses")
     .select("*")
+    .eq("org_id", orgId)
     .eq("store_id", storeId)
     .eq("is_default", true)
     .eq("is_active", true)

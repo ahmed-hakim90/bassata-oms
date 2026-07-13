@@ -136,7 +136,9 @@ as $$
     on pr.product_id = oi.product_id
    and (pr.variant_id = oi.variant_id or (pr.variant_id is null and oi.variant_id is null))
   where s.org_id = (select org_id from public.users where auth_user_id = auth.uid() limit 1)
-    and o.status in ('completed', 'paid')
+    -- order_status enum is ('open','completed','voided','refunded');
+    -- 'paid' is payment_status, not a valid order_status value.
+    and o.status = 'completed'
     and (
       p.product_type = 'finished'
       or coalesce(p.inventory_product_type, 'finished_product') = 'finished_product'

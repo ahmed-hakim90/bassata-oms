@@ -105,6 +105,6 @@ export async function exportInventoryReportExcel(params: Record<string, string |
   });
   return {
     base64: workbookToBase64(workbook),
-    filename: "CafeFlow-inventory.xlsx",
+    filename: "Velora-inventory.xlsx",
   };
 }

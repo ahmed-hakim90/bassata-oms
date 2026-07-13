@@ -101,31 +101,27 @@ export async function getOutstandingBalances() {
 
 export async function getAgingReport() {
   const customers = await accountRepo.listCustomersWithBalance();
+  const { allocateBalanceToAgedDebits, emptyAgingBuckets, mergeBuckets, sumBuckets } =
+    await import("@/modules/reports/lib/aging-buckets");
+  const buckets = emptyAgingBuckets();
   const ledgerByCustomer = await Promise.all(
     customers.map(async (c) => {
       const entries = await accountRepo.listCustomerLedger(c.id);
-      const creditSales = entries.filter((e) => e.entry_type === "credit_sale");
-      const oldest = creditSales[0]?.created_at ?? null;
-      const days = oldest
-        ? Math.floor((Date.now() - new Date(oldest).getTime()) / (86400 * 1000))
-        : 0;
-      return { ...c, oldestCreditAt: oldest, daysOutstanding: days };
+      const debitEvents = entries
+        .filter((e) => e.entry_type === "credit_sale" && e.debit > 0)
+        .map((e) => ({ at: e.created_at, amount: e.debit }));
+      const allocated = allocateBalanceToAgedDebits(c.account_balance, debitEvents);
+      mergeBuckets(buckets, allocated.buckets);
+      return {
+        ...c,
+        oldestCreditAt: allocated.oldestAt,
+        daysOutstanding: allocated.daysOutstanding,
+      };
     })
   );
-  const buckets = {
-    current: 0,
-    days30: 0,
-    days60: 0,
-    days90: 0,
-    over90: 0,
+  return {
+    customers: ledgerByCustomer,
+    buckets,
+    total: sumBuckets(buckets),
   };
-  for (const row of ledgerByCustomer) {
-    const amt = row.account_balance;
-    if (row.daysOutstanding <= 30) buckets.current += amt;
-    else if (row.daysOutstanding <= 60) buckets.days30 += amt;
-    else if (row.daysOutstanding <= 90) buckets.days60 += amt;
-    else if (row.daysOutstanding <= 120) buckets.days90 += amt;
-    else buckets.over90 += amt;
-  }
-  return { customers: ledgerByCustomer, buckets, total: customers.reduce((s, c) => s + c.account_balance, 0) };
 }

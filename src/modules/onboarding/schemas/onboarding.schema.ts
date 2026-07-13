@@ -156,6 +156,12 @@ export function mapBusinessTypeToActivity(
   options?: { enableVariants?: boolean }
 ): BusinessActivitySettings {
   const preset = ACTIVITY_PRESETS[type];
+  // Activity presets that disable variants (e.g. supermarket) cannot be overridden
+  // by onboarding feature checkboxes.
+  const enableVariants =
+    preset.enable_variants === false
+      ? false
+      : (options?.enableVariants ?? preset.enable_variants ?? true);
   return {
     activity_type: type,
     enabled_sales_modes: preset.enabled_sales_modes ?? ["retail"],
@@ -163,7 +169,7 @@ export function mapBusinessTypeToActivity(
     enable_weight_sales: preset.enable_weight_sales ?? false,
     enable_piece_sales: preset.enable_piece_sales ?? true,
     enable_wholesale_sales: preset.enable_wholesale_sales ?? false,
-    enable_variants: options?.enableVariants ?? preset.enable_variants ?? true,
+    enable_variants: enableVariants,
     enable_price_by_amount: preset.enable_price_by_amount ?? false,
     allow_cashier_wholesale: preset.allow_cashier_wholesale ?? false,
     require_manager_for_wholesale: preset.require_manager_for_wholesale ?? true,
@@ -199,6 +205,8 @@ export function buildOnboardingFeatureFlags(
   });
   return {
     ...fromFeatures,
+    // Activity-managed flags always win (supermarket recipes stay off).
     barcode_scanner: managed.barcode_scanner ?? fromFeatures.barcode_scanner,
+    recipes: managed.recipes ?? fromFeatures.recipes,
   };
 }

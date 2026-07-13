@@ -90,12 +90,20 @@ export function InventoryHub({
           activeWarehouse ? ` · ${activeWarehouse.name}` : " · كل المخازن"
         }. ابدأ من المشتريات أو الجرد حسب المطلوب.`}
         action={
-          <Link
-            href="/inventory/movements"
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            سجل الحركة الكامل
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/reports/product-card"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              كارت صنف
+            </Link>
+            <Link
+              href="/inventory/movements"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              سجل الحركة الكامل
+            </Link>
+          </div>
         }
       />
 

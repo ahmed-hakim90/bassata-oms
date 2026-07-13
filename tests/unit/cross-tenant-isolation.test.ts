@@ -58,7 +58,16 @@ describe("cross-tenant: public online menu", () => {
     vi.resetModules();
     adminFrom.mockReset();
     vi.doMock("@/lib/supabase/admin", () => ({
-      createAdminClient: () => ({ from: adminFrom }),
+      createAdminClient: () => ({
+        from: adminFrom,
+        rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+    }));
+    vi.doMock("@/modules/online-menu/lib/online-public-rate-limit", () => ({
+      assertOnlinePublicRateLimit: vi.fn(async () => undefined),
+    }));
+    vi.doMock("next/headers", () => ({
+      headers: vi.fn(async () => new Headers({ "x-forwarded-for": "127.0.0.1" })),
     }));
   });
 
@@ -76,6 +85,7 @@ describe("cross-tenant: public online menu", () => {
           online_menu_slug: "cafe-a",
           online_menu_ordering_enabled: true,
         },
+        timezone: "Africa/Cairo",
       },
       error: null,
     });
@@ -134,6 +144,7 @@ describe("cross-tenant: public online menu", () => {
     const menu = await getOnlineMenuBySlug("cafe-a");
 
     expect(menu).not.toBeNull();
+    expect(menu!.store.canOrder).toBe(true);
     expect(menu!.items.map((item) => item.id)).toEqual([PRODUCT_A]);
     expect(menu!.items.some((item) => item.id === PRODUCT_B)).toBe(false);
 
@@ -161,6 +172,7 @@ describe("cross-tenant: public online menu", () => {
         address: "",
         phone: "",
         is_active: true,
+        timezone: "Africa/Cairo",
         settings: {
           online_menu_enabled: true,
           online_menu_unlisted: true,
@@ -189,8 +201,18 @@ describe("cross-tenant: public online order", () => {
   beforeEach(() => {
     vi.resetModules();
     adminFrom.mockReset();
+    process.env.SweetFlow_COOKIE_SECRET = "test-cookie-secret";
     vi.doMock("@/lib/supabase/admin", () => ({
-      createAdminClient: () => ({ from: adminFrom }),
+      createAdminClient: () => ({
+        from: adminFrom,
+        rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+    }));
+    vi.doMock("@/modules/online-menu/lib/online-public-rate-limit", () => ({
+      assertOnlinePublicRateLimit: vi.fn(async () => undefined),
+    }));
+    vi.doMock("next/headers", () => ({
+      headers: vi.fn(async () => new Headers({ "x-forwarded-for": "127.0.0.1" })),
     }));
   });
 
@@ -201,6 +223,7 @@ describe("cross-tenant: public online order", () => {
         org_id: ORG_A,
         name: "Cafe A",
         is_active: true,
+        timezone: "Africa/Cairo",
         settings: {
           online_menu_enabled: true,
           online_menu_ordering_enabled: true,
@@ -230,6 +253,7 @@ describe("cross-tenant: public online order", () => {
       submitPublicOnlineOrder({
         slug: "cafe-a",
         customerName: "Guest",
+        fulfillmentType: "pickup",
         lines: [{ productId: PRODUCT_B, quantity: 1 }],
       })
     ).rejects.toThrow(/غير متاحة/);
@@ -290,6 +314,87 @@ describe("cross-tenant: authenticated product / order repos", () => {
     expect(product).toBeNull();
     expect(eqOrg).toHaveBeenCalledWith("org_id", ORG_A);
     expect(inIds).toHaveBeenCalledWith("id", [PRODUCT_B]);
+  });
+
+  it("listSessions scopes to org stores and ignores foreign store ids", async () => {
+    const inStoreIds = vi.fn().mockReturnThis();
+    const eqStore = vi.fn().mockReturnThis();
+    const order = vi.fn().mockReturnValue({
+      in: inStoreIds,
+      eq: eqStore,
+      then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve),
+    });
+    inStoreIds.mockReturnValue({
+      eq: eqStore,
+      order: vi.fn().mockReturnValue({
+        then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
+          Promise.resolve({ data: [], error: null }).then(resolve),
+      }),
+      then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve),
+    });
+    eqStore.mockReturnValue({
+      then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve),
+    });
+
+    vi.doMock("@/lib/repositories/client", () => ({
+      getDb: vi.fn(async () => ({
+        from: vi.fn(() => ({
+          select: vi.fn().mockReturnValue({
+            in: inStoreIds,
+            order,
+          }),
+        })),
+      })),
+      throwDbError: (error: unknown, ctx: string) => {
+        throw new Error(`${ctx}: ${String(error)}`);
+      },
+    }));
+    vi.doMock("@/lib/repositories/store.repository", () => ({
+      listStores: vi.fn(async () => [{ id: STORE_A, org_id: ORG_A }]),
+    }));
+
+    const { listSessions } = await import("@/lib/repositories/session.repository");
+    const sessions = await listSessions(STORE_B);
+
+    expect(sessions).toEqual([]);
+    expect(inStoreIds).not.toHaveBeenCalled();
+  });
+
+  it("listSessions without storeId still constrains to org store ids", async () => {
+    const inStoreIds = vi.fn().mockReturnThis();
+    const orderFn = vi.fn().mockReturnValue({
+      then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve),
+    });
+    inStoreIds.mockReturnValue({
+      order: orderFn,
+      then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve),
+    });
+
+    vi.doMock("@/lib/repositories/client", () => ({
+      getDb: vi.fn(async () => ({
+        from: vi.fn(() => ({
+          select: vi.fn().mockReturnValue({
+            in: inStoreIds,
+          }),
+        })),
+      })),
+      throwDbError: (error: unknown, ctx: string) => {
+        throw new Error(`${ctx}: ${String(error)}`);
+      },
+    }));
+    vi.doMock("@/lib/repositories/store.repository", () => ({
+      listStores: vi.fn(async () => [{ id: STORE_A, org_id: ORG_A }]),
+    }));
+
+    const { listSessions } = await import("@/lib/repositories/session.repository");
+    await listSessions();
+
+    expect(inStoreIds).toHaveBeenCalledWith("store_id", [STORE_A]);
   });
 
   it("listOrders scopes to org stores and ignores foreign store ids", async () => {

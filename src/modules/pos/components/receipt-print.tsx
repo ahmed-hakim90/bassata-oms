@@ -18,12 +18,12 @@ export function ReceiptPrint({ receipt }: ReceiptPrintProps) {
     receipt;
   return (
     <div
-      id="CafeFlow-receipt"
+      id="Velora-receipt"
       data-print-layout="receipt"
       className="hidden print:block print:bg-white print:p-0"
     >
       <div className="mx-auto w-[72mm] max-w-[72mm] font-mono text-[11px] leading-snug text-black">
-        <p className="text-center font-bold">{branding.orgName || "CafeFlow POS"}</p>
+        <p className="text-center font-bold">{branding.orgName || "Velora"}</p>
         {branding.storeName ? (
           <p className="text-center text-xs">{branding.storeName}</p>
         ) : null}
@@ -103,5 +103,5 @@ export function triggerReceiptPrint() {
 
 export function openCashDrawerHook() {
   // Hardware integration point — wire to ESC/POS or WebUSB in production.
-  console.info("[CafeFlow] cash_drawer: open signal sent");
+  console.info("[Velora] cash_drawer: open signal sent");
 }

@@ -36,6 +36,12 @@ type CustomerForm = {
   notes: string;
 };
 
+type FulfillmentForm = {
+  type: "pickup" | "delivery";
+  zoneId: string;
+  address: string;
+};
+
 function formatMoney(amount: number, currency: string) {
   return new Intl.NumberFormat("ar-EG-u-nu-latn", {
     style: "currency",
@@ -111,13 +117,28 @@ interface OnlineMenuOrderingClientProps {
 export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderingClientProps) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState<CustomerForm>({ name: "", phone: "", notes: "" });
-  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [fulfillment, setFulfillment] = useState<FulfillmentForm>(() => {
+    const config = menu.store.fulfillment;
+    const defaultType =
+      config.pickupEnabled ? "pickup" : config.deliveryEnabled ? "delivery" : "pickup";
+    return {
+      type: defaultType,
+      zoneId: config.zones[0]?.id ?? "",
+      address: "",
+    };
+  });
+  const [lastOrder, setLastOrder] = useState<{
+    id: string;
+    trackingPath: string;
+  } | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [customerPrompt, setCustomerPrompt] = useState<string | null>(null);
   const [recentlyAddedLineId, setRecentlyAddedLineId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const fulfillmentConfig = menu.store.fulfillment;
 
   const groups = useMemo<Group[]>(() => {
     const uncategorized = menu.items.filter((item) => !item.categoryId);
@@ -167,6 +188,10 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
 
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   const cartItemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
+  const selectedZone = fulfillmentConfig.zones.find((zone) => zone.id === fulfillment.zoneId);
+  const deliveryFee =
+    fulfillment.type === "delivery" && selectedZone ? selectedZone.fee : 0;
+  const orderTotal = subtotal + deliveryFee;
 
   useEffect(() => {
     if (!recentlyAddedLineId) return;
@@ -175,9 +200,10 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
   }, [recentlyAddedLineId]);
 
   function addToCart(item: OnlineMenuItem, variant: OnlineMenuVariant | null = null) {
+    if (!menu.store.canOrder) return;
     const id = lineId(item.id, variant?.id ?? null);
     const unitPrice = variant?.price ?? item.price;
-    setLastOrderId(null);
+    setLastOrder(null);
     setRecentlyAddedLineId(id);
     setCart((current) => {
       const existing = current.find((line) => line.id === id);
@@ -212,7 +238,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
   }
 
   function submitOrder(options: { allowNameOnly?: boolean } = {}) {
-    if (!menu.store.orderingEnabled) return;
+    if (!menu.store.canOrder) return;
     const customerName = customer.name.trim();
     const customerPhone = customer.phone.trim();
     if (customerPhone && customerPhone.length < 5) {
@@ -231,6 +257,29 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
       return;
     }
 
+    if (!fulfillmentConfig.pickupEnabled && !fulfillmentConfig.deliveryEnabled) {
+      toast.error("طرق الاستلام غير مُعدّة لهذا الفرع");
+      return;
+    }
+    if (fulfillment.type === "pickup" && !fulfillmentConfig.pickupEnabled) {
+      toast.error("الاستلام من الفرع غير متاح");
+      return;
+    }
+    if (fulfillment.type === "delivery") {
+      if (!fulfillmentConfig.deliveryEnabled) {
+        toast.error("التوصيل غير متاح");
+        return;
+      }
+      if (!fulfillment.zoneId) {
+        toast.error("اختر منطقة التوصيل");
+        return;
+      }
+      if (fulfillment.address.trim().length < 5) {
+        toast.error("اكتب عنوان التوصيل (٥ أحرف على الأقل)");
+        return;
+      }
+    }
+
     setCustomerPrompt(null);
     startTransition(async () => {
       try {
@@ -240,6 +289,9 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
           customerName,
           customerPhone,
           notes: customer.notes,
+          fulfillmentType: fulfillment.type,
+          zoneId: fulfillment.type === "delivery" ? fulfillment.zoneId : null,
+          deliveryAddress: fulfillment.type === "delivery" ? fulfillment.address : null,
           lines: cart.map((line) => ({
             productId: line.productId,
             variantId: line.variantId,
@@ -248,7 +300,8 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
         });
         setCart([]);
         setCustomer({ name: "", phone: "", notes: "" });
-        setLastOrderId(result.id);
+        setFulfillment((current) => ({ ...current, address: "" }));
+        setLastOrder({ id: result.id, trackingPath: result.trackingPath });
         setIsCartOpen(false);
         toast.success("شكراً لك، تم إرسال طلبك بنجاح");
       } catch (error) {
@@ -308,13 +361,23 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
         ) : null}
       </section>
 
-      {lastOrderId ? (
+      {lastOrder ? (
         <section className="mb-5 rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-100">
           <p className="font-semibold">شكراً لك، استلمنا طلبك بنجاح.</p>
           <p className="mt-1 text-sm">
-            رقم المتابعة: <span className="font-mono">{lastOrderId.slice(0, 8)}</span>. سنراجع الطلب
-            ونتواصل معك إذا احتجنا أي تفاصيل.
+            رقم المتابعة: <span className="font-mono">{lastOrder.id.slice(0, 8)}</span>. تابع حالة
+            طلبك من الرابط الآمن.
           </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            nativeButton={false}
+            render={<a href={lastOrder.trackingPath} />}
+          >
+            تتبع الطلب
+          </Button>
         </section>
       ) : null}
 
@@ -426,7 +489,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                                   variant="outline"
                                   className="h-auto flex-col items-stretch gap-2 rounded-2xl border-border/40 bg-background/60 px-2 py-2 text-start hover:border-primary/40 hover:bg-primary/5 data-[added=true]:border-primary/50 data-[added=true]:bg-primary/10 sm:flex-row sm:items-center sm:justify-between sm:px-3 sm:py-2.5"
                                   data-added={wasJustAdded}
-                                  disabled={!menu.store.orderingEnabled}
+                                  disabled={!menu.store.canOrder}
                                   onClick={() => addToCart(item, variant)}
                                 >
                                   <span className="min-w-0 truncate font-medium">{variant.name}</span>
@@ -456,7 +519,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                           <Button
                             type="button"
                             className="mt-auto h-10 w-full rounded-2xl text-sm font-semibold sm:h-11 sm:text-base"
-                            disabled={!menu.store.orderingEnabled}
+                            disabled={!menu.store.canOrder}
                             onClick={() => addToCart(item)}
                           >
                             {recentlyAddedLineId === lineId(item.id, null) ? (
@@ -577,16 +640,101 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                 <span>الإجمالي</span>
                 <span>{cartItemCount} قطعة</span>
               </div>
-              <div className="mt-1 flex items-end justify-between gap-3">
-                <span className="text-sm text-muted-foreground">شامل كل الأصناف المختارة</span>
-                <span className="text-xl font-bold tabular-nums text-primary">
-                  {formatMoney(subtotal, menu.organization.currency)}
-                </span>
+              <div className="mt-2 grid gap-1 text-sm">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>مجموع الأصناف</span>
+                  <span className="tabular-nums">
+                    {formatMoney(subtotal, menu.organization.currency)}
+                  </span>
+                </div>
+                {deliveryFee > 0 ? (
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>رسوم التوصيل</span>
+                    <span className="tabular-nums">
+                      {formatMoney(deliveryFee, menu.organization.currency)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="mt-1 flex items-end justify-between gap-3 border-t border-primary/15 pt-2">
+                  <span className="text-sm text-muted-foreground">الإجمالي النهائي</span>
+                  <span className="text-xl font-bold tabular-nums text-primary">
+                    {formatMoney(orderTotal, menu.organization.currency)}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {menu.store.orderingEnabled ? (
+            {menu.store.canOrder ? (
               <>
+                {(fulfillmentConfig.pickupEnabled || fulfillmentConfig.deliveryEnabled) && (
+                  <div className="grid gap-2 rounded-3xl border border-border/50 p-3">
+                    <p className="text-sm font-semibold">طريقة الاستلام</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {fulfillmentConfig.pickupEnabled ? (
+                        <Button
+                          type="button"
+                          variant={fulfillment.type === "pickup" ? "default" : "outline"}
+                          className="h-11 rounded-2xl"
+                          onClick={() => setFulfillment((current) => ({ ...current, type: "pickup" }))}
+                        >
+                          استلام من الفرع
+                        </Button>
+                      ) : null}
+                      {fulfillmentConfig.deliveryEnabled ? (
+                        <Button
+                          type="button"
+                          variant={fulfillment.type === "delivery" ? "default" : "outline"}
+                          className="h-11 rounded-2xl"
+                          onClick={() =>
+                            setFulfillment((current) => ({
+                              ...current,
+                              type: "delivery",
+                              zoneId: current.zoneId || fulfillmentConfig.zones[0]?.id || "",
+                            }))
+                          }
+                        >
+                          توصيل
+                        </Button>
+                      ) : null}
+                    </div>
+                    {fulfillment.type === "delivery" ? (
+                      <div className="grid gap-2 pt-1">
+                        <label className="grid gap-1 text-sm">
+                          <span className="text-muted-foreground">منطقة التوصيل</span>
+                          <select
+                            className="h-11 rounded-2xl border border-input bg-background px-3 text-sm"
+                            value={fulfillment.zoneId}
+                            onChange={(event) =>
+                              setFulfillment((current) => ({
+                                ...current,
+                                zoneId: event.target.value,
+                              }))
+                            }
+                            aria-label="منطقة التوصيل"
+                          >
+                            {fulfillmentConfig.zones.map((zone) => (
+                              <option key={zone.id} value={zone.id}>
+                                {zone.name} — {formatMoney(zone.fee, menu.organization.currency)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <Textarea
+                          value={fulfillment.address}
+                          onChange={(event) =>
+                            setFulfillment((current) => ({
+                              ...current,
+                              address: event.target.value,
+                            }))
+                          }
+                          placeholder="عنوان التوصيل بالتفصيل"
+                          className="min-h-20 rounded-2xl"
+                          aria-label="عنوان التوصيل"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                )}
                 <div className="rounded-3xl border border-primary/15 bg-primary/5 px-4 py-3">
                   <p className="text-sm font-semibold">بيانات بسيطة لتأكيد الطلب</p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -635,15 +783,18 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                 >
                   {isPending ? "جاري الإرسال..." : "إرسال الطلب"}
                 </Button>
-                {lastOrderId ? (
+                {lastOrder ? (
                   <p className="text-center text-sm text-emerald-700 dark:text-emerald-300">
-                    تم إرسال الطلب. رقم المتابعة: {lastOrderId.slice(0, 8)}
+                    تم إرسال الطلب.{" "}
+                    <a href={lastOrder.trackingPath} className="underline underline-offset-2">
+                      تتبع الطلب
+                    </a>
                   </p>
                 ) : null}
               </>
             ) : (
-              <p className="rounded-2xl bg-muted/60 p-3 text-center text-sm text-muted-foreground">
-                الطلبات غير متاحة حالياً، المنيو للعرض فقط.
+              <p className="rounded-2xl bg-amber-50 p-3 text-center text-sm text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+                {menu.store.availability.messageAr}
               </p>
             )}
           </div>
@@ -769,7 +920,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
               <p className="truncate text-sm text-muted-foreground">
                 <span className="font-bold tabular-nums text-foreground">{cartItemCount}</span> قطعة ·{" "}
                 <span className="font-bold tabular-nums text-primary">
-                  {formatMoney(subtotal, menu.organization.currency)}
+                  {formatMoney(orderTotal, menu.organization.currency)}
                 </span>
               </p>
             ) : (
@@ -779,7 +930,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
           <Button
             type="button"
             className="h-12 rounded-2xl px-5 text-base font-semibold"
-            disabled={!menu.store.orderingEnabled && cart.length === 0}
+            disabled={!menu.store.canOrder && cart.length === 0}
             onClick={() => setIsCartOpen(true)}
           >
             {cart.length > 0 ? "مراجعة الطلب" : "فتح السلة"}

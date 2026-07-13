@@ -210,7 +210,10 @@ export function SettingsShell({
               />
             </TabsContent>
             <TabsContent value="features" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
-              <SystemFeaturesTab featureFlags={bundle.featureFlags} />
+              <SystemFeaturesTab
+                featureFlags={bundle.featureFlags}
+                activityType={bundle.businessActivity.activity_type}
+              />
             </TabsContent>
           </>
         ) : null}

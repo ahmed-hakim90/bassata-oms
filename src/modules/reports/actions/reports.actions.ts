@@ -189,7 +189,7 @@ export async function exportReportsAction(
 
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
   return {
-    filename: `CafeFlow-reports-${days}d.xlsx`,
+    filename: `Velora-reports-${days}d.xlsx`,
     base64: Buffer.from(buffer).toString("base64"),
   };
 }

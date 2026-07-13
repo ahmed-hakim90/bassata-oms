@@ -17,7 +17,7 @@ export function ReceiptBrandingPreview({ receipt }: { receipt: ReceiptPayload })
 
   return (
     <div className="mx-auto w-full max-w-[72mm] rounded-xl border border-dashed border-border bg-muted/30 p-3 font-mono text-[11px] leading-snug text-foreground">
-      <p className="text-center font-bold">{branding.orgName || "CafeFlow POS"}</p>
+      <p className="text-center font-bold">{branding.orgName || "Velora"}</p>
       {branding.storeName ? <p className="text-center text-xs">{branding.storeName}</p> : null}
       {branding.storeAddress ? (
         <p className="text-center text-xs whitespace-pre-wrap">{branding.storeAddress}</p>

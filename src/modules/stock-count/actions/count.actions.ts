@@ -13,6 +13,7 @@ import {
   startStockCount,
   submitCountForApproval,
   submitCountLines,
+  syncCountLines,
 } from "@/modules/stock-count/services/count.service";
 
 export async function startCountAction(warehouseId: string) {
@@ -67,16 +68,32 @@ export async function postCountAction(countId: string) {
 
 export async function getStockCountData() {
   await requireFeature("stock_count");
-  await requirePermissionOrRole("stock_count_manage", ["owner", "manager", "inventory"]);
+  const user = await requirePermissionOrRole("stock_count_manage", [
+    "owner",
+    "manager",
+    "inventory",
+  ]);
   const storeId = await getValidatedActiveStoreId();
   const counts = await listStockCounts(storeId);
-  const active = counts.find((c) => isActiveStockCountStatus(c.status)) ?? null;
+  let active = counts.find((c) => isActiveStockCountStatus(c.status)) ?? null;
+  // Heal empty in-progress counts (e.g. started before tracked products existed).
+  if (active?.status === "in_progress") {
+    try {
+      active = { ...active, lines: await syncCountLines(active) };
+    } catch (error) {
+      console.error("stock_count.syncCountLines failed", error);
+    }
+  }
   const warehouses = await warehouseRepo.listWarehouses(storeId);
+  const canApprove = user.role === "owner" || user.role === "manager";
+  const products = await catalogRepo.listProducts({ activeOnly: true });
   return {
     counts,
     activeCount: active,
-    products: await catalogRepo.listProducts({ activeOnly: true }),
+    products,
+    trackedProductCount: products.filter((p) => p.track_inventory).length,
     warehouses,
     storeId,
+    canApprove,
   };
 }

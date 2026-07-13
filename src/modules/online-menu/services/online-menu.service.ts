@@ -1,5 +1,16 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/supabase/database.types";
+import { normalizeOnlineMenuSlug } from "@/lib/slugify";
+import {
+  evaluateOnlineOrderingAvailability,
+  type OnlineOrderingAvailability,
+} from "@/modules/online-menu/lib/online-ordering-hours";
+import {
+  parseOnlineFulfillment,
+  type OnlineDeliveryZone,
+  type OnlineFulfillmentConfig,
+} from "@/modules/online-menu/lib/online-fulfillment";
+import { assertOnlinePublicRateLimit } from "@/modules/online-menu/lib/online-public-rate-limit";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -41,7 +52,24 @@ export type OnlineMenuData = {
     address: string;
     phone: string;
     description: string;
+    /** Feature flag: store allows online ordering at all. */
     orderingEnabled: boolean;
+    /** Effective: flag + pause + hours window. */
+    canOrder: boolean;
+    availability: Pick<
+      OnlineOrderingAvailability,
+      | "canOrder"
+      | "orderingEnabled"
+      | "paused"
+      | "enforceHours"
+      | "isWithinHours"
+      | "timezone"
+      | "weekday"
+      | "reason"
+      | "messageAr"
+      | "todayWindowsLabel"
+    >;
+    fulfillment: OnlineFulfillmentConfig;
   };
   categories: OnlineMenuCategory[];
   items: OnlineMenuItem[];
@@ -50,6 +78,8 @@ export type OnlineMenuData = {
 export type GetOnlineMenuBySlugOptions = {
   /** Required when store settings.online_menu_unlisted is true. */
   token?: string | null;
+  /** Skip rate limit (e.g. internal tests). Default enforces. */
+  skipRateLimit?: boolean;
 };
 
 function asRecord(value: Json | null | undefined): JsonRecord {
@@ -78,17 +108,31 @@ function tokenMatches(settings: JsonRecord, token: string | null | undefined): b
   return Boolean(expected) && Boolean(provided) && expected === provided;
 }
 
+function publicFulfillmentConfig(settings: JsonRecord): OnlineFulfillmentConfig {
+  const parsed = parseOnlineFulfillment(settings);
+  const zones: OnlineDeliveryZone[] = parsed.deliveryEnabled ? parsed.zones : [];
+  return {
+    pickupEnabled: parsed.pickupEnabled,
+    deliveryEnabled: parsed.deliveryEnabled && zones.length > 0,
+    zones,
+  };
+}
+
 export async function getOnlineMenuBySlug(
   slug: string,
   options?: GetOnlineMenuBySlugOptions
 ): Promise<OnlineMenuData | null> {
-  const normalizedSlug = slug.trim().toLowerCase();
+  const normalizedSlug = normalizeOnlineMenuSlug(slug);
   if (!normalizedSlug) return null;
+
+  if (!options?.skipRateLimit) {
+    await assertOnlinePublicRateLimit({ action: "menu", slug: normalizedSlug });
+  }
 
   const admin = createAdminClient();
   const { data: store, error: storeError } = await admin
     .from("stores")
-    .select("id, org_id, name, address, phone, is_active, settings")
+    .select("id, org_id, name, address, phone, timezone, is_active, settings")
     .eq("is_active", true)
     .filter("settings->>online_menu_slug", "eq", normalizedSlug)
     .maybeSingle();
@@ -101,6 +145,12 @@ export async function getOnlineMenuBySlug(
   if (isUnlistedMenu(storeSettings) && !tokenMatches(storeSettings, options?.token)) {
     return null;
   }
+
+  const availability = evaluateOnlineOrderingAvailability({
+    settings: storeSettings,
+    storeTimezone: store.timezone,
+  });
+  const fulfillment = publicFulfillmentConfig(storeSettings);
 
   const [{ data: organization, error: orgError }, { data: categoryRows, error: categoriesError }] =
     await Promise.all([
@@ -176,7 +226,21 @@ export async function getOnlineMenuBySlug(
       address: store.address,
       phone: text(storeSettings.phone) || store.phone,
       description: text(storeSettings.online_menu_description),
-      orderingEnabled: storeSettings.online_menu_ordering_enabled === true,
+      orderingEnabled: availability.orderingEnabled,
+      canOrder: availability.canOrder,
+      availability: {
+        canOrder: availability.canOrder,
+        orderingEnabled: availability.orderingEnabled,
+        paused: availability.paused,
+        enforceHours: availability.enforceHours,
+        isWithinHours: availability.isWithinHours,
+        timezone: availability.timezone,
+        weekday: availability.weekday,
+        reason: availability.reason,
+        messageAr: availability.messageAr,
+        todayWindowsLabel: availability.todayWindowsLabel,
+      },
+      fulfillment,
     },
     categories: (categoryRows ?? []).map((category) => ({
       id: category.id,

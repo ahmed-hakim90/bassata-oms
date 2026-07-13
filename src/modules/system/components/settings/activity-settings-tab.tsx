@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,30 +26,15 @@ import {
   type InventoryTrackingMode,
   type SalesMode,
 } from "@/lib/constants";
+import {
+  EXPIRY_POLICY_LABELS,
+  INVENTORY_ROTATION_METHOD_LABELS,
+  INVENTORY_TRACKING_MODE_LABELS,
+} from "@/lib/labels/inventory";
 
 const SALES_MODE_LABELS: Record<SalesMode, string> = {
   retail: "تجزئة",
   wholesale: "جملة",
-};
-
-const TRACKING_MODE_LABELS: Record<InventoryTrackingMode, string> = {
-  none: "بدون تتبع",
-  standard: "قياسي",
-  batch: "دفعات",
-  batch_and_expiry: "دفعات + صلاحية",
-  serial_number: "رقم تسلسلي",
-};
-
-const ROTATION_METHOD_LABELS: Record<InventoryRotationMethod, string> = {
-  FIFO: "FIFO — الأقدم أولاً",
-  FEFO: "FEFO — الأقرب للانتهاء أولاً",
-  MANUAL: "يدوي",
-};
-
-const EXPIRY_POLICY_LABELS: Record<ExpiryPolicy, string> = {
-  block_sale: "منع البيع بعد الانتهاء",
-  warn_only: "تحذير فقط",
-  manager_override: "يتطلب موافقة مدير",
 };
 
 const selectClassName =
@@ -66,9 +51,11 @@ export function ActivitySettingsTab({ businessActivity }: ActivitySettingsTabPro
   const [presetConfirmOpen, setPresetConfirmOpen] = useState(false);
   const [saveTypeConfirmOpen, setSaveTypeConfirmOpen] = useState(false);
 
-  useEffect(() => {
+  const [syncedActivity, setSyncedActivity] = useState(businessActivity);
+  if (businessActivity !== syncedActivity) {
+    setSyncedActivity(businessActivity);
     setForm(businessActivity);
-  }, [businessActivity]);
+  }
 
   const activityChanged = form.activity_type !== businessActivity.activity_type;
 
@@ -227,9 +214,17 @@ export function ActivitySettingsTab({ businessActivity }: ActivitySettingsTabPro
           <label className="flex items-center gap-2">
             <Checkbox
               checked={form.enable_variants}
+              disabled={form.activity_type === "supermarket"}
               onCheckedChange={(v) => setForm({ ...form, enable_variants: v === true })}
             />
-            <span className="text-sm">خيارات المنتج (Variants)</span>
+            <span className="text-sm">
+              خيارات المنتج (Variants)
+              {form.activity_type === "supermarket" ? (
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  مقفول لسوبر ماركت
+                </span>
+              ) : null}
+            </span>
           </label>
           <label className="flex items-center gap-2">
             <Checkbox
@@ -289,7 +284,7 @@ export function ActivitySettingsTab({ businessActivity }: ActivitySettingsTabPro
             >
               {INVENTORY_TRACKING_MODES.map((mode) => (
                 <option key={mode} value={mode}>
-                  {TRACKING_MODE_LABELS[mode]}
+                  {INVENTORY_TRACKING_MODE_LABELS[mode]}
                 </option>
               ))}
             </select>
@@ -309,7 +304,7 @@ export function ActivitySettingsTab({ businessActivity }: ActivitySettingsTabPro
             >
               {INVENTORY_ROTATION_METHODS.map((method) => (
                 <option key={method} value={method}>
-                  {ROTATION_METHOD_LABELS[method]}
+                  {INVENTORY_ROTATION_METHOD_LABELS[method]}
                 </option>
               ))}
             </select>

@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import {
   APP_NAME,
+  APP_TAGLINE_AR,
   BUSINESS_ACTIVITY_TYPES,
   BUSINESS_ACTIVITY_TYPE_LABELS,
   type BusinessActivityType,
@@ -200,7 +201,10 @@ export function OnboardingWizard({
         },
         defaultTaxBehavior: organization.taxInclusive ? "inclusive" : "exclusive",
       },
-      features,
+      features:
+        businessType === "supermarket"
+          ? { ...features, recipes: false, variants: false }
+          : features,
       initialSetup,
     };
 
@@ -220,7 +224,7 @@ export function OnboardingWizard({
         <div className="px-[var(--mds-space-6)] py-[var(--mds-space-5)] text-center">
           <h1 className="text-2xl font-semibold tracking-tight">مرحبًا بك في {APP_NAME}</h1>
           <p className="mt-[var(--mds-space-2)] text-sm text-muted-foreground">
-            جهّز شركتك في سبع خطوات
+            {APP_TAGLINE_AR} — جهّز شركتك في سبع خطوات
           </p>
         </div>
       </div>
@@ -469,21 +473,37 @@ export function OnboardingWizard({
 
       {step === 4 && (
         <OperationalCard title="الخصائص">
+          {businessType === "supermarket" ? (
+            <p className="mb-[var(--mds-space-3)] text-sm text-muted-foreground">
+              سوبر ماركت: الوصفات والمتغيرات مقفولين تلقائيًا. البيع بالوزن وبالمبلغ حسب النشاط.
+            </p>
+          ) : null}
           <div className="grid gap-[var(--mds-space-2)] sm:grid-cols-2">
-            {ONBOARDING_FEATURE_KEYS.map((key) => (
-              <label
-                key={key}
-                className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm transition-colors select-none hover:bg-muted/50"
-              >
-                <Checkbox
-                  checked={features[key]}
-                  onCheckedChange={(checked) =>
-                    setFeatures({ ...features, [key]: checked === true })
-                  }
-                />
-                {FEATURE_LABELS[key]}
-              </label>
-            ))}
+            {ONBOARDING_FEATURE_KEYS.map((key) => {
+              const lockedForSupermarket =
+                businessType === "supermarket" && (key === "recipes" || key === "variants");
+              return (
+                <label
+                  key={key}
+                  className={cn(
+                    "flex items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm transition-colors select-none",
+                    lockedForSupermarket
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer hover:bg-muted/50"
+                  )}
+                >
+                  <Checkbox
+                    checked={features[key]}
+                    disabled={lockedForSupermarket}
+                    onCheckedChange={(checked) => {
+                      if (lockedForSupermarket) return;
+                      setFeatures({ ...features, [key]: checked === true });
+                    }}
+                  />
+                  {FEATURE_LABELS[key]}
+                </label>
+              );
+            })}
           </div>
         </OperationalCard>
       )}

@@ -108,6 +108,6 @@ export async function exportExpensesReportExcel(params: Record<string, string | 
   });
   return {
     base64: workbookToBase64(workbook),
-    filename: `CafeFlow-expenses-${data.range.days}d.xlsx`,
+    filename: `Velora-expenses-${data.range.days}d.xlsx`,
   };
 }

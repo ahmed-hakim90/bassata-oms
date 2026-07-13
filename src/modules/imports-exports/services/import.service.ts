@@ -15,6 +15,7 @@ import {
   PRODUCT_TYPES,
   SHELF_LIFE_UNITS,
 } from "@/lib/constants";
+import { getBusinessActivitySettings } from "@/modules/system/services/settings.service";
 import type { MeasurementUnit, Product, ProductVariant } from "@/lib/types";
 
 export const PRODUCT_IMPORT_COLUMNS = [
@@ -24,6 +25,7 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "category",
   "definition",
   "base_price",
+  "last_unit_cost",
   "sale_price",
   "description",
   "image_url",
@@ -48,6 +50,7 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "wholesale_enabled",
   "supports_weight_sale",
   "supports_amount_sale",
+  "units_per_purchase_unit",
 ] as const;
 
 export const PRODUCT_IMPORT_SIMPLE_COLUMNS = [
@@ -58,6 +61,21 @@ export const PRODUCT_IMPORT_SIMPLE_COLUMNS = [
   "base_price",
   "barcode",
   "unit",
+  "track_inventory",
+  "import_action",
+] as const;
+
+export const PRODUCT_IMPORT_SUPERMARKET_COLUMNS = [
+  "name",
+  "sku",
+  "barcode",
+  "category",
+  "definition",
+  "base_price",
+  "last_unit_cost",
+  "unit",
+  "cost_unit",
+  "units_per_purchase_unit",
   "track_inventory",
   "import_action",
 ] as const;
@@ -169,16 +187,21 @@ const HEADER_ALIASES: Record<string, (typeof PRODUCT_IMPORT_COLUMNS)[number]> = 
   "النوع": "definition",
   "نوع_المنتج": "definition",
   "نوع_الصنف": "definition",
-  cost_price: "base_price",
-  purchase_price: "base_price",
-  unit_cost: "base_price",
   price: "base_price",
-  "سعر_التكلفة": "base_price",
-  "التكلفة": "base_price",
   "السعر": "base_price",
   "سعر": "base_price",
-  selling_price: "sale_price",
-  "سعر_البيع": "sale_price",
+  selling_price: "base_price",
+  "سعر_البيع": "base_price",
+  "سعر_الكيلو": "base_price",
+  cost_price: "last_unit_cost",
+  purchase_price: "last_unit_cost",
+  unit_cost: "last_unit_cost",
+  last_unit_cost: "last_unit_cost",
+  "سعر_التكلفة": "last_unit_cost",
+  "التكلفة": "last_unit_cost",
+  "سعر_الشراء": "last_unit_cost",
+  "سعر_الشرا": "last_unit_cost",
+  sale_price: "sale_price",
   "الوصف": "description",
   image: "image_url",
   image_url: "image_url",
@@ -196,6 +219,14 @@ const HEADER_ALIASES: Record<string, (typeof PRODUCT_IMPORT_COLUMNS)[number]> = 
   "وحدة_البيع": "unit",
   track_stock: "track_inventory",
   "تتبع_المخزون": "track_inventory",
+  "سعر_حسب_الكمية": "allow_price_input",
+  "نوع_وحدة_البيع": "sales_unit_type",
+  "وحدة_الشراء": "cost_unit",
+  "قطع_في_الكرتونة": "units_per_purchase_unit",
+  "عدد_القطع": "units_per_purchase_unit",
+  units_per_pack: "units_per_purchase_unit",
+  units_per_carton: "units_per_purchase_unit",
+  purchase_unit: "cost_unit",
 };
 
 const VARIANT_HEADER_ALIASES: Record<string, (typeof PRODUCT_VARIANT_IMPORT_COLUMNS)[number]> = {
@@ -269,8 +300,12 @@ type DefinitionDefaults = Partial<
     | "sales_unit_type"
     | "track_inventory"
     | "inventory_tracking_mode"
+    | "inventory_rotation_method"
     | "allow_fractional_quantity"
     | "allow_price_input"
+    | "unit"
+    | "cost_unit"
+    | "units_per_purchase_unit"
   >
 >;
 
@@ -285,6 +320,16 @@ const PRODUCT_DEFINITION_DEFAULTS: Record<string, DefinitionDefaults> = {
     product_type: "finished_product",
     track_inventory: "true",
     inventory_tracking_mode: "standard",
+  },
+  supermarket_weight_product: {
+    product_type: "finished_product",
+    sales_unit_type: "weight",
+    unit: "kg",
+    track_inventory: "true",
+    inventory_tracking_mode: "batch_and_expiry",
+    inventory_rotation_method: "FEFO",
+    allow_fractional_quantity: "true",
+    allow_price_input: "true",
   },
   ingredient: {
     product_type: "ingredient",
@@ -320,6 +365,10 @@ const PRODUCT_DEFINITION_ALIASES: Record<string, keyof typeof PRODUCT_DEFINITION
   inventory_product: "retail_product",
   "منتج_مخزون": "retail_product",
   "منتج_بتتبع_مخزون": "retail_product",
+  supermarket_weight_product: "supermarket_weight_product",
+  weight_product: "supermarket_weight_product",
+  "منتج_وزني": "supermarket_weight_product",
+  "وزني": "supermarket_weight_product",
   ingredient: "ingredient",
   raw: "ingredient",
   raw_material: "ingredient",
@@ -413,7 +462,7 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
     }
     const definition = normalized.definition ?? "";
     const defaults = definitionDefaults(definition);
-    const unit = valueOrDefault(normalized.unit, "piece");
+    const unit = valueOrDefault(normalized.unit, defaults.unit ?? "piece");
     const basePrice = valueOrDefault(normalized.base_price, normalized.sale_price ?? "");
     return {
       name: normalized.name ?? "",
@@ -422,6 +471,7 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
       category: normalized.category ?? "",
       definition,
       base_price: basePrice,
+      last_unit_cost: normalized.last_unit_cost ?? "",
       sale_price: normalized.sale_price ?? "",
       description: normalized.description ?? "",
       image_url: normalized.image_url ?? "",
@@ -436,7 +486,7 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
       sale_unit: valueOrDefault(normalized.sale_unit, unit),
       cost_unit: valueOrDefault(
         normalized.cost_unit,
-        valueOrDefault(normalized.base_unit, unit)
+        defaults.cost_unit ?? valueOrDefault(normalized.base_unit, unit)
       ),
       is_active: valueOrDefault(normalized.is_active, "true"),
       is_popular: valueOrDefault(normalized.is_popular, "false"),
@@ -445,7 +495,10 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
         normalized.inventory_tracking_mode,
         defaults.inventory_tracking_mode ?? "standard"
       ),
-      inventory_rotation_method: valueOrDefault(normalized.inventory_rotation_method, "FIFO"),
+      inventory_rotation_method: valueOrDefault(
+        normalized.inventory_rotation_method,
+        defaults.inventory_rotation_method ?? "FIFO"
+      ),
       expiry_tracking_enabled: valueOrDefault(normalized.expiry_tracking_enabled, "false"),
       expiry_policy: valueOrDefault(normalized.expiry_policy, "block_sale"),
       shelf_life_value: valueOrDefault(normalized.shelf_life_value, "0"),
@@ -461,6 +514,10 @@ export function parseProductsXlsx(buffer: ArrayBuffer): ParsedImportResult {
       wholesale_enabled: valueOrDefault(normalized.wholesale_enabled, "false"),
       supports_weight_sale: normalized.supports_weight_sale ?? "",
       supports_amount_sale: normalized.supports_amount_sale ?? "",
+      units_per_purchase_unit: valueOrDefault(
+        normalized.units_per_purchase_unit,
+        defaults.units_per_purchase_unit ?? "1"
+      ),
     };
   });
 
@@ -546,7 +603,7 @@ export function validateProductRows(rows: ProductImportRow[]): ImportValidationE
       errors.push({
         row: rowNum,
         field: "definition",
-        message: "Use menu_item, retail_product, ingredient, or service",
+        message: "Use menu_item, retail_product, supermarket_weight_product, ingredient, or service",
       });
     }
     const price = Number(row.base_price);
@@ -777,7 +834,8 @@ function productMatchesPayload(
     product.allow_price_input === payload.allow_price_input &&
     product.wholesale_enabled === payload.wholesale_enabled &&
     numbersEqual(product.last_unit_cost, payload.last_unit_cost) &&
-    product.cost_unit === payload.cost_unit
+    product.cost_unit === payload.cost_unit &&
+    numbersEqual(product.units_per_purchase_unit ?? 1, payload.units_per_purchase_unit ?? 1)
   );
 }
 
@@ -850,8 +908,16 @@ function rowToProductInput(row: ProductImportPayload): productService.ProductInp
     supports_amount_sale: row.supports_amount_sale
       ? parseBool(row.supports_amount_sale, false)
       : undefined,
-    last_unit_cost: isIngredient ? basePrice : 0,
+    last_unit_cost: (() => {
+      const fromColumn = Number(row.last_unit_cost);
+      if (Number.isFinite(fromColumn) && fromColumn >= 0 && String(row.last_unit_cost ?? "").trim() !== "") {
+        return fromColumn;
+      }
+      // Legacy ingredient templates put cost in base_price.
+      return isIngredient ? basePrice : 0;
+    })(),
     cost_unit: (row.cost_unit as Product["cost_unit"]) ?? "piece",
+    units_per_purchase_unit: Math.max(1, Number(row.units_per_purchase_unit) || 1),
   };
 }
 
@@ -896,6 +962,58 @@ export async function bulkImportProducts(
   const variants = Array.isArray(input) ? [] : input.variants;
   const recipes = Array.isArray(input) ? [] : input.recipes;
   const warnings = Array.isArray(input) ? [] : [...input.warnings];
+  const activity = await getBusinessActivitySettings();
+  const importVariants = activity.enable_variants ? variants : [];
+  const importRecipes =
+    activity.activity_type === "supermarket" ||
+    activity.activity_type === "retail" ||
+    activity.activity_type === "wholesale" ||
+    activity.activity_type === "mixed"
+      ? []
+      : recipes;
+
+  if (!activity.enable_variants && variants.length > 0) {
+    warnings.push({
+      row: 0,
+      field: "Variants",
+      message:
+        "النشاط الحالي بدون أحجام/خيارات؛ شيت Variants هيتجاهل. عدّل المنتجات مباشرة في ورقة المنتجات.",
+    });
+  }
+
+  if (
+    recipes.length > 0 &&
+    importRecipes.length === 0 &&
+    (activity.activity_type === "supermarket" ||
+      activity.activity_type === "retail" ||
+      activity.activity_type === "wholesale" ||
+      activity.activity_type === "mixed")
+  ) {
+    warnings.push({
+      row: 0,
+      field: "Recipes",
+      message: "النشاط الحالي بدون وصفات؛ شيت Recipes هيتجاهل.",
+    });
+  }
+
+  if (activity.activity_type === "supermarket") {
+    for (const row of rows) {
+      const unit = row.unit.toLowerCase();
+      const isWeight =
+        definitionKey(row.definition) === "supermarket_weight_product" ||
+        unit === "kg" ||
+        unit === "gram";
+      if (isWeight && !row.allow_price_input.trim()) {
+        row.allow_price_input = "true";
+      }
+      if (
+        (unit === "kg" || unit === "gram") &&
+        (!row.sales_unit_type || row.sales_unit_type === "piece")
+      ) {
+        row.sales_unit_type = "weight";
+      }
+    }
+  }
 
   await assertPeriodOpen(storeId);
   const existing = await productService.listProducts();
@@ -982,7 +1100,7 @@ export async function bulkImportProducts(
   const variantsUpdated: ProductVariant[] = [];
   const variantsUnchanged: ProductVariant[] = [];
   const variantByProductAndSku = new Map<string, ProductVariant>();
-  if (variants.length > 0 || recipes.length > 0) {
+  if (importVariants.length > 0 || importRecipes.length > 0) {
     for (const product of productBySku.values()) {
       const productVariants = await variantService.listVariants(product.id);
       for (const variant of productVariants) {
@@ -993,7 +1111,7 @@ export async function bulkImportProducts(
     }
   }
 
-  for (const row of variants) {
+  for (const row of importVariants) {
     const product = productBySku.get(row.product_sku.toLowerCase());
     if (!product) {
       skipped += 1;
@@ -1103,7 +1221,7 @@ export async function bulkImportProducts(
     }
   >();
 
-  for (const row of recipes) {
+  for (const row of importRecipes) {
     const product = productBySku.get(row.product_sku.toLowerCase());
     if (!product) {
       warnings.push({

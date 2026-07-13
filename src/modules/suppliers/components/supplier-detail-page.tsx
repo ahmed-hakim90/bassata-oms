@@ -352,6 +352,7 @@ export function SupplierDetailPage({
               ...prev,
               supplier: updated,
             }));
+            refreshStatement(statementRange(from, to));
             router.refresh();
           }}
         />

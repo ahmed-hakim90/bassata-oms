@@ -1,5 +1,6 @@
 import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapCashierVault, mapCashierVaultLedger } from "@/lib/repositories/mappers";
+import { listStores } from "@/lib/repositories/store.repository";
 import type { CashierVault, CashierVaultLedgerEntry } from "@/lib/types";
 import type { CashierVaultRow } from "@/lib/supabase/database.types";
 
@@ -7,10 +8,17 @@ function mapVaultRpc(data: unknown): CashierVault {
   return mapCashierVault(data as CashierVaultRow);
 }
 
+async function assertOrgStore(storeId: string): Promise<boolean> {
+  const storeIds = (await listStores()).map((store) => store.id);
+  return storeIds.includes(storeId);
+}
+
 export async function getVault(
   storeId: string,
   cashierId: string
 ): Promise<CashierVault | null> {
+  if (!(await assertOrgStore(storeId))) return null;
+
   const db = await getDb();
   const { data, error } = await db
     .from("cashier_vaults")
@@ -23,6 +31,8 @@ export async function getVault(
 }
 
 export async function listVaultsByStore(storeId: string): Promise<CashierVault[]> {
+  if (!(await assertOrgStore(storeId))) return [];
+
   const db = await getDb();
   const { data, error } = await db
     .from("cashier_vaults")
@@ -38,6 +48,8 @@ export async function listVaultLedger(
   cashierId: string,
   limit = 20
 ): Promise<CashierVaultLedgerEntry[]> {
+  if (!(await assertOrgStore(storeId))) return [];
+
   const db = await getDb();
   const { data, error } = await db
     .from("cashier_vault_ledger")

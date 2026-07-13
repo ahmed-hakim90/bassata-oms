@@ -11,8 +11,13 @@ const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/reports": "reports",
   "/reports/sales": "reports",
   "/reports/sessions": "reports",
+  "/reports/daily-close": "reports",
+  "/reports/aging": "reports",
+  "/reports/tax": "reports",
+  "/reports/replenishment": "reports",
   "/reports/profit": "reports",
   "/reports/inventory": "reports",
+  "/reports/product-card": "reports",
   "/reports/expenses": "reports",
   "/inventory/purchases": "purchases",
   "/inventory/suppliers": "purchases",
@@ -46,8 +51,13 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/reports",
     "/reports/sales",
     "/reports/sessions",
+    "/reports/daily-close",
+    "/reports/aging",
+    "/reports/tax",
+    "/reports/replenishment",
     "/reports/profit",
     "/reports/inventory",
+    "/reports/product-card",
     "/reports/expenses",
     "/labels",
     "/products",
@@ -71,7 +81,8 @@ function filterNavByRoleLegacy(role: UserRole) {
         href === "/" ||
         href === "/products" ||
         href === "/inventory" ||
-        href.startsWith("/inventory/")
+        href.startsWith("/inventory/") ||
+        href === "/reports/product-card"
       );
     }
     if (PRIVILEGED_ONLY.has(href)) return false;

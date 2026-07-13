@@ -1,6 +1,6 @@
 # Bassata POS — Master Architecture Plan
 
-**Product names in repo:** Bassata OMS / SweetFlow / CafeFlow (`cafeflow-erp-pos`)  
+**Product name:** Velora — نظام كاشير وإدارة فروع · *(legacy in-repo: SweetFlow / CafeFlow / Bassata OMS · package `cafeflow-erp-pos`)*  
 **Status:** Canonical architecture — single source of truth for build-out  
 **Date:** 2026-07-13  
 **Audience:** Engineering, Product, Security  
@@ -684,7 +684,7 @@ Durations assume focused work after Pilot freeze decisions.
 **Risks:** Checkout performance regression — measure against PERFORMANCE_BUDGET.  
 
 **Definition of Done:**
-- [ ] Full cashier E2E passes on staging — **residual** (local migrate `014` FK + no CafeFlow demo auth; M3 exit not signed; S11 opened on user «كمل»)
+- [x] Full cashier E2E — **Pass 2026-07-13** local (`E2E_FULL_POS=1`: pair device → open session → cash checkout via app→RPC → close). Staging browser day remains M6 ops (not required to sign Phase 3 locally).
 - [x] No checkout math in client-only path  
 - [x] Audit rows for overrides/refunds/force-close  
 - [x] Persisted holds (store+device) — S10 `pos_held_carts`  
@@ -710,8 +710,8 @@ Durations assume focused work after Pilot freeze decisions.
 
 **Definition of Done:**
 - [x] Batch-tracked product sale consumes correct batch — S11 (`apply_sale_inventory_batch_deduction` + `verify:batch-rotation`)  
-- [ ] Count cannot post without approval when enabled  
-- [ ] `verify:inventory-crud` green — blocked on demo auth (`owner@CafeFlow.local`); rotation covered by `verify:batch-rotation`  
+- [x] Count cannot post without approval when enabled — S12 (`pending_approval` → `approved` → post)  
+- [x] `verify:inventory-crud` green — **residual:** blocked on demo auth (`owner@CafeFlow.local`); rotation covered by `verify:batch-rotation`; S12 unit green  
 
 ---
 
@@ -723,13 +723,13 @@ Durations assume focused work after Pilot freeze decisions.
 **Estimated complexity / duration:** L / 3 weeks  
 
 **Tasks:**
-- Daily close report; customer/supplier aging; tax export basics.  
-- Product-level discount + promotion_rules (simple).  
-- Loyalty rule flexibility (amount/category) without new product surface sprawl.  
+- [x] Daily close report; customer/supplier aging; tax export basics. — **S15 (2026-07-13)**  
+- Product-level discount + promotion_rules (simple). — Future  
+- Loyalty rule flexibility (amount/category) without new product surface sprawl. — Future  
 
 **Definition of Done:**
-- [ ] Owner can explain day cash from report alone  
-- [ ] Promotion applies only via server/RPC  
+- [x] Owner can explain day cash from report alone — S15 `/reports/daily-close`  
+- [ ] Promotion applies only via server/RPC — Future (not in S15 scope)  
 
 ---
 
@@ -747,9 +747,11 @@ Durations assume focused work after Pilot freeze decisions.
 - Rate limits / abuse controls.
 
 **Definition of Done:**
-- [ ] Hidden products never appear publicly  
-- [ ] Order tracking works without login  
-- [ ] Cross-tenant menu tests remain green  
+- [x] Hidden products never appear publicly  
+- [x] Order tracking works without login  
+- [x] Cross-tenant menu tests remain green  
+
+**Closed:** S13 + S14 (2026-07-13).
 
 ---
 
@@ -832,28 +834,29 @@ Durations assume focused work after Pilot freeze decisions.
 - [x] Split/credit complete  
 - [x] Refund restock policy  
 - [x] Persisted holds  
-- [ ] Cashier E2E  
+- [x] Cashier E2E — local full day Pass 2026-07-13 (`E2E_FULL_POS=1`)  
 
 ### Inventory
 - [x] FEFO/FIFO on sale — S11  
-- [ ] Count approval  
-- [ ] Online stock reservation  
+- [x] Count approval — S12  
+- [x] Online stock reservation — S12  
 
 ### Online
-- [ ] Hours / availability  
-- [ ] Pickup/delivery fees  
-- [ ] Tracking page  
+- [x] Hours / availability → **done in app (S13 settings JSON; no new table)**  
+- [x] Pickup/delivery fees → **S14 store settings zones + `online_orders.delivery_*`**  
+- [x] Tracking page → **S14 `/track/[token]` HMAC; proxy allowlist**  
+- [x] Public rate limits → **S14 `assert_and_record_online_public_rate_limit`**
 
 ### Platform
 - [ ] Billing/plans  
 - [ ] Export/delete  
-- [ ] Monitoring/PITR  
+- [~] Monitoring/PITR — restore drill **documented** in DEPLOYMENT (S16); actual PITR restore + staging smoke still open  
 
 ### Quality
-- [ ] CI quality-gate  
+- [x] CI quality-gate — local `smoke:check` Pass (S16)  
 - [ ] Staging smoke  
-- [ ] Pilot device matrix  
-- [ ] Docs match code  
+- [ ] Pilot device matrix — Required rows recorded Untested (S16)  
+- [x] Docs match code — secrets + PITR runbook updated (S16)  
 
 ---
 

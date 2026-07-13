@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Download, Upload } from "lucide-react";
 import {
   Dialog,
@@ -53,12 +53,14 @@ interface ImportProductsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImported?: () => void;
+  activityType?: import("@/lib/types").BusinessActivityType;
 }
 
 export function ImportProductsDialog({
   open,
   onOpenChange,
   onImported,
+  activityType = "cafe",
 }: ImportProductsDialogProps) {
   const [parsed, setParsed] = useState<ParsedImportResult | null>(null);
   const [errors, setErrors] = useState<{ row: number; field: string; message: string }[]>([]);
@@ -67,27 +69,42 @@ export function ImportProductsDialog({
   const [stage, setStage] = useState<ImportStage>("idle");
   const [progress, setProgress] = useState(0);
   const [importSummary, setImportSummary] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState(false);
 
+  const isSupermarket = activityType === "supermarket";
   const progressLabel =
     stage === "reading"
-      ? "Reading spreadsheet"
+      ? isSupermarket
+        ? "قراءة الملف…"
+        : "Reading spreadsheet"
       : stage === "parsing"
-        ? "Checking products, variants, and recipes"
+        ? isSupermarket
+          ? "فحص المنتجات والأسعار…"
+          : "Checking products, variants, and recipes"
         : stage === "ready"
-          ? "Ready to import"
+          ? isSupermarket
+            ? "جاهز للاستيراد"
+            : "Ready to import"
           : stage === "importing"
-            ? "Importing products"
+            ? isSupermarket
+              ? "جاري استيراد المنتجات…"
+              : "Importing products"
             : stage === "imported"
-              ? "Import completed"
-              : stage === "template"
-                ? "Preparing template"
+              ? isSupermarket
+                ? "تم الاستيراد"
+                : "Import completed"
+                : stage === "template"
+                ? isSupermarket
+                  ? "تجهيز القالب…"
+                  : "Preparing template"
                 : stage === "exporting"
-                  ? "Exporting catalog"
+                  ? isSupermarket
+                    ? "تصدير الكتالوج…"
+                    : "Exporting catalog"
                   : "";
 
   async function handleFile(file: File | null) {
-    if (!file) return;
+    if (!file || busy) return;
     setFileName(file.name);
     setParsed(null);
     setErrors([]);
@@ -95,60 +112,69 @@ export function ImportProductsDialog({
     setImportSummary(null);
     setStage("reading");
     setProgress(15);
-    const buffer = await file.arrayBuffer();
-    setProgress(35);
-    const base64 = arrayBufferToBase64(buffer);
-    setStage("parsing");
-    setProgress(55);
-    startTransition(async () => {
-      try {
-        const result = await parseProductsFileAction(base64);
-        setParsed(result);
-        setErrors(result.errors);
-        setWarnings(result.warnings);
-        setStage("ready");
-        setProgress(100);
-      } catch {
-        setStage("idle");
-        setProgress(0);
-        toast.error("Could not parse spreadsheet");
-      }
-    });
+    setBusy(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      setProgress(35);
+      const base64 = arrayBufferToBase64(buffer);
+      setStage("parsing");
+      setProgress(55);
+      const result = await parseProductsFileAction(base64);
+      setParsed(result);
+      setErrors(result.errors);
+      setWarnings(result.warnings);
+      setStage("ready");
+      setProgress(100);
+    } catch {
+      setStage("idle");
+      setProgress(0);
+      toast.error("Could not parse spreadsheet");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleImport() {
-    if (!parsed || parsed.rows.length + parsed.variants.length + parsed.recipes.length === 0) return;
+    if (busy || !parsed || parsed.rows.length + parsed.variants.length + parsed.recipes.length === 0) {
+      return;
+    }
+    setBusy(true);
     setStage("importing");
     setProgress(65);
-    startTransition(async () => {
-      try {
-        const result = await importProductsAction(parsed);
-        setProgress(100);
-        setStage("imported");
-        const summary = `Added ${result.imported.length}, updated ${result.updated.length}, unchanged ${result.unchanged.length}, variants changed ${result.variantsImported.length + result.variantsUpdated.length}, variants unchanged ${result.variantsUnchanged.length}, skipped ${result.skipped}`;
-        setImportSummary(summary);
-        setWarnings(result.warnings);
-        toast.success(summary);
-        onImported?.();
-        if (result.warnings.length === 0 && result.skipped === 0) {
-          onOpenChange(false);
-          setParsed(null);
-          setErrors([]);
-          setWarnings([]);
-          setImportSummary(null);
-          setFileName(null);
-          setProgress(0);
-          setStage("idle");
-        }
-      } catch {
-        setStage("ready");
-        setProgress(100);
-        toast.error("Import failed");
+    try {
+      const result = await importProductsAction(parsed);
+      setProgress(100);
+      setStage("imported");
+      const summary = isSupermarket
+        ? `أُضيف ${result.imported}، تحدّث ${result.updated}، بدون تغيير ${result.unchanged}، تم تخطي ${result.skipped}`
+        : `Added ${result.imported}, updated ${result.updated}, unchanged ${result.unchanged}, variants changed ${result.variantsImported + result.variantsUpdated}, variants unchanged ${result.variantsUnchanged}, skipped ${result.skipped}`;
+      setImportSummary(summary);
+      setWarnings(result.warnings);
+      toast.success(summary);
+      if (result.warnings.length === 0 && result.skipped === 0) {
+        onOpenChange(false);
+        setParsed(null);
+        setErrors([]);
+        setWarnings([]);
+        setImportSummary(null);
+        setFileName(null);
+        setProgress(0);
+        setStage("idle");
       }
-    });
+      // Refresh after UI state is committed so the dialog never stays stuck on "importing".
+      onImported?.();
+    } catch {
+      setStage("ready");
+      setProgress(100);
+      toast.error("Import failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleTemplate() {
+    if (busy) return;
+    setBusy(true);
     setStage("template");
     setProgress(45);
     try {
@@ -161,10 +187,13 @@ export function ImportProductsDialog({
     } finally {
       setStage(parsed ? "ready" : "idle");
       setProgress(parsed ? 100 : 0);
+      setBusy(false);
     }
   }
 
   async function handleExportCatalog() {
+    if (busy) return;
+    setBusy(true);
     setStage("exporting");
     setProgress(45);
     try {
@@ -177,6 +206,7 @@ export function ImportProductsDialog({
     } finally {
       setStage(parsed ? "ready" : "idle");
       setProgress(parsed ? 100 : 0);
+      setBusy(false);
     }
   }
 
@@ -184,41 +214,47 @@ export function ImportProductsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Import / export products</DialogTitle>
+          <DialogTitle>استيراد / تصدير المنتجات</DialogTitle>
           <DialogDescription>
-            Export the live catalog, edit in Excel, then re-upload. Matching SKUs upsert products,
-            variants, and recipes.
+            {activityType === "supermarket"
+              ? "صدّر الكتالوج أو نزّل قالب سوبر ماركت (قطعة / وزن / قطع داخل الكرتونة)، عدّل في Excel ثم ارفع الملف."
+              : activityType === "retail" ||
+                  activityType === "wholesale" ||
+                  activityType === "mixed"
+                ? "صدّر الكتالوج أو نزّل قالب منتجات الرف، عدّل في Excel ثم ارفع الملف."
+                : "صدّر الكتالوج أو نزّل قالب المنيو (أحجام ووصفات)، عدّل في Excel ثم ارفع الملف."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
           <div className="grid gap-2 sm:grid-cols-2">
-            <Button variant="outline" type="button" onClick={handleExportCatalog} disabled={pending}>
+            <Button variant="outline" type="button" onClick={handleExportCatalog} disabled={busy}>
               <Download className="size-4" />
-              Export current catalog
+              تصدير الكتالوج الحالي
             </Button>
-            <Button variant="outline" type="button" onClick={handleTemplate} disabled={pending}>
+            <Button variant="outline" type="button" onClick={handleTemplate} disabled={busy}>
               <Download className="size-4" />
-              Download empty template
+              تنزيل قالب فارغ
             </Button>
           </div>
 
           <GlassPanel className="flex flex-col items-center gap-3 p-6 text-center">
             <Upload className="size-8 text-muted-foreground" />
             <label className="cursor-pointer text-sm font-medium text-primary hover:underline">
-              Choose spreadsheet
+              اختيار ملف Excel
               <input
                 type="file"
                 accept=".xlsx,.xls"
                 className="sr-only"
-                disabled={pending}
+                disabled={busy}
                 onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
               />
             </label>
             {fileName ? <p className="text-xs text-muted-foreground">{fileName}</p> : null}
             <p className="max-w-sm text-xs text-muted-foreground">
-              Use Products for items and ingredients, Variants for sizes and prices, and Recipes
-              only when you want inventory deduction and accurate profit.
+              {activityType === "supermarket"
+                ? "ورقة المنتجات: قطعة بباركود، منتج وزني بسعر الكيلو، ووحدة شراء (كرتونة) مع عدد القطع."
+                : "Use Products for items and ingredients, Variants for sizes and prices, and Recipes when you need inventory deduction."}
             </p>
           </GlassPanel>
 
@@ -246,16 +282,39 @@ export function ImportProductsDialog({
 
           {parsed ? (
             <div className="flex flex-wrap items-center gap-2">
-              <StatusPill label={`${parsed.rows.length} products`} variant="info" />
-              <StatusPill label={`${parsed.variants.length} variants`} variant="info" />
-              <StatusPill label={`${parsed.recipes.length} recipe lines`} variant="info" />
+              <StatusPill
+                label={
+                  isSupermarket
+                    ? `${parsed.rows.length} منتج`
+                    : `${parsed.rows.length} products`
+                }
+                variant="info"
+              />
+              {!isSupermarket ? (
+                <>
+                  <StatusPill label={`${parsed.variants.length} variants`} variant="info" />
+                  <StatusPill label={`${parsed.recipes.length} recipe lines`} variant="info" />
+                </>
+              ) : null}
               {warnings.length > 0 ? (
-                <StatusPill label={`${warnings.length} warnings`} variant="warning" />
+                <StatusPill
+                  label={
+                    isSupermarket
+                      ? `${warnings.length} تحذير`
+                      : `${warnings.length} warnings`
+                  }
+                  variant="warning"
+                />
               ) : null}
               {errors.length > 0 ? (
-                <StatusPill label={`${errors.length} issues`} variant="warning" />
+                <StatusPill
+                  label={
+                    isSupermarket ? `${errors.length} مشكلة` : `${errors.length} issues`
+                  }
+                  variant="warning"
+                />
               ) : (
-                <StatusPill label="Ready" variant="success" />
+                <StatusPill label={isSupermarket ? "جاهز" : "Ready"} variant="success" />
               )}
             </div>
           ) : null}
@@ -288,12 +347,12 @@ export function ImportProductsDialog({
         </div>
 
         <DialogFooter className="px-0 pb-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancel
           </Button>
           <Button
             disabled={
-              pending ||
+              busy ||
               !parsed ||
               parsed.rows.length + parsed.variants.length + parsed.recipes.length === 0 ||
               errors.length > 0

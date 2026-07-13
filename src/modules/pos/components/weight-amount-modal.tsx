@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,14 +35,21 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
   const [weight, setWeight] = useState("");
   const [amount, setAmount] = useState("");
 
-  useEffect(() => {
-    if (!open || !product) return;
-    setMode(product.supports_amount_sale === true ? "by_amount" : "by_weight");
-    setWeight("");
-    setAmount("");
-  }, [open, product]);
+  const resetKey = open && product ? `${product.id}:${product.supports_amount_sale === true}` : "";
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey);
+    if (open && product) {
+      setMode(product.supports_amount_sale === true ? "by_amount" : "by_weight");
+      setWeight("");
+      setAmount("");
+    }
+  }
 
-  const unitPrice = product?.base_price ?? 0;
+  const unitPrice =
+    (product?.base_price ?? 0) > 0
+      ? (product?.base_price ?? 0)
+      : (product?.variants[0]?.price ?? 0);
   const unit = product?.sale_unit ?? "kg";
   const quantity = useMemo(() => {
     if (mode === "by_weight") return Number(weight || 0);

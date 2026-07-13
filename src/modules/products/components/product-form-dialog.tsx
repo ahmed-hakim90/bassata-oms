@@ -60,6 +60,8 @@ const productSchema = z.object({
   sale_unit: z.enum(MEASUREMENT_UNITS),
   base_unit: z.enum(MEASUREMENT_UNITS),
   sales_unit_type: z.enum(["piece", "weight", "volume", "pack", "mixed"]),
+  cost_unit: z.enum(MEASUREMENT_UNITS),
+  units_per_purchase_unit: z.number().positive(),
   allow_fractional_quantity: z.boolean(),
   allow_price_input: z.boolean(),
   wholesale_enabled: z.boolean(),
@@ -122,6 +124,8 @@ export function ProductFormDialog({
       base_unit: "piece",
       sale_unit: "piece",
       sales_unit_type: "piece",
+      cost_unit: "piece",
+      units_per_purchase_unit: 1,
       allow_fractional_quantity: false,
       allow_price_input: false,
       wholesale_enabled: false,
@@ -172,6 +176,8 @@ export function ProductFormDialog({
         base_unit: product.base_unit ?? product.unit,
         sale_unit: product.sale_unit,
         sales_unit_type: product.sales_unit_type,
+        cost_unit: product.cost_unit ?? product.unit,
+        units_per_purchase_unit: product.units_per_purchase_unit ?? 1,
         allow_fractional_quantity: product.allow_fractional_quantity,
         allow_price_input: product.allow_price_input,
         wholesale_enabled: product.wholesale_enabled,
@@ -202,6 +208,8 @@ export function ProductFormDialog({
         base_unit: "piece",
         sale_unit: "piece",
         sales_unit_type: "piece",
+        cost_unit: "piece",
+        units_per_purchase_unit: 1,
         allow_fractional_quantity: false,
         allow_price_input: false,
         wholesale_enabled: false,
@@ -242,7 +250,8 @@ export function ProductFormDialog({
     try {
       const payload = {
         ...values,
-        cost_unit: values.base_unit,
+        cost_unit: values.cost_unit,
+        units_per_purchase_unit: values.units_per_purchase_unit,
         last_unit_cost: values.last_unit_cost,
         image_url: values.image_url,
       };
@@ -271,6 +280,22 @@ export function ProductFormDialog({
     }
   }
 
+  const showTabs = showVariantsTab || showRecipeTab;
+  const detailsForm = (
+    <GuidedProductDetailsForm
+      form={form}
+      categories={categories}
+      isEdit={isEdit}
+      currency={currency}
+      activityType={businessActivitySettings.activity_type}
+      enablePriceByAmount={businessActivitySettings.enable_price_by_amount}
+      onCancel={() => onOpenChange(false)}
+      onSubmit={onSubmit}
+      onImageFileChange={setImageFile}
+      onApplyActivityTemplate={!isEdit ? applyActivityTemplate : undefined}
+    />
+  );
+
   return (
     <Dialog
       open={open}
@@ -280,67 +305,60 @@ export function ProductFormDialog({
       }}
     >
       <StandardModalContent
-        size="md"
+        size="lg"
         title={isEdit ? "تعديل منتج" : "منتج جديد"}
         description={
           businessActivitySettings.activity_type === "supermarket"
-            ? "منتجات البيع، الباركود، سعر الشراء وسعر البيع."
+            ? "اسم، طريقة البيع، سعر الشراء وسعر البيع."
             : "عناصر المنيو والمكونات والأسعار والوصفات."
         }
+        className="gap-5"
       >
-
-        <Tabs defaultValue="details">
-          <TabsList className="w-full">
-            <TabsTrigger value="details" className="flex-1">
-              التفاصيل
-            </TabsTrigger>
-            {showVariantsTab ? (
-              <TabsTrigger value="variants" className="flex-1">
-                الخيارات
+        {showTabs ? (
+          <Tabs defaultValue="details" className="gap-3">
+            <TabsList className="w-full">
+              <TabsTrigger value="details" className="flex-1">
+                التفاصيل
               </TabsTrigger>
-            ) : null}
-            {showRecipeTab ? (
-              <TabsTrigger value="recipe" className="flex-1">
-                الوصفة
-              </TabsTrigger>
-            ) : null}
-          </TabsList>
+              {showVariantsTab ? (
+                <TabsTrigger value="variants" className="flex-1">
+                  الخيارات
+                </TabsTrigger>
+              ) : null}
+              {showRecipeTab ? (
+                <TabsTrigger value="recipe" className="flex-1">
+                  الوصفة
+                </TabsTrigger>
+              ) : null}
+            </TabsList>
 
-          <TabsContent value="details">
-            <GuidedProductDetailsForm
-              form={form}
-              categories={categories}
-              isEdit={isEdit}
-              currency={currency}
-              activityType={businessActivitySettings.activity_type}
-              enablePriceByAmount={businessActivitySettings.enable_price_by_amount}
-              onCancel={() => onOpenChange(false)}
-              onSubmit={onSubmit}
-              onImageFileChange={setImageFile}
-              onApplyActivityTemplate={!isEdit ? applyActivityTemplate : undefined}
-            />
-          </TabsContent>
-
-          {showVariantsTab && product ? (
-            <TabsContent value="variants" className="pt-2">
-              <VariantEditor
-                product={product}
-                currency={currency}
-                recipesEnabled={recipesEnabled}
-              />
+            <TabsContent value="details" className="outline-none">
+              {detailsForm}
             </TabsContent>
-          ) : null}
 
-          {showRecipeTab && product ? (
-            <TabsContent value="recipe" className="pt-2">
-              <RecipeEditor
-                product={product}
-                currency={currency}
-                onSaved={onSaved}
-              />
-            </TabsContent>
-          ) : null}
-        </Tabs>
+            {showVariantsTab && product ? (
+              <TabsContent value="variants" className="pt-1">
+                <VariantEditor
+                  product={product}
+                  currency={currency}
+                  recipesEnabled={recipesEnabled}
+                />
+              </TabsContent>
+            ) : null}
+
+            {showRecipeTab && product ? (
+              <TabsContent value="recipe" className="pt-1">
+                <RecipeEditor
+                  product={product}
+                  currency={currency}
+                  onSaved={onSaved}
+                />
+              </TabsContent>
+            ) : null}
+          </Tabs>
+        ) : (
+          detailsForm
+        )}
       </StandardModalContent>
     </Dialog>
   );

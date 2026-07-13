@@ -23,11 +23,26 @@ import type { StockCountWithLines } from "@/modules/stock-count/services/count.s
 import { startCountAction } from "@/modules/stock-count/actions/count.actions";
 import { StockCountWizard } from "./stock-count-wizard";
 
+function statusLabel(status: StockCountWithLines["status"]) {
+  switch (status) {
+    case "completed":
+      return { label: "مكتمل", variant: "success" as const };
+    case "pending_approval":
+      return { label: "بانتظار الاعتماد", variant: "warning" as const };
+    case "approved":
+      return { label: "معتمد", variant: "info" as const };
+    default:
+      return { label: "جارٍ العد", variant: "info" as const };
+  }
+}
+
 interface StockCountPageProps {
   counts: StockCountWithLines[];
   activeCount: StockCountWithLines | null;
   products: Product[];
   warehouses: Warehouse[];
+  canApprove: boolean;
+  trackedProductCount: number;
 }
 
 export function StockCountPage({
@@ -35,6 +50,8 @@ export function StockCountPage({
   activeCount,
   products,
   warehouses,
+  canApprove,
+  trackedProductCount,
 }: StockCountPageProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -61,7 +78,7 @@ export function StockCountPage({
     <>
       <PageHeader
         title="جرد المخزون"
-        description="جرد دوري وتسويات الفروقات"
+        description="جرد دوري مع اعتماد قبل ترحيل الفروقات"
         action={
           !activeCount && (
             <div className="flex flex-wrap gap-2">
@@ -91,6 +108,8 @@ export function StockCountPage({
         <StockCountWizard
           count={activeCount}
           products={products}
+          canApprove={canApprove}
+          trackedProductCount={trackedProductCount}
           onComplete={() => router.refresh()}
         />
       ) : counts.length === 0 ? (
@@ -106,23 +125,26 @@ export function StockCountPage({
       ) : (
         <OperationalCard title="الجردات السابقة" description={`${counts.length} جردة`}>
           <ul className="divide-y divide-border/60">
-            {counts.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-[var(--mds-space-4)] py-[var(--mds-space-3)]">
-                <div className="min-w-0">
-                  <p className="font-medium">
-                    جرد #{c.id.slice(-6).toUpperCase()}
-                  </p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    بدأ {formatDateTime(c.started_at)}
-                    {c.completed_at && ` · اكتمل ${formatDateTime(c.completed_at)}`}
-                  </p>
-                </div>
-                <StatusPill
-                  label={c.status === "completed" ? "مكتمل" : "جارٍ"}
-                  variant={c.status === "completed" ? "success" : "info"}
-                />
-              </li>
-            ))}
+            {counts.map((c) => {
+              const status = statusLabel(c.status);
+              return (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between gap-[var(--mds-space-4)] py-[var(--mds-space-3)]"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      جرد #{c.id.slice(-6).toUpperCase()}
+                    </p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      بدأ {formatDateTime(c.started_at)}
+                      {c.completed_at && ` · اكتمل ${formatDateTime(c.completed_at)}`}
+                    </p>
+                  </div>
+                  <StatusPill label={status.label} variant={status.variant} />
+                </li>
+              );
+            })}
           </ul>
         </OperationalCard>
       )}

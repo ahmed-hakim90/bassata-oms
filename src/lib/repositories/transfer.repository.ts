@@ -1,20 +1,42 @@
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapTransfer, mapTransferLine } from "@/lib/repositories/mappers";
+import { listStores } from "@/lib/repositories/store.repository";
 import type { TransferOrder, TransferOrderLine } from "@/lib/types";
 
+async function orgStoreIds(): Promise<string[]> {
+  return (await listStores()).map((store) => store.id);
+}
+
+function orgStoreOrFilter(storeIds: string[]): string {
+  const list = storeIds.join(",");
+  return `from_store_id.in.(${list}),to_store_id.in.(${list})`;
+}
+
 export async function listTransfers(): Promise<TransferOrder[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+
   const db = await getDb();
   const { data, error } = await db
     .from("transfer_orders")
     .select("*")
+    .or(orgStoreOrFilter(storeIds))
     .order("created_at", { ascending: false });
   if (error) throwDbError(error, "listTransfers");
   return (data ?? []).map(mapTransfer);
 }
 
 export async function getTransfer(id: string): Promise<TransferOrder | null> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return null;
+
   const db = await getDb();
-  const { data, error } = await db.from("transfer_orders").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db
+    .from("transfer_orders")
+    .select("*")
+    .eq("id", id)
+    .or(orgStoreOrFilter(storeIds))
+    .maybeSingle();
   if (error) throwDbError(error, "getTransfer");
   return data ? mapTransfer(data) : null;
 }

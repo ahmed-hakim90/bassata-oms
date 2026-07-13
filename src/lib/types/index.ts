@@ -160,6 +160,8 @@ export interface Product {
   supports_amount_sale?: boolean;
   last_unit_cost: number;
   cost_unit: MeasurementUnit;
+  /** Base units inside one cost_unit (e.g. 24 pieces per carton). Default 1. */
+  units_per_purchase_unit?: number;
   updated_at: string;
 }
 
@@ -252,6 +254,8 @@ export interface Supplier {
   org_id: string;
   name: string;
   contact_info: string;
+  /** Prior AP owed to supplier before tracked purchases (org-level). */
+  opening_balance: number;
 }
 
 export interface SupplierPayment {
@@ -544,6 +548,8 @@ export interface OrderPayment {
   reference: string | null;
 }
 
+export type OnlineOrderFulfillmentType = "pickup" | "delivery";
+
 export interface OnlineOrder {
   id: string;
   store_id: string;
@@ -556,6 +562,10 @@ export interface OnlineOrder {
   tax: number;
   total: number;
   notes: string;
+  fulfillment_type: OnlineOrderFulfillmentType | null;
+  delivery_area: string;
+  delivery_address: string;
+  delivery_fee: number;
   created_at: string;
   updated_at: string;
 }

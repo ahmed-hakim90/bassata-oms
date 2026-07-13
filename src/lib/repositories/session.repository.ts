@@ -1,10 +1,23 @@
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapSession } from "@/lib/repositories/mappers";
+import { listStores } from "@/lib/repositories/store.repository";
 import type { CashierSession } from "@/lib/types";
 
+async function orgStoreIds(): Promise<string[]> {
+  return (await listStores()).map((store) => store.id);
+}
+
 export async function listSessions(storeId?: string): Promise<CashierSession[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (storeId && !storeIds.includes(storeId)) return [];
+
   const db = await getDb();
-  let q = db.from("cashier_sessions").select("*").order("opened_at", { ascending: false });
+  let q = db
+    .from("cashier_sessions")
+    .select("*")
+    .in("store_id", storeIds)
+    .order("opened_at", { ascending: false });
   if (storeId) q = q.eq("store_id", storeId);
   const { data, error } = await q;
   if (error) throwDbError(error, "listSessions");
@@ -12,10 +25,15 @@ export async function listSessions(storeId?: string): Promise<CashierSession[]> 
 }
 
 export async function listOpenSessions(storeId?: string): Promise<CashierSession[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (storeId && !storeIds.includes(storeId)) return [];
+
   const db = await getDb();
   let q = db
     .from("cashier_sessions")
     .select("*")
+    .in("store_id", storeIds)
     .eq("status", "open")
     .order("opened_at", { ascending: false });
   if (storeId) q = q.eq("store_id", storeId);
@@ -28,6 +46,9 @@ export async function getActiveSession(
   storeId: string,
   cashierId?: string | null
 ): Promise<CashierSession | null> {
+  const storeIds = await orgStoreIds();
+  if (!storeIds.includes(storeId)) return null;
+
   const db = await getDb();
   let q = db
     .from("cashier_sessions")
@@ -43,8 +64,16 @@ export async function getActiveSession(
 }
 
 export async function getSession(id: string): Promise<CashierSession | null> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return null;
+
   const db = await getDb();
-  const { data, error } = await db.from("cashier_sessions").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db
+    .from("cashier_sessions")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
   if (error) throwDbError(error, "getSession");
   return data ? mapSession(data) : null;
 }
@@ -57,6 +86,10 @@ export async function openSession(input: {
 }): Promise<{ session: CashierSession; created: boolean }> {
   const existing = await getActiveSession(input.storeId, input.cashierId);
   if (existing) return { session: existing, created: false };
+  const storeIds = await orgStoreIds();
+  if (!storeIds.includes(input.storeId)) {
+    throw new Error("Store access denied");
+  }
   const db = await getDb();
   const { data, error } = await db
     .from("cashier_sessions")
@@ -82,6 +115,9 @@ export async function closeSession(input: {
   closeReason?: string;
   forceClosed?: boolean;
 }): Promise<CashierSession | null> {
+  const existing = await getSession(input.sessionId);
+  if (!existing) return null;
+
   const db = await getDb();
   const variance = input.actualCash - input.expectedCash;
   const { data, error } = await db
@@ -99,6 +135,7 @@ export async function closeSession(input: {
     })
     .eq("id", input.sessionId)
     .eq("status", "open")
+    .in("store_id", [existing.store_id])
     .select()
     .maybeSingle();
   if (error) throwDbError(error, "closeSession");

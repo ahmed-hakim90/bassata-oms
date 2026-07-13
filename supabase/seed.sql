@@ -1,9 +1,11 @@
--- Bassata OMS production seed for a simple Egyptian cafe.
--- Run after migrations, then link the admin auth user with:
---   ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run db:seed-auth
+-- Bassata OMS / CafeFlow local seed for a simple Egyptian cafe.
+-- Run after migrations, then link Auth demo users with:
+--   npm run db:seed-auth
+-- Demo emails: owner|manager|cashier1|cashier2|inventory|viewer@CafeFlow.local
+-- Demo password: demo1234 (see docs/DEMO_USERS.md). Optional ADMIN_EMAIL/ADMIN_PASSWORD too.
 --
--- This seed intentionally avoids demo orders, customers, cashier sessions,
--- supplier payments, and historical movements so a new environment starts clean.
+-- Intentionally avoids demo orders / historical movements so verify scripts start clean.
+-- Includes a second store (…0102) required by verify:post-006 / inventory-crud.
 
 INSERT INTO organizations (id, name, currency, timezone, settings)
 VALUES (
@@ -35,6 +37,22 @@ INSERT INTO stores (id, org_id, name, address, is_active, settings) VALUES
       "online_menu_token": "bassata-cafe-main-menu",
       "online_menu_description": "منيو Bassata Cafe للطلبات والاستلام من الفرع الرئيسي"
     }'::jsonb
+  ),
+  (
+    '00000000-0000-4000-8000-000000000102',
+    '00000000-0000-4000-8000-000000000001',
+    'فرع المول',
+    'القاهرة، مصر',
+    true,
+    '{
+      "phone": "",
+      "receipt_name": "Bassata Cafe Mall",
+      "online_menu_enabled": true,
+      "online_menu_ordering_enabled": true,
+      "online_menu_slug": "bassata-mall",
+      "online_menu_token": "bassata-cafe-mall-menu",
+      "online_menu_description": "منيو فرع المول"
+    }'::jsonb
   )
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
@@ -43,49 +61,79 @@ SET name = EXCLUDED.name,
     settings = EXCLUDED.settings;
 
 INSERT INTO warehouses (id, org_id, store_id, name, is_default, is_active)
-VALUES (
-  '00000000-0000-4000-8000-000000000111',
-  '00000000-0000-4000-8000-000000000001',
-  '00000000-0000-4000-8000-000000000101',
-  'مخزن الفرع الرئيسي',
-  true,
-  true
-)
+VALUES
+  (
+    '00000000-0000-4000-8000-000000000111',
+    '00000000-0000-4000-8000-000000000001',
+    '00000000-0000-4000-8000-000000000101',
+    'مخزن الفرع الرئيسي',
+    true,
+    true
+  ),
+  (
+    '00000000-0000-4000-8000-000000000112',
+    '00000000-0000-4000-8000-000000000001',
+    '00000000-0000-4000-8000-000000000102',
+    'مخزن فرع المول',
+    true,
+    true
+  )
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
     is_default = EXCLUDED.is_default,
     is_active = EXCLUDED.is_active;
 
-INSERT INTO users (id, org_id, auth_user_id, name, email, role, is_active)
-VALUES (
-  '00000000-0000-4000-8000-000000000201',
-  '00000000-0000-4000-8000-000000000001',
-  NULL,
-  'مدير النظام',
-  'admin@bassata.local',
-  'owner',
-  true
-)
+-- CafeFlow demo app users (Auth linked by scripts/seed-auth.mjs → @CafeFlow.local / demo1234)
+INSERT INTO users (id, org_id, auth_user_id, name, email, role, is_active) VALUES
+  ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000001', NULL, 'Alex Owner', 'owner@CafeFlow.local', 'owner', true),
+  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000001', NULL, 'Maya Manager', 'manager@CafeFlow.local', 'manager', true),
+  ('00000000-0000-4000-8000-000000000203', '00000000-0000-4000-8000-000000000001', NULL, 'Sam Cashier', 'cashier1@CafeFlow.local', 'cashier', true),
+  ('00000000-0000-4000-8000-000000000204', '00000000-0000-4000-8000-000000000001', NULL, 'Jordan Cashier', 'cashier2@CafeFlow.local', 'cashier', true),
+  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000001', NULL, 'Riley Inventory', 'inventory@CafeFlow.local', 'inventory', true),
+  ('00000000-0000-4000-8000-000000000206', '00000000-0000-4000-8000-000000000001', NULL, 'Pat Viewer', 'viewer@CafeFlow.local', 'viewer', true)
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
+    email = EXCLUDED.email,
     role = EXCLUDED.role,
     is_active = EXCLUDED.is_active;
 
-INSERT INTO user_store_access (user_id, store_id)
-VALUES (
-  '00000000-0000-4000-8000-000000000201',
-  '00000000-0000-4000-8000-000000000101'
-)
+INSERT INTO user_store_access (user_id, store_id) VALUES
+  ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000101'),
+  ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000102'),
+  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000101'),
+  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000102'),
+  ('00000000-0000-4000-8000-000000000203', '00000000-0000-4000-8000-000000000101'),
+  ('00000000-0000-4000-8000-000000000204', '00000000-0000-4000-8000-000000000102'),
+  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000101'),
+  ('00000000-0000-4000-8000-000000000206', '00000000-0000-4000-8000-000000000101'),
+  ('00000000-0000-4000-8000-000000000206', '00000000-0000-4000-8000-000000000102')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO devices (id, store_id, name, device_key_hash, is_active)
-VALUES (
-  '00000000-0000-4000-8000-000000000301',
-  '00000000-0000-4000-8000-000000000101',
-  'كاشير رئيسي',
-  crypt('change-this-device-key', gen_salt('bf')),
-  true
-)
+DELETE FROM pin_codes
+WHERE user_id IN (
+  '00000000-0000-4000-8000-000000000203',
+  '00000000-0000-4000-8000-000000000204'
+);
+
+INSERT INTO pin_codes (user_id, pin_hash, is_active) VALUES
+  ('00000000-0000-4000-8000-000000000203', crypt('1234', gen_salt('bf')), true),
+  ('00000000-0000-4000-8000-000000000204', crypt('1234', gen_salt('bf')), true);
+
+INSERT INTO devices (id, store_id, name, device_key_hash, is_active) VALUES
+  (
+    '00000000-0000-4000-8000-000000000301',
+    '00000000-0000-4000-8000-000000000101',
+    'كاشير رئيسي',
+    crypt('change-this-device-key', gen_salt('bf')),
+    true
+  ),
+  (
+    '00000000-0000-4000-8000-000000000302',
+    '00000000-0000-4000-8000-000000000102',
+    'كاشير المول',
+    crypt('change-this-device-key-mall', gen_salt('bf')),
+    true
+  )
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
     is_active = EXCLUDED.is_active;
@@ -456,6 +504,71 @@ INSERT INTO product_recipe_lines (recipe_id, ingredient_product_id, quantity, un
   ('00000000-0000-4000-8000-000000000818', '00000000-0000-4000-8000-000000000623', 30, 'gram', 2)
 ON CONFLICT (recipe_id, ingredient_product_id) DO NOTHING;
 
+-- English Mango/Ice Cream recipe demo (formerly migration 014 only; deferred here so migrate can skip).
+INSERT INTO products (
+  id, org_id, name, sku, barcode, category_id, base_price,
+  is_active, is_popular, track_inventory, product_type, unit, last_unit_cost, cost_unit
+) VALUES
+  ('00000000-0000-4000-8000-000000000511', '00000000-0000-4000-8000-000000000001', 'Mango Bag', 'ING-001', '500001', '00000000-0000-4000-8000-000000000402', 0, true, false, true, 'ingredient', 'bag', 2.50, 'bag'),
+  ('00000000-0000-4000-8000-000000000512', '00000000-0000-4000-8000-000000000001', 'Cup', 'ING-002', '500002', '00000000-0000-4000-8000-000000000404', 0, true, false, true, 'ingredient', 'cup', 0.15, 'cup'),
+  ('00000000-0000-4000-8000-000000000513', '00000000-0000-4000-8000-000000000001', 'Straw', 'ING-003', '500003', '00000000-0000-4000-8000-000000000404', 0, true, false, true, 'ingredient', 'piece', 0.05, 'piece'),
+  ('00000000-0000-4000-8000-000000000514', '00000000-0000-4000-8000-000000000001', 'Ice Cream Gallon', 'ING-004', '500004', '00000000-0000-4000-8000-000000000401', 0, true, false, true, 'ingredient', 'kg', 12.00, 'kg'),
+  ('00000000-0000-4000-8000-000000000515', '00000000-0000-4000-8000-000000000001', 'Spoon', 'ING-005', '500005', '00000000-0000-4000-8000-000000000404', 0, true, false, true, 'ingredient', 'spoon', 0.08, 'spoon')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO products (
+  id, org_id, name, sku, barcode, category_id, base_price,
+  is_active, is_popular, track_inventory, product_type, unit
+) VALUES
+  ('00000000-0000-4000-8000-000000000521', '00000000-0000-4000-8000-000000000001', 'Mango Juice', 'DRK-010', '200010', '00000000-0000-4000-8000-000000000402', 6.50, true, true, false, 'finished', 'piece'),
+  ('00000000-0000-4000-8000-000000000522', '00000000-0000-4000-8000-000000000001', 'Ice Cream Cup', 'ICE-010', '100010', '00000000-0000-4000-8000-000000000401', 5.00, true, true, false, 'finished', 'piece')
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE stock_levels sl
+SET quantity = seed.quantity, reorder_point = 10
+FROM (
+  VALUES
+    ('00000000-0000-4000-8000-000000000511'::uuid, 80::numeric),
+    ('00000000-0000-4000-8000-000000000512'::uuid, 200::numeric),
+    ('00000000-0000-4000-8000-000000000513'::uuid, 500::numeric),
+    ('00000000-0000-4000-8000-000000000514'::uuid, 10::numeric),
+    ('00000000-0000-4000-8000-000000000515'::uuid, 300::numeric)
+) AS seed(product_id, quantity)
+WHERE sl.warehouse_id = '00000000-0000-4000-8000-000000000111'
+  AND sl.product_id = seed.product_id
+  AND sl.variant_id IS NULL;
+
+INSERT INTO stock_levels (warehouse_id, store_id, product_id, variant_id, quantity, reorder_point)
+SELECT '00000000-0000-4000-8000-000000000111', '00000000-0000-4000-8000-000000000101', seed.product_id, NULL, seed.quantity, 10
+FROM (
+  VALUES
+    ('00000000-0000-4000-8000-000000000511'::uuid, 80::numeric),
+    ('00000000-0000-4000-8000-000000000512'::uuid, 200::numeric),
+    ('00000000-0000-4000-8000-000000000513'::uuid, 500::numeric),
+    ('00000000-0000-4000-8000-000000000514'::uuid, 10::numeric),
+    ('00000000-0000-4000-8000-000000000515'::uuid, 300::numeric)
+) AS seed(product_id, quantity)
+WHERE NOT EXISTS (
+  SELECT 1 FROM stock_levels sl
+  WHERE sl.warehouse_id = '00000000-0000-4000-8000-000000000111'
+    AND sl.product_id = seed.product_id
+    AND sl.variant_id IS NULL
+);
+
+INSERT INTO product_recipes (id, org_id, product_id) VALUES
+  ('00000000-0000-4000-8000-000000000531', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000521'),
+  ('00000000-0000-4000-8000-000000000532', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000522')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO product_recipe_lines (recipe_id, ingredient_product_id, quantity, unit, sort_order) VALUES
+  ('00000000-0000-4000-8000-000000000531', '00000000-0000-4000-8000-000000000511', 1, 'bag', 0),
+  ('00000000-0000-4000-8000-000000000531', '00000000-0000-4000-8000-000000000512', 1, 'cup', 1),
+  ('00000000-0000-4000-8000-000000000531', '00000000-0000-4000-8000-000000000513', 1, 'piece', 2),
+  ('00000000-0000-4000-8000-000000000532', '00000000-0000-4000-8000-000000000514', 0.15, 'kg', 0),
+  ('00000000-0000-4000-8000-000000000532', '00000000-0000-4000-8000-000000000512', 1, 'cup', 1),
+  ('00000000-0000-4000-8000-000000000532', '00000000-0000-4000-8000-000000000515', 1, 'spoon', 2)
+ON CONFLICT (recipe_id, ingredient_product_id) DO NOTHING;
+
 ALTER TABLE product_recipes ENABLE TRIGGER recipes_require_feature;
 ALTER TABLE product_recipe_lines ENABLE TRIGGER recipe_lines_require_feature;
 
@@ -556,4 +669,36 @@ SET name = EXCLUDED.name,
 INSERT INTO role_permissions (org_id, role, permission_key)
 SELECT '00000000-0000-4000-8000-000000000001', 'owner', key
 FROM permissions
+ON CONFLICT DO NOTHING;
+
+-- Manager / cashier / inventory defaults (keeps demo E2E after db reset; mirrors
+-- 20260712090000_restore_cashier_manager_role_permissions.sql).
+INSERT INTO role_permissions (org_id, role, permission_key)
+SELECT '00000000-0000-4000-8000-000000000001', 'manager'::user_role, p.key
+FROM permissions p
+WHERE p.key NOT IN ('monthly_closing_reopen', 'user_manage')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions (org_id, role, permission_key)
+SELECT '00000000-0000-4000-8000-000000000001', x.role::user_role, x.permission_key
+FROM (
+  VALUES
+    ('cashier', 'pos_access'),
+    ('cashier', 'checkout_create'),
+    ('cashier', 'order_view'),
+    ('cashier', 'session_open'),
+    ('cashier', 'session_close'),
+    ('cashier', 'session_view'),
+    ('cashier', 'session_expense_create'),
+    ('cashier', 'purchase_from_session_create'),
+    ('cashier', 'customer_payment_receive'),
+    ('cashier', 'customer_manage'),
+    ('inventory', 'product_manage'),
+    ('inventory', 'recipe_manage'),
+    ('inventory', 'inventory_view'),
+    ('inventory', 'purchase_manage'),
+    ('inventory', 'transfer_manage'),
+    ('inventory', 'waste_manage'),
+    ('inventory', 'stock_count_manage')
+) AS x(role, permission_key)
 ON CONFLICT DO NOTHING;

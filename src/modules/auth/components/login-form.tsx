@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { IceCream } from "lucide-react";
 import { loginAction } from "@/modules/auth/actions/login.action";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, APP_TAGLINE_AR } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -23,6 +23,9 @@ export function LoginForm() {
             <IceCream className="size-6" aria-hidden />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{APP_NAME}</h1>
+          <p className="mt-[var(--mds-space-1)] text-sm font-medium text-foreground/70">
+            {APP_TAGLINE_AR}
+          </p>
           <p className="mt-[var(--mds-space-2)] text-sm text-muted-foreground">
             {t("Sign in with your owner, manager, or cashier account")}
           </p>

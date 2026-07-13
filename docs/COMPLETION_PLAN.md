@@ -41,16 +41,16 @@ Broad brand renaming is frozen until the core product flows are stable. Keep int
 - [ ] Tax/freight-specific landed cost breakdown.
 - [ ] Batch and expiry tracking for ingredients.
 - [ ] Recipe versioning so historical margins remain stable after recipe changes.
-- [ ] Stock count approval workflow before posting adjustments.
+- [x] Stock count approval workflow before posting adjustments.
 - [ ] Barcode label export or printing workflow.
 
 ## Phase 4 — Finance and accounting
 
-- [ ] Daily close report per store with expected cash, actual cash, variance, paid in/out, and payment settlement.
-- [ ] Supplier aging report.
-- [ ] Customer aging report with collection workflow.
+- [x] Daily close report per store with expected cash, actual cash, variance, paid in/out, and payment settlement. (`/reports/daily-close` — S15)
+- [x] Supplier aging report. (`/reports/aging` AP — S15)
+- [x] Customer aging report with collection workflow. (`/reports/aging` AR — S15; collection remains on customer page)
 - [ ] Simple profit and loss report by date range and store.
-- [ ] Tax report and accounting-ready export.
+- [x] Tax report and accounting-ready export. (`/reports/tax` + Excel — S15)
 - [ ] Expense approval workflow for large or sensitive expenses.
 
 ## Phase 5 — Customer growth
@@ -63,10 +63,10 @@ Broad brand renaming is frozen until the core product flows are stable. Keep int
 
 ## Phase 6 — Online ordering
 
-- [ ] Customer-facing order status page.
-- [ ] Store opening hours and online ordering availability windows.
-- [ ] Product availability controls for public menu.
-- [ ] Pickup/delivery mode, delivery fees, and delivery zones.
+- [x] Customer-facing order status page. (`/track/[token]` — S14)
+- [x] Store opening hours and online ordering availability windows. (S13)
+- [x] Product availability controls for public menu. (`show_on_online_menu`)
+- [x] Pickup/delivery mode, delivery fees, and delivery zones. (S14)
 - [ ] WhatsApp confirmation link or automated notification hook.
 - [ ] Stronger branch-specific QR menu branding.
 

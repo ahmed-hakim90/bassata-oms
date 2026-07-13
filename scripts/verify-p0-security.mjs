@@ -36,9 +36,10 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const ownerEmail = process.env.VERIFY_OWNER_EMAIL ?? "owner@CafeFlow.local";
 const ownerPassword = process.env.VERIFY_OWNER_PASSWORD ?? "demo1234";
-const cashierEmail = process.env.VERIFY_CASHIER_EMAIL ?? "cashier1@CafeFlow.local";
-const cashierPassword = process.env.VERIFY_CASHIER_PASSWORD ?? "demo1234";
+const inventoryEmail = process.env.VERIFY_INVENTORY_EMAIL ?? "inventory@CafeFlow.local";
+const inventoryPassword = process.env.VERIFY_INVENTORY_PASSWORD ?? "demo1234";
 const storeId = "00000000-0000-4000-8000-000000000101";
+const inventoryUserId = "00000000-0000-4000-8000-000000000205";
 
 if (!url || !anonKey) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
@@ -77,9 +78,9 @@ console.log("→ Owner: pin_codes direct access denied");
   await supabase.auth.signOut();
 }
 
-console.log("→ Cashier: cannot insert orders");
+console.log("→ Inventory: cannot insert orders");
 {
-  const supabase = await signIn(cashierEmail, cashierPassword);
+  const supabase = await signIn(inventoryEmail, inventoryPassword);
   const { error } = await supabase.from("orders").insert({
     store_id: storeId,
     order_number: "TEST-P0",
@@ -89,10 +90,10 @@ console.log("→ Cashier: cannot insert orders");
     tax: 0,
     total: 1,
     payment_status: "paid",
-    created_by: "00000000-0000-4000-8000-000000000204",
+    created_by: inventoryUserId,
   });
-  if (!error) fail("cashier order insert", new Error("expected RLS denial"));
-  console.log("✓ cashier cannot insert orders");
+  if (!error) fail("inventory order insert", new Error("expected RLS denial"));
+  console.log("✓ inventory cannot insert orders");
   await supabase.auth.signOut();
 }
 

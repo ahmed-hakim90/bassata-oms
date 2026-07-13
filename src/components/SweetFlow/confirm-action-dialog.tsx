@@ -37,6 +37,8 @@ export function ConfirmActionDialog({
     try {
       await onConfirm();
       onOpenChange(false);
+    } catch {
+      // Keep dialog open; caller shows toast/error.
     } finally {
       setPending(false);
     }

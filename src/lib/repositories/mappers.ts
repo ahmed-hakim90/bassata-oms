@@ -197,6 +197,7 @@ export function mapProduct(row: ProductRow): Product {
     supports_amount_sale: row.supports_amount_sale ?? false,
     last_unit_cost: num(row.last_unit_cost ?? 0),
     cost_unit: (row.cost_unit ?? row.unit ?? "piece") as MeasurementUnit,
+    units_per_purchase_unit: num(row.units_per_purchase_unit ?? 1),
     updated_at: row.updated_at ?? row.created_at,
   };
 }
@@ -228,7 +229,13 @@ export function mapMovement(row: MovementRow): InventoryMovement {
 }
 
 export function mapSupplier(row: SupplierRow): Supplier {
-  return row;
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    name: row.name,
+    contact_info: row.contact_info,
+    opening_balance: num(row.opening_balance ?? 0),
+  };
 }
 
 export function mapSupplierPayment(row: SupplierPaymentRow): SupplierPayment {
@@ -476,6 +483,10 @@ export function mapOrderPayment(row: OrderPaymentRow): OrderPayment {
 }
 
 export function mapOnlineOrder(row: OnlineOrderRow): OnlineOrder {
+  const fulfillment =
+    row.fulfillment_type === "pickup" || row.fulfillment_type === "delivery"
+      ? row.fulfillment_type
+      : null;
   return {
     id: row.id,
     store_id: row.store_id,
@@ -488,6 +499,10 @@ export function mapOnlineOrder(row: OnlineOrderRow): OnlineOrder {
     tax: num(row.tax),
     total: num(row.total),
     notes: row.notes,
+    fulfillment_type: fulfillment,
+    delivery_area: row.delivery_area ?? "",
+    delivery_address: row.delivery_address ?? "",
+    delivery_fee: num(row.delivery_fee ?? 0),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

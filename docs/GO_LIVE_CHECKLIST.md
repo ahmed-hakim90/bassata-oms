@@ -58,8 +58,25 @@ Use this checklist before pointing production traffic at a new deployment.
 ## Backup & monitoring
 
 - [ ] Supabase backups / PITR enabled per plan
-- [ ] Error monitoring on host (Vercel logs, etc.)
+- [ ] PITR / backup **restore drill** executed once and filed per [DEPLOYMENT.md](./DEPLOYMENT.md) runbook (S16-T5)
+- [ ] Error monitoring on host (Vercel logs, etc.) — no inventing external SaaS for M6
 - [ ] Owner contact for support documented
+
+## S16 / Milestone 6 sign-off (2026-07-13)
+
+**M6 exit: NOT signed.**
+
+| Gate | Status |
+|------|--------|
+| `npm run smoke:check` | Pass (local) |
+| Staging browser SMOKE_TEST | Not run / residual |
+| Device matrix Required rows | Untested / Partial — see DEVICE_MATRIX.md |
+| Secrets isolation guidance | Docs accurate; Preview↔Production value distinctness operator residual |
+| PITR drill documented | Yes — actual restore not executed |
+| Demo-auth verify scripts | **Pass** (2026-07-13 recheck — `db:seed-auth` + seed demos) |
+| Full cashier E2E (M3) | Partial — skeleton Pass; paired sell day still open |
+
+Evidence: [docs/results/S16-smoke-results.md](./results/S16-smoke-results.md).
 
 ## Post go-live
 

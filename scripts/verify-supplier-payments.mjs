@@ -38,7 +38,7 @@ const ownerEmail = process.env.VERIFY_OWNER_EMAIL ?? "owner@CafeFlow.local";
 const ownerPassword = process.env.VERIFY_OWNER_PASSWORD ?? "demo1234";
 const ownerUserId = "00000000-0000-4000-8000-000000000201";
 const storeId = "00000000-0000-4000-8000-000000000101";
-const supplierId = "00000000-0000-4000-8000-000000000601";
+const supplierId = "00000000-0000-4000-8000-000000000501";
 
 if (!url || !anonKey) {
   console.error("Missing Supabase env in .env.local");

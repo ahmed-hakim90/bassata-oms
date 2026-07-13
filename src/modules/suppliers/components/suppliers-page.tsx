@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Landmark, Plus, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Banknote, Landmark, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,19 +20,31 @@ import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { SupplierListSummary } from "@/lib/types";
-import { createSupplierFromSuppliersAction } from "@/modules/suppliers/actions/supplier.actions";
+import {
+  createSupplierFromSuppliersAction,
+  getSuppliersPageDataAction,
+} from "@/modules/suppliers/actions/supplier.actions";
+import { RecordPaymentDialog } from "@/modules/suppliers/components/record-payment-dialog";
 
 interface SuppliersPageProps {
   summaries: SupplierListSummary[];
   currency: string;
+  canManagePayments?: boolean;
 }
 
-export function SuppliersPage({ summaries: initial, currency }: SuppliersPageProps) {
+export function SuppliersPage({
+  summaries: initial,
+  currency,
+  canManagePayments = false,
+}: SuppliersPageProps) {
+  const router = useRouter();
   const [summaries, setSummaries] = useState(initial);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentSupplierId, setPaymentSupplierId] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState({ name: "", contact_info: "" });
+  const [form, setForm] = useState({ name: "", contact_info: "", opening_balance: "0" });
 
   const filtered = summaries.filter(
     (s) =>
@@ -44,15 +57,26 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
     [summaries]
   );
 
+  const openPayment = (supplierId?: string) => {
+    setPaymentSupplierId(supplierId);
+    setShowPayment(true);
+  };
+
   const create = () => {
     if (!form.name.trim()) {
       toast.error("الاسم مطلوب");
+      return;
+    }
+    const opening = parseFloat(form.opening_balance) || 0;
+    if (opening < 0) {
+      toast.error("رصيد مستحق سابق لازم يكون صفر أو أكبر");
       return;
     }
     startTransition(async () => {
       const result = await createSupplierFromSuppliersAction({
         name: form.name.trim(),
         contact_info: form.contact_info.trim(),
+        opening_balance: opening,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -64,14 +88,14 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
           ...created,
           totalPurchased: 0,
           totalPaid: 0,
-          balanceDue: 0,
+          balanceDue: created.opening_balance,
           invoiceCount: 0,
           lastActivityAt: null,
         },
         ...summaries,
       ]);
       setShowCreate(false);
-      setForm({ name: "", contact_info: "" });
+      setForm({ name: "", contact_info: "", opening_balance: "0" });
       toast.success("تم إنشاء المورد");
     });
   };
@@ -82,9 +106,16 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
         title="الموردون"
         description="أرصدة الموردين وكشوف الحساب"
         action={
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="size-4" /> إضافة مورد
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {canManagePayments && summaries.length > 0 ? (
+              <Button variant="outline" onClick={() => openPayment()}>
+                <Banknote className="size-4" /> تسجيل دفعة
+              </Button>
+            ) : null}
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="size-4" /> إضافة مورد
+            </Button>
+          </div>
         }
       />
 
@@ -126,8 +157,8 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((s) => (
-            <Link key={s.id} href={`/inventory/suppliers/${s.id}`}>
-              <OperationalCard className="transition-all hover:shadow-lg">
+            <OperationalCard key={s.id} className="transition-all hover:shadow-lg">
+              <Link href={`/inventory/suppliers/${s.id}`} className="block">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <h3 className="font-semibold">{s.name}</h3>
@@ -148,8 +179,21 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
                     آخر نشاط {formatDateTime(s.lastActivityAt)}
                   </p>
                 ) : null}
-              </OperationalCard>
-            </Link>
+              </Link>
+              {canManagePayments ? (
+                <div className="mt-3 border-t border-border pt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => openPayment(s.id)}
+                  >
+                    <Banknote className="size-4" /> تسجيل دفعة
+                  </Button>
+                </div>
+              ) : null}
+            </OperationalCard>
           ))}
         </div>
       )}
@@ -175,12 +219,49 @@ export function SuppliersPage({ summaries: initial, currency }: SuppliersPagePro
                 placeholder="البريد أو الهاتف"
               />
             </div>
+            <div className="space-y-2">
+              <Label>رصيد مستحق سابق</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.opening_balance}
+                onChange={(e) => setForm({ ...form, opening_balance: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                لو فيه مستحقات قديمة قبل النظام — اكتبها هنا.
+              </p>
+            </div>
             <Button onClick={create} disabled={pending}>
               إنشاء
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {canManagePayments ? (
+        <RecordPaymentDialog
+          open={showPayment}
+          onOpenChange={(open) => {
+            setShowPayment(open);
+            if (!open) setPaymentSupplierId(undefined);
+          }}
+          suppliers={paymentSupplierId ? undefined : summaries}
+          currency={currency}
+          initialSupplierId={paymentSupplierId}
+          supplierId={paymentSupplierId}
+          onSuccess={() => {
+            startTransition(async () => {
+              try {
+                const data = await getSuppliersPageDataAction();
+                setSummaries(data.summaries);
+              } catch {
+                router.refresh();
+              }
+            });
+          }}
+        />
+      ) : null}
     </>
   );
 }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { APP_NAME } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
@@ -134,7 +135,7 @@ export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailP
 
       <Card className="rounded-2xl shadow-sm print:shadow-none print:ring-0">
         <CardHeader className="text-center">
-          <CardTitle className="text-lg">CafeFlow</CardTitle>
+          <CardTitle className="text-lg">{APP_NAME}</CardTitle>
           <p className="text-xs text-muted-foreground">{order.storeName}</p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Badge

@@ -13,6 +13,8 @@ export default async function ProductsRoutePage() {
       recipesEnabled={data.recipesEnabled}
       businessActivity={data.businessActivity}
       productTemplates={data.productTemplates}
+      availableStockByProductId={data.availableStockByProductId}
+      availableStockByVariantId={data.availableStockByVariantId}
     />
   );
 }

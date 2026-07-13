@@ -29,6 +29,8 @@ Shared UI primitives live in [`src/components/SweetFlow/`](../src/components/Swe
 ## Forms & tables
 
 - Use shadcn `Button`, `Input`, `Select`, `Dialog` from `@/components/ui`
+- **Select:** same footprint as `Input` (`h-9` / `w-full`). Narrow filters/header use an explicit width override (`w-48`, `w-[180px]`, …).
+- **Select items with secondary value** (balance, code, unit): use `SelectItemMeta` — never concatenate with ` · ` in one string. Keep `label` as the trigger label; meta shows in the list only.
 - Tables: sticky header on wide reports; zebra via `border-border/40` row dividers
 
 ## Mobile / tablet

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { IceCream } from "lucide-react";
 import { forgotPasswordAction } from "@/modules/auth/actions/password.actions";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, APP_TAGLINE_AR } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,9 @@ export function ForgotPasswordForm() {
             <IceCream className="size-6" aria-hidden />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
+          <p className="mt-[var(--mds-space-1)] text-sm font-medium text-foreground/70">
+            {APP_TAGLINE_AR}
+          </p>
           <p className="mt-[var(--mds-space-2)] text-sm text-muted-foreground">
             إعادة تعيين كلمة المرور
           </p>

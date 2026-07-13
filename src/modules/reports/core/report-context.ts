@@ -20,7 +20,12 @@ export interface ReportContext extends ReportBranding {
 
 export function buildFilterSummary(filters: ReportFilters): string {
   const parts: string[] = [];
-  if (filters.from && filters.to) {
+  if (filters.month) {
+    parts.push(`Month ${filters.month}`);
+    if (filters.coverageMonths) {
+      parts.push(`Coverage ×${filters.coverageMonths}`);
+    }
+  } else if (filters.from && filters.to) {
     parts.push(`${filters.from} → ${filters.to}`);
   } else if (filters.days) {
     parts.push(`Last ${filters.days} days`);

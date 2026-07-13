@@ -5,8 +5,8 @@ alwaysApply: true
 
 # Project Context — SweetFlow (bassata-oms)
 
-**Product:** CafeFlow / SweetFlow — multi-location café & dessert POS + ERP.  
-**Repo:** `bassata-oms` · package often named `cafeflow-erp-pos`.
+**Product:** Velora — نظام كاشير وإدارة فروع (multi-location POS + light ERP).  
+**Repo:** `bassata-oms` · package still `cafeflow-erp-pos` · UI kit folder: `SweetFlow`.
 
 ## Stack
 

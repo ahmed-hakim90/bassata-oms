@@ -394,17 +394,31 @@ export function PosScreen({
     });
   }, [categoryId, initialProductsLive, searchTerm]);
 
+  /** When variants exist, checkout SQL requires a variant_id — even if UI variants are off. */
+  function resolveCheckoutVariant(
+    product: POSProduct,
+    preferred: POSVariant | null = null
+  ): POSVariant | null {
+    if (!product.hasVariants || product.variants.length === 0) return null;
+    if (preferred) return preferred;
+    return product.variants[0] ?? null;
+  }
+
   function addToCart(product: POSProduct, variant: POSVariant | null) {
-    const name = variant ? `${product.name} — ${variant.name}` : product.name;
-    const unitPrice = variant ? variant.price : product.base_price;
+    const resolved = resolveCheckoutVariant(product, variant);
+    const name =
+      enableVariants && resolved
+        ? `${product.name} — ${resolved.name}`
+        : product.name;
+    const unitPrice = resolved ? resolved.price : product.base_price;
     addItem({
       productId: product.id,
-      variantId: variant?.id ?? null,
+      variantId: resolved?.id ?? null,
       name,
       quantity: 1,
       unitPrice,
       modifiers: [],
-      imageUrl: variant?.imageUrl ?? product.image_url,
+      imageUrl: resolved?.imageUrl ?? product.image_url,
     });
   }
 
@@ -440,7 +454,7 @@ export function PosScreen({
       setPickerProduct(product);
       return;
     }
-    addToCart(product, enableVariants ? variant : null);
+    addToCart(product, variant);
     setSearchTerm("");
   }
 
@@ -673,7 +687,7 @@ export function PosScreen({
       toast.error("تعذرت طباعة الإيصال");
       return;
     }
-    if (typeof document !== "undefined" && !document.getElementById("CafeFlow-receipt")) {
+    if (typeof document !== "undefined" && !document.getElementById("Velora-receipt")) {
       toast.error("تعذرت طباعة الإيصال — الإيصال غير جاهز");
       return;
     }
@@ -848,6 +862,7 @@ export function PosScreen({
                   <ProductTile
                     key={product.id}
                     product={product}
+                    showVariants={enableVariants}
                     onAdd={() => handleAdd(product)}
                   />
                 ))}
@@ -983,12 +998,13 @@ export function PosScreen({
         product={weightProduct}
         onConfirm={({ quantity, unitPrice, saleInputMode, enteredAmount }) => {
           if (!weightProduct) return;
+          const resolved = resolveCheckoutVariant(weightProduct);
           addItem({
             productId: weightProduct.id,
-            variantId: null,
+            variantId: resolved?.id ?? null,
             name: weightProduct.name,
             quantity,
-            unitPrice,
+            unitPrice: unitPrice > 0 ? unitPrice : (resolved?.price ?? weightProduct.base_price),
             modifiers: [],
             imageUrl: weightProduct.image_url,
             saleUnit: weightProduct.sale_unit,

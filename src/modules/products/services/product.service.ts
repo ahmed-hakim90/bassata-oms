@@ -68,6 +68,10 @@ function normalizeProductInput(input: ProductInput): ProductInput {
     base_unit: baseUnit,
     sale_unit: saleUnit,
     cost_unit: input.cost_unit ?? baseUnit,
+    units_per_purchase_unit: (() => {
+      const raw = Number(input.units_per_purchase_unit ?? 1);
+      return Number.isFinite(raw) && raw > 0 ? raw : 1;
+    })(),
     inventory_tracking_mode:
       input.track_inventory === false ? "none" : input.inventory_tracking_mode ?? "standard",
     show_on_online_menu: input.show_on_online_menu ?? isFinishedOnlineCandidate,

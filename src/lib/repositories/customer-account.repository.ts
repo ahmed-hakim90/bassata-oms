@@ -144,3 +144,23 @@ export async function listCustomersWithBalance(): Promise<
     credit_limit: Number(row.credit_limit),
   }));
 }
+
+/** Sum non-voided customer payments for a store in [from, to] (ISO timestamps). */
+export async function sumPaymentsForStoreInRange(
+  storeId: string,
+  from: string,
+  to: string
+): Promise<number> {
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("customer_payments")
+    .select("amount, voided_at")
+    .eq("org_id", orgId)
+    .eq("store_id", storeId)
+    .gte("received_at", from)
+    .lte("received_at", to)
+    .is("voided_at", null);
+  if (error) throwDbError(error, "sumPaymentsForStoreInRange");
+  return (data ?? []).reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+}

@@ -38,6 +38,7 @@ import { CategoryManagerDialog } from "./category-manager-dialog";
 import { ImportProductsDialog } from "@/modules/imports-exports/components/import-products-dialog";
 import {
   bulkDisableMenuInventoryTrackingAction,
+  bulkSetInventoryTrackingAction,
   deleteProductAction,
 } from "../actions/product.actions";
 import { toast } from "sonner";
@@ -55,6 +56,8 @@ interface ProductsPageProps {
   recipesEnabled?: boolean;
   businessActivity?: BusinessActivitySettings;
   productTemplates?: ProductTemplateSettings;
+  availableStockByProductId?: Record<string, number>;
+  availableStockByVariantId?: Record<string, number>;
 }
 
 export function ProductsPage({
@@ -65,6 +68,8 @@ export function ProductsPage({
   recipesEnabled = false,
   businessActivity = DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
   productTemplates = DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY.cafe,
+  availableStockByProductId = {},
+  availableStockByVariantId = {},
 }: ProductsPageProps) {
   const router = useRouter();
   const isSupermarket = businessActivity.activity_type === "supermarket";
@@ -81,6 +86,7 @@ export function ProductsPage({
   const [editing, setEditing] = useState<Product | null>(null);
   const [editingVariants, setEditingVariants] = useState<ProductVariant[]>([]);
   const [editingIngredient, setEditingIngredient] = useState<Product | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
 
   const categoryList = categories.filter((c): c is NonNullable<typeof c> => c !== null);
@@ -177,7 +183,9 @@ export function ProductsPage({
   function handleBulkDisableTracking() {
     if (
       !confirm(
-        "سيتم تفعيل كل أصناف المنيو وجعلها غير متتبعة للمخزون. المكونات لن تتأثر. هل تريد المتابعة؟"
+        isSupermarket
+          ? "سيتم تفعيل كل منتجات البيع وجعلها غير متتبعة للمخزون. هل تريد المتابعة؟"
+          : "سيتم تفعيل كل أصناف المنيو وجعلها غير متتبعة للمخزون. المكونات لن تتأثر. هل تريد المتابعة؟"
       )
     ) {
       return;
@@ -186,13 +194,112 @@ export function ProductsPage({
     startTransition(async () => {
       try {
         const result = await bulkDisableMenuInventoryTrackingAction();
-        toast.success(`تم تحديث ${result.count} صنف منيو`);
+        toast.success(
+          isSupermarket
+            ? `تم تحديث ${result.count} منتج`
+            : `تم تحديث ${result.count} صنف منيو`
+        );
+        setSelectedIds([]);
         router.refresh();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "تعذر تحديث الأصناف");
       }
     });
   }
+
+  function handleBulkTracking(trackInventory: boolean, scope: "selection" | "category") {
+    if (scope === "category" && !categoryId) {
+      toast.error("اختَر تصنيفًا من القائمة الجانبية أولًا");
+      return;
+    }
+    if (scope === "selection" && selectedIds.length === 0) {
+      toast.error("حدّد منتجات من الجدول أولًا");
+      return;
+    }
+
+    const categoryName =
+      categoryList.find((category) => category.id === categoryId)?.name ?? "التصنيف";
+    const confirmMessage =
+      scope === "category"
+        ? trackInventory
+          ? `تفعيل تتبع المخزون لكل منتجات «${categoryName}»؟`
+          : `إيقاف تتبع المخزون لكل منتجات «${categoryName}»؟`
+        : trackInventory
+          ? `تفعيل تتبع المخزون لـ ${selectedIds.length} منتج؟`
+          : `إيقاف تتبع المخزون لـ ${selectedIds.length} منتج؟`;
+
+    if (!confirm(confirmMessage)) return;
+
+    startTransition(async () => {
+      try {
+        const result = await bulkSetInventoryTrackingAction(
+          scope === "category"
+            ? { trackInventory, categoryId }
+            : { trackInventory, productIds: selectedIds }
+        );
+        toast.success(
+          trackInventory
+            ? `تم تفعيل التتبع لـ ${result.count} منتج`
+            : `تم إيقاف التتبع لـ ${result.count} منتج`
+        );
+        setSelectedIds([]);
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "تعذر تحديث التتبع");
+      }
+    });
+  }
+
+  const inventoryToolbar =
+    layout === "table" && (selectedIds.length > 0 || Boolean(categoryId)) ? (
+      <div className="flex flex-wrap items-center gap-2">
+        {selectedIds.length > 0 ? (
+          <>
+            <span className="text-xs text-muted-foreground">{selectedIds.length} محدد</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => handleBulkTracking(true, "selection")}
+            >
+              تفعيل التتبع
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => handleBulkTracking(false, "selection")}
+            >
+              إيقاف التتبع
+            </Button>
+          </>
+        ) : null}
+        {categoryId ? (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={pending}
+              onClick={() => handleBulkTracking(true, "category")}
+            >
+              تفعيل التصنيف كامل
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={pending}
+              onClick={() => handleBulkTracking(false, "category")}
+            >
+              إيقاف التصنيف كامل
+            </Button>
+          </>
+        ) : null}
+      </div>
+    ) : null;
 
   const emptyAction =
     showIngredientsCatalog && view === "ingredients" ? (
@@ -287,7 +394,10 @@ export function ProductsPage({
           categories={categoryList}
           selectedId={categoryId}
           counts={counts}
-          onSelect={setCategoryId}
+          onSelect={(id) => {
+            setCategoryId(id);
+            setSelectedIds([]);
+          }}
         />
 
         <div className="flex min-w-0 flex-col gap-[var(--mds-space-4)]">
@@ -311,6 +421,7 @@ export function ProductsPage({
                   onClick={() => {
                     setView("menu");
                     setCategoryId(null);
+                    setSelectedIds([]);
                   }}
                 >
                   أصناف المنيو
@@ -328,6 +439,7 @@ export function ProductsPage({
                   onClick={() => {
                     setView("ingredients");
                     setCategoryId(null);
+                    setSelectedIds([]);
                   }}
                 >
                   المكونات
@@ -395,7 +507,9 @@ export function ProductsPage({
             <span>
               عرض {filtered.length} من {visibleSource.length}
               {categoryId ? " · تصنيف محدد" : ""}
-              {layout === "table" ? " · عدّل السعر مباشرة من الجدول" : ""}
+              {layout === "table"
+                ? " · عدّل السعر وتتبع المخزون مباشرة من الجدول"
+                : ""}
             </span>
             {pending ? <span>جاري التحديث…</span> : null}
           </div>
@@ -404,9 +518,15 @@ export function ProductsPage({
             <ProductTable
               items={filtered}
               currency={currency}
+              supermarketColumns={isSupermarket}
               priceMode={
                 showIngredientsCatalog && view === "ingredients" ? "cost" : "sale"
               }
+              availableStockByProductId={availableStockByProductId}
+              availableStockByVariantId={availableStockByVariantId}
+              selectedIds={selectedIds}
+              onSelectedIdsChange={setSelectedIds}
+              toolbar={inventoryToolbar}
               onEdit={
                 showIngredientsCatalog && view === "ingredients"
                   ? openEditIngredient
@@ -488,6 +608,7 @@ export function ProductsPage({
         open={importOpen}
         onOpenChange={setImportOpen}
         onImported={() => router.refresh()}
+        activityType={businessActivity.activity_type}
       />
     </div>
   );

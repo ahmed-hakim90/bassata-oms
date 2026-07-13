@@ -172,12 +172,16 @@ Enable `credit_sales` in Settings → System Features for credit POS.
 - [ ] **Customer profile** — statement shows debit; balance increases
 - [ ] **Receive payment** — record collection; balance decreases
 - [ ] **Reports** — Customer accounts section shows outstanding and aging
+- [ ] **Reports** — إقفال اليوم matches closed session expected/actual/variance
+- [ ] **Reports** — أعمار الذمم lists AR + AP balances
+- [ ] **Reports** — Tax report Excel export downloads
 
 ## Notes
 
-- Apply migrations through `031_souqna_provider_completion.sql` on each environment.
+- Apply migrations through the full train (not only `031`) on each environment — see [DEPLOYMENT.md](./DEPLOYMENT.md).
 - Full rollout phases: [PRODUCTION_PLAN.md](./PRODUCTION_PLAN.md).
 - Demo viewer: `viewer@SweetFlow.local` / `demo1234` (read-only orders/reports).
 - Migration `010` was intentionally skipped — no functional gap.
 - Apply migration `005_feature_flags_and_rls_roles.sql` before DB security tests.
 - See [FEATURE_FLAGS.md](./FEATURE_FLAGS.md) for flag enforcement layers.
+- **S16 results (2026-07-13):** automated release gate Pass — see [results/S16-smoke-results.md](./results/S16-smoke-results.md). Manual staging sections remain open.

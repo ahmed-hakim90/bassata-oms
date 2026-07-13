@@ -44,15 +44,21 @@ describe("S08 onboarding ↔ settings parity helpers", () => {
   });
 
   it("writes enable_variants from onboarding variants toggle", () => {
-    const withVariants = mapBusinessTypeToActivity("supermarket", {
+    const cafeWithVariants = mapBusinessTypeToActivity("cafe", {
       enableVariants: true,
     });
-    const without = mapBusinessTypeToActivity("supermarket", {
+    const cafeWithout = mapBusinessTypeToActivity("cafe", {
       enableVariants: false,
     });
-    expect(withVariants.enable_variants).toBe(true);
-    expect(without.enable_variants).toBe(false);
-    expect(without.enable_weight_sales).toBe(true);
+    expect(cafeWithVariants.enable_variants).toBe(true);
+    expect(cafeWithout.enable_variants).toBe(false);
+
+    // Supermarket preset locks variants off — onboarding checkbox cannot override.
+    const supermarketForced = mapBusinessTypeToActivity("supermarket", {
+      enableVariants: true,
+    });
+    expect(supermarketForced.enable_variants).toBe(false);
+    expect(supermarketForced.enable_weight_sales).toBe(true);
   });
 
   it("covers every DB-supported activity type in app constants", () => {

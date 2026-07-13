@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Banknote, CreditCard, UserCircle, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,12 +90,15 @@ export function PosCreditCheckoutDialog({
   const owed = customer?.account_balance ?? 0;
   const maxPayableNow = Math.round((total + Math.max(0, owed)) * 100) / 100;
 
-  useEffect(() => {
-    if (!open) return;
-    setPayNow(false);
-    setAmountPaid("");
-    setPayMethod(availablePayMethods[0]?.id ?? "cash");
-  }, [open, availablePayMethods]);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setPayNow(false);
+      setAmountPaid("");
+      setPayMethod(availablePayMethods[0]?.id ?? "cash");
+    }
+  }
 
   const paidValue = Number(amountPaid);
   const paid = payNow && Number.isFinite(paidValue) ? Math.max(0, paidValue) : 0;

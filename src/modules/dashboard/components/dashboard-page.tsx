@@ -1,4 +1,4 @@
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { getValidatedActiveStoreId, requireAuth } from "@/lib/auth/guards";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import { PageHeader } from "@/components/SweetFlow/page-header";
@@ -8,23 +8,30 @@ import {
   getActiveSessions,
   getDashboardInventory,
   getDashboardSales,
+  getMonthToDateSales,
+  getOwnerFinanceSnapshot,
 } from "@/modules/dashboard/services/dashboard.service";
 import { LiveSalesPulse } from "@/modules/dashboard/components/live-sales-pulse";
 import { QuickActionsBar } from "@/modules/dashboard/components/quick-actions-bar";
 import { ActiveSessionsWidget } from "@/modules/dashboard/components/active-sessions-widget";
 import { RecentOrdersFeed } from "@/modules/dashboard/components/recent-orders-feed";
 import { TopProductsRanking } from "@/modules/dashboard/components/top-products-ranking";
+import { OwnerFinanceOverview } from "@/modules/dashboard/components/owner-finance-overview";
 import { formatCurrency } from "@/lib/format";
 
 export async function DashboardPage() {
+  const user = await requireAuth();
+  const isOwner = user.role === "owner";
   const storeId = await getValidatedActiveStoreId();
   const org = await orgRepo.getOrganization();
 
   const products = await catalogRepo.listProducts();
-  const [sales, inventory, activeSessions] = await Promise.all([
+  const [sales, inventory, activeSessions, monthSales, finance] = await Promise.all([
     getDashboardSales(storeId, { products }),
     getDashboardInventory(storeId, products),
     getActiveSessions(storeId),
+    isOwner ? getMonthToDateSales(storeId) : Promise.resolve(null),
+    isOwner ? getOwnerFinanceSnapshot(storeId) : Promise.resolve(null),
   ]);
 
   const { stats, topProducts, recentOrders } = sales;
@@ -35,37 +42,54 @@ export async function DashboardPage() {
       <PageHeader
         breadcrumb={<span>الرئيسية</span>}
         title="لوحة التحكم"
-        description={`${org.name} — مبيعات اليوم والمخزون ونشاط الكاشير`}
+        description={
+          isOwner
+            ? `${org.name} — مبيعات اليوم والشهر والمستحقات`
+            : `${org.name} — مبيعات اليوم والمخزون ونشاط الكاشير`
+        }
       />
 
-      <OperationalCard>
-        <div className="grid gap-[var(--mds-space-6)] sm:grid-cols-3">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              اليوم
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {formatCurrency(stats.todaySales, org.currency)}
-            </p>
-            <p className="text-sm text-muted-foreground">{stats.todayOrders} طلب</p>
+      {isOwner && monthSales && finance ? (
+        <OwnerFinanceOverview
+          currency={org.currency}
+          today={{
+            revenue: stats.todaySales,
+            orderCount: stats.todayOrders,
+            avgTicket: stats.avgTicket,
+          }}
+          month={monthSales}
+          finance={finance}
+        />
+      ) : (
+        <OperationalCard>
+          <div className="grid gap-[var(--mds-space-6)] sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                اليوم
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {formatCurrency(stats.todaySales, org.currency)}
+              </p>
+              <p className="text-sm text-muted-foreground">{stats.todayOrders} طلب</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                متوسط الفاتورة
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {formatCurrency(stats.avgTicket, org.currency)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                يحتاج متابعة
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">{lowStock.length}</p>
+              <p className="text-sm text-muted-foreground">أصناف تحت حد إعادة الطلب</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              متوسط الفاتورة
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {formatCurrency(stats.avgTicket, org.currency)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              يحتاج متابعة
-            </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{lowStock.length}</p>
-            <p className="text-sm text-muted-foreground">أصناف تحت حد إعادة الطلب</p>
-          </div>
-        </div>
-      </OperationalCard>
+        </OperationalCard>
+      )}
 
       <QuickActionsBar />
 

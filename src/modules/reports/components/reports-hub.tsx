@@ -4,9 +4,14 @@ import Link from "next/link";
 import {
   BarChart3,
   Barcode,
+  CalendarCheck2,
   CircleDollarSign,
+  ClipboardList,
   Clock,
+  PackagePlus,
+  Percent,
   TrendingUp,
+  Users,
   Wallet,
   Warehouse,
 } from "lucide-react";
@@ -15,6 +20,12 @@ import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
 const REPORT_LINKS = [
+  {
+    href: "/reports/daily-close",
+    label: "إقفال اليوم",
+    icon: CalendarCheck2,
+    description: "نقدية اليوم: المتوقع والفعلي والفرق",
+  },
   {
     href: "/reports/sales",
     label: "المبيعات",
@@ -28,6 +39,18 @@ const REPORT_LINKS = [
     description: "تسوية الدرج والفروقات",
   },
   {
+    href: "/reports/aging",
+    label: "أعمار الذمم",
+    icon: Users,
+    description: "أرصدة العملاء والموردين حسب العمر",
+  },
+  {
+    href: "/reports/tax",
+    label: "الضريبة",
+    icon: Percent,
+    description: "ضريبة المبيعات وتصدير Excel",
+  },
+  {
     href: "/reports/profit",
     label: "الأرباح",
     icon: CircleDollarSign,
@@ -38,6 +61,18 @@ const REPORT_LINKS = [
     label: "المخزون",
     icon: Warehouse,
     description: "التقييم والتشغيلات والانتهاء",
+  },
+  {
+    href: "/reports/replenishment",
+    label: "خطة الشراء",
+    icon: PackagePlus,
+    description: "محتاج تشتري قد إيه حسب مبيعات الشهر",
+  },
+  {
+    href: "/reports/product-card",
+    label: "كارت صنف",
+    icon: ClipboardList,
+    description: "جه وطلع واتساوى والمتاح على أي فترة",
   },
   {
     href: "/reports/expenses",

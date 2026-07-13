@@ -18,9 +18,16 @@ interface ProductTileProps {
   product: POSProduct;
   onAdd: () => void;
   disabled?: boolean;
+  /** When false (e.g. supermarket), treat orphan variants as a single sell price. */
+  showVariants?: boolean;
 }
 
-export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
+export function ProductTile({
+  product,
+  onAdd,
+  disabled,
+  showVariants = true,
+}: ProductTileProps) {
   const badgeLabel = BADGE_LABELS[product.stockBadge];
   const outOfStock = product.stockBadge === "out";
   const variantPrices = product.variants
@@ -30,8 +37,15 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
   const minVariantPrice = variantPrices[0];
   const maxVariantPrice = variantPrices.at(-1);
   const showVariantPrice =
-    product.hasVariants && minVariantPrice != null && maxVariantPrice != null;
-  const displayPrice = showVariantPrice ? minVariantPrice : product.base_price;
+    showVariants &&
+    product.hasVariants &&
+    minVariantPrice != null &&
+    maxVariantPrice != null;
+  const displayPrice = showVariantPrice
+    ? minVariantPrice
+    : product.hasVariants && minVariantPrice != null
+      ? minVariantPrice
+      : product.base_price;
   const priceRange =
     showVariantPrice && maxVariantPrice > minVariantPrice
       ? ` إلى ${formatCurrency(maxVariantPrice)}`
@@ -93,7 +107,7 @@ export function ProductTile({ product, onAdd, disabled }: ProductTileProps) {
             {product.stockQuantity !== null && ` · ${product.stockQuantity}`}
           </Badge>
         )}
-        {product.hasVariants ? (
+        {showVariants && product.hasVariants ? (
           <span className="absolute start-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm backdrop-blur">
             <Layers3 className="size-3 text-primary" />
             {product.variants.length}

@@ -2,6 +2,11 @@ import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapPurchase, mapPurchaseLine, mapSupplier } from "@/lib/repositories/mappers";
 import type { PurchaseInvoice, PurchaseInvoiceLine, Supplier } from "@/lib/types";
 import { getOrgId } from "@/lib/repositories/organization.repository";
+import { listStores } from "@/lib/repositories/store.repository";
+
+async function orgStoreIds(): Promise<string[]> {
+  return (await listStores()).map((store) => store.id);
+}
 
 export async function listSuppliers(): Promise<Supplier[]> {
   const db = await getDb();
@@ -28,6 +33,9 @@ export async function listPurchaseInvoicesForStore(
   storeId: string,
   options?: { supplierId?: string }
 ): Promise<PurchaseInvoice[]> {
+  const storeIds = await orgStoreIds();
+  if (!storeIds.includes(storeId)) return [];
+
   const db = await getDb();
   let q = db
     .from("purchase_invoices")
@@ -70,8 +78,16 @@ export async function deleteSupplier(id: string): Promise<boolean> {
 }
 
 export async function listPurchases(storeId?: string): Promise<PurchaseInvoice[]> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+  if (storeId && !storeIds.includes(storeId)) return [];
+
   const db = await getDb();
-  let q = db.from("purchase_invoices").select("*").order("created_at", { ascending: false });
+  let q = db
+    .from("purchase_invoices")
+    .select("*")
+    .in("store_id", storeIds)
+    .order("created_at", { ascending: false });
   if (storeId) q = q.eq("store_id", storeId);
   const { data, error } = await q;
   if (error) throwDbError(error, "listPurchases");
@@ -79,8 +95,16 @@ export async function listPurchases(storeId?: string): Promise<PurchaseInvoice[]
 }
 
 export async function getPurchase(id: string): Promise<PurchaseInvoice | null> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return null;
+
   const db = await getDb();
-  const { data, error } = await db.from("purchase_invoices").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db
+    .from("purchase_invoices")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
   if (error) throwDbError(error, "getPurchase");
   return data ? mapPurchase(data) : null;
 }

@@ -65,8 +65,15 @@ export async function updateFeatureFlags(
   flags: Partial<Record<FeatureFlag, boolean>>,
   userId: string
 ): Promise<AppSetting> {
-  const current = await getFeatureFlags();
-  return upsertSetting("feature_flags", { ...current, ...flags }, userId);
+  const [current, activity] = await Promise.all([
+    getFeatureFlags(),
+    getBusinessActivitySettings(),
+  ]);
+  const managed = buildBusinessActivityFeatureFlags(activity);
+  const next = { ...current, ...flags };
+  // Activity-locked flags cannot be re-enabled from System Features.
+  if (managed.recipes === false) next.recipes = false;
+  return upsertSetting("feature_flags", next, userId);
 }
 
 export async function getBusinessActivitySettings(): Promise<BusinessActivitySettings> {
@@ -201,6 +208,9 @@ function normalizeBusinessActivitySettings(
     activity_type,
     enabled_sales_modes: safeModes,
     default_sales_mode: safeDefault,
+    // Supermarket never uses café-style variants.
+    enable_variants:
+      activity_type === "supermarket" ? false : Boolean(merged.enable_variants),
   };
 }
 

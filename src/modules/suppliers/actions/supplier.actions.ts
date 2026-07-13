@@ -42,9 +42,10 @@ export async function getSuppliersPageDataAction(): Promise<{
   summaries: SupplierListSummary[];
   storeId: string;
   currency: string;
+  canManagePayments: boolean;
 }> {
   await requireFeature("purchases");
-  await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
+  const user = await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
   const storeId = await getValidatedActiveStoreId();
   const org = await orgRepo.getOrganization();
   const summaries = await listSupplierSummaries(storeId);
@@ -52,6 +53,7 @@ export async function getSuppliersPageDataAction(): Promise<{
     summaries,
     storeId,
     currency: org.currency,
+    canManagePayments: user.role === "owner" || user.role === "manager",
   };
 }
 
@@ -152,12 +154,21 @@ export async function voidSupplierPaymentAction(
 export async function createSupplierFromSuppliersAction(input: {
   name: string;
   contact_info?: string;
+  opening_balance?: number;
 }): Promise<SupplierActionResult<Supplier>> {
   return runSupplierAction(async () => {
     await requireFeature("purchases");
     const user = await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
+    const opening = input.opening_balance ?? 0;
+    if (!Number.isFinite(opening) || opening < 0) {
+      throw new Error("رصيد مستحق سابق لازم يكون صفر أو أكبر");
+    }
     const supplier = await createSupplier(
-      { name: input.name, contact_info: input.contact_info ?? "" },
+      {
+        name: input.name,
+        contact_info: input.contact_info ?? "",
+        opening_balance: opening,
+      },
       user.id
     );
     revalidatePath("/inventory/suppliers");
@@ -170,15 +181,24 @@ export async function updateSupplierAction(input: {
   id: string;
   name?: string;
   contact_info?: string;
+  opening_balance?: number;
 }): Promise<SupplierActionResult<Supplier>> {
   return runSupplierAction(async () => {
     await requireFeature("purchases");
     const user = await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
+    if (input.opening_balance !== undefined) {
+      if (!Number.isFinite(input.opening_balance) || input.opening_balance < 0) {
+        throw new Error("رصيد مستحق سابق لازم يكون صفر أو أكبر");
+      }
+    }
     const supplier = await updateSupplier(
       input.id,
       {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.contact_info !== undefined ? { contact_info: input.contact_info } : {}),
+        ...(input.opening_balance !== undefined
+          ? { opening_balance: input.opening_balance }
+          : {}),
       },
       user.id
     );
