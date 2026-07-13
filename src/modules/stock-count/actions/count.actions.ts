@@ -5,9 +5,13 @@ import { requireFeature, requirePermissionOrRole, getValidatedActiveStoreId } fr
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import {
+  approveStockCount,
+  isActiveStockCountStatus,
   listStockCounts,
   postCountAdjustments,
+  rejectStockCountApproval,
   startStockCount,
+  submitCountForApproval,
   submitCountLines,
 } from "@/modules/stock-count/services/count.service";
 
@@ -31,6 +35,28 @@ export async function submitCountLinesAction(
   return count;
 }
 
+export async function submitCountForApprovalAction(countId: string) {
+  await requireFeature("stock_count");
+  const user = await requirePermissionOrRole("stock_count_manage", ["owner", "manager", "inventory"]);
+  await submitCountForApproval(countId, user.id);
+  revalidatePath("/inventory/stock-count");
+}
+
+/** Approval gate — owner/manager only (inventory can count/submit, not approve). */
+export async function approveCountAction(countId: string) {
+  await requireFeature("stock_count");
+  const user = await requirePermissionOrRole("stock_count_manage", ["owner", "manager"]);
+  await approveStockCount(countId, user.id);
+  revalidatePath("/inventory/stock-count");
+}
+
+export async function rejectCountApprovalAction(countId: string) {
+  await requireFeature("stock_count");
+  const user = await requirePermissionOrRole("stock_count_manage", ["owner", "manager"]);
+  await rejectStockCountApproval(countId, user.id);
+  revalidatePath("/inventory/stock-count");
+}
+
 export async function postCountAction(countId: string) {
   await requireFeature("stock_count");
   const user = await requirePermissionOrRole("stock_count_manage", ["owner", "manager", "inventory"]);
@@ -44,7 +70,7 @@ export async function getStockCountData() {
   await requirePermissionOrRole("stock_count_manage", ["owner", "manager", "inventory"]);
   const storeId = await getValidatedActiveStoreId();
   const counts = await listStockCounts(storeId);
-  const active = counts.find((c) => c.status === "in_progress") ?? null;
+  const active = counts.find((c) => isActiveStockCountStatus(c.status)) ?? null;
   const warehouses = await warehouseRepo.listWarehouses(storeId);
   return {
     counts,

@@ -684,7 +684,7 @@ Durations assume focused work after Pilot freeze decisions.
 **Risks:** Checkout performance regression — measure against PERFORMANCE_BUDGET.  
 
 **Definition of Done:**
-- [ ] Full cashier E2E passes on staging — residual after S10 (gated Playwright; not executed without staging/auth)
+- [ ] Full cashier E2E passes on staging — **residual** (local migrate `014` FK + no CafeFlow demo auth; M3 exit not signed; S11 opened on user «كمل»)
 - [x] No checkout math in client-only path  
 - [x] Audit rows for overrides/refunds/force-close  
 - [x] Persisted holds (store+device) — S10 `pos_held_carts`  
@@ -709,9 +709,9 @@ Durations assume focused work after Pilot freeze decisions.
 **Deliverables:** Inventory policy docs; RPC/service updates; tests.  
 
 **Definition of Done:**
-- [ ] Batch-tracked product sale consumes correct batch  
+- [x] Batch-tracked product sale consumes correct batch — S11 (`apply_sale_inventory_batch_deduction` + `verify:batch-rotation`)  
 - [ ] Count cannot post without approval when enabled  
-- [ ] `verify:inventory-crud` green  
+- [ ] `verify:inventory-crud` green — blocked on demo auth (`owner@CafeFlow.local`); rotation covered by `verify:batch-rotation`  
 
 ---
 
@@ -835,7 +835,7 @@ Durations assume focused work after Pilot freeze decisions.
 - [ ] Cashier E2E  
 
 ### Inventory
-- [ ] FEFO/FIFO on sale  
+- [x] FEFO/FIFO on sale — S11  
 - [ ] Count approval  
 - [ ] Online stock reservation  
 

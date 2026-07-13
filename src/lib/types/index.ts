@@ -375,11 +375,17 @@ export interface WasteRecord {
   created_at: string;
 }
 
+export type StockCountStatus =
+  | "in_progress"
+  | "pending_approval"
+  | "approved"
+  | "completed";
+
 export interface StockCount {
   id: string;
   store_id: string;
   warehouse_id: string;
-  status: "in_progress" | "completed";
+  status: StockCountStatus;
   started_at: string;
   completed_at: string | null;
   created_by: string;

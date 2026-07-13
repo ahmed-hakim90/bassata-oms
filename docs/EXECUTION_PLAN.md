@@ -17,8 +17,8 @@
 4. Merge only when the sprint Definition of Done is fully met.
 5. If blocked by schema/product confirmation called out in MASTER_ARCHITECTURE, move the item to **Blocked** backlog — do not invent schema.
 
-**Current Active Sprint:** S10 done / M3 blocked / next when E2E possible; S11 not started  
-**M3 residual:** staging cashier E2E (exact blockers below). Do **not** open S11 until M3 exits.
+**Current Active Sprint:** S12  
+**M3 residual (open — user override «كمل» proceeded to M4):** staging/full cashier E2E still unmet (exact blockers below). Do **not** check M3 exit until E2E passes.
 
 ---
 
@@ -872,11 +872,11 @@ Persist held carts server-side (store+device scoped); complete receipt branding;
 ### Residual / blockers
 
 - **Migration remote:** Applied via Supabase MCP (`user-supabase-basata-oms`) as `pos_held_carts` → remote version `20260713143940` (local file remains `20260713150000_pos_held_carts.sql`, same naming pattern as prior MCP-applied sprints). Verified: `public.pos_held_carts` exists, RLS on, 4 policies, 9 columns.
-- **E2E exact blockers (do not sign M3):**
-  1. Docker daemon not running → local Supabase / `db:reset` / demo seed unavailable.
-  2. Linked remote has **no** Playwright demo users (`owner@CafeFlow.local` / `cashier1@CafeFlow.local`); only production-linked accounts (not usable for gated E2E defaults / `demo1234`).
-  3. No `E2E_FULL_POS` / `E2E_STAGING_URL` / `PLAYWRIGHT_BASE_URL` in session env — full cashier suite stays skipped.
-- When Docker + demo auth seed (or staging URL + seeded demo cashiers) are available: run `E2E_FULL_POS=1` cashier-day E2E, then tick Phase 3 / M3 exit and open S11.
+- **E2E exact blockers (do not sign M3)** — rechecked 2026-07-13 after Docker recovery:
+  1. Docker Desktop can start, but **local Supabase `npx supabase start` fails** on migration `014_recipe_demo_seed.sql` (FK: inserts `app_settings` for org `…0001` before seed creates `organizations`).
+  2. `scripts/seed-auth.mjs` only links `ADMIN_EMAIL` (Bassata admin) — **no** Playwright demo users (`owner@CafeFlow.local` / `cashier1@CafeFlow.local` / SweetFlow.local). Remote likewise has no `demo1234` cashier accounts.
+  3. Without local DB + demo auth (or `E2E_STAGING_URL` + seeded cashiers), `E2E_FULL_POS=1` cannot complete a real cashier day.
+- **Override:** User «كمل» → proceeded to **S11** with M3 residual kept open (exit criteria unchecked).
 
 ---
 
@@ -921,17 +921,25 @@ When batch tracking is on, sale deduction consumes batches in FEFO/FIFO order pe
 
 ### Definition of Done
 
-- [ ] Batch-tracked product sale consumes correct batch  
-- [ ] Rotation method respected (FIFO/FEFO)  
+- [x] Batch-tracked product sale consumes correct batch  
+- [x] Rotation method respected (FIFO/FEFO)  
 
 ### Tasks
 
 | ID | Description | Priority | Files | Depends on | Success criteria |
 |----|-------------|----------|-------|------------|------------------|
-| S11-T1 | Trace current sale deduction vs batches | P0 | audit note | M3 | Gap list |
-| S11-T2 | Implement/fix FEFO/FIFO pick in deduction RPC | P0 | migrations/RPC | S11-T1 | Correct batch chosen |
-| S11-T3 | Automated batch order tests | P0 | tests | S11-T2 | Green |
-| S11-T4 | Run verify:inventory-crud | P0 | scripts | S11-T3 | Green |
+| S11-T1 | Trace current sale deduction vs batches | P0 | audit note | M3 | Gap list — **Done** (remote missing trigger; checkout inserts sale movements without `batch_id`) |
+| S11-T2 | Implement/fix FEFO/FIFO pick in deduction RPC | P0 | migrations/RPC | S11-T1 | Correct batch chosen — **Done** (`sale_batch_fefo_fifo_consumption`) |
+| S11-T3 | Automated batch order tests | P0 | tests | S11-T2 | Green — **Done** (unit + `verify:batch-rotation`) |
+| S11-T4 | Run verify:inventory-crud | P0 | scripts | S11-T3 | Green — **Blocked** (same demo-auth gap: `owner@CafeFlow.local` / `demo1234`); rotation covered by `verify:batch-rotation` |
+
+### Residual / notes
+
+- **Gap (T1):** Remote had `inventory_batches` + product rotation columns but **no** `apply_sale_inventory_batch_deduction` / triggers (local migrations `20260619003230` / `20260629033800` never applied remotely). Checkout RPCs already insert `inventory_movements` (`sale`, negative qty, `batch_id` null) → trigger is the correct pick point (ADR-007).
+- **Migration remote:** Applied via MCP as `sale_batch_fefo_fifo_consumption` → version `20260713190311` (local file `20260713190010_sale_batch_fefo_fifo_consumption.sql`).
+- **`verify:inventory-crud`:** Still requires CafeFlow demo login — not a FEFO defect; track under M3/auth residual.
+
+**S11 status:** Closed 2026-07-13 — FEFO/FIFO sale consumption live on remote + tests green.
 
 ---
 
@@ -1351,12 +1359,12 @@ Use during development. Check items only when verified.
 
 - [x] S09 closed — split/credit + refund restock in RPC  
 - [x] S10 closed — persisted holds + receipt branding (+ unit audit coverage); **staging cashier E2E residual**  
-- [ ] **M3 exit:** Phase 3 DoD satisfied — blocked on staging full cashier E2E  
+- [ ] **M3 exit:** Phase 3 DoD **not** satisfied — full cashier E2E residual (Docker local migrate + demo auth); work continued past gate on user «كمل»  
 
 ## Milestone 4 — Inventory
 
-- [ ] S11 closed — FEFO/FIFO batch consumption on sale — **not started** (await M3 exit)  
-- [ ] S12 closed — count approval + online reservation + negative stock UX  
+- [x] S11 closed — FEFO/FIFO batch consumption on sale  
+- [ ] S12 closed — count approval + online reservation + negative stock UX — **Active**  
 - [ ] **M4 exit:** Phase 4 DoD satisfied  
 
 ## Milestone 5 — Online Ordering
@@ -1398,7 +1406,9 @@ Use during development. Check items only when verified.
 | 2026-07-13 | S08 | Closed | Onboarding↔settings parity; retail/wholesale/mixed aligned; M2 exit |
 | 2026-07-13 | S09 | Closed | Partial credit split payment_status + refund/void restock RPCs (ADR-007) |
 | 2026-07-13 | S10 | Closed | `pos_held_carts` + POS hold/resume wiring + receipt branding + audit registry; staging E2E gap blocks M3 |
-| 2026-07-13 | — | Residual | Remote `pos_held_carts` applied (MCP `20260713143940`); M3 still blocked — no Docker, no CafeFlow demo auth users, no `E2E_FULL_POS`; S11 not started |
+| 2026-07-13 | — | Residual | M3 E2E recheck: Docker up but local `supabase start` fails on `014_recipe_demo_seed`; no CafeFlow demo auth; M3 exit unchecked; user «كمل» → S11 |
+| 2026-07-13 | S11 | Closed | FEFO/FIFO sale batch trigger applied remote (`20260713190311`); unit + `verify:batch-rotation` green; `verify:inventory-crud` blocked on demo auth |
+| 2026-07-13 | S12 | Active | Count approval + online reservation + negative stock UX |
 
 When closing a sprint, add a row: set previous to `Closed`, next to `Active`.
 

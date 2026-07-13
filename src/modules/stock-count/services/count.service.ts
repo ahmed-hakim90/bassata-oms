@@ -4,7 +4,7 @@ import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { adjustStock, getStockLevel } from "@/lib/services/inventory-movement.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
-import type { StockCount, StockCountLine } from "@/lib/types";
+import type { StockCount, StockCountLine, StockCountStatus } from "@/lib/types";
 
 export interface StockCountWithLines extends StockCount {
   lines: StockCountLine[];
@@ -17,6 +17,17 @@ export interface CountLineInput {
   batchId?: string | null;
   batchNumber?: string | null;
   expiryDate?: string | null;
+}
+
+/** Open counts that block starting another for the same warehouse. */
+export const ACTIVE_STOCK_COUNT_STATUSES: StockCountStatus[] = [
+  "in_progress",
+  "pending_approval",
+  "approved",
+];
+
+export function isActiveStockCountStatus(status: StockCountStatus): boolean {
+  return ACTIVE_STOCK_COUNT_STATUSES.includes(status);
 }
 
 async function enrichCount(count: StockCount): Promise<StockCountWithLines> {
@@ -54,7 +65,7 @@ export async function startStockCount(input: {
   await assertPeriodOpen(input.storeId);
   const counts = await countRepo.listStockCounts(input.storeId);
   const active = counts.find(
-    (c) => c.status === "in_progress" && c.warehouse_id === input.warehouseId
+    (c) => isActiveStockCountStatus(c.status) && c.warehouse_id === input.warehouseId
   );
   if (active) return enrichCount(active);
 
@@ -99,7 +110,9 @@ export async function submitCountLines(
   lines: CountLineInput[]
 ): Promise<StockCountWithLines> {
   const count = await countRepo.getStockCount(countId);
-  if (!count || count.status !== "in_progress") throw new Error("Count not in progress");
+  if (!count || count.status !== "in_progress") {
+    throw new Error("لا يمكن تعديل الجرد إلا أثناء العد");
+  }
 
   const existing = await countRepo.getStockCountLines(countId);
   for (const input of lines) {
@@ -127,12 +140,106 @@ export async function submitCountLines(
   return enrichCount(count);
 }
 
+/** After counting: lock lines and wait for owner/manager approval before posting. */
+export async function submitCountForApproval(
+  countId: string,
+  userId: string
+): Promise<StockCount> {
+  const count = await countRepo.getStockCount(countId);
+  if (!count || count.status !== "in_progress") {
+    throw new Error("الجرد غير جاهز للإرسال للاعتماد");
+  }
+  await assertPeriodOpen(count.store_id);
+
+  const updated = await countRepo.updateStockCount(countId, {
+    status: "pending_approval",
+  });
+  if (!updated) throw new Error("تعذر إرسال الجرد للاعتماد");
+
+  const orgId = await getOrgId();
+  await writeAuditLog({
+    orgId,
+    storeId: count.store_id,
+    userId,
+    action: "stock_count.submitted_for_approval",
+    entityType: "stock_count",
+    entityId: countId,
+  });
+
+  return updated;
+}
+
+/** Owner/manager approval gate — required before posting adjustments. */
+export async function approveStockCount(
+  countId: string,
+  userId: string
+): Promise<StockCount> {
+  const count = await countRepo.getStockCount(countId);
+  if (!count) throw new Error("الجرد غير موجود");
+  if (count.status === "approved") return count;
+  if (count.status !== "pending_approval") {
+    throw new Error("الجرد ليس بانتظار الاعتماد");
+  }
+  await assertPeriodOpen(count.store_id);
+
+  const updated = await countRepo.updateStockCount(countId, {
+    status: "approved",
+  });
+  if (!updated) throw new Error("تعذر اعتماد الجرد");
+
+  const orgId = await getOrgId();
+  await writeAuditLog({
+    orgId,
+    storeId: count.store_id,
+    userId,
+    action: "stock_count.approved",
+    entityType: "stock_count",
+    entityId: countId,
+  });
+
+  return updated;
+}
+
+/** Return count to in_progress so lines can be corrected after rejection. */
+export async function rejectStockCountApproval(
+  countId: string,
+  userId: string
+): Promise<StockCount> {
+  const count = await countRepo.getStockCount(countId);
+  if (!count || (count.status !== "pending_approval" && count.status !== "approved")) {
+    throw new Error("لا يمكن إرجاع هذا الجرد للعد");
+  }
+  await assertPeriodOpen(count.store_id);
+
+  const updated = await countRepo.updateStockCount(countId, {
+    status: "in_progress",
+  });
+  if (!updated) throw new Error("تعذر إرجاع الجرد");
+
+  const orgId = await getOrgId();
+  await writeAuditLog({
+    orgId,
+    storeId: count.store_id,
+    userId,
+    action: "stock_count.approval_rejected",
+    entityType: "stock_count",
+    entityId: countId,
+    metadata: { previousStatus: count.status },
+  });
+
+  return updated;
+}
+
 export async function postCountAdjustments(
   countId: string,
   userId: string
 ): Promise<StockCount> {
   const count = await countRepo.getStockCount(countId);
-  if (!count || count.status !== "in_progress") throw new Error("Count not in progress");
+  if (!count) throw new Error("الجرد غير موجود");
+  if (count.status === "completed") throw new Error("الجرد مكتمل مسبقاً");
+  if (count.status !== "approved") {
+    throw new Error("لا يمكن ترحيل الفروقات قبل اعتماد الجرد");
+  }
   await assertPeriodOpen(count.store_id);
 
   const lines = await countRepo.getStockCountLines(countId);

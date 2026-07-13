@@ -3951,7 +3951,11 @@ export type Database = {
       sales_mode: "retail" | "wholesale"
       session_status: "open" | "closed"
       shelf_life_unit_type: "days" | "months" | "years"
-      stock_count_status: "in_progress" | "completed"
+      stock_count_status:
+        | "in_progress"
+        | "pending_approval"
+        | "approved"
+        | "completed"
       transfer_status: "draft" | "sent" | "received" | "cancelled"
       user_role: "owner" | "manager" | "cashier" | "viewer" | "inventory"
       variant_kind: "standard" | "weight_portion"
@@ -4230,7 +4234,12 @@ export const Constants = {
       sales_mode: ["retail", "wholesale"],
       session_status: ["open", "closed"],
       shelf_life_unit_type: ["days", "months", "years"],
-      stock_count_status: ["in_progress", "completed"],
+      stock_count_status: [
+        "in_progress",
+        "pending_approval",
+        "approved",
+        "completed",
+      ],
       transfer_status: ["draft", "sent", "received", "cancelled"],
       user_role: ["owner", "manager", "cashier", "viewer", "inventory"],
       variant_kind: ["standard", "weight_portion"],

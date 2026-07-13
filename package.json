@@ -24,6 +24,7 @@
     "verify:post-006": "node scripts/verify-post-006.mjs",
     "verify:p0-security": "node scripts/verify-p0-security.mjs",
     "verify:inventory-crud": "node scripts/verify-inventory-crud.mjs",
+    "verify:batch-rotation": "node scripts/verify-batch-rotation.mjs",
     "verify:supplier-payments": "node scripts/verify-supplier-payments.mjs",
     "verify:rls-policies": "node scripts/verify-rls-policies.mjs",
     "verify:production": "node scripts/run-production-gate.mjs",
