@@ -1,4 +1,5 @@
 import { formatCurrency } from "@/lib/format";
+import { CashierVaultBatchWithdrawDialog } from "@/modules/sessions/components/cashier-vault-batch-withdraw-dialog";
 import { CashierVaultWithdrawDialog } from "@/modules/sessions/components/cashier-vault-withdraw-dialog";
 import type { CashierVaultSummary } from "@/modules/sessions/services/cashier-vault.service";
 import {
@@ -32,12 +33,21 @@ export function CashierVaultPanel({
 }: CashierVaultPanelProps) {
   return (
     <section className="flex flex-col gap-[var(--mds-space-3)]">
-      <div className="space-y-1">
-        <h2 className="font-heading text-base font-semibold">خزائن الكاشير</h2>
-        <p className="text-sm text-muted-foreground">
-          أمانة الكاش لكل موظف في {storeName} — منفصلة عن عدّ درج الوردية. السحب
-          للإدارة فقط، ورصيد بداية الوردية الجاية بيتقفّل على الكاشير.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-[var(--mds-space-3)]">
+        <div className="space-y-1">
+          <h2 className="font-heading text-base font-semibold">خزائن الكاشير</h2>
+          <p className="text-sm text-muted-foreground">
+            أمانة الكاش لكل موظف في {storeName} — منفصلة عن عدّ درج الوردية. السحب
+            للإدارة فقط، ورصيد بداية الوردية الجاية بيتقفّل على الكاشير.
+          </p>
+        </div>
+        {canManage ? (
+          <CashierVaultBatchWithdrawDialog
+            storeId={storeId}
+            storeName={storeName}
+            rows={rows}
+          />
+        ) : null}
       </div>
 
       {rows.length === 0 ? (

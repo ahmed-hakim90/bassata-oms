@@ -2,6 +2,7 @@ import type { PermissionKey } from "@/lib/constants";
 
 export const SETTINGS_TAB_IDS = [
   "business",
+  "activity",
   "branches",
   "pos",
   "expenses",
@@ -34,6 +35,27 @@ export const SETTINGS_TABS: {
     permissions: ["settings_manage"],
     group: "المتجر",
     searchTerms: ["store", "company", "branding", "logo", "currency", "متجر", "شركة", "شعار", "عملة"],
+  },
+  {
+    id: "activity",
+    label: "نوع النشاط",
+    permissions: ["settings_manage"],
+    group: "المتجر",
+    searchTerms: [
+      "activity",
+      "preset",
+      "sales modes",
+      "weight",
+      "wholesale",
+      "inventory",
+      "نشاط",
+      "مبيعات",
+      "وزن",
+      "جملة",
+      "مخزون",
+      "كافيه",
+      "سوبر ماركت",
+    ],
   },
   {
     id: "branches",

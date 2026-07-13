@@ -11,6 +11,7 @@ import {
   updateFeatureFlagsAction,
   updateOrgSettingsAction,
   updateReceiptFooterAction,
+  updateReceiptHeaderAction,
   updateSessionSettingsAction,
 } from "@/modules/system/actions/system.actions";
 import {
@@ -36,6 +37,7 @@ interface PosSessionSettingsTabProps {
     taxRate: number;
     taxInclusive: boolean;
   };
+  receiptHeader?: string;
   receiptFooter?: string;
   featureFlags?: Record<FeatureFlag, boolean>;
   sessionSettings: SessionSettings;
@@ -45,6 +47,7 @@ export function PosSessionSettingsTab({
   canManageSettings,
   canManageSessions,
   org,
+  receiptHeader = "",
   receiptFooter = "",
   featureFlags,
   sessionSettings,
@@ -54,6 +57,7 @@ export function PosSessionSettingsTab({
   const [posForm, setPosForm] = useState({
     taxRate: org?.taxRate ?? 0,
     taxInclusive: org?.taxInclusive ?? true,
+    receiptHeader,
     receiptFooter,
     operationalFlags: Object.fromEntries(
       POS_OPERATIONAL_FEATURE_FLAGS.map((flag) => [
@@ -91,6 +95,15 @@ export function PosSessionSettingsTab({
               />
               <span className="text-sm">الأسعار شاملة الضريبة</span>
             </label>
+            <div className="space-y-2">
+              <Label>بداية الإيصال</Label>
+              <Input
+                value={posForm.receiptHeader}
+                onChange={(e) =>
+                  setPosForm({ ...posForm, receiptHeader: e.target.value })
+                }
+              />
+            </div>
             <div className="space-y-2">
               <Label>نهاية الإيصال</Label>
               <Input
@@ -134,6 +147,7 @@ export function PosSessionSettingsTab({
                       taxRate: posForm.taxRate,
                       taxInclusive: posForm.taxInclusive,
                     });
+                    await updateReceiptHeaderAction(posForm.receiptHeader);
                     await updateReceiptFooterAction(posForm.receiptFooter);
                     await updateFeatureFlagsAction(posForm.operationalFlags);
                     toast.success("تم حفظ إعدادات الكاشير");

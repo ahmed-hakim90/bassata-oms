@@ -47,6 +47,11 @@ export type OnlineMenuData = {
   items: OnlineMenuItem[];
 };
 
+export type GetOnlineMenuBySlugOptions = {
+  /** Required when store settings.online_menu_unlisted is true. */
+  token?: string | null;
+};
+
 function asRecord(value: Json | null | undefined): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonRecord)
@@ -63,7 +68,20 @@ function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export async function getOnlineMenuBySlug(slug: string): Promise<OnlineMenuData | null> {
+function isUnlistedMenu(settings: JsonRecord): boolean {
+  return settings.online_menu_unlisted === true;
+}
+
+function tokenMatches(settings: JsonRecord, token: string | null | undefined): boolean {
+  const expected = text(settings.online_menu_token);
+  const provided = text(token);
+  return Boolean(expected) && Boolean(provided) && expected === provided;
+}
+
+export async function getOnlineMenuBySlug(
+  slug: string,
+  options?: GetOnlineMenuBySlugOptions
+): Promise<OnlineMenuData | null> {
   const normalizedSlug = slug.trim().toLowerCase();
   if (!normalizedSlug) return null;
 
@@ -80,6 +98,9 @@ export async function getOnlineMenuBySlug(slug: string): Promise<OnlineMenuData 
 
   const storeSettings = asRecord(store.settings);
   if (storeSettings.online_menu_enabled !== true) return null;
+  if (isUnlistedMenu(storeSettings) && !tokenMatches(storeSettings, options?.token)) {
+    return null;
+  }
 
   const [{ data: organization, error: orgError }, { data: categoryRows, error: categoriesError }] =
     await Promise.all([
@@ -97,21 +118,27 @@ export async function getOnlineMenuBySlug(slug: string): Promise<OnlineMenuData 
 
   if (orgError) throw new Error(orgError.message);
   if (categoriesError) throw new Error(categoriesError.message);
-  if (!organization) return null;
+  if (!organization || organization.id !== store.org_id) return null;
 
   const { data: productRows, error: productsError } = await admin
     .from("products")
-    .select("id, category_id, name, description, image_url, base_price, sale_price, is_popular")
+    .select(
+      "id, org_id, category_id, name, description, image_url, base_price, sale_price, is_popular, show_on_online_menu"
+    )
     .eq("org_id", store.org_id)
     .eq("is_active", true)
     .eq("product_type", "finished")
     .eq("inventory_product_type", "finished_product")
+    .eq("show_on_online_menu", true)
     .order("is_popular", { ascending: false })
     .order("name", { ascending: true });
 
   if (productsError) throw new Error(productsError.message);
 
-  const productIds = (productRows ?? []).map((product) => product.id);
+  const scopedProducts = (productRows ?? []).filter(
+    (product) => product.org_id === store.org_id && product.show_on_online_menu === true
+  );
+  const productIds = scopedProducts.map((product) => product.id);
   const { data: variantRows, error: variantsError } =
     productIds.length > 0
       ? await admin
@@ -124,9 +151,11 @@ export async function getOnlineMenuBySlug(slug: string): Promise<OnlineMenuData 
 
   if (variantsError) throw new Error(variantsError.message);
 
+  const productIdSet = new Set(productIds);
   const variantsByProduct = new Map<string, OnlineMenuVariant[]>();
   for (const variant of variantRows ?? []) {
-    const product = (productRows ?? []).find((row) => row.id === variant.product_id);
+    if (!productIdSet.has(variant.product_id)) continue;
+    const product = scopedProducts.find((row) => row.id === variant.product_id);
     const basePrice = num(product?.sale_price ?? product?.base_price);
     const price = variant.price == null ? basePrice + num(variant.price_delta) : num(variant.price);
     const list = variantsByProduct.get(variant.product_id) ?? [];
@@ -156,7 +185,7 @@ export async function getOnlineMenuBySlug(slug: string): Promise<OnlineMenuData 
       color: category.color,
       icon: category.icon,
     })),
-    items: (productRows ?? [])
+    items: scopedProducts
       .map((product) => {
         const variants = variantsByProduct.get(product.id) ?? [];
         return {

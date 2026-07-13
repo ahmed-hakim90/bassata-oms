@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 const password = process.env.E2E_PASSWORD ?? "demo1234";
+const stagingReady = Boolean(process.env.E2E_STAGING_URL || process.env.E2E_FULL_POS);
 
 async function login(page: import("@playwright/test").Page, email: string) {
   await page.goto("/login");
@@ -42,6 +43,26 @@ test.describe("Flow 2 — Cashier / POS", () => {
     await page.goto("/device/pair");
     await page.goto("/pos");
     await expect(page.getByText(/cart/i)).toBeVisible();
+  });
+});
+
+/**
+ * S10 cashier day: open → sell → hold/resume → split → refund → close.
+ * Requires a seeded staging/local env with paired device + openable session.
+ * Gate: E2E_FULL_POS=1 (and optionally PLAYWRIGHT_BASE_URL / E2E_STAGING_URL).
+ */
+test.describe("S10 — Full cashier day", () => {
+  test.skip(
+    !stagingReady,
+    "Staging/auth gap: set E2E_FULL_POS=1 (and PLAYWRIGHT_BASE_URL for staging) to run cashier-day E2E"
+  );
+
+  test("cashier day skeleton — POS reachable after login", async ({ page }) => {
+    await login(page, "cashier1@CafeFlow.local");
+    await page.goto("/pos");
+    // Device/session gates may intervene; assert we are on the POS surface (not settings).
+    await expect(page).toHaveURL(/\/pos/);
+    await expect(page.getByText(/access denied/i)).not.toBeVisible();
   });
 });
 

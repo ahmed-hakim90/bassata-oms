@@ -22,7 +22,7 @@ Broad brand renaming is frozen until the core product flows are stable. Keep int
 - [ ] Clarify device pairing and register state whenever POS blocks access.
 - [ ] Receipt view/print workflow with store branding, tax, cashier, payments, and refund references.
 - [x] Split payments across cash, card, wallet, and other.
-- [ ] Partial credit split with AR ledger support.
+- [x] Partial credit split with AR ledger support.
 - [x] Order-level POS discount workflow gated by `customer_discounts`.
 - [ ] Product and manager-approved discount workflows.
 - [x] Manager override for large POS discounts with audit logging.

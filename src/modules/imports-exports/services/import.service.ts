@@ -826,6 +826,7 @@ function rowToProductInput(row: ProductImportPayload): productService.ProductInp
     image_url: row.image_url || null,
     is_active: parseBool(row.is_active, true),
     is_popular: parseBool(row.is_popular, false),
+    show_on_online_menu: !isIngredient,
     track_inventory: parseBool(row.track_inventory, true),
     product_type: productType ?? "finished_product",
     inventory_tracking_mode:

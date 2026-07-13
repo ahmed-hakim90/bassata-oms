@@ -1,5 +1,6 @@
 const VERSION = "v1";
 
+/** Prod fails closed (R9): never fall back to service_role / anon key. */
 function cookieSecret(): string {
   const dedicated = process.env.SweetFlow_COOKIE_SECRET;
   if (dedicated) return dedicated;

@@ -65,6 +65,8 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // /platform: auth required (above). Platform-admin authorization is enforced in (platform) layout.
+
   const response = supabaseResponse;
   response.headers.set("x-pathname", pathname);
   return response;

@@ -140,6 +140,11 @@ export function mapDevice(row: DeviceRow): Device {
 }
 
 export function mapCategory(row: CategoryRow): Category {
+  const extended = row as CategoryRow & {
+    expiry_tracking_enabled_default?: boolean | null;
+    inventory_rotation_method_default?: string | null;
+    expiry_policy_default?: string | null;
+  };
   return {
     id: row.id,
     org_id: row.org_id,
@@ -147,10 +152,12 @@ export function mapCategory(row: CategoryRow): Category {
     sort_order: row.sort_order,
     color: row.color,
     icon: row.icon,
-    expiry_tracking_enabled_default: row.expiry_tracking_enabled_default ?? false,
+    expiry_tracking_enabled_default: extended.expiry_tracking_enabled_default ?? false,
     inventory_rotation_method_default:
-      (row.inventory_rotation_method_default ?? "FIFO") as Category["inventory_rotation_method_default"],
-    expiry_policy_default: (row.expiry_policy_default ?? "block_sale") as Category["expiry_policy_default"],
+      (extended.inventory_rotation_method_default ??
+        "FIFO") as Category["inventory_rotation_method_default"],
+    expiry_policy_default: (extended.expiry_policy_default ??
+      "block_sale") as Category["expiry_policy_default"],
   };
 }
 
@@ -168,6 +175,7 @@ export function mapProduct(row: ProductRow): Product {
     image_url: row.image_url,
     is_active: row.is_active,
     is_popular: row.is_popular,
+    show_on_online_menu: row.show_on_online_menu ?? false,
     track_inventory: row.track_inventory,
     product_type: (row.product_type ?? "finished_product") as ProductType,
     inventory_product_type: (row.inventory_product_type ?? row.product_type ?? "finished_product") as ProductType,

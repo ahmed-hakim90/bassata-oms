@@ -49,6 +49,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { PoweredByHakimo } from "@/components/layout/powered-by-hakimo";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -116,7 +117,7 @@ export function AppSidebar({
     <TooltipProvider delay={300}>
       <aside
         className={cn(
-          "flex h-full flex-col overflow-hidden border-e border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[var(--mds-elevation-2)] transition-[width] duration-[var(--mds-motion-normal)] ease-[var(--mds-motion-easing-standard)]",
+          "flex h-full min-h-0 flex-col overflow-hidden border-e border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[var(--mds-elevation-2)] transition-[width] duration-[var(--mds-motion-normal)] ease-[var(--mds-motion-easing-standard)]",
           collapsed ? "w-[76px]" : "w-[17rem]",
           className
         )}
@@ -162,7 +163,7 @@ export function AppSidebar({
           </div>
         )}
 
-        <ScrollArea className="min-h-0 flex-1 px-2.5 py-4">
+        <ScrollArea className="min-h-0 flex-1 overflow-hidden px-2.5 py-4">
           <nav className="space-y-5">
             {navGroups.map((group) => {
               const groupCollapsed = collapsedGroups[group.label];
@@ -238,16 +239,29 @@ export function AppSidebar({
           </nav>
         </ScrollArea>
 
-        {!collapsed ? (
-          <div className="shrink-0 border-t border-sidebar-border px-4 py-3">
-            <p className="text-xs font-medium text-sidebar-foreground">
-              {ROLE_LABELS_AR[userRole]}
-            </p>
-            <p className="mt-0.5 text-[11px]" style={{ color: "var(--mds-sidebar-muted)" }}>
-              SweetFlow · Meridian
-            </p>
-          </div>
-        ) : null}
+        <div className="shrink-0 border-t border-sidebar-border px-3 py-3">
+          {!collapsed ? (
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs font-medium text-sidebar-foreground">
+                  {ROLE_LABELS_AR[userRole]}
+                </p>
+                <p className="mt-0.5 text-[11px]" style={{ color: "var(--mds-sidebar-muted)" }}>
+                  SweetFlow · Meridian
+                </p>
+              </div>
+              <PoweredByHakimo tone="sidebar" className="justify-start px-0.5 py-0.5" />
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <PoweredByHakimo
+                compact
+                tone="sidebar"
+                className="size-8 rounded-[var(--mds-radius-md)] hover:bg-[var(--mds-sidebar-hover)]"
+              />
+            </div>
+          )}
+        </div>
       </aside>
     </TooltipProvider>
   );

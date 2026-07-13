@@ -152,3 +152,134 @@ export async function withdrawFromCashierVault(input: {
     notes: input.notes,
   });
 }
+
+export type BatchVaultWithdrawItem = {
+  cashierId: string;
+  cashierName: string;
+  withdrawAmount: number;
+  nextOpeningFloat: number;
+  ok: boolean;
+  error?: string;
+};
+
+export type BatchVaultWithdrawResult = {
+  withdrawnTotal: number;
+  attempted: number;
+  succeeded: number;
+  failed: number;
+  items: BatchVaultWithdrawItem[];
+};
+
+export type BatchVaultWithdrawRequestItem = {
+  cashierId: string;
+  withdrawAmount: number;
+};
+
+/** Withdraw requested amounts; keeps each cashier's pending opening float. */
+export async function batchWithdrawStoreCashierVaults(input: {
+  storeId: string;
+  notes?: string;
+  /** If omitted, withdraws the full excess above pending float for every vault. */
+  items?: BatchVaultWithdrawRequestItem[];
+}): Promise<BatchVaultWithdrawResult> {
+  await assertPeriodOpen(input.storeId);
+  const rows = await listStoreCashierVaults(input.storeId);
+  const rowByCashier = new Map(rows.map((row) => [row.cashierId, row]));
+  const note =
+    input.notes?.trim() ||
+    "سحب من خزائن الكاشير (مع الإبقاء على رصيد بداية الوردية)";
+
+  const requested: BatchVaultWithdrawRequestItem[] =
+    input.items && input.items.length > 0
+      ? input.items
+      : rows.map((row) => {
+          const nextOpeningFloat = money(
+            Math.min(row.pendingOpeningFloat, row.balance)
+          );
+          return {
+            cashierId: row.cashierId,
+            withdrawAmount: money(row.balance - nextOpeningFloat),
+          };
+        });
+
+  const items: BatchVaultWithdrawItem[] = [];
+  let withdrawnTotal = 0;
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const req of requested) {
+    const row = rowByCashier.get(req.cashierId);
+    if (!row) {
+      failed += 1;
+      items.push({
+        cashierId: req.cashierId,
+        cashierName: "كاشير غير معروف",
+        withdrawAmount: money(req.withdrawAmount),
+        nextOpeningFloat: 0,
+        ok: false,
+        error: "الكاشير مش موجود على خزائن الفرع",
+      });
+      continue;
+    }
+
+    const nextOpeningFloat = money(Math.min(row.pendingOpeningFloat, row.balance));
+    const maxWithdraw = money(row.balance - nextOpeningFloat);
+    const withdrawAmount = money(req.withdrawAmount);
+
+    if (withdrawAmount <= 1e-9) continue;
+
+    if (withdrawAmount > maxWithdraw + 1e-9) {
+      failed += 1;
+      items.push({
+        cashierId: row.cashierId,
+        cashierName: row.cashierName,
+        withdrawAmount,
+        nextOpeningFloat,
+        ok: false,
+        error: `أقصى سحب متاح ${maxWithdraw}`,
+      });
+      continue;
+    }
+
+    try {
+      await vaultRepo.adminWithdraw({
+        storeId: input.storeId,
+        cashierId: row.cashierId,
+        withdrawAmount,
+        nextOpeningFloat,
+        notes: note,
+      });
+      withdrawnTotal = money(withdrawnTotal + withdrawAmount);
+      succeeded += 1;
+      items.push({
+        cashierId: row.cashierId,
+        cashierName: row.cashierName,
+        withdrawAmount,
+        nextOpeningFloat,
+        ok: true,
+      });
+    } catch (error) {
+      failed += 1;
+      items.push({
+        cashierId: row.cashierId,
+        cashierName: row.cashierName,
+        withdrawAmount,
+        nextOpeningFloat,
+        ok: false,
+        error: error instanceof Error ? error.message : "تعذر السحب",
+      });
+    }
+  }
+
+  if (items.length === 0) {
+    throw new Error("حدد مبلغ سحب أكبر من صفر لخزينة واحدة على الأقل");
+  }
+
+  return {
+    withdrawnTotal,
+    attempted: items.length,
+    succeeded,
+    failed,
+    items,
+  };
+}

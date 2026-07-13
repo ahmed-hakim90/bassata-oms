@@ -19,6 +19,8 @@ export type OnlineOrderLineInput = {
 
 export type PublicOnlineOrderInput = {
   slug: string;
+  /** Required when the branch menu is unlisted. */
+  token?: string | null;
   customerName: string;
   customerPhone?: string;
   notes?: string;
@@ -87,9 +89,13 @@ async function priceLinesForPublicOrder(storeOrgId: string, lines: OnlineOrderLi
       admin
         .from("products")
         .select(
-          "id, org_id, name, base_price, sale_price, is_active, product_type, inventory_product_type"
+          "id, org_id, name, base_price, sale_price, is_active, product_type, inventory_product_type, show_on_online_menu"
         )
         .eq("org_id", storeOrgId)
+        .eq("is_active", true)
+        .eq("product_type", "finished")
+        .eq("inventory_product_type", "finished_product")
+        .eq("show_on_online_menu", true)
         .in("id", productIds),
       variantIds.length > 0
         ? admin
@@ -102,13 +108,30 @@ async function priceLinesForPublicOrder(storeOrgId: string, lines: OnlineOrderLi
   if (productsError) throw new Error(productsError.message);
   if (variantsError) throw new Error(variantsError.message);
 
-  const productMap = new Map((products ?? []).map((product) => [product.id, product]));
-  const variantMap = new Map((variants ?? []).map((variant) => [variant.id, variant]));
-  const { data: allActiveVariants, error: activeVariantsError } = await admin
-    .from("product_variants")
-    .select("id, product_id, is_active")
-    .in("product_id", productIds)
-    .eq("is_active", true);
+  const productMap = new Map(
+    (products ?? [])
+      .filter((product) => product.org_id === storeOrgId && product.show_on_online_menu === true)
+      .map((product) => [product.id, product])
+  );
+  const variantMap = new Map(
+    (variants ?? [])
+      .filter(
+        (variant) =>
+          variant.is_active &&
+          productMap.has(variant.product_id) &&
+          productIds.includes(variant.product_id)
+      )
+      .map((variant) => [variant.id, variant])
+  );
+  const scopedProductIds = [...productMap.keys()];
+  const { data: allActiveVariants, error: activeVariantsError } =
+    scopedProductIds.length > 0
+      ? await admin
+          .from("product_variants")
+          .select("id, product_id, is_active")
+          .in("product_id", scopedProductIds)
+          .eq("is_active", true)
+      : { data: [], error: null };
   if (activeVariantsError) throw new Error(activeVariantsError.message);
   const productsWithVariants = new Set((allActiveVariants ?? []).map((variant) => variant.product_id));
 
@@ -117,8 +140,10 @@ async function priceLinesForPublicOrder(storeOrgId: string, lines: OnlineOrderLi
     if (
       !product ||
       !product.is_active ||
+      product.org_id !== storeOrgId ||
       product.product_type !== "finished" ||
-      product.inventory_product_type !== "finished_product"
+      product.inventory_product_type !== "finished_product" ||
+      product.show_on_online_menu !== true
     ) {
       throw new Error("بعض الأصناف غير متاحة");
     }
@@ -250,6 +275,7 @@ async function findOnlineOrderCustomerId(input: {
 
 export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
   const slug = input.slug.trim().toLowerCase();
+  const menuToken = input.token?.trim() ?? "";
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone?.trim() ?? "";
   const notes = input.notes?.trim() ?? "";
@@ -275,6 +301,13 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
   const settings = asRecord(store.settings);
   if (settings.online_menu_enabled !== true || settings.online_menu_ordering_enabled !== true) {
     throw new Error("الطلب الأونلاين غير متاح حاليًا");
+  }
+  if (settings.online_menu_unlisted === true) {
+    const expectedToken =
+      typeof settings.online_menu_token === "string" ? settings.online_menu_token.trim() : "";
+    if (!expectedToken || menuToken !== expectedToken) {
+      throw new Error("المنيو غير متاح");
+    }
   }
 
   const priced = await priceLinesForPublicOrder(store.org_id, input.lines);

@@ -55,6 +55,10 @@ function normalizeProductInput(input: ProductInput): ProductInput {
   const sku = input.sku?.trim() ?? "";
   const barcode = input.barcode?.trim() || sku;
   const capabilityFields = deriveProductCapabilityFields(input);
+  const inventoryProductType = capabilityFields.inventory_product_type;
+  const isFinishedOnlineCandidate =
+    (input.product_type === "finished" || input.product_type === "finished_product") &&
+    inventoryProductType === "finished_product";
   return {
     ...input,
     sku,
@@ -66,6 +70,7 @@ function normalizeProductInput(input: ProductInput): ProductInput {
     cost_unit: input.cost_unit ?? baseUnit,
     inventory_tracking_mode:
       input.track_inventory === false ? "none" : input.inventory_tracking_mode ?? "standard",
+    show_on_online_menu: input.show_on_online_menu ?? isFinishedOnlineCandidate,
     ...capabilityFields,
   };
 }

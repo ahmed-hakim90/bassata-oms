@@ -66,6 +66,61 @@ describe("order repository checkout RPC wrappers", () => {
     );
   });
 
+  it("maps payment_status from partial credit split RPC", async () => {
+    vi.mocked(callRpc).mockResolvedValue({
+      data: {
+        order_id: "order-1",
+        order_number: "SF-001",
+        subtotal: 100,
+        tax: 0,
+        total: 100,
+        payment_status: "partial",
+        credit_amount: 40,
+      },
+      error: null,
+    });
+
+    const result = await completeCheckoutSplitRpc({
+      ...checkoutInput,
+      customerId: "cust-1",
+      payments: [
+        { method: "cash", amount: 60 },
+        { method: "credit", amount: 40 },
+      ],
+    });
+
+    expect(result.payment_status).toBe("partial");
+    expect(result.credit_amount).toBe(40);
+  });
+
+  it("calls refund_order RPC", async () => {
+    const { refundOrderRpc } = await import("@/lib/repositories/order.repository");
+    vi.mocked(callRpc).mockResolvedValue({
+      data: {
+        order_id: "order-1",
+        status: "refunded",
+        order_number: "SF-001",
+        total: 10,
+        restock: {
+          restocked: true,
+          restock_movement_count: 1,
+          restock_quantity_total: 2,
+          credit_reversed: 4,
+          reference_type: "order_refund",
+        },
+      },
+      error: null,
+    });
+
+    const result = await refundOrderRpc({ orderId: "order-1", actorId: "user-1" });
+
+    expect(callRpc).toHaveBeenCalledWith(
+      "refund_order",
+      expect.objectContaining({ p_order_id: "order-1", p_actor_id: "user-1" })
+    );
+    expect(result.restock.credit_reversed).toBe(4);
+  });
+
   it("passes sales mode to expired-session override checkout", async () => {
     await completeCheckoutExpiredOverrideRpc(checkoutInput);
 

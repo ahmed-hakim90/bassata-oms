@@ -70,6 +70,7 @@ export function formatReceiptForWhatsApp(payload: ReceiptPayload) {
   const lines = [
     `*${receiptTitle(payload)}*`,
     payload.branding.storeName ? payload.branding.storeName : null,
+    payload.branding.storeAddress ? payload.branding.storeAddress : null,
     payload.branding.storePhone ? `Tel: ${payload.branding.storePhone}` : null,
     payload.branding.receiptHeader,
     "",

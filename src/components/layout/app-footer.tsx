@@ -1,37 +1,48 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-
-const PORTFOLIO_URL = "https://portfolio-hakim90.vercel.app/";
+import { APP_NAME } from "@/lib/constants";
+import { PoweredByHakimo } from "@/components/layout/powered-by-hakimo";
 
 export function AppFooter() {
   const pathname = usePathname();
-  const hideFooter = pathname === "/pos" || pathname.startsWith("/pos/");
   const isOnlineMenu = pathname === "/menu" || pathname.startsWith("/menu/");
+  // Shell/POS/print lock to the viewport — a root footer would force page scroll.
+  const isAppChrome =
+    pathname === "/pos" ||
+    pathname.startsWith("/pos/") ||
+    pathname.startsWith("/print") ||
+    (!isOnlineMenu &&
+      !pathname.startsWith("/login") &&
+      !pathname.startsWith("/forgot-password") &&
+      !pathname.startsWith("/reset-password") &&
+      !pathname.startsWith("/onboarding") &&
+      !pathname.startsWith("/device"));
 
-  if (hideFooter) {
+  if (isAppChrome) {
     return null;
   }
 
+  const year = new Date().getFullYear();
+
   return (
     <footer
-      className={`shrink-0 rtl border-t border-border/60 bg-background/80 px-4 pt-3 text-center text-sm text-muted-foreground backdrop-blur-xl md:px-6 ${
+      className={`shrink-0 border-t border-border/60 bg-background/80 px-4 pt-3 text-center backdrop-blur-xl md:px-6 ${
         isOnlineMenu
           ? "pb-[calc(env(safe-area-inset-bottom)+6.5rem)] md:pb-[calc(env(safe-area-inset-bottom)+6.5rem)]"
           : "pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pb-3"
       }`}
     >
-      <span>صنع بـ </span>
-      <span> · جميع ال  حقوق محفوظة</span>
-      <span> - بواسطة </span>
-      <a
-        href={PORTFOLIO_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-semibold text-primary transition-colors hover:text-primary/80 hover:underline"
-      >
-        Hakim
-      </a>
+      <div className="mx-auto flex max-w-lg flex-col items-center gap-1.5">
+        <p className="text-xs text-muted-foreground">
+          © {year} {APP_NAME}
+          <span className="mx-1.5 text-border" aria-hidden>
+            ·
+          </span>
+          جميع الحقوق محفوظة
+        </p>
+        <PoweredByHakimo />
+      </div>
     </footer>
   );
 }

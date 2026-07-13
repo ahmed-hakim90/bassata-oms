@@ -1,6 +1,12 @@
 import { NAV_GROUPS, PATH_PERMISSIONS } from "@/lib/constants";
 import type { FeatureFlag, PermissionKey, UserRole } from "@/lib/constants";
 
+/**
+ * Nav href → feature flag. Keep in sync with modules that have a sidebar entry
+ * and are toggled from Settings → Features / POS.
+ * Online orders stay store-settings gated (not feature_flags).
+ * `/labels` uses `barcode_label_print` permission — not `barcode_scanner` (POS field).
+ */
 const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/reports": "reports",
   "/reports/sales": "reports",

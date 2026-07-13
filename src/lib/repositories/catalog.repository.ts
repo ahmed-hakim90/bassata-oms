@@ -15,7 +15,14 @@ export async function listProducts(options?: {
   let q = db.from("products").select("*").eq("org_id", orgId);
   if (options?.categoryId) q = q.eq("category_id", options.categoryId);
   if (options?.activeOnly) q = q.eq("is_active", true);
-  if (options?.productType) q = q.eq("product_type", options.productType);
+  if (options?.productType) {
+    q = q.eq(
+      "product_type",
+      options.productType === "ingredient" || options.productType === "raw_material"
+        ? "ingredient"
+        : "finished"
+    );
+  }
   const { data, error } = await q;
   if (error) throwDbError(error, "listProducts");
   let result = (data ?? []).map(mapProduct);
@@ -62,7 +69,7 @@ export async function createProduct(
   const orgId = await getOrgId();
   const { data, error } = await db
     .from("products")
-    .insert({ org_id: orgId, ...input })
+    .insert({ org_id: orgId, ...input } as never)
     .select()
     .single();
   if (error || !data) throwDbError(error, "createProduct");
@@ -91,7 +98,7 @@ export async function updateProduct(
   const orgId = await getOrgId();
   const { data, error } = await db
     .from("products")
-    .update(input)
+    .update(input as never)
     .eq("id", id)
     .eq("org_id", orgId)
     .select()
@@ -125,7 +132,7 @@ export async function createCategory(input: Omit<Category, "id" | "org_id">): Pr
   const orgId = await getOrgId();
   const { data, error } = await db
     .from("categories")
-    .insert({ org_id: orgId, ...input })
+    .insert({ org_id: orgId, ...input } as never)
     .select()
     .single();
   if (error || !data) throwDbError(error, "createCategory");
@@ -140,7 +147,7 @@ export async function updateCategory(
   const orgId = await getOrgId();
   const { data, error } = await db
     .from("categories")
-    .update(input)
+    .update(input as never)
     .eq("id", id)
     .eq("org_id", orgId)
     .select()

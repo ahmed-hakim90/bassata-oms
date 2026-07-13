@@ -1,5 +1,6 @@
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapOnlineOrder, mapOnlineOrderItem } from "@/lib/repositories/mappers";
+import { listStores } from "@/lib/repositories/store.repository";
 import type { OnlineOrder, OnlineOrderItem, OnlineOrderStatus } from "@/lib/types";
 
 export interface OnlineOrderListFilters {
@@ -17,9 +18,19 @@ export async function listOnlineOrders(
       ? { storeId: storeIdOrFilters }
       : storeIdOrFilters;
 
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return [];
+  if (filters.storeId && !storeIds.includes(filters.storeId)) return [];
+
   const db = await getDb();
-  let q = db.from("online_orders").select("*").order("created_at", { ascending: false });
-  if (filters.storeId) q = q.eq("store_id", filters.storeId);
+  let q = db
+    .from("online_orders")
+    .select("*")
+    .in("store_id", storeIds)
+    .order("created_at", { ascending: false });
+  if (filters.storeId) {
+    q = q.eq("store_id", filters.storeId);
+  }
   if (filters.statuses && filters.statuses.length > 0) {
     q = q.in("status", filters.statuses);
   }
@@ -31,7 +42,14 @@ export async function listOnlineOrders(
 
 export async function getOnlineOrder(id: string): Promise<OnlineOrder | null> {
   const db = await getDb();
-  const { data, error } = await db.from("online_orders").select("*").eq("id", id).maybeSingle();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return null;
+  const { data, error } = await db
+    .from("online_orders")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
   if (error) throwDbError(error, "getOnlineOrder");
   return data ? mapOnlineOrder(data) : null;
 }
@@ -87,10 +105,13 @@ export async function updateOnlineOrder(
   >
 ): Promise<OnlineOrder | null> {
   const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return null;
   const { data, error } = await db
     .from("online_orders")
     .update(input)
     .eq("id", id)
+    .in("store_id", storeIds)
     .select()
     .maybeSingle();
   if (error) throwDbError(error, "updateOnlineOrder");

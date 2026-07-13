@@ -27,6 +27,9 @@ export function ReceiptPrint({ receipt }: ReceiptPrintProps) {
         {branding.storeName ? (
           <p className="text-center text-xs">{branding.storeName}</p>
         ) : null}
+        {branding.storeAddress ? (
+          <p className="text-center text-xs whitespace-pre-wrap">{branding.storeAddress}</p>
+        ) : null}
         {branding.storePhone ? (
           <p className="text-center text-xs">{branding.storePhone}</p>
         ) : null}

@@ -34,6 +34,10 @@ function storeEditDefaults(store: Store) {
     phone: store.phone,
     timezone: store.timezone ?? "",
     isActive: store.is_active,
+    onlineMenuEnabled: store.settings.online_menu_enabled === true,
+    onlineMenuOrderingEnabled: store.settings.online_menu_ordering_enabled === true,
+    onlineMenuSlug: getOnlineMenuSlug(store),
+    onlineMenuUnlisted: store.settings.online_menu_unlisted === true,
   };
 }
 
@@ -42,9 +46,20 @@ function getOnlineMenuSlug(store: Store): string {
   return typeof slug === "string" ? slug : "";
 }
 
+function getOnlineMenuToken(store: Store): string {
+  const token = store.settings.online_menu_token;
+  return typeof token === "string" ? token : "";
+}
+
 function getOnlineMenuLogoUrl(store: Store): string {
   const logoUrl = store.settings.online_menu_logo_url;
   return typeof logoUrl === "string" ? logoUrl : "";
+}
+
+function buildOnlineMenuHref(slug: string, unlisted: boolean, token: string): string {
+  if (!slug) return "";
+  if (unlisted && token) return `/menu/${slug}?token=${encodeURIComponent(token)}`;
+  return `/menu/${slug}`;
 }
 
 interface BranchSettingsTabProps {
@@ -110,8 +125,14 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
           {stores.map((store) => {
             const storeWarehouses = warehouses.filter((w) => w.store_id === store.id);
             const storeDevices = devices.filter((d) => d.store_id === store.id);
-            const onlineMenuSlug = getOnlineMenuSlug(store);
-            const onlineMenuHref = onlineMenuSlug ? `/menu/${onlineMenuSlug}` : "";
+            const edit = storeEdits[store.id] ?? storeEditDefaults(store);
+            const onlineMenuSlug = edit.onlineMenuSlug;
+            const onlineMenuToken = getOnlineMenuToken(store);
+            const onlineMenuHref = buildOnlineMenuHref(
+              onlineMenuSlug,
+              edit.onlineMenuUnlisted,
+              onlineMenuToken
+            );
             const logoUrl = storeLogoUrls[store.id] ?? getOnlineMenuLogoUrl(store);
 
             return (
@@ -138,7 +159,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                       <p className="text-xs text-muted-foreground">فرع · مخازن · أجهزة كاشير</p>
                     </div>
                   </div>
-                  {onlineMenuHref ? (
+                  {onlineMenuHref && edit.onlineMenuEnabled ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -151,19 +172,25 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                     </Button>
                   ) : null}
                 </div>
-                {onlineMenuHref ? (
+                {onlineMenuHref && edit.onlineMenuEnabled ? (
                   <div className="grid gap-3">
                     <p className="break-words rounded-lg bg-muted/70 px-3 py-2 text-xs text-muted-foreground">
-                      رابط المنيو العام:{" "}
+                      {edit.onlineMenuUnlisted ? "رابط المنيو غير المُدرج: " : "رابط المنيو العام: "}
                       <span className="font-mono text-foreground break-all">{onlineMenuHref}</span>
                     </p>
-                    <BranchQrDownloadCard
-                      storeName={store.name}
-                      storeCode={store.code}
-                      address={store.address}
-                      phone={store.phone}
-                      onlineMenuHref={onlineMenuHref}
-                    />
+                    {!edit.onlineMenuUnlisted ? (
+                      <BranchQrDownloadCard
+                        storeName={store.name}
+                        storeCode={store.code}
+                        address={store.address}
+                        phone={store.phone}
+                        onlineMenuHref={onlineMenuHref}
+                      />
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        المنيو غير مُدرج — الوصول يحتاج التوكن في الرابط. رمز QR العام معطّل في هذا الوضع.
+                      </p>
+                    )}
                   </div>
                 ) : null}
 
@@ -199,12 +226,12 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">اسم الفرع</Label>
                     <Input
-                      value={storeEdits[store.id]?.name ?? store.name}
+                      value={edit.name}
                       onChange={(e) =>
                         setStoreEdits({
                           ...storeEdits,
                           [store.id]: {
-                            ...(storeEdits[store.id] ?? storeEditDefaults(store)),
+                            ...edit,
                             name: e.target.value,
                           },
                         })
@@ -214,12 +241,12 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">الكود</Label>
                     <Input
-                      value={storeEdits[store.id]?.code ?? store.code}
+                      value={edit.code}
                       onChange={(e) =>
                         setStoreEdits({
                           ...storeEdits,
                           [store.id]: {
-                            ...(storeEdits[store.id] ?? storeEditDefaults(store)),
+                            ...edit,
                             code: e.target.value,
                           },
                         })
@@ -229,12 +256,12 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   <div className="space-y-1 md:col-span-2">
                     <Label className="text-xs text-muted-foreground">العنوان</Label>
                     <Input
-                      value={storeEdits[store.id]?.address ?? store.address}
+                      value={edit.address}
                       onChange={(e) =>
                         setStoreEdits({
                           ...storeEdits,
                           [store.id]: {
-                            ...(storeEdits[store.id] ?? storeEditDefaults(store)),
+                            ...edit,
                             address: e.target.value,
                           },
                         })
@@ -244,12 +271,12 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">الهاتف</Label>
                     <Input
-                      value={storeEdits[store.id]?.phone ?? store.phone}
+                      value={edit.phone}
                       onChange={(e) =>
                         setStoreEdits({
                           ...storeEdits,
                           [store.id]: {
-                            ...(storeEdits[store.id] ?? storeEditDefaults(store)),
+                            ...edit,
                             phone: e.target.value,
                           },
                         })
@@ -259,13 +286,13 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">المنطقة الزمنية</Label>
                     <Input
-                      value={storeEdits[store.id]?.timezone ?? store.timezone ?? ""}
+                      value={edit.timezone}
                       placeholder="استخدم منطقة المؤسسة لو تركته فارغًا"
                       onChange={(e) =>
                         setStoreEdits({
                           ...storeEdits,
                           [store.id]: {
-                            ...(storeEdits[store.id] ?? storeEditDefaults(store)),
+                            ...edit,
                             timezone: e.target.value,
                           },
                         })
@@ -275,12 +302,12 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                 </div>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
-                    checked={storeEdits[store.id]?.isActive ?? store.is_active}
+                    checked={edit.isActive}
                     onCheckedChange={(v) =>
                       setStoreEdits({
                         ...storeEdits,
                         [store.id]: {
-                          ...(storeEdits[store.id] ?? storeEditDefaults(store)),
+                          ...edit,
                           isActive: v === true,
                         },
                       })
@@ -288,6 +315,104 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   />
                   فرع نشط
                 </label>
+
+                <div className="grid gap-3 rounded-lg border border-border/60 p-3">
+                  <p className="text-sm font-medium">منيو الأونلاين</p>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={edit.onlineMenuEnabled}
+                      onCheckedChange={(v) =>
+                        setStoreEdits({
+                          ...storeEdits,
+                          [store.id]: { ...edit, onlineMenuEnabled: v === true },
+                        })
+                      }
+                    />
+                    تفعيل المنيو العام
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={edit.onlineMenuOrderingEnabled}
+                      onCheckedChange={(v) =>
+                        setStoreEdits({
+                          ...storeEdits,
+                          [store.id]: { ...edit, onlineMenuOrderingEnabled: v === true },
+                        })
+                      }
+                    />
+                    السماح بالطلب من المنيو
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={edit.onlineMenuUnlisted}
+                      onCheckedChange={(v) =>
+                        setStoreEdits({
+                          ...storeEdits,
+                          [store.id]: { ...edit, onlineMenuUnlisted: v === true },
+                        })
+                      }
+                    />
+                    غير مُدرج (يحتاج توكن في الرابط)
+                  </label>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">رابط المنيو (slug)</Label>
+                    <Input
+                      value={edit.onlineMenuSlug}
+                      dir="ltr"
+                      className="font-mono text-sm"
+                      onChange={(e) =>
+                        setStoreEdits({
+                          ...storeEdits,
+                          [store.id]: { ...edit, onlineMenuSlug: e.target.value },
+                        })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      يجب أن يكون فريدًا على مستوى النظام بالكامل.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">توكن الوصول</Label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        value={onlineMenuToken || "—"}
+                        readOnly
+                        dir="ltr"
+                        className="font-mono text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        disabled={pending}
+                        onClick={() => {
+                          startTransition(async () => {
+                            try {
+                              await updateStoreAction(store.id, {
+                                onlineMenu: {
+                                  enabled: edit.onlineMenuEnabled,
+                                  orderingEnabled: edit.onlineMenuOrderingEnabled,
+                                  slug: edit.onlineMenuSlug,
+                                  unlisted: edit.onlineMenuUnlisted,
+                                  regenerateToken: true,
+                                },
+                              });
+                              refreshSettings();
+                              toast.success("تم تجديد توكن المنيو");
+                            } catch (error) {
+                              toast.error(
+                                error instanceof Error ? error.message : "فشل تجديد التوكن"
+                              );
+                            }
+                          });
+                        }}
+                      >
+                        تجديد التوكن
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
                 <Button
                   type="button"
                   variant="outline"
@@ -296,8 +421,22 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                   onClick={() => {
                     startTransition(async () => {
                       try {
-                        await updateStoreAction(store.id, storeEdits[store.id]);
+                        await updateStoreAction(store.id, {
+                          name: edit.name,
+                          code: edit.code,
+                          address: edit.address,
+                          phone: edit.phone,
+                          timezone: edit.timezone,
+                          isActive: edit.isActive,
+                          onlineMenu: {
+                            enabled: edit.onlineMenuEnabled,
+                            orderingEnabled: edit.onlineMenuOrderingEnabled,
+                            slug: edit.onlineMenuSlug,
+                            unlisted: edit.onlineMenuUnlisted,
+                          },
+                        });
                         toast.success("تم تحديث الفرع");
+                        refreshSettings();
                       } catch (error) {
                         toast.error(
                           error instanceof Error ? error.message : "فشل تحديث الفرع"

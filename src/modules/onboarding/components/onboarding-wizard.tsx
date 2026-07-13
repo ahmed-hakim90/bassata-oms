@@ -11,12 +11,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { APP_NAME, BUSINESS_ACTIVITY_TYPES, type BusinessActivityType } from "@/lib/constants";
+import {
+  APP_NAME,
+  BUSINESS_ACTIVITY_TYPES,
+  BUSINESS_ACTIVITY_TYPE_LABELS,
+  type BusinessActivityType,
+} from "@/lib/constants";
 import { completeOnboardingAction } from "@/modules/onboarding/actions/onboarding.actions";
 import {
   type OnboardingPayload,
   ONBOARDING_FEATURE_KEYS,
   type OnboardingFeatureKey,
+  defaultOnboardingFeaturesForActivity,
 } from "@/modules/onboarding/schemas/onboarding.schema";
 
 const STEPS = [
@@ -30,31 +36,37 @@ const STEPS = [
 ] as const;
 
 const FEATURE_LABELS: Record<OnboardingFeatureKey, string> = {
-  recipes: "الوصفات والتكلفة",
-  variants: "الخيارات",
+  recipes: "الوصفات",
+  variants: "الخيارات / المتغيرات",
   purchases: "المشتريات",
   transfers: "التحويلات",
-  waste: "تتبع الهالك",
+  waste: "الهالك",
   stock_count: "جرد المخزون",
   loyalty: "برنامج الولاء",
-  customer_accounts: "حسابات العملاء",
+  customer_accounts: "خصومات العملاء",
   credit_sales: "البيع الآجل",
   imports_exports: "الاستيراد والتصدير",
   barcode_scanner: "قارئ الباركود",
 };
 
-const DEFAULT_FEATURES = Object.fromEntries(
-  ONBOARDING_FEATURE_KEYS.map((key) => [key, key !== "credit_sales"])
-) as Record<OnboardingFeatureKey, boolean>;
-const BUSINESS_TYPE_LABELS: Record<BusinessActivityType, string> = {
-  cafe: "كافيه / تيك أواي",
-  ice_cream: "آيس كريم",
-  juice_bar: "عصائر",
+const PAYMENT_METHOD_LABELS: Record<
+  "cash" | "card" | "wallet" | "manualWallet",
+  string
+> = {
+  cash: "الدفع النقدي",
+  card: "الدفع بالكارت",
+  wallet: "الدفع بالمحفظة",
+  manualWallet: "طرق دفع أخرى",
 };
 
-export function OnboardingWizard() {
+export function OnboardingWizard({
+  initialInviteToken = "",
+}: {
+  initialInviteToken?: string;
+}) {
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
+  const [inviteToken, setInviteToken] = useState(initialInviteToken);
 
   const [organization, setOrganization] = useState({
     name: "",
@@ -78,8 +90,9 @@ export function OnboardingWizard() {
     password: "",
   });
   const [businessType, setBusinessType] = useState<BusinessActivityType>("cafe");
-  const [features, setFeatures] =
-    useState<Record<OnboardingFeatureKey, boolean>>(DEFAULT_FEATURES);
+  const [features, setFeatures] = useState<Record<OnboardingFeatureKey, boolean>>(
+    () => defaultOnboardingFeaturesForActivity("cafe")
+  );
   const [defaultSettings, setDefaultSettings] = useState({
     paymentMethods: {
       cash: true,
@@ -174,11 +187,19 @@ export function OnboardingWizard() {
 
   function submit() {
     const payload: OnboardingPayload = {
+      inviteToken: inviteToken.trim() || undefined,
       organization,
       store,
       owner,
       businessType,
-      defaultSettings,
+      defaultSettings: {
+        ...defaultSettings,
+        paymentMethods: {
+          ...defaultSettings.paymentMethods,
+          credit: features.credit_sales,
+        },
+        defaultTaxBehavior: organization.taxInclusive ? "inclusive" : "exclusive",
+      },
       features,
       initialSetup,
     };
@@ -273,6 +294,20 @@ export function OnboardingWizard() {
         <OperationalCard title="بيانات المؤسسة">
           <div className="grid gap-[var(--mds-space-4)]">
             <div className="space-y-[var(--mds-space-2)]">
+              <Label htmlFor="invite-token">رمز دعوة المنصة</Label>
+              <Input
+                id="invite-token"
+                value={inviteToken}
+                onChange={(e) => setInviteToken(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="الصق رمز الدعوة من منصة الإدارة"
+              />
+              <p className="text-xs text-muted-foreground">
+                في بيئة الإنتاج رمز الدعوة إلزامي. محليًا يمكن تركه فاضي للتطوير/الديمو فقط.
+              </p>
+            </div>
+            <div className="space-y-[var(--mds-space-2)]">
               <Label>اسم المؤسسة</Label>
               <Input
                 value={organization.name}
@@ -333,7 +368,7 @@ export function OnboardingWizard() {
                       setOrganization({ ...organization, taxInclusive: checked === true })
                     }
                   />
-                  Tax inclusive
+                  الأسعار شاملة الضريبة
                 </label>
                 <label className="flex items-center gap-[var(--mds-space-2)] text-sm">
                   <Checkbox
@@ -342,7 +377,7 @@ export function OnboardingWizard() {
                       setOrganization({ ...organization, taxEnabled: checked === true })
                     }
                   />
-                  Tax enabled
+                  تفعيل الضريبة
                 </label>
               </div>
             </div>
@@ -419,10 +454,13 @@ export function OnboardingWizard() {
                 <Checkbox
                   checked={businessType === type}
                   onCheckedChange={(checked) => {
-                    if (checked === true) setBusinessType(type);
+                    if (checked === true) {
+                      setBusinessType(type);
+                      setFeatures(defaultOnboardingFeaturesForActivity(type));
+                    }
                   }}
                 />
-                {BUSINESS_TYPE_LABELS[type]}
+                {BUSINESS_ACTIVITY_TYPE_LABELS[type]}
               </label>
             ))}
           </div>
@@ -472,13 +510,15 @@ export function OnboardingWizard() {
               />
             </div>
             <div className="grid gap-[var(--mds-space-2)] sm:grid-cols-2">
-              {Object.entries(defaultSettings.paymentMethods).map(([key, value]) => (
+              {(
+                Object.keys(PAYMENT_METHOD_LABELS) as Array<keyof typeof PAYMENT_METHOD_LABELS>
+              ).map((key) => (
                 <label
                   key={key}
                   className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors"
                 >
                   <Checkbox
-                    checked={value}
+                    checked={defaultSettings.paymentMethods[key]}
                     onCheckedChange={(checked) =>
                       setDefaultSettings({
                         ...defaultSettings,
@@ -489,7 +529,7 @@ export function OnboardingWizard() {
                       })
                     }
                   />
-                  Payment {key}
+                  {PAYMENT_METHOD_LABELS[key]}
                 </label>
               ))}
             </div>
@@ -503,19 +543,7 @@ export function OnboardingWizard() {
                   })
                 }
               />
-              Prevent negative stock
-            </label>
-            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] text-sm select-none">
-              <Checkbox
-                checked={defaultSettings.defaultTaxBehavior === "inclusive"}
-                onCheckedChange={(checked) =>
-                  setDefaultSettings({
-                    ...defaultSettings,
-                    defaultTaxBehavior: checked === true ? "inclusive" : "exclusive",
-                  })
-                }
-              />
-              Default tax behavior: inclusive
+              منع المخزون السالب
             </label>
             <div className="grid grid-cols-2 gap-[var(--mds-space-4)]">
               <div className="space-y-[var(--mds-space-2)]">

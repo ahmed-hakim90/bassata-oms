@@ -12,6 +12,7 @@ export const REGISTERED_DEVICE_COOKIE = "sf_registered_device";
 export const DEVICE_COOKIE = REGISTERED_DEVICE_COOKIE;
 export const CASHIER_COOKIE = "sf_active_cashier";
 
+const STORE_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const DEVICE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const CASHIER_COOKIE_MAX_AGE = 60 * 60 * 12;
 
@@ -24,9 +25,33 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
   return appUser;
 });
 
+/** HMAC-verified active store id (ADR-002). Still re-validate store∈org via requireStoreAccess. */
 export async function getActiveStoreId(): Promise<string | null> {
   const cookieStore = await cookies();
-  return cookieStore.get(STORE_COOKIE)?.value ?? null;
+  const payload = readSignedCookieValue<{ storeId?: string }>(
+    cookieStore.get(STORE_COOKIE)?.value
+  );
+  return payload?.storeId ?? null;
+}
+
+export async function setActiveStoreCookie(storeId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(
+    STORE_COOKIE,
+    createSignedCookieValue({ storeId }, STORE_COOKIE_MAX_AGE),
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: STORE_COOKIE_MAX_AGE,
+    }
+  );
+}
+
+export async function clearActiveStoreCookie() {
+  const cookieStore = await cookies();
+  cookieStore.delete(STORE_COOKIE);
 }
 
 export async function getRegisteredDeviceContext(): Promise<{

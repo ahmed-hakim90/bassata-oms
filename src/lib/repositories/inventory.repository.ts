@@ -162,7 +162,7 @@ export async function adjustStock(input: {
           expiry_date: resolvedExpiryDate ?? null,
           quantity: input.quantityDelta,
           remaining_quantity: input.quantityDelta,
-          unit: input.unit ?? "piece",
+          unit: (input.unit ?? "piece") as import("@/lib/types").MeasurementUnit,
           created_by: input.createdBy,
           is_expired:
             (resolvedExpiryDate ? new Date(resolvedExpiryDate) : new Date("9999-12-31")) <

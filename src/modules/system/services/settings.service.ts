@@ -3,19 +3,21 @@ import * as orgRepo from "@/lib/repositories/organization.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import {
   ACTIVITY_PRESETS,
+  BUSINESS_ACTIVITY_TYPES,
   DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
   DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY,
   PRODUCT_TEMPLATE_IDS,
   SALES_MODES,
   DEFAULT_FEATURE_FLAGS,
+  FEATURE_FLAGS,
   type BusinessActivitySettings,
   type BusinessActivityType,
   type FeatureFlag,
   type ProductTemplate,
   type ProductTemplateSettings,
 } from "@/lib/constants";
+import { buildBusinessActivityFeatureFlags } from "@/lib/business-activity-flags";
 import type { AppSetting } from "@/lib/types";
-const BUSINESS_ACTIVITY_MANAGED_FLAGS: FeatureFlag[] = ["barcode_scanner", "recipes"];
 
 export async function getSettings(): Promise<AppSetting[]> {
   return orgRepo.listSettings();
@@ -46,10 +48,12 @@ export async function upsertSetting(
 
 export const getFeatureFlags = cache(async (): Promise<Record<FeatureFlag, boolean>> => {
   const setting = await getSetting("feature_flags");
-  return {
-    ...DEFAULT_FEATURE_FLAGS,
-    ...(setting?.value ?? {}),
-  } as Record<FeatureFlag, boolean>;
+  const stored = (setting?.value ?? {}) as Record<string, unknown>;
+  const merged: Record<FeatureFlag, boolean> = { ...DEFAULT_FEATURE_FLAGS };
+  for (const key of FEATURE_FLAGS) {
+    if (typeof stored[key] === "boolean") merged[key] = stored[key];
+  }
+  return merged;
 });
 
 export async function isFeatureEnabled(flag: FeatureFlag): Promise<boolean> {
@@ -125,13 +129,32 @@ export async function updateBusinessActivitySettings(
   userId: string
 ) {
   const current = await getBusinessActivitySettings();
-  const merged = normalizeBusinessActivitySettings({ ...current, ...input });
+  const merged = normalizeBusinessActivitySettings({
+    ...current,
+    ...input,
+  });
   const setting = await upsertSetting(
     "business_activity",
     merged as unknown as Record<string, unknown>,
     userId
   );
   await updateFeatureFlags(buildBusinessActivityFeatureFlags(merged), userId);
+
+  if (merged.activity_type !== current.activity_type) {
+    const orgId = await orgRepo.getOrgId();
+    await writeAuditLog({
+      orgId,
+      userId,
+      action: "business_activity.updated",
+      entityType: "app_setting",
+      entityId: setting.id,
+      metadata: {
+        from: current.activity_type,
+        to: merged.activity_type,
+      },
+    });
+  }
+
   return setting;
 }
 
@@ -143,11 +166,19 @@ function normalizeBusinessActivitySettings(
   ): mode is BusinessActivitySettings["default_sales_mode"] =>
     typeof mode === "string" && (SALES_MODES as readonly string[]).includes(mode);
 
+  const isActivityType = (type: unknown): type is BusinessActivityType =>
+    typeof type === "string" &&
+    (BUSINESS_ACTIVITY_TYPES as readonly string[]).includes(type);
+
   const input = (value ?? {}) as Record<string, unknown>;
   const merged = {
     ...DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
     ...input,
   } as BusinessActivitySettings;
+
+  const activity_type = isActivityType(input.activity_type)
+    ? input.activity_type
+    : DEFAULT_BUSINESS_ACTIVITY_SETTINGS.activity_type;
 
   const enabled_sales_modes = Array.isArray(input.enabled_sales_modes)
     ? input.enabled_sales_modes.filter(
@@ -167,42 +198,51 @@ function normalizeBusinessActivitySettings(
 
   return {
     ...merged,
+    activity_type,
     enabled_sales_modes: safeModes,
     default_sales_mode: safeDefault,
   };
 }
 
 export async function applyActivityPreset(activityType: BusinessActivityType, userId: string) {
+  const current = await getBusinessActivitySettings();
   const preset = ACTIVITY_PRESETS[activityType];
+  if (!preset) {
+    throw new Error("إعدادات النشاط غير معروفة.");
+  }
   const { featureFlags, ...business } = preset;
   void featureFlags;
-  await updateBusinessActivitySettings(
+
+  const setting = await updateBusinessActivitySettings(
     {
       ...business,
       activity_type: activityType,
     },
     userId
   );
-}
 
-function buildBusinessActivityFeatureFlags(
-  settings: BusinessActivitySettings
-): Partial<Record<FeatureFlag, boolean>> {
-  const base = Object.fromEntries(
-    BUSINESS_ACTIVITY_MANAGED_FLAGS.map((flag) => [flag, false])
-  ) as Partial<Record<FeatureFlag, boolean>>;
+  const templates = DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY[activityType];
+  await upsertSetting(
+    "product_templates",
+    templates as unknown as Record<string, unknown>,
+    userId
+  );
 
-  const preset = ACTIVITY_PRESETS[settings.activity_type];
-  const presetFlags = preset?.featureFlags ?? {};
+  const orgId = await orgRepo.getOrgId();
+  await writeAuditLog({
+    orgId,
+    userId,
+    action: "business_activity.preset_applied",
+    entityType: "app_setting",
+    entityId: setting.id,
+    metadata: {
+      from: current.activity_type,
+      to: activityType,
+      reset_product_templates: true,
+    },
+  });
 
-  const derived: Partial<Record<FeatureFlag, boolean>> = {
-    ...base,
-    ...presetFlags,
-    barcode_scanner: true,
-    recipes: presetFlags.recipes ?? settings.activity_type !== "cafe",
-  };
-
-  return derived;
+  return setting;
 }
 
 export async function getOrganizationSettings() {

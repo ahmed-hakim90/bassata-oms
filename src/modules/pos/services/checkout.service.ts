@@ -183,6 +183,13 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   }
 
   const usesCredit = payments.some((payment) => payment.method === "credit");
+  const rpcPaymentStatus =
+    "payment_status" in result &&
+    (result.payment_status === "paid" ||
+      result.payment_status === "unpaid" ||
+      result.payment_status === "partial")
+      ? result.payment_status
+      : null;
   const order: Order = {
     id: result.order_id,
     store_id: input.storeId,
@@ -194,11 +201,9 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     discount: roundMoney(orderDiscount + loyaltyDiscount),
     tax: result.tax,
     total: result.total,
-    payment_status: usesCredit
-      ? payments.length === 1
-        ? "unpaid"
-        : "partial"
-      : "paid",
+    payment_status:
+      rpcPaymentStatus ??
+      (usesCredit ? (payments.length === 1 ? "unpaid" : "partial") : "paid"),
     created_by: input.cashierId,
     created_at: new Date().toISOString(),
     sales_mode: input.salesMode ?? "retail",

@@ -3,17 +3,21 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { STORE_COOKIE, CASHIER_COOKIE } from "@/lib/auth/session";
-import { getCurrentUser } from "@/lib/auth/session";
+import {
+  CASHIER_COOKIE,
+  clearActiveStoreCookie,
+  getCurrentUser,
+} from "@/lib/auth/session";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
+
 export async function logoutAction() {
   const user = await getCurrentUser();
   const supabase = await createClient();
   await supabase.auth.signOut();
 
   const cookieStore = await cookies();
-  cookieStore.delete(STORE_COOKIE);
+  await clearActiveStoreCookie();
   cookieStore.delete(CASHIER_COOKIE);
   if (user) {
     const orgId = await getOrgId().catch(() => user.org_id);

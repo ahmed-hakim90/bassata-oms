@@ -31,9 +31,12 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
 
 interface OrderDetailProps {
   order: OrderWithDetails;
+  /** When true, hide page chrome (title) — used inside a modal. */
+  embedded?: boolean;
+  onUpdated?: () => void;
 }
 
-export function OrderDetail({ order }: OrderDetailProps) {
+export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailProps) {
   const { t } = useTranslation();
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState<"void" | "refund" | null>(null);
@@ -46,61 +49,88 @@ export function OrderDetail({ order }: OrderDetailProps) {
     startTransition(async () => {
       try {
         if (kind === "void") {
-          await voidOrderAction(order.id);
-          toast.success("تم إلغاء الطلب");
+          const result = await voidOrderAction(order.id);
+          toast.success(
+            result.restock.restocked
+              ? `تم إلغاء الطلب وإرجاع ${result.restock.restockMovementCount} حركة مخزون`
+              : "تم إلغاء الطلب"
+          );
         } else {
-          await refundOrderAction(order.id);
-          toast.success("تم رد الطلب");
+          const result = await refundOrderAction(order.id);
+          toast.success(
+            result.restock.restocked
+              ? `تم رد الطلب وإرجاع ${result.restock.restockMovementCount} حركة مخزون`
+              : "تم رد الطلب (بدون حركات مخزون للإرجاع)"
+          );
         }
-        window.location.reload();
-      } catch {
-        toast.error(kind === "void" ? "تعذر إلغاء الطلب" : "تعذر رد الطلب");
+        if (onUpdated) {
+          onUpdated();
+        } else {
+          window.location.reload();
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : null;
+        toast.error(
+          message && message !== "Order not found or already voided" && message !== "Order not found or cannot be refunded"
+            ? message
+            : kind === "void"
+              ? "تعذر إلغاء الطلب"
+              : "تعذر رد الطلب"
+        );
       }
     });
   }
 
-  return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <div className="flex items-start justify-between gap-4 print:hidden">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            {order.order_number}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {order.storeName} ·{" "}
-            {new Date(order.created_at).toLocaleString("ar-EG", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="size-4" />
-            طباعة
+  const actions = (
+    <div className={cn("flex flex-wrap gap-2 print:hidden", embedded ? "justify-start" : "justify-end")}>
+      <Button variant="outline" size="sm" onClick={handlePrint}>
+        <Printer className="size-4" />
+        طباعة
+      </Button>
+      {order.status === "completed" && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() => setConfirm("refund")}
+          >
+            رد
           </Button>
-          {order.status === "completed" && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => setConfirm("refund")}
-              >
-                رد
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={pending}
-                onClick={() => setConfirm("void")}
-              >
-                إلغاء
-              </Button>
-            </>
-          )}
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={pending}
+            onClick={() => setConfirm("void")}
+          >
+            إلغاء
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={cn("space-y-6", !embedded && "mx-auto max-w-lg")}>
+      {embedded ? (
+        actions
+      ) : (
+        <div className="flex items-start justify-between gap-4 print:hidden">
+          <div>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">
+              {order.order_number}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {order.storeName} ·{" "}
+              {new Date(order.created_at).toLocaleString("ar-EG", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </p>
+          </div>
+          {actions}
         </div>
-      </div>
+      )}
 
       <Card className="rounded-2xl shadow-sm print:shadow-none print:ring-0">
         <CardHeader className="text-center">

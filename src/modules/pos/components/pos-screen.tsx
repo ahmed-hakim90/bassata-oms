@@ -25,7 +25,7 @@ import type { Category, CostCenter, ExpenseCategory, ExpenseSettings, Product } 
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { FeatureFlag, SalesMode } from "@/lib/constants";
 import type { ReportBranding } from "@/modules/reports/core/report-context";
-import { usePosStore, getCartTotal } from "@/stores/pos-store";
+import { usePosStore, getCartTotal, type HeldCart } from "@/stores/pos-store";
 import { PosReadinessBanner } from "@/components/SweetFlow/pos-readiness-banner";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { PosPinSwitch } from "@/modules/pos/components/pos-pin-switch";
@@ -176,6 +176,10 @@ interface PosScreenProps {
   pendingOpeningFloat?: number;
   /** Load catalog/online via API to keep RSC remounts light. */
   loadCatalogClient?: boolean;
+  /** When false, POS skips variant picker (supermarket). Default true. */
+  enableVariants?: boolean;
+  /** Server-persisted holds for this store+device (survives refresh). */
+  initialHeldCarts?: HeldCart[];
 }
 
 export function PosScreen({
@@ -212,6 +216,8 @@ export function PosScreen({
   storeDevices = [],
   pendingOpeningFloat = 0,
   loadCatalogClient = false,
+  enableVariants = true,
+  initialHeldCarts = [],
 }: PosScreenProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [creditOpen, setCreditOpen] = useState(false);
@@ -232,6 +238,7 @@ export function PosScreen({
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const addItem = usePosStore((s) => s.addItem);
   const clearCart = usePosStore((s) => s.clearCart);
+  const setHeldCarts = usePosStore((s) => s.setHeldCarts);
   const cart = usePosStore((s) => s.cart);
   const customer = usePosStore((s) => s.customer);
   const paymentMethod = usePosStore((s) => s.paymentMethod);
@@ -258,6 +265,12 @@ export function PosScreen({
         : toStaffOnlineProductOptions(catalogProducts),
     [onlineOrderProductsProp, catalogProducts]
   );
+
+  useEffect(() => {
+    setHeldCarts(initialHeldCarts);
+    // Hydrate once from server props for this device load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount hydrate
+  }, []);
 
   useEffect(() => {
     if (!loadCatalogClient) return;
@@ -400,7 +413,7 @@ export function PosScreen({
       setWeightProduct(product);
       return;
     }
-    if (product.hasVariants && product.variants.length > 0) {
+    if (enableVariants && product.hasVariants && product.variants.length > 0) {
       setPickerProduct(product);
       return;
     }
@@ -418,11 +431,16 @@ export function PosScreen({
     }
 
     const { product, variant } = match ?? { product: products[0]!, variant: null };
-    if (product.hasVariants && !variant) {
+    if (product.supports_weight_sale || product.supports_amount_sale) {
+      setWeightProduct(product);
+      setSearchTerm("");
+      return;
+    }
+    if (enableVariants && product.hasVariants && !variant) {
       setPickerProduct(product);
       return;
     }
-    addToCart(product, variant);
+    addToCart(product, enableVariants ? variant : null);
     setSearchTerm("");
   }
 

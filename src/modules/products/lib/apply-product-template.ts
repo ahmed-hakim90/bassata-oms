@@ -43,6 +43,11 @@ export const DEFAULT_PRODUCT_TEMPLATE_ID_BY_ACTIVITY: Record<
   cafe: "retail_product",
   ice_cream: "ice_cream_ingredient",
   juice_bar: "restaurant_ingredient",
+  supermarket: "retail_product",
+  restaurant: "retail_product",
+  retail: "retail_product",
+  wholesale: "retail_product",
+  mixed: "retail_product",
 };
 
 export function resolveProductTemplateId(
@@ -58,7 +63,7 @@ export function resolveProductTemplateId(
   }
 
   if (salesUnitType === "weight") {
-    return "retail_product";
+    return activityType === "supermarket" ? "supermarket_weight_product" : "retail_product";
   }
 
   return DEFAULT_PRODUCT_TEMPLATE_ID_BY_ACTIVITY[activityType];

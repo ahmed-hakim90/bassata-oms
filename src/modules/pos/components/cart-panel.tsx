@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import {
   Banknote,
   Clock3,
@@ -28,6 +28,11 @@ import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { playPosErrorSound } from "@/modules/pos/lib/pos-sounds";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
+import {
+  discardHeldCartAction,
+  holdCartAction,
+  resumeHeldCartAction,
+} from "@/modules/pos/actions/held-cart.actions";
 
 const METHOD_META: Record<
   PaymentMethod,
@@ -112,13 +117,15 @@ export function CartPanel({
   const clearCart = usePosStore((s) => s.clearCart);
   const setDiscountAmount = usePosStore((s) => s.setDiscountAmount);
   const setLoyaltyRedemption = usePosStore((s) => s.setLoyaltyRedemption);
-  const holdCart = usePosStore((s) => s.holdCart);
+  const applyServerHold = usePosStore((s) => s.applyServerHold);
   const resumeHeldCart = usePosStore((s) => s.resumeHeldCart);
   const removeHeldCart = usePosStore((s) => s.removeHeldCart);
+  const salesMode = usePosStore((s) => s.salesMode);
   const [attachExpandedInternal, setAttachExpandedInternal] = useState(false);
   const [discountOpenInternal, setDiscountOpenInternal] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [heldDeleteId, setHeldDeleteId] = useState<string | null>(null);
+  const [holdPending, startHoldTransition] = useTransition();
 
   const attachControlled = attachExpandedProp !== undefined;
   const discountControlled = discountOpenProp !== undefined;
@@ -187,6 +194,70 @@ export function CartPanel({
     onCheckout(method);
   }
 
+  function handleHoldCart() {
+    if (!hasCart || holdPending) return;
+    const snapshot = {
+      name: customer?.name,
+      cart: [...cart],
+      customer,
+      discountAmount,
+      salesMode,
+    };
+    startHoldTransition(async () => {
+      const result = await holdCartAction(snapshot);
+      if (!result.success) {
+        playPosErrorSound();
+        toast.error(result.error);
+        return;
+      }
+      applyServerHold(result.heldCart);
+      toast.success("تم تعليق الفاتورة");
+    });
+  }
+
+  function handleResumeHeldCart(id: string) {
+    if (holdPending) return;
+    const state = usePosStore.getState();
+    const parkCurrent =
+      state.cart.length > 0
+        ? {
+            name: state.customer?.name,
+            cart: [...state.cart],
+            customer: state.customer,
+            discountAmount: state.discountAmount,
+            salesMode: state.salesMode,
+          }
+        : null;
+    startHoldTransition(async () => {
+      const result = await resumeHeldCartAction({
+        resumeId: id,
+        parkCurrent,
+      });
+      if (!result.success) {
+        playPosErrorSound();
+        toast.error(result.error);
+        return;
+      }
+      const ok = resumeHeldCart(id, result.parked);
+      if (!ok) {
+        toast.error("الفاتورة المعلّقة غير موجودة محليًا — حدّث الصفحة");
+        return;
+      }
+    });
+  }
+
+  function handleDiscardHeldCart(id: string) {
+    startHoldTransition(async () => {
+      const result = await discardHeldCartAction(id);
+      if (!result.success) {
+        playPosErrorSound();
+        toast.error(result.error);
+        return;
+      }
+      removeHeldCart(id);
+    });
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none bg-card text-card-foreground shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-border">
       <CustomerAttach
@@ -210,7 +281,8 @@ export function CartPanel({
                 <button
                   type="button"
                   className="max-w-28 truncate px-2 text-sm font-medium"
-                  onClick={() => resumeHeldCart(held.id)}
+                  onClick={() => handleResumeHeldCart(held.id)}
+                  disabled={holdPending}
                 >
                   {held.name}
                 </button>
@@ -254,10 +326,21 @@ export function CartPanel({
                   </div>
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {formatCurrency(line.unitPrice)} {line.saleUnit ? `/${line.saleUnit}` : t("each")}
+                    {line.saleInputMode === "by_amount" && line.enteredAmount != null
+                      ? ` · بالمبلغ ${formatCurrency(line.enteredAmount)}`
+                      : null}
                   </p>
                 </div>
                 <div className="mt-2.5 flex items-center justify-between gap-2 xl:mt-0 xl:flex-col xl:items-end xl:gap-1">
                   <div className="flex items-center gap-1 xl:gap-1.5">
+                    {line.saleInputMode ? (
+                      <span className="px-2 text-sm font-medium tabular-nums">
+                        {line.saleUnit === "kg"
+                          ? `${line.quantity.toFixed(3)} كجم`
+                          : line.quantity}
+                      </span>
+                    ) : (
+                      <>
                     <Button
                       variant="outline"
                       size="icon-xs"
@@ -279,6 +362,8 @@ export function CartPanel({
                     >
                       <Plus className="size-3.5 xl:size-4" />
                     </Button>
+                      </>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon-xs"
@@ -477,11 +562,11 @@ export function CartPanel({
             variant="ghost"
             size="sm"
             className="h-9 rounded-lg px-2.5 text-xs"
-            disabled={!hasCart}
-            onClick={() => holdCart(customer?.name)}
+            disabled={!hasCart || holdPending}
+            onClick={() => handleHoldCart()}
           >
             <Pause className="size-3.5" />
-            تعليق
+            {holdPending ? "جاري…" : "تعليق"}
           </Button>
           <Button
             type="button"
@@ -559,7 +644,7 @@ export function CartPanel({
         confirmLabel="حذف"
         destructive
         onConfirm={() => {
-          if (heldDeleteId) removeHeldCart(heldDeleteId);
+          if (heldDeleteId) handleDiscardHeldCart(heldDeleteId);
           setHeldDeleteId(null);
         }}
       />

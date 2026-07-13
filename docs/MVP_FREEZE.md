@@ -4,7 +4,9 @@
 **Sealed date:** 2026-07-11  
 **Rule:** No new features until after Pilot (Phase 4) except **P0 bugfixes** and Phase 0 quality polish already in flight.
 
-Companion plans: [PRODUCT_EXECUTION_PLAN.md](./PRODUCT_EXECUTION_PLAN.md) · [COMPLETION_PLAN.md](./COMPLETION_PLAN.md)
+**Architecture cross-ref (S00):** [MASTER_ARCHITECTURE.md](./MASTER_ARCHITECTURE.md) Phase 0–1 **P0 security / tenant isolation** (e.g. restore `platform_*`, invite gating, hardening) is **allowed** under this freeze as P0 security — not new product features. **SaaS billing** remains OUT (Phase 9). Written agreement: [MIGRATION_AUDIT.md](./MIGRATION_AUDIT.md) § S00-T5.
+
+Companion plans: [PRODUCT_EXECUTION_PLAN.md](./PRODUCT_EXECUTION_PLAN.md) · [COMPLETION_PLAN.md](./COMPLETION_PLAN.md) · [EXECUTION_PLAN.md](./EXECUTION_PLAN.md)
 
 ## IN scope (MVP — must work for Pilot)
 
@@ -21,7 +23,7 @@ Companion plans: [PRODUCT_EXECUTION_PLAN.md](./PRODUCT_EXECUTION_PLAN.md) · [CO
 | Expenses | List + wizard |
 | Online | Public QR menu `/menu/[slug]`, online orders fulfillment |
 | Reports | Existing sales/inventory/expenses/sessions/profit hubs and print routes |
-| Settings | Business, users/permissions, devices, branches, feature flags, Souqna if used |
+| Settings | Business, users/permissions, devices, branches, feature flags |
 | Print | `(print)` routes + POS receipt path |
 
 ## OUT of scope (defer past Pilot)
@@ -32,7 +34,9 @@ Companion plans: [PRODUCT_EXECUTION_PLAN.md](./PRODUCT_EXECUTION_PLAN.md) · [CO
 | Advanced loyalty / coupons / campaigns | |
 | Full P&L / tax export / aging reports polish | Beyond current report hubs |
 | Batch/expiry deep workflows | Foundations may exist; full ops UX later |
-| SaaS billing / multi-tenant super-admin polish | |
+| SaaS billing / plans / Stripe | Deferred Phase 9 — not platform table restore |
+| Platform control-plane **polish** beyond Phase 1 minimal suspend/invite/audit | After isolation MVP |
+| Souqna / marketplace resurrection | Out unless product re-approves (ADR-009) |
 | Broad brand rename of env/cookies/packages | Frozen per STABILIZATION_PLAN |
 | WhatsApp/SMS marketing automation | |
 | iPad as committed target | Best-effort only — see DEVICE_MATRIX |

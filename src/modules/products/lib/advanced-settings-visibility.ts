@@ -43,6 +43,12 @@ const ACTIVITY_VISIBILITY_OVERRIDES: Partial<
   ice_cream: {
     retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo"] },
   },
+  supermarket: {
+    retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo"] },
+  },
+  restaurant: {
+    retail_product: { add: ["batch_tracking", "expiry_tracking", "fefo"] },
+  },
 };
 
 function buildActivityTemplateVisibility(

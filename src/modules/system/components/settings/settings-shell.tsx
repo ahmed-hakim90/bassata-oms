@@ -19,8 +19,9 @@ import type {
   Store,
   Warehouse,
 } from "@/lib/types";
-import type { UserRole } from "@/lib/constants";
+import type { BusinessActivitySettings, UserRole } from "@/lib/constants";
 import { BusinessSettingsTab } from "@/modules/system/components/settings/business-settings-tab";
+import { ActivitySettingsTab } from "@/modules/system/components/settings/activity-settings-tab";
 import { BranchSettingsTab } from "@/modules/system/components/settings/branch-settings-tab";
 import { PosSessionSettingsTab } from "@/modules/system/components/settings/pos-session-settings-tab";
 import { ExpenseSettingsTab } from "@/modules/system/components/settings/expense-settings-tab";
@@ -44,6 +45,7 @@ export interface SettingsShellProps {
   canManageSessions: boolean;
   canManageExpenseSettings: boolean;
   canManageCostCenters: boolean;
+  receiptHeader: string;
   receiptFooter: string;
   settingsBundle: {
     org: {
@@ -51,6 +53,7 @@ export interface SettingsShellProps {
       taxRate: number;
       taxInclusive: boolean;
     };
+    businessActivity: BusinessActivitySettings;
     featureFlags: Record<FeatureFlag, boolean>;
     expenseSettings: ExpenseSettings;
     sessionSettings: SessionSettings;
@@ -109,6 +112,7 @@ export function SettingsShell({
   canManageSessions,
   canManageExpenseSettings,
   canManageCostCenters,
+  receiptHeader,
   receiptFooter,
   settingsBundle,
   sessionSettings,
@@ -158,7 +162,7 @@ export function SettingsShell({
       <PageHeader
         breadcrumb={<span>الإدارة · الإعدادات</span>}
         title="الإعدادات"
-        description="بيانات المتجر، الكاشير، المصروفات، المستخدمون، وإعدادات النظام"
+        description="بيانات المتجر، نوع النشاط، الكاشير، المصروفات، المستخدمون، وإعدادات النظام"
       />
       <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col space-y-6">
         <div className="min-w-0 space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-3 shadow-[var(--mds-elevation-1)] sm:p-4">
@@ -195,6 +199,9 @@ export function SettingsShell({
             <TabsContent value="business" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
               <BusinessSettingsTab org={bundle.org} />
             </TabsContent>
+            <TabsContent value="activity" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
+              <ActivitySettingsTab businessActivity={bundle.businessActivity} />
+            </TabsContent>
             <TabsContent value="branches" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
               <BranchSettingsTab
                 stores={bundle.stores}
@@ -214,6 +221,7 @@ export function SettingsShell({
               canManageSettings={canManageSettings}
               canManageSessions={canManageSessions}
               org={bundle?.org}
+              receiptHeader={receiptHeader}
               receiptFooter={receiptFooter}
               featureFlags={flags}
               sessionSettings={session}

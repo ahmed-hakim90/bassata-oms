@@ -40,8 +40,10 @@ interface PosState {
   setPaymentMethod: (method: PaymentMethod) => void;
   setPaymentSplits: (payments: PaymentSplit[]) => void;
   setSalesMode: (mode: SalesMode) => void;
+  setHeldCarts: (heldCarts: HeldCart[]) => void;
+  applyServerHold: (heldCart: HeldCart) => void;
   holdCart: (name?: string) => HeldCart | null;
-  resumeHeldCart: (id: string) => boolean;
+  resumeHeldCart: (id: string, parkedReplacement?: HeldCart | null) => boolean;
   removeHeldCart: (id: string) => void;
 }
 
@@ -66,8 +68,16 @@ export const usePosStore = create<PosState>((set, get) => ({
   salesMode: "retail",
 
   addItem: (line) => {
-    const id = line.id ?? `line-${line.productId}-${line.variantId ?? "base"}`;
-    const existing = get().cart.find((c) => c.id === id);
+    const isWeightOrAmountLine =
+      line.saleInputMode === "by_weight" || line.saleInputMode === "by_amount";
+    const id =
+      line.id ??
+      (isWeightOrAmountLine
+        ? `line-${line.productId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        : `line-${line.productId}-${line.variantId ?? "base"}`);
+    const existing = !isWeightOrAmountLine
+      ? get().cart.find((c) => c.id === id)
+      : undefined;
     if (existing) {
       set({
         cart: get().cart.map((c) =>
@@ -100,6 +110,11 @@ export const usePosStore = create<PosState>((set, get) => ({
           modifiers: line.modifiers,
           lineTotal,
           imageUrl: line.imageUrl,
+          saleUnit: line.saleUnit,
+          saleInputMode: line.saleInputMode,
+          enteredAmount: line.enteredAmount,
+          tierId: line.tierId,
+          wholesaleApplied: line.wholesaleApplied,
         },
       ],
     });
@@ -157,6 +172,24 @@ export const usePosStore = create<PosState>((set, get) => ({
   setPaymentSplits: (payments) => set({ paymentSplits: payments }),
   setSalesMode: (mode) => set({ salesMode: mode }),
 
+  setHeldCarts: (heldCarts) => set({ heldCarts }),
+
+  /** Persist succeeded — clear active cart and prepend server hold. */
+  applyServerHold: (heldCart) => {
+    set({
+      heldCarts: [heldCart, ...get().heldCarts.filter((h) => h.id !== heldCart.id)],
+      cart: [],
+      customer: null,
+      customerLoyaltyBalance: null,
+      loyaltyRedemption: null,
+      paymentMethod: "cash",
+      paymentSplits: [],
+      discountAmount: 0,
+      salesMode: "retail",
+    });
+  },
+
+  /** Local-only fallback (tests / offline UX). Prefer applyServerHold after server save. */
   holdCart: (name) => {
     const state = get();
     if (state.cart.length === 0) return null;
@@ -169,39 +202,17 @@ export const usePosStore = create<PosState>((set, get) => ({
       salesMode: state.salesMode,
       createdAt: new Date().toISOString(),
     };
-    set({
-      heldCarts: [heldCart, ...state.heldCarts],
-      cart: [],
-      customer: null,
-      customerLoyaltyBalance: null,
-      loyaltyRedemption: null,
-      paymentMethod: "cash",
-      paymentSplits: [],
-      discountAmount: 0,
-      salesMode: "retail",
-    });
+    get().applyServerHold(heldCart);
     return heldCart;
   },
 
-  resumeHeldCart: (id) => {
+  resumeHeldCart: (id, parkedReplacement = null) => {
     const state = get();
     const heldCart = state.heldCarts.find((h) => h.id === id);
     if (!heldCart) return false;
-    const currentHold =
-      state.cart.length > 0
-        ? {
-            id: `hold-${Date.now()}`,
-            name: `Hold ${state.heldCarts.length + 1}`,
-            cart: state.cart,
-            customer: state.customer,
-            discountAmount: state.discountAmount,
-            salesMode: state.salesMode,
-            createdAt: new Date().toISOString(),
-          }
-        : null;
     set({
       heldCarts: [
-        ...(currentHold ? [currentHold] : []),
+        ...(parkedReplacement ? [parkedReplacement] : []),
         ...state.heldCarts.filter((h) => h.id !== id),
       ],
       cart: heldCart.cart,

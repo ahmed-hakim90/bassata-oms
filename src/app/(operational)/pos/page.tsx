@@ -8,10 +8,13 @@ import {
   getExpenseSettings,
   getFeatureFlags,
   getSessionSettings,
+  getBusinessActivitySettings,
 } from "@/modules/system/services/settings.service";
+import { DEFAULT_BUSINESS_ACTIVITY_SETTINGS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getLoyaltyRule } from "@/modules/loyalty/services/loyalty.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
+import { listHeldCartsForPosDevice } from "@/modules/pos/services/held-cart.service";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import { loadSessionCashBundle } from "@/modules/sessions/services/reconciliation.service";
@@ -102,10 +105,12 @@ export default async function PosPage() {
     flags,
     expenseSettings,
     sessionSettings,
+    businessActivity,
     costCenters,
     expenseCategories,
     receiptBranding,
     allStores,
+    initialHeldCarts,
   ] = await Promise.all([
     readiness.cashierId
       ? settled(getActiveSession(storeId, readiness.cashierId), null, "session")
@@ -126,6 +131,7 @@ export default async function PosPage() {
       "expenseSettings"
     ),
     getSessionSettings(),
+    settled(getBusinessActivitySettings(), DEFAULT_BUSINESS_ACTIVITY_SETTINGS, "businessActivity"),
     settled(listCostCenters(storeId), [], "costCenters"),
     settled(listExpenseCategories(), [], "expenseCategories"),
     settled(
@@ -143,6 +149,13 @@ export default async function PosPage() {
       "receiptBranding"
     ),
     settled(storeRepo.listStores(), [], "stores"),
+    readiness.deviceId
+      ? settled(
+          listHeldCartsForPosDevice({ storeId, deviceId: readiness.deviceId }),
+          [],
+          "heldCarts"
+        )
+      : Promise.resolve([]),
   ]);
 
   const needsInventoryProducts =
@@ -242,6 +255,8 @@ export default async function PosPage() {
       storeDevices={[]}
       pendingOpeningFloat={pendingOpeningFloat}
       loadCatalogClient
+      enableVariants={businessActivity.enable_variants !== false}
+      initialHeldCarts={initialHeldCarts}
     />
   );
 }

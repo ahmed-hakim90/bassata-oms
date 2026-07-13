@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
@@ -39,6 +41,8 @@ export function ClosedSessionsTable({
   rows,
   showStoreColumn = false,
 }: ClosedSessionsTableProps) {
+  const router = useRouter();
+
   if (rows.length === 0) {
     return (
       <EmptyStateBlock
@@ -52,12 +56,13 @@ export function ClosedSessionsTable({
     <div className="flex flex-col gap-[var(--mds-space-3)]">
       <div className="grid gap-[var(--mds-space-3)] md:hidden">
         {rows.map(({ session, storeName, cashierName, closedByName }) => (
-          <div
+          <Link
             key={session.id}
-            className="rounded-[var(--mds-radius-md)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]"
+            href={`/sessions/${session.id}`}
+            className="rounded-[var(--mds-radius-md)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)] outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="font-medium">{cashierName}</p>
+              <p className="font-medium text-primary">{cashierName}</p>
               <Badge variant={session.force_closed ? "destructive" : "secondary"}>
                 {session.force_closed ? "إغلاق إجباري" : "مقفولة"}
               </Badge>
@@ -104,7 +109,8 @@ export function ClosedSessionsTable({
                 {closedByName ? ` · بواسطة ${closedByName}` : ""}
               </p>
             ) : null}
-          </div>
+            <p className="mt-2 text-xs text-primary">عرض الفواتير ←</p>
+          </Link>
         ))}
       </div>
 
@@ -127,72 +133,89 @@ export function ClosedSessionsTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map(({ session, storeName, cashierName, closedByName, deviceName }) => (
-                <TableRow
-                  key={session.id}
-                  className={cn(session.force_closed && "bg-destructive/5")}
-                >
-                  {showStoreColumn ? (
-                    <TableCell className="font-medium">{storeName}</TableCell>
-                  ) : null}
-                  <TableCell className="font-medium">{cashierName}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {deviceName ?? "—"}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {formatDateTime(session.opened_at)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {session.closed_at ? formatDateTime(session.closed_at) : "—"}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {formatCurrency(session.opening_cash)}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {session.expected_cash != null
-                      ? formatCurrency(session.expected_cash)
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {session.actual_cash != null
-                      ? formatCurrency(session.actual_cash)
-                      : "—"}
-                  </TableCell>
-                  <TableCell
+              {rows.map(({ session, storeName, cashierName, closedByName, deviceName }) => {
+                const href = `/sessions/${session.id}`;
+                return (
+                  <TableRow
+                    key={session.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => router.push(href)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        router.push(href);
+                      }
+                    }}
                     className={cn(
-                      "font-medium tabular-nums",
-                      session.variance != null &&
-                        session.variance !== 0 &&
-                        (session.variance > 0
-                          ? "text-amber-700 dark:text-amber-300"
-                          : "text-destructive")
+                      "cursor-pointer",
+                      session.force_closed && "bg-destructive/5"
                     )}
                   >
-                    {session.variance != null
-                      ? `${session.variance > 0 ? "+" : ""}${formatCurrency(session.variance)}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={session.force_closed ? "destructive" : "secondary"}>
-                      {session.force_closed ? "إغلاق إجباري" : "مقفولة"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[220px] text-sm text-muted-foreground">
-                    {session.force_closed && session.close_reason ? (
-                      <span>
-                        {session.close_reason}
-                        {closedByName ? (
-                          <span className="block text-xs">بواسطة {closedByName}</span>
-                        ) : null}
-                      </span>
-                    ) : session.notes ? (
-                      session.notes
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    {showStoreColumn ? (
+                      <TableCell className="font-medium">{storeName}</TableCell>
+                    ) : null}
+                    <TableCell className="font-medium text-primary">
+                      {cashierName}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {deviceName ?? "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatDateTime(session.opened_at)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {session.closed_at ? formatDateTime(session.closed_at) : "—"}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatCurrency(session.opening_cash)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {session.expected_cash != null
+                        ? formatCurrency(session.expected_cash)
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {session.actual_cash != null
+                        ? formatCurrency(session.actual_cash)
+                        : "—"}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        "font-medium tabular-nums",
+                        session.variance != null &&
+                          session.variance !== 0 &&
+                          (session.variance > 0
+                            ? "text-amber-700 dark:text-amber-300"
+                            : "text-destructive")
+                      )}
+                    >
+                      {session.variance != null
+                        ? `${session.variance > 0 ? "+" : ""}${formatCurrency(session.variance)}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={session.force_closed ? "destructive" : "secondary"}>
+                        {session.force_closed ? "إغلاق إجباري" : "مقفولة"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[220px] text-sm text-muted-foreground">
+                      {session.force_closed && session.close_reason ? (
+                        <span>
+                          {session.close_reason}
+                          {closedByName ? (
+                            <span className="block text-xs">بواسطة {closedByName}</span>
+                          ) : null}
+                        </span>
+                      ) : session.notes ? (
+                        session.notes
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </DataTableShell>

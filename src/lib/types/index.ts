@@ -138,6 +138,8 @@ export interface Product {
   image_url: string | null;
   is_active: boolean;
   is_popular: boolean;
+  /** Public online menu visibility (§8.2). Defaults false for raw; true for finished on create. */
+  show_on_online_menu?: boolean;
   track_inventory: boolean;
   product_type: ProductType;
   inventory_product_type?: ProductType;

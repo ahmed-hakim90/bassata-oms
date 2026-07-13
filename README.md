@@ -9,8 +9,10 @@ A premium multi-location retail operations system for ice cream shops, cafés, a
 - **Sessions** — Cashier shift open/close with cash reconciliation
 - **Customers & Loyalty** — Profiles, order history, points earn/redeem
 - **Reports** — Executive KPIs with Recharts dashboards
-- **Monthly Closing** — Period snapshots and lock workflow
+- **Online** — Public QR menu and first-party online orders
 - **System** — Settings, users/roles, audit logs, XLSX import/export
+
+> **Not live yet:** `/platform` UI (S02). Platform tables restored in S01 (`20260713133943`). Monthly closing was removed by cleanup. Souqna integrations (`030`/`031`) were dropped (ADR-009). See [docs/MASTER_ARCHITECTURE.md](docs/MASTER_ARCHITECTURE.md) and [docs/MIGRATION_AUDIT.md](docs/MIGRATION_AUDIT.md).
 
 ## Tech Stack
 
@@ -94,10 +96,11 @@ One-liner demo DB: `npm run db:reset-demo`
    - `supabase/migrations/026_checkout_wallet_credit.sql`
    - `supabase/migrations/027_split_payments.sql`
    - `supabase/migrations/028_expired_session_checkout_override.sql`
-   - `supabase/migrations/029_purchase_landed_cost.sql`
-   - `supabase/migrations/030_souqna_integration.sql`
-   - `supabase/migrations/031_souqna_provider_completion.sql`
+  - `supabase/migrations/029_purchase_landed_cost.sql`
+  - …then **all later** numbered and timestamped migrations via `supabase db push` / `db reset`
 3. Regenerate types: `npm run db:types` (after schema changes)
+
+> **Migration net state:** `030`/`031` (Souqna) dropped by cleanup. `039` platform tables dropped by cleanup then **restored** by `20260713133943_*` (S01). `/platform` UI wired in S02 via `PLATFORM_BOOTSTRAP_EMAILS`. Details: [docs/MIGRATION_AUDIT.md](docs/MIGRATION_AUDIT.md), [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 See [docs/PRODUCTION_PLAN.md](docs/PRODUCTION_PLAN.md), [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), and [docs/FEATURE_FLAGS.md](docs/FEATURE_FLAGS.md).
 4. Set environment variables in `.env.local` (see `.env.example`):
@@ -110,8 +113,7 @@ SweetFlow_COOKIE_SECRET=your-long-random-secret
 PLATFORM_BOOTSTRAP_EMAILS=admin@company.com
 ```
 
-`PLATFORM_BOOTSTRAP_EMAILS` is server-only. A signed-in Supabase Auth user whose email is listed
-there is auto-provisioned as a platform super admin and can access `/platform`.
+`PLATFORM_BOOTSTRAP_EMAILS` is server-only. Listed emails are upserted into `platform_admins` on first login to `/platform` (S02). Do **not** share the same list between staging and production.
 
 **Do not** run `supabase/seed.sql` on a real production database. Use seed + `npm run db:seed-auth` only on local/demo environments.
 
@@ -135,7 +137,7 @@ src/
 │   ├── customers/
 │   ├── loyalty/
 │   ├── reports/
-│   ├── monthly-closing/
+│   ├── online-orders/
 │   └── system/
 └── stores/               # Zustand client stores
 ```

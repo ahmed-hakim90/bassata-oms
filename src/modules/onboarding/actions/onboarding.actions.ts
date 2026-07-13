@@ -1,11 +1,12 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { createClient } from "@/lib/supabase/server";
-import { STORE_COOKIE } from "@/lib/auth/session";
+import { setActiveStoreCookie } from "@/lib/auth/session";
 import {
   initializeOrganization,
+  InviteTokenError,
   OwnerEmailAlreadyUsedError,
 } from "@/modules/onboarding/services/bootstrap.service";
 import {
@@ -25,7 +26,7 @@ export async function completeOnboardingAction(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? "Invalid onboarding data.",
+      error: parsed.error.issues[0]?.message ?? "بيانات التجهيز غير صالحة.",
     };
   }
 
@@ -39,26 +40,25 @@ export async function completeOnboardingAction(
     if (signInError) {
       return {
         success: false,
-        error: "Store created but sign-in failed. Please log in manually.",
+        error: "تم إنشاء الشركة، لكن تسجيل الدخول فشل. سجّل الدخول يدويًا.",
       };
     }
 
-    const cookieStore = await cookies();
-    cookieStore.set(STORE_COOKIE, result.storeId, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    await setActiveStoreCookie(result.storeId);
 
     redirect("/");
   } catch (error) {
+    // redirect() throws; must not be swallowed by the catch below.
+    if (isRedirectError(error)) throw error;
     if (error instanceof OwnerEmailAlreadyUsedError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof InviteTokenError) {
       return { success: false, error: error.message };
     }
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Onboarding failed.",
+      error: error instanceof Error ? error.message : "فشل التجهيز.",
     };
   }
 }

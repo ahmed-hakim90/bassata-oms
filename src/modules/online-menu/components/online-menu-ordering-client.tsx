@@ -104,10 +104,11 @@ function CategoryMark({ group, size = "sm" }: { group: Group; size?: "sm" | "lg"
 
 interface OnlineMenuOrderingClientProps {
   slug: string;
+  token?: string;
   menu: OnlineMenuData;
 }
 
-export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClientProps) {
+export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderingClientProps) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState<CustomerForm>({ name: "", phone: "", notes: "" });
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
@@ -235,6 +236,7 @@ export function OnlineMenuOrderingClient({ slug, menu }: OnlineMenuOrderingClien
       try {
         const result = await submitPublicOnlineOrderAction({
           slug,
+          token,
           customerName,
           customerPhone,
           notes: customer.notes,

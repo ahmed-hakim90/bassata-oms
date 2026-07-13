@@ -1,6 +1,6 @@
 # SweetFlow Design System
 
-Shared UI primitives live in [`src/components/sweetflow/`](../src/components/sweetflow/). Use them for consistent retail operations UX.
+Shared UI primitives live in [`src/components/SweetFlow/`](../src/components/SweetFlow/). Use them for consistent retail operations UX.
 
 ## Primitives
 

@@ -91,7 +91,7 @@ export async function createUser(input: {
   } catch (error) {
     try {
       if (appUserId) {
-        await admin.from("users").delete().eq("id", appUserId);
+        await admin.from("users").delete().eq("id", appUserId).eq("org_id", orgId);
       }
       await admin.auth.admin.deleteUser(authUserId);
     } catch {
@@ -295,6 +295,8 @@ export async function createStore(
       online_menu_enabled: true,
       online_menu_ordering_enabled: true,
       online_menu_slug: slug,
+      online_menu_token: crypto.randomUUID().replaceAll("-", ""),
+      online_menu_unlisted: false,
     },
   });
   await writeAuditLog({

@@ -29,6 +29,11 @@
     "verify:production": "node scripts/run-production-gate.mjs",
     "vercel:env": "node scripts/vercel-env-push.mjs",
     "vercel:deploy": "npx vercel deploy --prod --yes",
+    "ship": "node $HOME/.cursor/ship/cli.mjs ship",
+    "ship:dry": "node $HOME/.cursor/ship/cli.mjs dry",
+    "auto-ship:on": "node $HOME/.cursor/ship/cli.mjs on",
+    "auto-ship:off": "node $HOME/.cursor/ship/cli.mjs off",
+    "auto-ship:status": "node $HOME/.cursor/ship/cli.mjs status",
     "db:apply-016": "supabase db query --linked --yes -f supabase/migrations/016_supplier_payments.sql",
     "verify:db": "npm run verify:post-006 && npm run verify:inventory-crud && npm run verify:supplier-payments",
     "verify:security": "npm run verify:rls-policies"

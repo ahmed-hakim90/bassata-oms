@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,14 +21,29 @@ interface Props {
   }) => void;
 }
 
+function formatWeightPreview(quantityKg: number, unit: string): string {
+  if (unit === "kg" || unit === "gram") {
+    const grams = Math.round(quantityKg * 1000);
+    return `${quantityKg.toFixed(3)} كجم ≈ ${grams} جرام`;
+  }
+  return `${quantityKg.toFixed(3)} ${unit}`;
+}
+
 export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Props) {
+  const allowAmount = product?.supports_amount_sale === true;
   const [mode, setMode] = useState<"by_weight" | "by_amount">("by_weight");
   const [weight, setWeight] = useState("");
   const [amount, setAmount] = useState("");
 
+  useEffect(() => {
+    if (!open || !product) return;
+    setMode(product.supports_amount_sale === true ? "by_amount" : "by_weight");
+    setWeight("");
+    setAmount("");
+  }, [open, product]);
+
   const unitPrice = product?.base_price ?? 0;
   const unit = product?.sale_unit ?? "kg";
-  const allowAmount = product?.supports_amount_sale !== false;
   const quantity = useMemo(() => {
     if (mode === "by_weight") return Number(weight || 0);
     return quantityFromAmount(Number(amount || 0), unitPrice);
@@ -82,7 +97,7 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
             </div>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="pos-amount-input">المبلغ</Label>
+              <Label htmlFor="pos-amount-input">المبلغ اللي العميل عايزه</Label>
               <Input
                 id="pos-amount-input"
                 type="number"
@@ -97,7 +112,7 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
             </div>
           )}
           <p className="text-sm text-muted-foreground">
-            الكمية المحسوبة: {quantity.toFixed(3)} {unit}
+            الكمية: {quantity > 0 ? formatWeightPreview(quantity, unit) : "—"}
           </p>
           <div className="rounded-xl border border-border/60 bg-muted/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">الإجمالي</p>

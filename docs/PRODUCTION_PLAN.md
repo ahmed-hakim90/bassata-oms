@@ -4,6 +4,7 @@
 
 > **ترتيب التنفيذ الحالي (ملزم):** جودة الواجهة → اكتمال MVP + Feature Freeze → Stabilization (Smoke/Verify) → Infrastructure → Pilot.  
 > المصدر التشغيلي: [PRODUCT_EXECUTION_PLAN.md](./PRODUCT_EXECUTION_PLAN.md) · [ACCEPTANCE_CRITERIA.md](./ACCEPTANCE_CRITERIA.md) · [PERFORMANCE_BUDGET.md](./PERFORMANCE_BUDGET.md) · [ERROR_BUDGET.md](./ERROR_BUDGET.md) · [DEVICE_MATRIX.md](./DEVICE_MATRIX.md) · [MVP_FREEZE.md](./MVP_FREEZE.md)  
+> **سلطة المعمارية:** [MASTER_ARCHITECTURE.md](./MASTER_ARCHITECTURE.md) · التنفيذ اليومي: [EXECUTION_PLAN.md](./EXECUTION_PLAN.md) · حالة الهجرات: [MIGRATION_AUDIT.md](./MIGRATION_AUDIT.md)  
 > Go-live التشغيلي بعد الـ Freeze: [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) · [SMOKE_TEST.md](./SMOKE_TEST.md)
 
 ---
@@ -43,28 +44,27 @@ npm run smoke:check
 
 ### قائمة الهجرات (يجب تطبيقها بالترتيب)
 
-| # | ملف | ملاحظة |
-|---|-----|--------|
+طبّق **كل** ملفات `supabase/migrations/` عبر `supabase db push` (لا تتوقف عند قائمة يدوية).
+
+| # | ملف / نطاق | ملاحظة |
+|---|------------|--------|
 | 001–023 | أساس + RBAC + tenants + AR | إلزامي |
 | 025–029 | أمان P0 + split payments + landed cost | إلزامي |
-| **030** | `souqna_integration.sql` | إذا تستخدم Souqna |
-| **031** | `souqna_provider_completion.sql` | إذا تستخدم Souqna |
-| **032** | `fix_pairing_anon_grants.sql` | إلزامي — إصلاح أمان pairing |
-| **033** | `business_activity.sql` | إلزامي — الأنشطة، الجملة، المنتجات الوزنية |
-| **034** | `multi_org_onboarding.sql` | إلزامي — multi-org onboarding وتشديد tenant mutations |
-| **035** | `harden_security_definer_search_path.sql` | إلزامي — hardening |
-| **036** | `generalized_inventory_architecture.sql` | إلزامي — batch/expiry/serial foundations |
-| **037** | `p0_rls_and_audit_append_only.sql` | إلزامي — RLS + audit append-only |
-| **038** | `simplify_shelf_life_model.sql` | إلزامي — shelf-life value/unit |
+| **030–031** | Souqna | **أُنشئت ثم حُذفت** في cleanup — **ليست live** (ADR-009). لا تعتمد عليها في الإنتاج |
+| **032–038** | pairing / activity / inventory / RLS | إلزامي حيث وُجدت في المستودع |
+| **039** | platform admin console | **أُنشئت ثم حُذفت** في cleanup — **ليست live** حتى ADR-001 / S01 |
+| **cleanup** `20260612193243…` | إسقاط Souqna + platform_* + monthly_closes + online (مؤقتاً) | جزء من القطار — لا تحذف الملف |
+| **20260618*** | استعادة online menu/orders | online orders **موجودة** بعد الاستعادة |
+| لاحقاً | كل الهجرات المؤرّخة الأحدث | إلزامي |
 
-> **010** متعمّد تخطّيه — لا فجوة وظيفية.
+> **010** متعمّد تخطّيه — لا فجوة وظيفية.  
+> تفاصيل الحضور/الغياب: [MIGRATION_AUDIT.md](./MIGRATION_AUDIT.md).
 
 ```bash
 supabase link --project-ref <staging-ref>
 supabase db push
 npm run db:types   # بعد تغيير schema على remote
 ```
-
 ---
 
 ## المرحلة 1 — Staging
@@ -88,7 +88,7 @@ npm run db:types   # بعد تغيير schema على remote
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ server-only | ✅ server-only |
 | `SweetFlow_COOKIE_SECRET` | ✅ **قيمة مختلفة** عن prod | ✅ 32+ byte عشوائي |
 | `NEXT_PUBLIC_APP_URL` | `https://staging...` | `https://app...` |
-| `PLATFORM_BOOTSTRAP_EMAILS` | بريد الفريق | بريد المالك فقط — أزل لاحقاً |
+| `PLATFORM_BOOTSTRAP_EMAILS` | قائمة منفصلة عن prod | قائمة منفصلة — بوابة `/platform` |
 
 **لا تشارك** `SUPABASE_SERVICE_ROLE_KEY` أو `SweetFlow_COOKIE_SECRET` بين staging و production.
 
@@ -131,10 +131,10 @@ node scripts/verify-supplier-payments.mjs
 نفّذ **كامل** [SMOKE_TEST.md](./SMOKE_TEST.md) على staging وسجّل النتائج:
 
 - [ ] POS: جلسة → بيع → refund → expense → إغلاق
-- [ ] RBAC: cashier / viewer / inventory
-- [ ] Monthly close يمنع التعديلات
-- [ ] QR menu + online orders
-- [ ] (اختياري) Souqna: API key + webhook + استيراد طلب
+- [ ] RBAC: cashier / inventory (و owner/manager)
+- [ ] QR menu + online orders (first-party)
+- [ ] ~~Monthly close~~ — **غير live** (أُزيل في cleanup)
+- [ ] ~~Souqna~~ — **غير live** (أُزيل في cleanup؛ ADR-009)
 
 **مخرجات المرحلة 1:** تقرير «فجوات staging» — أي bug يُصلَح قبل production.
 
@@ -175,7 +175,7 @@ node scripts/verify-supplier-payments.mjs
 | `credit_sales` | **OFF** حتى تدريب AR |
 | `refunds`, `session_expenses` | ON بعد اختبار staging |
 | `receipt_printing`, `cash_drawer` | حسب الأجهزة |
-| Souqna channel | ON فقط بعد staging ناجح |
+| Souqna / marketplace channels | **OFF** — غير live بعد cleanup (ADR-009) |
 
 راجع [FEATURE_FLAGS.md](./FEATURE_FLAGS.md).
 
@@ -193,7 +193,7 @@ node scripts/verify-supplier-payments.mjs
 | T0 | `/onboarding` — المالك ينشئ المنظمة |
 | T+30m | إنشاء users + pairing أجهزة POS |
 | T+1h | بيع تجريبي + إغلاق جلسة |
-| T+2h | تفعيل Souqna / QR (إن مطلوب) |
+| T+2h | تفعيل QR menu / online orders إن مطلوب (ليس Souqna) |
 
 ### خطوات Cutover
 
@@ -204,11 +204,7 @@ node scripts/verify-supplier-payments.mjs
 5. **Devices** — pairing كل register
 6. **Products / Inventory** — استيراد XLSX أو إدخال يدوي
 7. **اختبار حي:** بيع نقدي → refund → close session
-8. **Souqna** (إن مفعّل):
-   - `NEXT_PUBLIC_APP_URL` = دومين prod
-   - Settings → Souqna → regenerate API key
-   - تسجيل webhook URL في Souqna
-   - Publish products + test order import
+8. **Online (first-party):** تحقق من `/menu/[slug]` وطلبات Online Orders — **لا** إعداد Souqna (محذوف)
 
 ### Rollback
 
@@ -225,9 +221,9 @@ node scripts/verify-supplier-payments.mjs
 ### أسبوع 1
 
 - [ ] مراقبة Vercel logs + Supabase logs يومياً
-- [ ] إزالة / تضييق `PLATFORM_BOOTSTRAP_EMAILS`
+- [ ] راجع `PLATFORM_BOOTSTRAP_EMAILS` — قائمة منفصلة لكل بيئة؛ لا تشاركها بين staging و production
 - [ ] تدوير أي credentials شُاركت أثناء الإعداد
-- [ ] تدريب المالك: monthly close، feature flags، device pairing
+- [ ] تدريب المالك: إغلاق جلسة الكاشير، feature flags، device pairing (ليس monthly close — غير live)
 - [ ] توثيق جهة اتصال الدعم
 
 ### مراقبة (موصى)
@@ -246,15 +242,9 @@ node scripts/verify-supplier-payments.mjs
 
 ---
 
-## Souqna — checklist إضافي
+## Souqna — مؤجّل (ليس live)
 
-- [ ] Migrations `030` + `031` على prod
-- [ ] `NEXT_PUBLIC_APP_URL` يطابق الدومين العام
-- [ ] API key + webhook secret في Settings (لا تُ commit)
-- [ ] `allowed_store_id` يطابق المتجر الصحيح
-- [ ] Test: `testSouqnaApiKeyAction` من Settings
-- [ ] Publish products → verify count في stats tab
-- [ ] طلب تجريبي من Souqna → يظهر في Online Orders
+Souqna migrations `030`/`031` ثم cleanup أسقط الجداول. **لا** checklist إنتاج لـ Souqna حتى موافقة منتج صريحة (ADR-009). القناة الحالية للطلبات أونلاين: first-party QR menu فقط.
 
 ---
 
@@ -268,7 +258,7 @@ node scripts/verify-supplier-payments.mjs
 | Staging smoke test | | ☐ |
 | Production cutover | | ☐ |
 | تدريب الكاشير | | ☐ |
-| Souqna webhook | | ☐ |
+| Platform control plane (بعد S01–S02) | | ☐ مؤجّل |
 
 ---
 
@@ -307,4 +297,4 @@ vercel --prod
 - [ ] Onboarding + جهاز POS + بيع حقيقي ناجح
 - [ ] Backups/PITR مفعّلة
 - [ ] خطة rollback موثّقة
-- [ ] المالك مدرب على الإغلاق الشهري والصلاحيات
+- [ ] المالك مدرب على الجلسات والصلاحيات (monthly close غير live)

@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => {
                 is_active: true,
                 product_type: "finished",
                 inventory_product_type: "finished_product",
+                show_on_online_menu: true,
               },
             ],
             error: null,

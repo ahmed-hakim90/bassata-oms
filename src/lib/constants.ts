@@ -116,8 +116,30 @@ export const PERMISSIONS = [
 ] as const;
 export type PermissionKey = (typeof PERMISSIONS)[number];
 
-export const BUSINESS_ACTIVITY_TYPES = ["cafe", "ice_cream", "juice_bar"] as const;
+/** Must match DB enum `business_activity_type` (no invented values). */
+export const BUSINESS_ACTIVITY_TYPES = [
+  "cafe",
+  "ice_cream",
+  "juice_bar",
+  "supermarket",
+  "restaurant",
+  "retail",
+  "wholesale",
+  "mixed",
+] as const;
 export type BusinessActivityType = (typeof BUSINESS_ACTIVITY_TYPES)[number];
+
+/** Shared Arabic labels — onboarding + Settings → Activity. */
+export const BUSINESS_ACTIVITY_TYPE_LABELS: Record<BusinessActivityType, string> = {
+  cafe: "كافيه / تيك أواي",
+  ice_cream: "آيس كريم",
+  juice_bar: "عصائر",
+  supermarket: "سوبر ماركت",
+  restaurant: "مطعم",
+  retail: "تجزئة",
+  wholesale: "جملة",
+  mixed: "تجزئة وجملة",
+};
 
 export const SALES_MODES = ["retail", "wholesale"] as const;
 export type SalesMode = (typeof SALES_MODES)[number];
@@ -370,6 +392,14 @@ export const FEATURE_FLAGS = [
   "recipes",
   "credit_sales",
 ] as const;
+/**
+ * Canonical editable/enforced flags (Settings + requireFeature).
+ * Not included (intentional):
+ * - online_menu / online_orders — stripped in cleanup; use store settings
+ * - monthly_closing — Future (period lock); orphan rows may linger in JSON
+ * - supermarket_mode / weight_sales / price_by_amount / wholesale_sales /
+ *   product_price_tiers / fixed_weight_variants — legacy; use business_activity
+ */
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
 
@@ -620,6 +650,97 @@ export const ACTIVITY_PRESETS: Record<
     enable_serial_tracking: false,
     featureFlags: { recipes: true },
   },
+  supermarket: {
+    activity_type: "supermarket",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: true,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: false,
+    enable_price_by_amount: true,
+    default_inventory_tracking_mode: "batch_and_expiry",
+    default_inventory_rotation_method: "FEFO",
+    default_expiry_policy: "block_sale",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
+    featureFlags: { recipes: false },
+  },
+  restaurant: {
+    activity_type: "restaurant",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    default_inventory_tracking_mode: "batch_and_expiry",
+    default_inventory_rotation_method: "FEFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
+    featureFlags: { recipes: true },
+  },
+  retail: {
+    activity_type: "retail",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    default_inventory_tracking_mode: "standard",
+    default_inventory_rotation_method: "FIFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
+    featureFlags: { recipes: false },
+  },
+  wholesale: {
+    activity_type: "wholesale",
+    enabled_sales_modes: ["wholesale"],
+    default_sales_mode: "wholesale",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: true,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    allow_cashier_wholesale: true,
+    require_manager_for_wholesale: false,
+    auto_apply_wholesale_by_quantity: true,
+    default_inventory_tracking_mode: "standard",
+    default_inventory_rotation_method: "FIFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: false,
+    enable_serial_tracking: false,
+    featureFlags: { recipes: false, credit_sales: true },
+  },
+  mixed: {
+    activity_type: "mixed",
+    enabled_sales_modes: ["retail", "wholesale"],
+    default_sales_mode: "retail",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: true,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    allow_cashier_wholesale: false,
+    require_manager_for_wholesale: true,
+    auto_apply_wholesale_by_quantity: false,
+    default_inventory_tracking_mode: "standard",
+    default_inventory_rotation_method: "FIFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
+    featureFlags: { recipes: false },
+  },
 };
 
 export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
@@ -677,6 +798,71 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
     },
     restaurant_ingredient: {
       shelf_life_value: 5,
+    },
+    packaging_material: {
+      inventory_tracking_mode: "standard",
+    },
+  }),
+  supermarket: productTemplateSet({
+    retail_product: {
+      inventory_tracking_mode: "batch_and_expiry",
+      inventory_rotation_method: "FEFO",
+      expiry_policy: "warn_only",
+      expiry_tracking_enabled: true,
+      shelf_life_value: 30,
+    },
+    supermarket_weight_product: {
+      shelf_life_value: 7,
+      allow_price_input: true,
+    },
+    packaging_material: {
+      inventory_tracking_mode: "standard",
+    },
+  }),
+  restaurant: productTemplateSet({
+    retail_product: {
+      inventory_tracking_mode: "batch_and_expiry",
+      inventory_rotation_method: "FEFO",
+      expiry_policy: "warn_only",
+      expiry_tracking_enabled: true,
+      shelf_life_value: 1,
+    },
+    supermarket_weight_product: {
+      shelf_life_value: 2,
+      allow_price_input: false,
+    },
+    restaurant_ingredient: {
+      shelf_life_value: 5,
+    },
+    packaging_material: {
+      inventory_tracking_mode: "standard",
+    },
+  }),
+  retail: productTemplateSet({
+    retail_product: {
+      expiry_policy: "warn_only",
+      expiry_tracking_enabled: true,
+      shelf_life_value: 30,
+    },
+    packaging_material: {
+      inventory_tracking_mode: "standard",
+    },
+  }),
+  wholesale: productTemplateSet({
+    retail_product: {
+      wholesale_enabled: true,
+      expiry_tracking_enabled: false,
+    },
+    packaging_material: {
+      inventory_tracking_mode: "standard",
+    },
+  }),
+  mixed: productTemplateSet({
+    retail_product: {
+      wholesale_enabled: true,
+      expiry_policy: "warn_only",
+      expiry_tracking_enabled: true,
+      shelf_life_value: 30,
     },
     packaging_material: {
       inventory_tracking_mode: "standard",

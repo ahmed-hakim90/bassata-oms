@@ -12,6 +12,7 @@ import {
   getSessionById,
 } from "@/modules/sessions/services/session.service";
 import {
+  batchWithdrawStoreCashierVaults,
   getCashierVault,
   getPendingOpeningFloat,
   withdrawFromCashierVault,
@@ -221,6 +222,24 @@ export async function withdrawCashierVaultAction(input: {
 
   revalidatePath("/sessions");
   return vault;
+}
+
+export async function batchWithdrawCashierVaultsAction(input: {
+  storeId: string;
+  notes?: string;
+  items?: Array<{ cashierId: string; withdrawAmount: number }>;
+}) {
+  await requirePermissionOrRole(["owner", "manager"]);
+  await requireStoreAccess(input.storeId);
+
+  const result = await batchWithdrawStoreCashierVaults({
+    storeId: input.storeId,
+    notes: input.notes,
+    items: input.items,
+  });
+
+  revalidatePath("/sessions");
+  return result;
 }
 
 export async function getCashierPendingFloatPreviewAction(storeId: string, cashierId: string) {

@@ -10,21 +10,30 @@ export const dynamic = "force-dynamic";
 
 type MenuPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ token?: string | string[] }>;
 };
 
-export async function generateMetadata({ params }: MenuPageProps): Promise<Metadata> {
+function firstSearchParam(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+export async function generateMetadata({ params, searchParams }: MenuPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const menu = await getOnlineMenuBySlug(slug);
-  if (!menu) return { title: "منيو أونلاين" };
+  const token = firstSearchParam((await searchParams).token);
+  const menu = await getOnlineMenuBySlug(slug, { token });
+  if (!menu) return { title: "منيو أونلاين", robots: { index: false, follow: false } };
   return {
     title: `منيو ${menu.store.name}`,
     description: menu.store.description || `المنيو العام لـ ${menu.store.name}`,
+    robots: token ? { index: false, follow: false } : undefined,
   };
 }
 
-export default async function OnlineMenuPage({ params }: MenuPageProps) {
+export default async function OnlineMenuPage({ params, searchParams }: MenuPageProps) {
   const { slug } = await params;
-  const menu = await getOnlineMenuBySlug(slug);
+  const token = firstSearchParam((await searchParams).token);
+  const menu = await getOnlineMenuBySlug(slug, { token });
   if (!menu) notFound();
   const logoUrl = menu.store.logoUrl ?? menu.organization.logoUrl;
 
@@ -90,7 +99,7 @@ export default async function OnlineMenuPage({ params }: MenuPageProps) {
           </section>
         ) : null}
 
-        <OnlineMenuOrderingClient slug={slug} menu={menu} />
+        <OnlineMenuOrderingClient slug={slug} token={token} menu={menu} />
       </div>
     </main>
   );

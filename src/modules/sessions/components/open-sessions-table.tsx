@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
@@ -45,6 +47,8 @@ export function OpenSessionsTable({
   allowManagerForceClose,
   showStoreColumn = false,
 }: OpenSessionsTableProps) {
+  const router = useRouter();
+
   if (summaries.length === 0) {
     return (
       <EmptyStateBlock
@@ -65,24 +69,33 @@ export function OpenSessionsTable({
             !isCurrentCashier &&
             (summary.lifecycle === "warning" || summary.lifecycle === "expired_locked");
           return (
-            <div key={summary.session.id} className="rounded-[var(--mds-radius-md)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="font-medium">{summary.cashierName}</p>
-                <SessionLifecycleBadge lifecycle={summary.lifecycle} />
-              </div>
-              {showStoreColumn ? (
-                <p className="mb-2 text-xs text-muted-foreground">{summary.storeName}</p>
-              ) : null}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <p className="text-muted-foreground">الفتح</p>
-                <p>{formatOpened(summary.openedAt)}</p>
-                <p className="text-muted-foreground">المدة</p>
-                <p>{summary.durationLabel}</p>
-                <p className="text-muted-foreground">المبيعات</p>
-                <p>{formatCurrency(summary.totalSales)}</p>
-                <p className="text-muted-foreground">النقدية المتوقعة</p>
-                <p>{formatCurrency(summary.expectedCash)}</p>
-              </div>
+            <div
+              key={summary.session.id}
+              className="rounded-[var(--mds-radius-md)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]"
+            >
+              <Link
+                href={`/sessions/${summary.session.id}`}
+                className="block rounded-[var(--mds-radius-sm)] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="font-medium text-primary">{summary.cashierName}</p>
+                  <SessionLifecycleBadge lifecycle={summary.lifecycle} />
+                </div>
+                {showStoreColumn ? (
+                  <p className="mb-2 text-xs text-muted-foreground">{summary.storeName}</p>
+                ) : null}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <p className="text-muted-foreground">الفتح</p>
+                  <p>{formatOpened(summary.openedAt)}</p>
+                  <p className="text-muted-foreground">المدة</p>
+                  <p>{summary.durationLabel}</p>
+                  <p className="text-muted-foreground">المبيعات</p>
+                  <p>{formatCurrency(summary.totalSales)}</p>
+                  <p className="text-muted-foreground">النقدية المتوقعة</p>
+                  <p>{formatCurrency(summary.expectedCash)}</p>
+                </div>
+                <p className="mt-2 text-xs text-primary">عرض الفواتير ←</p>
+              </Link>
               <div className="mt-3 text-xs">
                 {showForceClose ? (
                   <ForceCloseSessionDialog summary={summary} />
@@ -127,11 +140,22 @@ export function OpenSessionsTable({
                   allowManagerForceClose &&
                   !isCurrentCashier &&
                   (summary.lifecycle === "warning" || summary.lifecycle === "expired_locked");
+                const href = `/sessions/${summary.session.id}`;
 
                 return (
                   <TableRow
                     key={summary.session.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => router.push(href)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        router.push(href);
+                      }
+                    }}
                     className={cn(
+                      "cursor-pointer",
                       summary.lifecycle === "expired_locked" && "bg-destructive/5",
                       summary.lifecycle === "warning" && "bg-amber-50/70 dark:bg-amber-500/10"
                     )}
@@ -139,7 +163,9 @@ export function OpenSessionsTable({
                     {showStoreColumn ? (
                       <TableCell className="font-medium">{summary.storeName}</TableCell>
                     ) : null}
-                    <TableCell className="font-medium">{summary.cashierName}</TableCell>
+                    <TableCell className="font-medium text-primary">
+                      {summary.cashierName}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{summary.deviceName ?? "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{formatOpened(summary.openedAt)}</TableCell>
                     <TableCell className="tabular-nums">{summary.durationLabel}</TableCell>
@@ -158,13 +184,17 @@ export function OpenSessionsTable({
                     <TableCell>
                       <SessionLifecycleBadge lifecycle={summary.lifecycle} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                       {showForceClose ? (
                         <ForceCloseSessionDialog summary={summary} />
-                      ) : isCurrentCashier ? (
-                        <span className="text-xs text-muted-foreground">اقفل من الأسفل</span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <Link
+                          href={href}
+                          className="text-xs font-medium text-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          عرض الفواتير
+                        </Link>
                       )}
                     </TableCell>
                   </TableRow>

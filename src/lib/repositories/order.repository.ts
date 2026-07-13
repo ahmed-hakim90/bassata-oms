@@ -250,6 +250,8 @@ export async function completeCheckoutSplitRpc(input: {
   subtotal: number;
   tax: number;
   total: number;
+  payment_status?: "paid" | "unpaid" | "partial";
+  credit_amount?: number;
 }> {
   const { data, error } = await callRpc<Record<string, unknown>>("complete_checkout_split", {
     p_store_id: input.storeId,
@@ -271,6 +273,14 @@ export async function completeCheckoutSplitRpc(input: {
     subtotal: Number(result.subtotal),
     tax: Number(result.tax),
     total: Number(result.total),
+    payment_status:
+      result.payment_status === "paid" ||
+      result.payment_status === "unpaid" ||
+      result.payment_status === "partial"
+        ? result.payment_status
+        : undefined,
+    credit_amount:
+      result.credit_amount !== undefined ? Number(result.credit_amount) : undefined,
   };
 }
 
@@ -344,6 +354,8 @@ export async function completeCheckoutSplitExpiredOverrideRpc(input: {
   subtotal: number;
   tax: number;
   total: number;
+  payment_status?: "paid" | "unpaid" | "partial";
+  credit_amount?: number;
 }> {
   const { data, error } = await callRpc<Record<string, unknown>>(
     "complete_checkout_split_expired_override",
@@ -368,6 +380,14 @@ export async function completeCheckoutSplitExpiredOverrideRpc(input: {
     subtotal: Number(result.subtotal),
     tax: Number(result.tax),
     total: Number(result.total),
+    payment_status:
+      result.payment_status === "paid" ||
+      result.payment_status === "unpaid" ||
+      result.payment_status === "partial"
+        ? result.payment_status
+        : undefined,
+    credit_amount:
+      result.credit_amount !== undefined ? Number(result.credit_amount) : undefined,
   };
 }
 
@@ -402,4 +422,59 @@ export async function completeUnpaidCheckoutRpc(input: {
     tax: Number(result.tax),
     total: Number(result.total),
   };
+}
+
+export type OrderReverseRpcResult = {
+  order_id: string;
+  status: string;
+  order_number: string;
+  total: number;
+  restock: {
+    restocked: boolean;
+    restock_movement_count: number;
+    restock_quantity_total: number;
+    credit_reversed: number;
+    reference_type: string;
+  };
+};
+
+function mapOrderReverseRpc(data: Record<string, unknown>): OrderReverseRpcResult {
+  const restock = (data.restock ?? {}) as Record<string, unknown>;
+  return {
+    order_id: data.order_id as string,
+    status: data.status as string,
+    order_number: data.order_number as string,
+    total: Number(data.total),
+    restock: {
+      restocked: Boolean(restock.restocked),
+      restock_movement_count: Number(restock.restock_movement_count ?? 0),
+      restock_quantity_total: Number(restock.restock_quantity_total ?? 0),
+      credit_reversed: Number(restock.credit_reversed ?? 0),
+      reference_type: String(restock.reference_type ?? ""),
+    },
+  };
+}
+
+export async function refundOrderRpc(input: {
+  orderId: string;
+  actorId?: string | null;
+}): Promise<OrderReverseRpcResult> {
+  const { data, error } = await callRpc<Record<string, unknown>>("refund_order", {
+    p_order_id: input.orderId,
+    p_actor_id: input.actorId ?? null,
+  });
+  if (error) throwDbError(error, "refundOrder");
+  return mapOrderReverseRpc((data ?? {}) as Record<string, unknown>);
+}
+
+export async function voidOrderRpc(input: {
+  orderId: string;
+  actorId?: string | null;
+}): Promise<OrderReverseRpcResult> {
+  const { data, error } = await callRpc<Record<string, unknown>>("void_order", {
+    p_order_id: input.orderId,
+    p_actor_id: input.actorId ?? null,
+  });
+  if (error) throwDbError(error, "voidOrder");
+  return mapOrderReverseRpc((data ?? {}) as Record<string, unknown>);
 }

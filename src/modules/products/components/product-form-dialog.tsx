@@ -46,6 +46,7 @@ const productSchema = z.object({
   sale_price: z.number().min(0).nullable(),
   is_active: z.boolean(),
   is_popular: z.boolean(),
+  show_on_online_menu: z.boolean(),
   track_inventory: z.boolean(),
   product_type: z.enum(PRODUCT_TYPES),
   inventory_tracking_mode: z.enum(INVENTORY_TRACKING_MODES),
@@ -106,6 +107,7 @@ export function ProductFormDialog({
       sale_price: null,
       is_active: true,
       is_popular: false,
+      show_on_online_menu: true,
       track_inventory: true,
       product_type: "finished_product",
       inventory_tracking_mode: "standard",
@@ -154,6 +156,7 @@ export function ProductFormDialog({
         sale_price: product.sale_price,
         is_active: product.is_active,
         is_popular: product.is_popular,
+        show_on_online_menu: product.show_on_online_menu ?? true,
         track_inventory: product.track_inventory,
         product_type: product.product_type,
         inventory_tracking_mode: product.inventory_tracking_mode ?? "standard",
@@ -182,6 +185,7 @@ export function ProductFormDialog({
         sale_price: null,
         is_active: true,
         is_popular: false,
+        show_on_online_menu: true,
         track_inventory: true,
         product_type: "finished_product",
         inventory_tracking_mode: "standard",
@@ -225,7 +229,10 @@ export function ProductFormDialog({
     (productType === "finished_product" || productType === "finished") &&
     Boolean(product);
   const showVariantsTab =
-    isEdit && (productType === "finished_product" || productType === "finished") && Boolean(product);
+    businessActivitySettings.enable_variants &&
+    isEdit &&
+    (productType === "finished_product" || productType === "finished") &&
+    Boolean(product);
 
   async function onSubmit(values: ProductFormValues) {
     try {
@@ -298,6 +305,7 @@ export function ProductFormDialog({
               isEdit={isEdit}
               currency={currency}
               activityType={businessActivitySettings.activity_type}
+              enablePriceByAmount={businessActivitySettings.enable_price_by_amount}
               onCancel={() => onOpenChange(false)}
               onSubmit={onSubmit}
               onImageFileChange={setImageFile}

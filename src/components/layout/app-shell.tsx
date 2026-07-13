@@ -30,8 +30,8 @@ export function AppShell({
   posReadinessState,
 }: AppShellProps) {
   return (
-    <div className="flex h-full bg-[var(--mds-color-bg-canvas)]">
-      <div className="hidden h-full shrink-0 overflow-hidden md:flex">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-[var(--mds-color-bg-canvas)]">
+      <div className="hidden h-full min-h-0 shrink-0 overflow-hidden md:flex">
         <AppSidebar userRole={userRole} featureFlags={featureFlags} permissions={permissions} />
       </div>
 

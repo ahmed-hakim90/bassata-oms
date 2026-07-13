@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# auto-ship runtime state / reports (hooks + npm run ship)
+.cursor/ship-state.json
+.cursor/ship-reports/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

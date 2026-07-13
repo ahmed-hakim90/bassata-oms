@@ -5,6 +5,11 @@ import * as orderRepo from "@/lib/repositories/order.repository";
 import * as settingsService from "@/modules/system/services/settings.service";
 import * as loyaltyService from "@/modules/loyalty/services/loyalty.service";
 
+vi.mock("next/server", () => ({
+  after: (fn: () => void) => {
+    fn();
+  },
+}));
 vi.mock("@/lib/repositories/session.repository");
 vi.mock("@/lib/repositories/order.repository");
 vi.mock("@/modules/system/services/settings.service");
@@ -315,6 +320,79 @@ describe("completeCheckout session expiry", () => {
       })
     );
     expect(orderRepo.completeCheckoutRpc).not.toHaveBeenCalled();
+  });
+
+  it("uses split RPC payment_status for partial credit checkout", async () => {
+    vi.mocked(sessionRepo.getSession).mockResolvedValue({
+      id: "s1",
+      store_id: "store1",
+      device_id: null,
+      cashier_id: "c1",
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+      opening_cash: 0,
+      expected_cash: null,
+      actual_cash: null,
+      variance: null,
+      status: "open",
+      notes: null,
+      closed_by: null,
+      close_reason: null,
+      force_closed: false,
+    });
+    vi.mocked(orderRepo.completeCheckoutSplitRpc).mockResolvedValue({
+      order_id: "o1",
+      order_number: "SF-002",
+      subtotal: 100,
+      tax: 0,
+      total: 100,
+      payment_status: "partial",
+      credit_amount: 40,
+    });
+    vi.mocked(settingsService.isFeatureEnabled).mockResolvedValue(false);
+
+    const result = await completeCheckout({
+      storeId: "store1",
+      sessionId: "s1",
+      cashierId: "c1",
+      cart: [
+        {
+          ...cartLine,
+          lineTotal: 100,
+          unitPrice: 100,
+        },
+      ],
+      customer: {
+        id: "cust-1",
+        org_id: "org-1",
+        name: "Mona",
+        phone: "010",
+        email: null,
+        total_spent: 0,
+        visit_count: 0,
+        account_balance: 0,
+        credit_limit: 500,
+        payment_terms: "",
+        notes: "",
+        created_at: new Date().toISOString(),
+      },
+      paymentMethod: "cash",
+      payments: [
+        { method: "cash", amount: 60 },
+        { method: "credit", amount: 40 },
+      ],
+    });
+
+    expect(orderRepo.completeCheckoutSplitRpc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: "cust-1",
+        payments: [
+          { method: "cash", amount: 60 },
+          { method: "credit", amount: 40 },
+        ],
+      })
+    );
+    expect(result.order.payment_status).toBe("partial");
   });
 
   it("rejects an empty cart before checkout RPC", async () => {

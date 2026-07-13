@@ -47,6 +47,8 @@ describe("forceCloseSessionAction", () => {
       cashRefunds: 0,
       expenses: 10,
       expectedCash: 140,
+      totalSales: 50,
+      orderCount: 1,
     });
   });
 
@@ -164,6 +166,8 @@ describe("closeSessionAction authorization", () => {
       cashRefunds: 0,
       expenses: 0,
       expectedCash: 0,
+      totalSales: 0,
+      orderCount: 0,
     });
   });
 

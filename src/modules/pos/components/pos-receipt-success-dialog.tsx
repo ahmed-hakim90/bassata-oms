@@ -11,15 +11,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format";
-import { useTranslation } from "@/lib/i18n/use-translation";
 import {
   ReceiptPrint,
   triggerReceiptPrint,
 } from "@/modules/pos/components/receipt-print";
-import {
-  getReceiptSubtotal,
-  type ReceiptPayload,
-} from "@/modules/pos/services/receipt-format.service";
+import { ReceiptBrandingPreview } from "@/modules/pos/components/receipt-branding-preview";
+import { type ReceiptPayload } from "@/modules/pos/services/receipt-format.service";
 
 interface PosReceiptSuccessDialogProps {
   open: boolean;
@@ -38,11 +35,8 @@ export function PosReceiptSuccessDialog({
   onBrowserPrint,
   onWhatsApp,
 }: PosReceiptSuccessDialogProps) {
-  const { t } = useTranslation();
-
   if (!receipt) return null;
 
-  const subtotal = getReceiptSubtotal(receipt);
   const currency = receipt.branding.currency;
 
   function handleBrowserPrint() {
@@ -86,71 +80,7 @@ export function PosReceiptSuccessDialog({
           </DialogHeader>
 
           <div className="max-h-[min(42dvh,320px)] overflow-y-auto px-4 py-3">
-            <div className="mx-auto w-full max-w-[72mm] rounded-xl border border-dashed border-border bg-muted/30 p-3 font-mono text-[11px] leading-snug text-foreground">
-              <p className="text-center font-bold">
-                {receipt.branding.orgName || "CafeFlow POS"}
-              </p>
-              {receipt.branding.storeName ? (
-                <p className="text-center text-xs">{receipt.branding.storeName}</p>
-              ) : null}
-              {receipt.branding.storePhone ? (
-                <p className="text-center text-xs" dir="ltr">
-                  {receipt.branding.storePhone}
-                </p>
-              ) : null}
-              <p className="mt-2 text-center text-xs">
-                {t("Order #")} {receipt.orderNumber}
-              </p>
-              {receipt.customer ? (
-                <p className="text-center text-xs">
-                  {t("Customer")}: {receipt.customer.name}
-                </p>
-              ) : null}
-              <hr className="my-3 border-dashed" />
-              <ul className="space-y-2">
-                {receipt.lines.map((line) => (
-                  <li key={line.id}>
-                    <div className="flex justify-between gap-2">
-                      <span className="min-w-0">
-                        {line.name}
-                        <br />
-                        {line.quantity} × {formatCurrency(line.unitPrice, currency)}
-                      </span>
-                      <span className="shrink-0">
-                        {formatCurrency(line.lineTotal, currency)}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <hr className="my-3 border-dashed" />
-              <div className="flex justify-between">
-                <span>{t("Subtotal")}</span>
-                <span>{formatCurrency(subtotal, currency)}</span>
-              </div>
-              {receipt.discount > 0 ? (
-                <div className="flex justify-between">
-                  <span>{t("Discount")}</span>
-                  <span>-{formatCurrency(receipt.discount, currency)}</span>
-                </div>
-              ) : null}
-              <div className="flex justify-between font-bold">
-                <span>
-                  {t("Total")} ({t(receipt.paymentMethod)})
-                </span>
-                <span>{formatCurrency(receipt.total, currency)}</span>
-              </div>
-              {receipt.payments.length > 1 ? (
-                <div className="mt-2 space-y-1 text-xs">
-                  {receipt.payments.map((payment, index) => (
-                    <div key={`${payment.method}-${index}`} className="flex justify-between">
-                      <span>{t(payment.method)}</span>
-                      <span>{formatCurrency(payment.amount, currency)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            <ReceiptBrandingPreview receipt={receipt} />
           </div>
 
           <div className="grid gap-2 border-t border-border/70 p-4">

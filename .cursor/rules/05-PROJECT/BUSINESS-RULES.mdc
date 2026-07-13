@@ -17,6 +17,7 @@ alwaysApply: true
 - Never invent tables, columns, permissions, or feature flags
 - Prefer existing services/repos; write audit logs when the domain already audits
 - Soft rules around stock, purchasing, and sessions — read the service before changing math
+- **Business activity** (`activity_type`) is configuration (ADR-006): owners/managers may change it from Settings after onboarding via confirm dialog before preset apply — do not invent industry-specific tables
 
 ## UX copy
 

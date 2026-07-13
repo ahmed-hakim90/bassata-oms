@@ -2,9 +2,11 @@ import { z } from "zod";
 import {
   ACTIVITY_PRESETS,
   BUSINESS_ACTIVITY_TYPES,
-  FEATURE_FLAGS,
+  type BusinessActivitySettings,
   type BusinessActivityType,
+  type FeatureFlag,
 } from "@/lib/constants";
+import { buildBusinessActivityFeatureFlags } from "@/lib/business-activity-flags";
 
 export const ONBOARDING_FEATURE_KEYS = [
   "recipes",
@@ -24,6 +26,12 @@ export type OnboardingFeatureKey = (typeof ONBOARDING_FEATURE_KEYS)[number];
 const businessTypeSchema = z.enum(BUSINESS_ACTIVITY_TYPES);
 
 export const onboardingPayloadSchema = z.object({
+  /** Plaintext invite from platform; required in production (enforced in bootstrap). */
+  inviteToken: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
   organization: z.object({
     name: z.string().min(2, "اسم المؤسسة مطلوب"),
     logoUrl: z.string().optional(),
@@ -31,6 +39,7 @@ export const onboardingPayloadSchema = z.object({
     timezone: z.string().min(1).default("Africa/Cairo"),
     country: z.string().min(1, "الدولة مطلوبة"),
     taxEnabled: z.boolean(),
+    /** Percentage 0–100 in the wizard; bootstrap converts to fraction for settings. */
     taxRate: z.number().min(0).max(100),
     taxInclusive: z.boolean(),
   }),
@@ -51,6 +60,7 @@ export const onboardingPayloadSchema = z.object({
       cash: z.boolean(),
       card: z.boolean(),
       wallet: z.boolean(),
+      /** Kept for schema compat; bootstrap uses features.credit_sales as source of truth. */
       credit: z.boolean(),
       manualWallet: z.boolean(),
     }),
@@ -97,9 +107,11 @@ export const onboardingPayloadSchema = z.object({
 
 export type OnboardingPayload = z.infer<typeof onboardingPayloadSchema>;
 
+/** Feature toggles shown in Settings → System Features / POS (same keys). */
 export function mapOnboardingFeaturesToFlags(
-  features: Record<OnboardingFeatureKey, boolean>
-): Partial<Record<(typeof FEATURE_FLAGS)[number], boolean>> {
+  features: Record<OnboardingFeatureKey, boolean>,
+  options?: { taxEnabled?: boolean; preventNegativeStock?: boolean }
+): Partial<Record<FeatureFlag, boolean>> {
   return {
     recipes: features.recipes,
     purchases: features.purchases,
@@ -111,10 +123,38 @@ export function mapOnboardingFeaturesToFlags(
     credit_sales: features.credit_sales,
     imports_exports: features.imports_exports,
     barcode_scanner: features.barcode_scanner,
+    ...(typeof options?.taxEnabled === "boolean" ? { tax: options.taxEnabled } : {}),
+    ...(typeof options?.preventNegativeStock === "boolean"
+      ? { prevent_negative_stock: options.preventNegativeStock }
+      : {}),
   };
 }
 
-export function mapBusinessTypeToActivity(type: BusinessActivityType) {
+/** Prefill onboarding feature checkboxes from activity preset. */
+export function defaultOnboardingFeaturesForActivity(
+  type: BusinessActivityType
+): Record<OnboardingFeatureKey, boolean> {
+  const preset = ACTIVITY_PRESETS[type];
+  const managed = buildBusinessActivityFeatureFlags({ activity_type: type });
+  const base = {
+    ...Object.fromEntries(
+      ONBOARDING_FEATURE_KEYS.map((key) => [key, key !== "credit_sales"])
+    ),
+  } as Record<OnboardingFeatureKey, boolean>;
+
+  return {
+    ...base,
+    variants: preset.enable_variants ?? true,
+    recipes: managed.recipes ?? base.recipes,
+    barcode_scanner: managed.barcode_scanner ?? base.barcode_scanner,
+    credit_sales: managed.credit_sales ?? base.credit_sales,
+  };
+}
+
+export function mapBusinessTypeToActivity(
+  type: BusinessActivityType,
+  options?: { enableVariants?: boolean }
+): BusinessActivitySettings {
   const preset = ACTIVITY_PRESETS[type];
   return {
     activity_type: type,
@@ -123,10 +163,42 @@ export function mapBusinessTypeToActivity(type: BusinessActivityType) {
     enable_weight_sales: preset.enable_weight_sales ?? false,
     enable_piece_sales: preset.enable_piece_sales ?? true,
     enable_wholesale_sales: preset.enable_wholesale_sales ?? false,
-    enable_variants: preset.enable_variants ?? true,
+    enable_variants: options?.enableVariants ?? preset.enable_variants ?? true,
     enable_price_by_amount: preset.enable_price_by_amount ?? false,
     allow_cashier_wholesale: preset.allow_cashier_wholesale ?? false,
     require_manager_for_wholesale: preset.require_manager_for_wholesale ?? true,
     auto_apply_wholesale_by_quantity: preset.auto_apply_wholesale_by_quantity ?? false,
+    default_inventory_tracking_mode:
+      preset.default_inventory_tracking_mode ?? "standard",
+    default_inventory_rotation_method:
+      preset.default_inventory_rotation_method ?? "FIFO",
+    default_expiry_policy: preset.default_expiry_policy ?? "warn_only",
+    enable_batch_tracking: preset.enable_batch_tracking ?? true,
+    enable_expiry_tracking: preset.enable_expiry_tracking ?? true,
+    enable_serial_tracking: preset.enable_serial_tracking ?? false,
+    expiry_alert_days: preset.expiry_alert_days ?? [7, 14, 30],
+  };
+}
+
+/**
+ * Build feature_flags payload matching Settings reads:
+ * module toggles + tax/prevent_negative_stock + activity-managed barcode.
+ */
+export function buildOnboardingFeatureFlags(
+  payload: Pick<
+    OnboardingPayload,
+    "features" | "organization" | "defaultSettings" | "businessType"
+  >
+): Partial<Record<FeatureFlag, boolean>> {
+  const fromFeatures = mapOnboardingFeaturesToFlags(payload.features, {
+    taxEnabled: payload.organization.taxEnabled,
+    preventNegativeStock: payload.defaultSettings.preventNegativeStock,
+  });
+  const managed = buildBusinessActivityFeatureFlags({
+    activity_type: payload.businessType,
+  });
+  return {
+    ...fromFeatures,
+    barcode_scanner: managed.barcode_scanner ?? fromFeatures.barcode_scanner,
   };
 }

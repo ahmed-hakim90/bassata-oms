@@ -8,10 +8,17 @@ import * as permissionRepo from "@/lib/repositories/permission.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import {
   CASHIER_COOKIE,
+  clearActiveStoreCookie,
+  getActiveStoreId,
   getCurrentUser,
   REGISTERED_DEVICE_COOKIE,
+  setActiveStoreCookie,
   STORE_COOKIE,
 } from "@/lib/auth/session";
+import {
+  resolvePlatformAdmin,
+  type PlatformAdmin,
+} from "@/modules/platform/services/platform-admin.service";
 
 export class AuthError extends Error {
   constructor(
@@ -28,6 +35,15 @@ export async function requireAuth(): Promise<AppUser> {
   if (!appUser) throw new AuthError("Not authenticated", 401);
   if (!appUser.is_active) throw new AuthError("User not found or inactive", 401);
   return appUser;
+}
+
+/** Platform control plane only — service_role-backed platform_admins (+ env bootstrap). */
+export async function requirePlatformAdmin(): Promise<PlatformAdmin> {
+  const admin = await resolvePlatformAdmin();
+  if (!admin) {
+    throw new AuthError("مفيش صلاحية لمنصة الإدارة", 403);
+  }
+  return admin;
 }
 
 export async function requireRole(roles: UserRole[]): Promise<AppUser> {
@@ -128,8 +144,7 @@ export async function requireActiveSession(storeId: string) {
 
 export async function getValidatedActiveStoreId(): Promise<string> {
   const user = await requireAuth();
-  const cookieStore = await cookies();
-  const cookieStoreId = cookieStore.get(STORE_COOKIE)?.value;
+  const cookieStoreId = await getActiveStoreId();
 
   if (cookieStoreId) {
     await requireStoreAccess(cookieStoreId);
@@ -146,19 +161,15 @@ export async function getValidatedActiveStoreId(): Promise<string> {
   return accessibleStore.id;
 }
 
-export async function setActiveStoreCookie(storeId: string) {
-  const cookieStore = await cookies();
-  cookieStore.set(STORE_COOKIE, storeId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-}
-
 export async function clearOperationalCookies() {
   const cookieStore = await cookies();
   cookieStore.delete(CASHIER_COOKIE);
 }
 
-export { STORE_COOKIE, REGISTERED_DEVICE_COOKIE, CASHIER_COOKIE };
+export {
+  STORE_COOKIE,
+  REGISTERED_DEVICE_COOKIE,
+  CASHIER_COOKIE,
+  setActiveStoreCookie,
+  clearActiveStoreCookie,
+};

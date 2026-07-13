@@ -5,6 +5,11 @@ import * as posAccess from "@/lib/auth/pos-access";
 import { completeCheckout } from "@/modules/pos/services/checkout.service";
 import { getSessionSettings } from "@/modules/system/services/settings.service";
 
+vi.mock("next/server", () => ({
+  after: (fn: () => void) => {
+    fn();
+  },
+}));
 vi.mock("@/lib/auth/guards");
 vi.mock("@/lib/auth/pos-access");
 vi.mock("@/modules/pos/services/checkout.service", () => ({ completeCheckout: vi.fn() }));

@@ -1,18 +1,29 @@
 import { slugifyBranchName } from "@/lib/slugify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  buildOnboardingFeatureFlags,
   mapBusinessTypeToActivity,
-  mapOnboardingFeaturesToFlags,
   type OnboardingPayload,
 } from "@/modules/onboarding/schemas/onboarding.schema";
 import type { Json } from "@/lib/supabase/database.types";
+import { DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY } from "@/lib/constants";
+import {
+  assertConsumableInviteByToken,
+  consumeCompanyInvite,
+  InviteTokenError,
+  isOnboardingInviteRequired,
+} from "@/modules/platform/services/platform-invite.service";
 
 export class OwnerEmailAlreadyUsedError extends Error {
   constructor() {
-    super("This owner email is already used by another company.");
+    super(
+      "البريد الإلكتروني ده مستخدم بالفعل كمالك لشركة تانية. سجّل الدخول أو استخدم بريدًا مختلفًا."
+    );
     this.name = "OwnerEmailAlreadyUsedError";
   }
 }
+
+export { InviteTokenError };
 
 export interface BootstrapResult {
   orgId: string;
@@ -135,9 +146,28 @@ export async function initializeOrganization(
 ): Promise<BootstrapResult> {
   const admin = createAdminClient();
   const storeCode = slugifyBranchName(input.store.name);
-  const featureFlags = mapOnboardingFeaturesToFlags(input.features);
-  const businessActivity = mapBusinessTypeToActivity(input.businessType);
+  const featureFlags = buildOnboardingFeatureFlags(input);
+  const businessActivity = mapBusinessTypeToActivity(input.businessType, {
+    enableVariants: input.features.variants,
+  });
   const ownerEmail = input.owner.email.trim().toLowerCase();
+  const inviteToken = input.inviteToken?.trim() ?? "";
+  /** Settings stores tax_rate as fraction (0–1); wizard collects percent (0–100). */
+  const taxRateFraction = input.organization.taxRate / 100;
+  const taxInclusive =
+    input.defaultSettings.defaultTaxBehavior === "exclusive"
+      ? false
+      : input.organization.taxInclusive;
+
+  if (isOnboardingInviteRequired() && !inviteToken) {
+    throw new InviteTokenError("missing");
+  }
+
+  // Validate before RPC so we never provision an org for a bad/used/expired token.
+  // Consume only after successful bootstrap so a failed create leaves the invite reusable.
+  const pendingInvite = inviteToken
+    ? await assertConsumableInviteByToken(inviteToken)
+    : null;
 
   const { data: existingOwner, error: existingOwnerError } = await admin
     .from("users")
@@ -164,8 +194,8 @@ export async function initializeOrganization(
     p_store_phone: input.store.phone ?? "",
     p_store_timezone: input.store.timezone,
     p_tax_enabled: input.organization.taxEnabled,
-    p_tax_rate: input.organization.taxRate,
-    p_tax_inclusive: input.organization.taxInclusive,
+    p_tax_rate: taxRateFraction,
+    p_tax_inclusive: taxInclusive,
     p_receipt_header: input.defaultSettings.receiptHeader ?? "",
     p_receipt_footer: input.defaultSettings.receiptFooter ?? "",
     p_feature_flags: featureFlags,
@@ -194,11 +224,12 @@ export async function initializeOrganization(
       payment_cash: input.defaultSettings.paymentMethods.cash,
       payment_card: input.defaultSettings.paymentMethods.card,
       payment_wallet: input.defaultSettings.paymentMethods.wallet,
-      payment_credit: input.defaultSettings.paymentMethods.credit,
+      // Same source as Settings → Features credit_sales (not a duplicate payment toggle).
+      payment_credit: input.features.credit_sales,
       payment_other: input.defaultSettings.paymentMethods.manualWallet,
     },
     p_prevent_negative_stock: input.defaultSettings.preventNegativeStock,
-    p_default_tax_behavior: input.defaultSettings.defaultTaxBehavior,
+    p_default_tax_behavior: taxInclusive ? "inclusive" : "exclusive",
     p_seed_defaults: {
       cost_centers: input.initialSetup.createDefaultCostCenters,
       expense_categories: input.initialSetup.createDefaultExpenseCategories,
@@ -233,6 +264,7 @@ export async function initializeOrganization(
       .from("stores")
       .select("settings")
       .eq("id", storeId)
+      .eq("org_id", orgId)
       .maybeSingle();
     if (bootstrapStoreError) {
       throw new Error(bootstrapStoreError.message);
@@ -245,11 +277,27 @@ export async function initializeOrganization(
           online_menu_enabled: true,
           online_menu_ordering_enabled: true,
           online_menu_slug: storeCode,
+          online_menu_token: crypto.randomUUID().replaceAll("-", ""),
+          online_menu_unlisted: false,
         } as Json,
       })
-      .eq("id", storeId);
+      .eq("id", storeId)
+      .eq("org_id", orgId);
     if (menuSettingsError) {
       throw new Error(menuSettingsError.message);
+    }
+
+    const productTemplates = DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY[input.businessType];
+    const { error: templatesError } = await admin.from("app_settings").upsert(
+      {
+        org_id: orgId,
+        key: "product_templates",
+        value: productTemplates as unknown as Json,
+      },
+      { onConflict: "org_id,key" }
+    );
+    if (templatesError) {
+      throw new Error(templatesError.message);
     }
 
     if (input.organization.logoUrl?.startsWith("data:image/")) {
@@ -334,6 +382,26 @@ export async function initializeOrganization(
       });
     } catch {
       // Do not fail completed onboarding because audit logging is unavailable.
+    }
+
+    if (pendingInvite) {
+      await consumeCompanyInvite(pendingInvite.id, orgId);
+      try {
+        await writeBootstrapAuditLog({
+          orgId,
+          storeId,
+          userId: appUser.id,
+          action: "platform_invite.accepted",
+          entityType: "platform_company_invite",
+          entityId: pendingInvite.id,
+          metadata: {
+            invite_id: pendingInvite.id,
+            owner_email: pendingInvite.owner_email,
+          },
+        });
+      } catch {
+        // Invite already consumed; audit is best-effort.
+      }
     }
 
     return {

@@ -43,6 +43,7 @@ type Props = {
   isEdit: boolean;
   currency: string;
   activityType: BusinessActivityType;
+  enablePriceByAmount?: boolean;
   onSubmit: (values: ProductFormValues) => void | Promise<void>;
   onCancel: () => void;
   onImageFileChange?: (file: File | null) => void;
@@ -71,6 +72,7 @@ export function GuidedProductDetailsForm({
   isEdit,
   currency,
   activityType,
+  enablePriceByAmount = false,
   onSubmit,
   onCancel,
   onImageFileChange,
@@ -95,7 +97,7 @@ export function GuidedProductDetailsForm({
   const showExpiryTracking = visibleAdvancedSettings.has("expiry_tracking");
   const showFefo = visibleAdvancedSettings.has("fefo");
   const showFractionalQuantity = visibleAdvancedSettings.has("fractional_quantity");
-  const showPriceByAmount = false;
+  const showPriceByAmount = enablePriceByAmount;
   const showWholesale = false;
   const showSerialNumber = false;
 
@@ -381,6 +383,16 @@ export function GuidedProductDetailsForm({
               <Checkbox checked={values.is_active} onCheckedChange={(v) => form.setValue("is_active", Boolean(v))} />
               نشط
             </label>
+            {(values.product_type === "finished" ||
+              values.product_type === "finished_product") && (
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={values.show_on_online_menu}
+                  onCheckedChange={(v) => form.setValue("show_on_online_menu", v === true)}
+                />
+                يظهر في منيو الأونلاين
+              </label>
+            )}
             {showInventoryTracking ? (
               <>
                 <label className="flex items-center gap-2 text-sm">

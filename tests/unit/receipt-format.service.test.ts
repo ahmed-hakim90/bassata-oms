@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildEscPosReceiptBytes,
   buildWhatsAppReceiptUrl,
+  formatReceiptForEscPos,
   formatReceiptForWhatsApp,
   normalizeWhatsAppPhone,
   type ReceiptPayload,
@@ -45,10 +46,23 @@ describe("receipt formatting", () => {
     const message = formatReceiptForWhatsApp(receipt);
 
     expect(message).toContain("*Bassata Cafe*");
+    expect(message).toContain("Main Branch");
+    expect(message).toContain("Cairo");
+    expect(message).toContain("Fresh daily");
     expect(message).toContain("Order #ORD-1001");
     expect(message).toContain("Latte");
     expect(message).toContain("Discount");
     expect(message).toContain("See you soon");
+  });
+
+  it("includes full branding on ESC/POS text", () => {
+    const text = formatReceiptForEscPos(receipt);
+    expect(text).toContain("Bassata Cafe");
+    expect(text).toContain("Main Branch");
+    expect(text).toContain("Cairo");
+    expect(text).toContain("+202000000");
+    expect(text).toContain("Fresh daily");
+    expect(text).toContain("See you soon");
   });
 
   it("normalizes WhatsApp phone numbers for wa.me links", () => {

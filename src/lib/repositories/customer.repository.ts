@@ -40,6 +40,20 @@ export async function getCustomer(id: string): Promise<Customer | null> {
   return data ? mapCustomer(data) : null;
 }
 
+export async function getCustomersByIds(ids: string[]): Promise<Customer[]> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return [];
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("customers")
+    .select("*")
+    .eq("org_id", orgId)
+    .in("id", unique);
+  if (error) throwDbError(error, "getCustomersByIds");
+  return (data ?? []).map(mapCustomer);
+}
+
 export type CreateCustomerInput = {
   name: string;
   phone: string;

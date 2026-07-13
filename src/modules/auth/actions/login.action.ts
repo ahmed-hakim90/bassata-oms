@@ -3,11 +3,19 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { STORE_COOKIE, CASHIER_COOKIE } from "@/lib/auth/session";
+import {
+  CASHIER_COOKIE,
+  clearActiveStoreCookie,
+  setActiveStoreCookie,
+} from "@/lib/auth/session";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { isOrganizationSuspended } from "@/lib/org-status";
+import {
+  isPlatformAdminEmail,
+  resolvePlatformAdmin,
+} from "@/modules/platform/services/platform-admin.service";
 
 export interface LoginResult {
   success: boolean;
@@ -34,7 +42,16 @@ export async function loginAction(
   }
 
   const appUser = await userRepo.getUserByAuthId(data.user.id);
+
   if (!appUser || !appUser.is_active) {
+    // Platform control-plane admins may have no tenant membership.
+    if (await isPlatformAdminEmail(email)) {
+      await resolvePlatformAdmin();
+      const cookieStore = await cookies();
+      cookieStore.delete(CASHIER_COOKIE);
+      await clearActiveStoreCookie();
+      redirect("/platform");
+    }
     await supabase.auth.signOut();
     await writeAuthFailureAudit(email, "inactive_or_unprovisioned");
     return { success: false, error: "الحساب غير نشط أو غير مُهيأ." };
@@ -50,12 +67,7 @@ export async function loginAction(
 
   const defaultStoreId = appUser.store_ids[0] ?? null;
   if (defaultStoreId && appUser.role !== "inventory") {
-    cookieStore.set(STORE_COOKIE, defaultStoreId, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    await setActiveStoreCookie(defaultStoreId);
   }
 
   const orgId = await getOrgId();
@@ -69,6 +81,7 @@ export async function loginAction(
     metadata: { email: appUser.email, role: appUser.role },
   });
 
+  // Tenant users who are also platform admins land on tenant home; /platform remains available.
   if (appUser.role === "cashier") {
     redirect("/pos");
   }

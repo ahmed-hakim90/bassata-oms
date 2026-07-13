@@ -481,7 +481,6 @@ INSERT INTO app_settings (org_id, key, value) VALUES
       "customer_discounts": false,
       "reports": true,
       "imports_exports": true,
-      "monthly_closing": true,
       "cash_drawer": false,
       "dark_mode": true,
       "tax": true,
@@ -489,7 +488,7 @@ INSERT INTO app_settings (org_id, key, value) VALUES
       "payment_card": true,
       "payment_wallet": true,
       "payment_other": true,
-      "prevent_negative_stock": true,
+      "prevent_negative_stock": false,
       "session_expenses": true,
       "refunds": false,
       "stock_count": true,
@@ -497,11 +496,7 @@ INSERT INTO app_settings (org_id, key, value) VALUES
       "purchases": true,
       "waste": true,
       "recipes": true,
-      "credit_sales": false,
-      "supermarket_mode": false,
-      "weight_sales": false,
-      "price_by_amount": false,
-      "wholesale_sales": false
+      "credit_sales": false
     }'::jsonb
   ),
   (

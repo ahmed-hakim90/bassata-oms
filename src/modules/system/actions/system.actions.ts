@@ -11,6 +11,7 @@ import {
   getSettings,
   getExpenseSettings,
   getSessionSettings,
+  getBusinessActivitySettings,
   updateExpenseSettings,
   updateSessionSettings,
   updateOrganizationSettings,
@@ -176,6 +177,7 @@ export async function updateBusinessActivitySettingsAction(
   await updateBusinessActivitySettings(input, user.id);
   revalidatePath("/settings");
   revalidatePath("/pos");
+  revalidatePath("/", "layout");
 }
 
 export async function applyBusinessActivityPresetAction(
@@ -185,6 +187,8 @@ export async function applyBusinessActivityPresetAction(
   await applyActivityPreset(activityType, user.id);
   revalidatePath("/settings");
   revalidatePath("/pos");
+  revalidatePath("/products");
+  revalidatePath("/", "layout");
 }
 
 export async function updateProductTemplateSettingsAction(
@@ -449,13 +453,82 @@ export async function updateStoreAction(
     phone?: string;
     timezone?: string;
     isActive?: boolean;
+    onlineMenu?: {
+      enabled?: boolean;
+      orderingEnabled?: boolean;
+      slug?: string;
+      unlisted?: boolean;
+      regenerateToken?: boolean;
+    };
   }
 ) {
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
-  const store = await updateStore(id, input, user.id);
-  revalidatePath("/settings");
-  revalidatePath("/", "layout");
-  return store;
+  const existing = await listStores().then((stores) => stores.find((store) => store.id === id));
+  if (!existing) {
+    throw new Error("الفرع غير موجود");
+  }
+
+  let settings: Record<string, unknown> | undefined;
+  if (input.onlineMenu) {
+    const slug = input.onlineMenu.slug?.trim().toLowerCase();
+    if (slug !== undefined) {
+      if (slug.length < 2) {
+        throw new Error("رابط المنيو قصير جدًا");
+      }
+      if (!/^[a-z0-9\u0600-\u06FF-]+$/i.test(slug)) {
+        throw new Error("رابط المنيو يحتوي أحرفًا غير مسموحة");
+      }
+    }
+
+    const nextToken = input.onlineMenu.regenerateToken
+      ? crypto.randomUUID().replaceAll("-", "")
+      : typeof existing.settings.online_menu_token === "string" &&
+          existing.settings.online_menu_token.trim()
+        ? existing.settings.online_menu_token
+        : crypto.randomUUID().replaceAll("-", "");
+
+    settings = {
+      ...existing.settings,
+      online_menu_enabled: input.onlineMenu.enabled ?? existing.settings.online_menu_enabled === true,
+      online_menu_ordering_enabled:
+        input.onlineMenu.orderingEnabled ??
+        existing.settings.online_menu_ordering_enabled === true,
+      online_menu_slug: slug || existing.settings.online_menu_slug,
+      online_menu_unlisted:
+        input.onlineMenu.unlisted ?? existing.settings.online_menu_unlisted === true,
+      online_menu_token: nextToken,
+    };
+  }
+
+  try {
+    const store = await updateStore(
+      id,
+      {
+        name: input.name,
+        code: input.code,
+        address: input.address,
+        phone: input.phone,
+        timezone: input.timezone,
+        isActive: input.isActive,
+        settings,
+      },
+      user.id
+    );
+    revalidatePath("/settings");
+    revalidatePath("/", "layout");
+    revalidatePath("/menu", "layout");
+    return store;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (
+      message.includes("stores_online_menu_slug_lower_uidx") ||
+      message.includes("online_menu_slug") ||
+      message.includes("duplicate key")
+    ) {
+      throw new Error("رابط المنيو مستخدم بالفعل — اختر رابطًا آخر");
+    }
+    throw error;
+  }
 }
 
 export async function createWarehouseAction(input: { storeId: string; name: string }) {
@@ -619,6 +692,7 @@ export async function getAuditData(filters?: {
 async function loadSettingsBundle() {
   const [
     org,
+    businessActivity,
     featureFlags,
     expenseSettings,
     sessionSettings,
@@ -629,6 +703,7 @@ async function loadSettingsBundle() {
     settings,
   ] = await Promise.all([
     getOrganizationSettings(),
+    getBusinessActivitySettings(),
     getFeatureFlags(),
     getExpenseSettings(),
     getSessionSettings(),
@@ -640,6 +715,7 @@ async function loadSettingsBundle() {
   ]);
   return {
     org,
+    businessActivity,
     featureFlags,
     expenseSettings,
     sessionSettings,
@@ -725,6 +801,7 @@ export async function getUnifiedSettingsData(
   const needsSettingsBundle =
     has("settings_manage") &&
     (activeTab === "business" ||
+      activeTab === "activity" ||
       activeTab === "branches" ||
       activeTab === "pos" ||
       activeTab === "expenses" ||
@@ -740,6 +817,7 @@ export async function getUnifiedSettingsData(
 
   let sessionSettings = settingsBundle?.sessionSettings ?? null;
   let featureFlags = settingsBundle?.featureFlags ?? null;
+  let receiptHeader = "";
   let receiptFooter = "Thank you for visiting CafeFlow!";
 
   if (sessionOnly) {
@@ -750,13 +828,17 @@ export async function getUnifiedSettingsData(
     ]);
     sessionSettings = session;
     featureFlags = flags;
+    const header = settings.find((s) => s.key === "receipt_header");
     const receipt = settings.find((s) => s.key === "receipt_footer");
+    receiptHeader = (header?.value.text as string) ?? "";
     receiptFooter =
       (receipt?.value.text as string) ?? "Thank you for visiting CafeFlow!";
   }
 
   if (settingsBundle) {
+    const header = settingsBundle.settings.find((s) => s.key === "receipt_header");
     const receipt = settingsBundle.settings.find((s) => s.key === "receipt_footer");
+    receiptHeader = (header?.value.text as string) ?? "";
     receiptFooter =
       (receipt?.value.text as string) ?? "Thank you for visiting CafeFlow!";
   }
@@ -819,6 +901,7 @@ export async function getUnifiedSettingsData(
     activeTab: (visibleTabs.some((t) => t.id === activeTab)
       ? activeTab
       : visibleTabs[0]?.id ?? "business") as SettingsTabId,
+    receiptHeader,
     receiptFooter,
     settingsBundle,
     sessionSettings,

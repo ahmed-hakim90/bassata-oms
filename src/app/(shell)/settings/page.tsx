@@ -49,6 +49,7 @@ export default async function SettingsRoute({
       canManageSessions={has("settings_manage") || has("session_settings_manage")}
       canManageExpenseSettings={has("settings_manage")}
       canManageCostCenters={has("cost_center_manage")}
+      receiptHeader={data.receiptHeader}
       receiptFooter={data.receiptFooter}
       settingsBundle={data.settingsBundle}
       sessionSettings={data.sessionSettings}
