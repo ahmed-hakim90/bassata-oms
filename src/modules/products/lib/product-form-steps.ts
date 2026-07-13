@@ -3,7 +3,7 @@ import type { ProductFormValues } from "@/modules/products/components/product-fo
 const FIELDS_BY_STEP: Record<number, Array<keyof ProductFormValues>> = {
   1: ["name", "category_id", "image_url"],
   2: ["product_type", "sales_unit_type"],
-  3: ["base_price", "sale_price"],
+  3: ["base_price", "sale_price", "last_unit_cost"],
   4: ["track_inventory", "expiry_tracking_enabled"],
 };
 

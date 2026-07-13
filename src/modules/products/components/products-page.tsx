@@ -12,6 +12,12 @@ import {
   Tags,
 } from "lucide-react";
 import type { Product, ProductVariant } from "@/lib/types";
+import {
+  DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
+  DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY,
+  type BusinessActivitySettings,
+  type ProductTemplateSettings,
+} from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +33,7 @@ import { ProductTable } from "./product-table";
 import { CategoryList } from "./category-list";
 import { CafeMenuItemDialog } from "./cafe-menu-item-dialog";
 import { CafeIngredientDialog } from "./cafe-ingredient-dialog";
+import { ProductFormDialog } from "./product-form-dialog";
 import { CategoryManagerDialog } from "./category-manager-dialog";
 import { ImportProductsDialog } from "@/modules/imports-exports/components/import-products-dialog";
 import {
@@ -46,6 +53,8 @@ interface ProductsPageProps {
   ingredients: Product[];
   currency: string;
   recipesEnabled?: boolean;
+  businessActivity?: BusinessActivitySettings;
+  productTemplates?: ProductTemplateSettings;
 }
 
 export function ProductsPage({
@@ -54,13 +63,18 @@ export function ProductsPage({
   ingredients,
   currency,
   recipesEnabled = false,
+  businessActivity = DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
+  productTemplates = DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY.cafe,
 }: ProductsPageProps) {
   const router = useRouter();
+  const isSupermarket = businessActivity.activity_type === "supermarket";
+  const showIngredientsCatalog = !isSupermarket && recipesEnabled;
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [view, setView] = useState<CatalogView>("menu");
   const [layout, setLayout] = useState<LayoutView>("table");
   const [cafeDialogOpen, setCafeDialogOpen] = useState(false);
+  const [retailDialogOpen, setRetailDialogOpen] = useState(false);
   const [ingredientDialogOpen, setIngredientDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -86,7 +100,8 @@ export function ProductsPage({
     [initialProducts]
   );
 
-  const visibleSource = view === "ingredients" ? ingredientItems : menuItems;
+  const visibleSource =
+    showIngredientsCatalog && view === "ingredients" ? ingredientItems : menuItems;
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -115,6 +130,10 @@ export function ProductsPage({
   function openCreate() {
     setEditing(null);
     setEditingVariants([]);
+    if (isSupermarket) {
+      setRetailDialogOpen(true);
+      return;
+    }
     setCafeDialogOpen(true);
   }
 
@@ -126,6 +145,10 @@ export function ProductsPage({
   function openEdit(item: ProductGridItem) {
     setEditing(item.product);
     setEditingVariants(item.variants ?? []);
+    if (isSupermarket) {
+      setRetailDialogOpen(true);
+      return;
+    }
     setCafeDialogOpen(true);
   }
 
@@ -172,7 +195,7 @@ export function ProductsPage({
   }
 
   const emptyAction =
-    view === "ingredients" ? (
+    showIngredientsCatalog && view === "ingredients" ? (
       <Button type="button" onClick={openCreateIngredient}>
         <Plus className="size-4" />
         مكوّن جديد
@@ -180,7 +203,7 @@ export function ProductsPage({
     ) : (
       <Button type="button" onClick={openCreate}>
         <Plus className="size-4" />
-        صنف منيو جديد
+        {isSupermarket ? "منتج جديد" : "صنف منيو جديد"}
       </Button>
     );
 
@@ -189,17 +212,23 @@ export function ProductsPage({
       <PageHeader
         breadcrumb={<span>المخزون · المنتجات</span>}
         title="المنتجات"
-        description="كتالوج المنيو والأسعار والتصنيفات — المكان اللي بتجهّز منه الكاشير."
+        description={
+          isSupermarket
+            ? "كتالوج البيع، الباركود، سعر الشراء وسعر البيع — تجهيز الكاشير والمخزون."
+            : "كتالوج المنيو والأسعار والتصنيفات — المكان اللي بتجهّز منه الكاشير."
+        }
         action={
           <>
             <Button type="button" onClick={openCreate} className="shadow-[var(--mds-elevation-1)]">
               <Plus className="size-4" />
-              صنف منيو جديد
+              {isSupermarket ? "منتج جديد" : "صنف منيو جديد"}
             </Button>
-            <Button type="button" variant="outline" onClick={openCreateIngredient}>
-              <Plus className="size-4" />
-              مكوّن جديد
-            </Button>
+            {showIngredientsCatalog ? (
+              <Button type="button" variant="outline" onClick={openCreateIngredient}>
+                <Plus className="size-4" />
+                مكوّن جديد
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" onClick={() => setCategoryDialogOpen(true)}>
               <Tags className="size-4" />
               التصنيفات
@@ -231,11 +260,11 @@ export function ProductsPage({
         }
       />
 
-      <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-3">
+      <div className={`grid gap-[var(--mds-space-3)] ${showIngredientsCatalog ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <OperationalCard
-          title="الأصناف النشطة"
+          title={isSupermarket ? "المنتجات النشطة" : "الأصناف النشطة"}
           value={String(activeCount)}
-          subtitle={`من أصل ${menuItems.length} صنف منيو`}
+          subtitle={`من أصل ${menuItems.length} ${isSupermarket ? "منتج" : "صنف منيو"}`}
         />
         <OperationalCard
           title="شائعة في الكاشير"
@@ -243,12 +272,14 @@ export function ProductsPage({
           subtitle="تظهر أولاً في نقطة البيع"
           accent="var(--mds-color-feedback-info)"
         />
-        <OperationalCard
-          title="المكونات"
-          value={String(ingredientItems.length)}
-          subtitle="للوصفات والمخزون"
-          accent="var(--mds-color-feedback-success)"
-        />
+        {showIngredientsCatalog ? (
+          <OperationalCard
+            title="المكونات"
+            value={String(ingredientItems.length)}
+            subtitle="للوصفات والمخزون"
+            accent="var(--mds-color-feedback-success)"
+          />
+        ) : null}
       </div>
 
       <div className="grid gap-[var(--mds-space-4)] lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -261,46 +292,52 @@ export function ProductsPage({
 
         <div className="flex min-w-0 flex-col gap-[var(--mds-space-4)]">
           <div className="flex flex-col gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-3)] shadow-[var(--mds-elevation-1)] sm:flex-row sm:items-center sm:justify-between">
-            <div
-              className="inline-flex rounded-[var(--mds-radius-md)] bg-muted/60 p-1"
-              role="tablist"
-              aria-label="نوع الكتالوج"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === "menu"}
-                className={cn(
-                  "rounded-[var(--mds-radius-sm)] px-3 py-1.5 text-sm transition-colors",
-                  view === "menu"
-                    ? "bg-card font-semibold text-foreground shadow-[var(--mds-elevation-1)]"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => {
-                  setView("menu");
-                  setCategoryId(null);
-                }}
+            {showIngredientsCatalog ? (
+              <div
+                className="inline-flex rounded-[var(--mds-radius-md)] bg-muted/60 p-1"
+                role="tablist"
+                aria-label="نوع الكتالوج"
               >
-                أصناف المنيو
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === "ingredients"}
-                className={cn(
-                  "rounded-[var(--mds-radius-sm)] px-3 py-1.5 text-sm transition-colors",
-                  view === "ingredients"
-                    ? "bg-card font-semibold text-foreground shadow-[var(--mds-elevation-1)]"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => {
-                  setView("ingredients");
-                  setCategoryId(null);
-                }}
-              >
-                المكونات
-              </button>
-            </div>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === "menu"}
+                  className={cn(
+                    "rounded-[var(--mds-radius-sm)] px-3 py-1.5 text-sm transition-colors",
+                    view === "menu"
+                      ? "bg-card font-semibold text-foreground shadow-[var(--mds-elevation-1)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => {
+                    setView("menu");
+                    setCategoryId(null);
+                  }}
+                >
+                  أصناف المنيو
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === "ingredients"}
+                  className={cn(
+                    "rounded-[var(--mds-radius-sm)] px-3 py-1.5 text-sm transition-colors",
+                    view === "ingredients"
+                      ? "bg-card font-semibold text-foreground shadow-[var(--mds-elevation-1)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => {
+                    setView("ingredients");
+                    setCategoryId(null);
+                  }}
+                >
+                  المكونات
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm font-medium text-foreground">
+                {isSupermarket ? "منتجات البيع" : "أصناف المنيو"}
+              </p>
+            )}
 
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-lg sm:justify-end">
               <div className="relative min-w-0 flex-1">
@@ -308,7 +345,7 @@ export function ProductsPage({
                 <Input
                   className="h-10 border-border/70 bg-background pe-3 ps-9"
                   placeholder={
-                    view === "ingredients"
+                    showIngredientsCatalog && view === "ingredients"
                       ? "ابحث في المكونات بالاسم أو الكود…"
                       : "ابحث بالاسم أو الكود أو الباركود…"
                   }
@@ -367,8 +404,14 @@ export function ProductsPage({
             <ProductTable
               items={filtered}
               currency={currency}
-              priceMode={view === "ingredients" ? "cost" : "sale"}
-              onEdit={view === "ingredients" ? openEditIngredient : openEdit}
+              priceMode={
+                showIngredientsCatalog && view === "ingredients" ? "cost" : "sale"
+              }
+              onEdit={
+                showIngredientsCatalog && view === "ingredients"
+                  ? openEditIngredient
+                  : openEdit
+              }
               onDelete={handleDelete}
               emptyAction={emptyAction}
             />
@@ -376,8 +419,14 @@ export function ProductsPage({
             <ProductGrid
               items={filtered}
               currency={currency}
-              priceMode={view === "ingredients" ? "cost" : "sale"}
-              onEdit={view === "ingredients" ? openEditIngredient : openEdit}
+              priceMode={
+                showIngredientsCatalog && view === "ingredients" ? "cost" : "sale"
+              }
+              onEdit={
+                showIngredientsCatalog && view === "ingredients"
+                  ? openEditIngredient
+                  : openEdit
+              }
               onDelete={handleDelete}
               emptyAction={emptyAction}
             />
@@ -385,30 +434,47 @@ export function ProductsPage({
         </div>
       </div>
 
-      <CafeMenuItemDialog
-        open={cafeDialogOpen}
-        onOpenChange={setCafeDialogOpen}
-        categories={categoryList}
-        ingredients={ingredients}
-        product={editing}
-        initialVariants={editingVariants}
-        recipesEnabled={recipesEnabled}
-        currency={currency}
-        existingSkus={existingSkus}
-        onSaved={() => router.refresh()}
-      />
+      {isSupermarket ? (
+        <ProductFormDialog
+          open={retailDialogOpen}
+          onOpenChange={setRetailDialogOpen}
+          categories={categoryList}
+          product={editing}
+          recipesEnabled={false}
+          productTemplates={productTemplates}
+          businessActivitySettings={businessActivity}
+          currency={currency}
+          existingSkus={existingSkus}
+          onSaved={() => router.refresh()}
+        />
+      ) : (
+        <CafeMenuItemDialog
+          open={cafeDialogOpen}
+          onOpenChange={setCafeDialogOpen}
+          categories={categoryList}
+          ingredients={ingredients}
+          product={editing}
+          initialVariants={editingVariants}
+          recipesEnabled={recipesEnabled}
+          currency={currency}
+          existingSkus={existingSkus}
+          onSaved={() => router.refresh()}
+        />
+      )}
 
-      <CafeIngredientDialog
-        key={editingIngredient?.id ?? "new-ingredient"}
-        open={ingredientDialogOpen}
-        onOpenChange={(nextOpen) => {
-          setIngredientDialogOpen(nextOpen);
-          if (!nextOpen) setEditingIngredient(null);
-        }}
-        categories={categoryList}
-        ingredient={editingIngredient}
-        onSaved={() => router.refresh()}
-      />
+      {showIngredientsCatalog ? (
+        <CafeIngredientDialog
+          key={editingIngredient?.id ?? "new-ingredient"}
+          open={ingredientDialogOpen}
+          onOpenChange={(nextOpen) => {
+            setIngredientDialogOpen(nextOpen);
+            if (!nextOpen) setEditingIngredient(null);
+          }}
+          categories={categoryList}
+          ingredient={editingIngredient}
+          onSaved={() => router.refresh()}
+        />
+      ) : null}
 
       <CategoryManagerDialog
         open={categoryDialogOpen}

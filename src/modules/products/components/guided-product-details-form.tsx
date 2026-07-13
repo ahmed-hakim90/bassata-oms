@@ -66,6 +66,10 @@ const PRODUCT_TYPE_CHOICES: Array<{
   { id: "service", label: "خدمة", hint: "خدمة بدون مخزون" },
 ];
 
+const SUPERMARKET_PRODUCT_TYPE_CHOICES = PRODUCT_TYPE_CHOICES.filter(
+  (item) => item.id !== "ingredient"
+);
+
 export function GuidedProductDetailsForm({
   form,
   categories,
@@ -98,6 +102,10 @@ export function GuidedProductDetailsForm({
   const showFefo = visibleAdvancedSettings.has("fefo");
   const showFractionalQuantity = visibleAdvancedSettings.has("fractional_quantity");
   const showPriceByAmount = enablePriceByAmount;
+  const isSupermarket = activityType === "supermarket";
+  const productTypeChoices = isSupermarket
+    ? SUPERMARKET_PRODUCT_TYPE_CHOICES
+    : PRODUCT_TYPE_CHOICES;
   const showWholesale = false;
   const showSerialNumber = false;
 
@@ -253,7 +261,7 @@ export function GuidedProductDetailsForm({
             error={errors.product_type?.message}
           >
             <div className="grid gap-2 sm:grid-cols-2">
-              {PRODUCT_TYPE_CHOICES.map((item) => (
+              {productTypeChoices.map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -329,41 +337,76 @@ export function GuidedProductDetailsForm({
 
       {step === 3 ? (
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SweetFormField
-              id="base_price"
-              label="سعر التكلفة"
-              error={errors.base_price?.message}
-            >
-              <Input
+          {isSupermarket ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SweetFormField
+                id="last_unit_cost"
+                label="سعر الشراء"
+                error={errors.last_unit_cost?.message}
+              >
+                <Input
+                  id="last_unit_cost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  aria-invalid={!!errors.last_unit_cost}
+                  {...form.register("last_unit_cost", { valueAsNumber: true })}
+                />
+              </SweetFormField>
+              <SweetFormField
                 id="base_price"
-                type="number"
-                step="0.01"
-                aria-invalid={!!errors.base_price}
-                {...form.register("base_price", { valueAsNumber: true })}
-              />
-            </SweetFormField>
-            <SweetFormField
-              id="sale_price"
-              label="سعر البيع"
-              error={errors.sale_price?.message}
-            >
-              <Input
-                id="sale_price"
-                type="number"
-                step="0.01"
-                aria-invalid={!!errors.sale_price}
-                value={values.sale_price ?? ""}
-                onChange={(e) =>
-                  form.setValue(
-                    "sale_price",
-                    e.target.value === "" ? null : Number(e.target.value),
-                    { shouldValidate: true }
-                  )
+                label={
+                  values.sales_unit_type === "weight" ? "سعر البيع / الكيلو" : "سعر البيع"
                 }
-              />
-            </SweetFormField>
-          </div>
+                error={errors.base_price?.message}
+              >
+                <Input
+                  id="base_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  aria-invalid={!!errors.base_price}
+                  {...form.register("base_price", { valueAsNumber: true })}
+                />
+              </SweetFormField>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SweetFormField
+                id="base_price"
+                label="سعر التكلفة"
+                error={errors.base_price?.message}
+              >
+                <Input
+                  id="base_price"
+                  type="number"
+                  step="0.01"
+                  aria-invalid={!!errors.base_price}
+                  {...form.register("base_price", { valueAsNumber: true })}
+                />
+              </SweetFormField>
+              <SweetFormField
+                id="sale_price"
+                label="سعر البيع"
+                error={errors.sale_price?.message}
+              >
+                <Input
+                  id="sale_price"
+                  type="number"
+                  step="0.01"
+                  aria-invalid={!!errors.sale_price}
+                  value={values.sale_price ?? ""}
+                  onChange={(e) =>
+                    form.setValue(
+                      "sale_price",
+                      e.target.value === "" ? null : Number(e.target.value),
+                      { shouldValidate: true }
+                    )
+                  }
+                />
+              </SweetFormField>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -372,7 +415,11 @@ export function GuidedProductDetailsForm({
           <div className="rounded-xl border border-border/60 p-3 text-sm">
             <div className="font-medium">{values.name || "منتج بدون اسم"}</div>
             <div className="text-muted-foreground">
-              النوع {values.product_type} | التكلفة {values.base_price} {currency}
+              النوع {values.product_type} |{" "}
+              {isSupermarket
+                ? `شراء ${values.last_unit_cost} · بيع ${values.base_price}`
+                : `التكلفة ${values.base_price}`}{" "}
+              {currency}
             </div>
           </div>
           <SweetFormField id="description" label="الوصف">
@@ -539,7 +586,10 @@ export function GuidedProductDetailsForm({
               }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PRODUCT_TYPES.map((t) => (
+                  {(isSupermarket
+                    ? PRODUCT_TYPES.filter((t) => t !== "ingredient" && t !== "raw_material")
+                    : PRODUCT_TYPES
+                  ).map((t) => (
                     <SelectItem key={t} value={t} label={t}>{t}</SelectItem>
                   ))}
                 </SelectContent>

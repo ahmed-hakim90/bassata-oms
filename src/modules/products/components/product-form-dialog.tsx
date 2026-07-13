@@ -44,6 +44,7 @@ const productSchema = z.object({
   base_price: z.number().min(0),
   description: z.string(),
   sale_price: z.number().min(0).nullable(),
+  last_unit_cost: z.number().min(0),
   is_active: z.boolean(),
   is_popular: z.boolean(),
   show_on_online_menu: z.boolean(),
@@ -105,6 +106,7 @@ export function ProductFormDialog({
       base_price: 0,
       description: "",
       sale_price: null,
+      last_unit_cost: 0,
       is_active: true,
       is_popular: false,
       show_on_online_menu: true,
@@ -154,6 +156,7 @@ export function ProductFormDialog({
         base_price: product.base_price,
         description: product.description,
         sale_price: product.sale_price,
+        last_unit_cost: product.last_unit_cost ?? 0,
         is_active: product.is_active,
         is_popular: product.is_popular,
         show_on_online_menu: product.show_on_online_menu ?? true,
@@ -183,6 +186,7 @@ export function ProductFormDialog({
         base_price: 0,
         description: "",
         sale_price: null,
+        last_unit_cost: 0,
         is_active: true,
         is_popular: false,
         show_on_online_menu: true,
@@ -239,7 +243,7 @@ export function ProductFormDialog({
       const payload = {
         ...values,
         cost_unit: values.base_unit,
-        last_unit_cost: product?.last_unit_cost ?? 0,
+        last_unit_cost: values.last_unit_cost,
         image_url: values.image_url,
       };
       if (isEdit && product) {
@@ -278,7 +282,11 @@ export function ProductFormDialog({
       <StandardModalContent
         size="md"
         title={isEdit ? "تعديل منتج" : "منتج جديد"}
-        description="عناصر المنيو والمكونات والأسعار والوصفات."
+        description={
+          businessActivitySettings.activity_type === "supermarket"
+            ? "منتجات البيع، الباركود، سعر الشراء وسعر البيع."
+            : "عناصر المنيو والمكونات والأسعار والوصفات."
+        }
       >
 
         <Tabs defaultValue="details">

@@ -11,6 +11,8 @@ export default async function ProductsRoutePage() {
       ingredients={data.ingredients}
       currency={data.organization.currency}
       recipesEnabled={data.recipesEnabled}
+      businessActivity={data.businessActivity}
+      productTemplates={data.productTemplates}
     />
   );
 }

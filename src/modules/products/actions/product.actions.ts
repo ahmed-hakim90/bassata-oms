@@ -413,7 +413,11 @@ export async function saveCafeMenuItemAction(input: CafeMenuItemInput) {
   return product;
 }
 
-import { getFeatureFlags } from "@/modules/system/services/settings.service";
+import {
+  getBusinessActivitySettings,
+  getFeatureFlags,
+  getProductTemplateSettings,
+} from "@/modules/system/services/settings.service";
 import * as recipeService from "@/modules/products/services/recipe.service";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 
@@ -429,6 +433,8 @@ export async function getProductsPageDataAction() {
     recipeProductIds,
     recipeKeys,
     ingredients,
+    businessActivity,
+    productTemplates,
   ] =
     await Promise.all([
     productService.getProductsWithCategories(),
@@ -437,6 +443,8 @@ export async function getProductsPageDataAction() {
     recipeService.listProductIdsWithRecipes(),
     recipeService.listRecipeKeys(),
     recipeService.listIngredients(),
+    getBusinessActivitySettings(),
+    getProductTemplateSettings(),
   ]);
   const variantMap = await catalogRepo.listVariantsForProducts(
     rows.map(({ product }) => product.id)
@@ -455,6 +463,8 @@ export async function getProductsPageDataAction() {
     categories,
     ingredients,
     recipesEnabled: featureFlags.recipes === true,
+    businessActivity,
+    productTemplates,
     products: rows.map(({ product, category }) => {
       const activeVariants = (variantMap.get(product.id) ?? []).filter((v) => v.is_active);
       const missingRecipeVariantCount =
