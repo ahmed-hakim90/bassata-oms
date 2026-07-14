@@ -31,9 +31,9 @@ import {
   SHELF_LIFE_UNIT_LABELS,
   labelProductType,
 } from "@/lib/labels/inventory";
-import { formatUnit } from "@/lib/units";
+import { formatUnit, isPurchasePackUnit } from "@/lib/units";
 import { selectLabelById } from "@/lib/select-label";
-import type { Category } from "@/lib/types";
+import type { Category, MeasurementUnit } from "@/lib/types";
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { SweetFormField } from "@/components/SweetFlow/form-field";
 import { getVisibleAdvancedSettingsForProduct } from "@/modules/products/lib/advanced-settings-visibility";
@@ -100,11 +100,29 @@ function supermarketSellLabel(salesUnitType: ProductFormValues["sales_unit_type"
   return salesUnitType === "weight" ? "بالكيلو" : "بالقطعة";
 }
 
-const SUPERMARKET_PURCHASE_UNITS = [
-  { id: "piece" as const, label: "بالقطعة", hint: "بشتري قطعة زي ما ببيع" },
-  { id: "carton" as const, label: "بالكرتونة", hint: "بشتري كرتونة وفيها قطع" },
-  { id: "pack" as const, label: "بالعلبة", hint: "بشتري علبة وفيها قطع" },
-  { id: "box" as const, label: "بالصندوق", hint: "بشتري صندوق وفيه قطع" },
+const SUPERMARKET_PIECE_PURCHASE_UNITS: Array<{
+  id: MeasurementUnit;
+  label: string;
+  hint: string;
+  isLoose: boolean;
+}> = [
+  { id: "piece", label: "بالقطعة", hint: "بشتري قطعة زي ما ببيع", isLoose: true },
+  { id: "carton", label: "بالكرتونة", hint: "بشتري كرتونة وفيها قطع", isLoose: false },
+  { id: "pack", label: "بالعلبة", hint: "بشتري علبة وفيها قطع", isLoose: false },
+  { id: "box", label: "بالصندوق", hint: "بشتري صندوق وفيه قطع", isLoose: false },
+];
+
+const SUPERMARKET_WEIGHT_PURCHASE_UNITS: Array<{
+  id: MeasurementUnit;
+  label: string;
+  hint: string;
+  isLoose: boolean;
+}> = [
+  { id: "kg", label: "بالكيلو", hint: "بشتري وزن زي ما ببيع", isLoose: true },
+  { id: "carton", label: "بالكرتونة", hint: "كرتونة وفيها وزن ثابت", isLoose: false },
+  { id: "pack", label: "بالعلبة", hint: "علبة وفيها وزن ثابت", isLoose: false },
+  { id: "box", label: "بالصندوق", hint: "صندوق وفيه وزن ثابت", isLoose: false },
+  { id: "bag", label: "بالكيس", hint: "كيس أو شكاره بوزن ثابت", isLoose: false },
 ];
 
 export function GuidedProductDetailsForm({
@@ -145,15 +163,20 @@ export function GuidedProductDetailsForm({
   const showWholesale = false;
   const showSerialNumber = false;
   const baseUnit = values.base_unit ?? values.unit;
-  const purchasePackUnit =
+  const isWeightSell = values.sales_unit_type === "weight";
+  const showSupermarketPurchasePacking =
     isSupermarket &&
-    values.sales_unit_type === "piece" &&
+    (values.sales_unit_type === "piece" || isWeightSell) &&
+    (values.product_type === "finished_product" || values.product_type === "finished");
+  const purchasePackUnit =
+    showSupermarketPurchasePacking &&
     values.cost_unit !== baseUnit &&
-    (values.cost_unit === "carton" ||
-      values.cost_unit === "pack" ||
-      values.cost_unit === "box")
+    isPurchasePackUnit(values.cost_unit)
       ? values.cost_unit
       : null;
+  const supermarketPurchaseUnits = isWeightSell
+    ? SUPERMARKET_WEIGHT_PURCHASE_UNITS
+    : SUPERMARKET_PIECE_PURCHASE_UNITS;
   const salesUnitChoices = [
     { id: "piece" as const, label: "منتج بيع مباشر" },
     { id: "weight" as const, label: "منتج وزني" },
@@ -365,10 +388,13 @@ export function GuidedProductDetailsForm({
                         form.setValue("sales_unit_type", item.salesUnitType, {
                           shouldValidate: true,
                         });
-                        if (item.salesUnitType !== "piece") {
-                          form.setValue("cost_unit", baseUnit, { shouldValidate: true });
-                          form.setValue("units_per_purchase_unit", 1, { shouldValidate: true });
-                        }
+                        // Reset purchase packing when sell mode changes (piece ↔ weight).
+                        form.setValue(
+                          "cost_unit",
+                          item.salesUnitType === "weight" ? "kg" : "piece",
+                          { shouldValidate: true }
+                        );
+                        form.setValue("units_per_purchase_unit", 1, { shouldValidate: true });
                         requestTemplateReapply(item.id, item.salesUnitType);
                       } else {
                         requestTemplateReapply(item.id, values.sales_unit_type);
@@ -442,40 +468,46 @@ export function GuidedProductDetailsForm({
               </SweetFormField>
             </div>
           ) : null}
-          {isSupermarket &&
-          values.sales_unit_type === "piece" &&
-          (values.product_type === "finished_product" ||
-            values.product_type === "finished") ? (
+          {showSupermarketPurchasePacking ? (
             <div className="space-y-3 rounded-xl border border-border/60 p-3">
               <div className="text-sm font-medium">بتشتري إزاي من المورد؟</div>
               <div className="text-xs text-muted-foreground">
-                البيع بالقطعة — واختيار الشراء لوحده: قطعة أو كرتونة / علبة / صندوق.
+                {isWeightSell
+                  ? "البيع بالكيلو — واختيار الشراء لوحده: كيلو أو كرتونة / علبة / كيس بوزن ثابت."
+                  : "البيع بالقطعة — واختيار الشراء لوحده: قطعة أو كرتونة / علبة / صندوق."}
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                {SUPERMARKET_PURCHASE_UNITS.map((option) => {
-                  const selected =
-                    option.id === "piece"
-                      ? !purchasePackUnit
-                      : values.cost_unit === option.id;
+                {supermarketPurchaseUnits.map((option) => {
+                  const selected = option.isLoose
+                    ? !purchasePackUnit
+                    : values.cost_unit === option.id;
                   return (
                     <button
                       key={option.id}
                       type="button"
                       className={`rounded-xl border p-3 text-right ${selected ? "border-primary bg-primary/10" : "border-border/60"}`}
                       onClick={() => {
-                        if (option.id === "piece") {
-                          form.setValue("cost_unit", baseUnit, { shouldValidate: true });
+                        if (option.isLoose) {
+                          form.setValue(
+                            "cost_unit",
+                            isWeightSell ? "kg" : baseUnit,
+                            { shouldValidate: true }
+                          );
                           form.setValue("units_per_purchase_unit", 1, {
                             shouldValidate: true,
                           });
                           return;
                         }
                         form.setValue("cost_unit", option.id, { shouldValidate: true });
-                        form.setValue(
-                          "units_per_purchase_unit",
-                          Math.max(2, values.units_per_purchase_unit || 24),
-                          { shouldValidate: true }
-                        );
+                        const currentFactor = Number(values.units_per_purchase_unit);
+                        const nextFactor = isWeightSell
+                          ? currentFactor > 0 && currentFactor !== 1
+                            ? currentFactor
+                            : 2.5
+                          : Math.max(2, currentFactor || 24);
+                        form.setValue("units_per_purchase_unit", nextFactor, {
+                          shouldValidate: true,
+                        });
                       }}
                     >
                       <div className="text-sm font-medium">{option.label}</div>
@@ -487,15 +519,19 @@ export function GuidedProductDetailsForm({
               {purchasePackUnit ? (
                 <SweetFormField
                   id="units_per_purchase_unit"
-                  label={`كام قطعة في ال${formatUnit(purchasePackUnit)}؟`}
-                  hint="مثال: 24"
+                  label={
+                    isWeightSell
+                      ? `كام كيلو في ال${formatUnit(purchasePackUnit)}؟`
+                      : `كام قطعة في ال${formatUnit(purchasePackUnit)}؟`
+                  }
+                  hint={isWeightSell ? "مثال: 2.5 أو 1.5" : "مثال: 24"}
                   error={errors.units_per_purchase_unit?.message}
                 >
                   <Input
                     id="units_per_purchase_unit"
                     type="number"
-                    min={2}
-                    step={1}
+                    min={isWeightSell ? 0.01 : 2}
+                    step={isWeightSell ? 0.01 : 1}
                     aria-invalid={!!errors.units_per_purchase_unit}
                     {...form.register("units_per_purchase_unit", { valueAsNumber: true })}
                   />
@@ -590,8 +626,10 @@ export function GuidedProductDetailsForm({
                 <>
                   {supermarketSellLabel(values.sales_unit_type)}
                   {purchasePackUnit
-                    ? ` · شراء ${formatUnit(purchasePackUnit)} فيها ${values.units_per_purchase_unit} قطعة`
-                    : " · شراء بالقطعة"}
+                    ? ` · شراء ${formatUnit(purchasePackUnit)} فيها ${values.units_per_purchase_unit} ${isWeightSell ? "كيلو" : "قطعة"}`
+                    : isWeightSell
+                      ? " · شراء بالكيلو"
+                      : " · شراء بالقطعة"}
                   {" · "}
                   شراء {values.last_unit_cost} · بيع {values.base_price} {currency}
                 </>
@@ -919,7 +957,7 @@ export function GuidedProductDetailsForm({
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {(["piece", "carton", "pack", "box", "kg"] as const).map((u) => (
+                    {(["piece", "carton", "pack", "box", "bag", "kg"] as const).map((u) => (
                       <SelectItem key={u} value={u} label={formatUnit(u)}>
                         {formatUnit(u)}
                       </SelectItem>

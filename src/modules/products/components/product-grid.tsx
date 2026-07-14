@@ -1,14 +1,18 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useTransition, type ReactNode } from "react";
 import Image from "next/image";
-import { Package, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Package, Pencil, Power, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
+import { formatUnit } from "@/lib/units";
 import type { Category, Product, ProductVariant } from "@/lib/types";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { updateProductAction } from "../actions/product.actions";
 
 export interface ProductGridItem {
   product: Product;
@@ -25,9 +29,30 @@ interface ProductGridProps {
   currency?: string;
   priceMode?: "sale" | "cost";
   showEdit?: boolean;
+  availableStockByProductId?: Record<string, number>;
+  availableStockByVariantId?: Record<string, number>;
   onEdit: (item: ProductGridItem) => void;
   onDelete: (product: Product) => void;
   emptyAction?: ReactNode;
+}
+
+function stockForProduct(
+  product: Product,
+  variants: ProductVariant[],
+  byProduct: Record<string, number>,
+  byVariant: Record<string, number>
+): number | null {
+  if (!product.track_inventory) return null;
+  if (variants.length > 0) {
+    const sum = variants.reduce((total, variant) => {
+      const qty = byVariant[variant.id] ?? 0;
+      return total + qty;
+    }, 0);
+    if (sum > 0 || variants.some((variant) => variant.id in byVariant)) {
+      return sum;
+    }
+  }
+  return byProduct[product.id] ?? 0;
 }
 
 export function ProductGrid({
@@ -35,10 +60,28 @@ export function ProductGrid({
   currency = "EGP",
   priceMode = "sale",
   showEdit = true,
+  availableStockByProductId = {},
+  availableStockByVariantId = {},
   onEdit,
   onDelete,
   emptyAction,
 }: ProductGridProps) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  function setActive(product: Product, isActive: boolean) {
+    if (product.is_active === isActive) return;
+    startTransition(async () => {
+      try {
+        await updateProductAction(product.id, { is_active: isActive });
+        toast.success(isActive ? `تم تفعيل ${product.name}` : `تم إيقاف ${product.name}`);
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "تعذر تحديث حالة المنتج");
+      }
+    });
+  }
+
   if (items.length === 0) {
     return (
       <EmptyStateBlock
@@ -78,11 +121,18 @@ export function ProductGrid({
                 ? minVariantPrice
                 : product.base_price;
           const unitSuffix =
-            priceMode === "cost" && product.cost_unit ? ` / ${product.cost_unit}` : "";
+            priceMode === "cost" && product.cost_unit ? ` / ${formatUnit(product.cost_unit)}` : "";
           const priceRange =
             showVariantPrice && maxVariantPrice > minVariantPrice
               ? ` – ${formatCurrency(maxVariantPrice, currency)}`
               : "";
+          const stock = stockForProduct(
+            product,
+            variants,
+            availableStockByProductId,
+            availableStockByVariantId
+          );
+          const code = product.barcode || product.sku;
 
           return (
             <article
@@ -120,42 +170,42 @@ export function ProductGrid({
                   </div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 flex flex-wrap gap-1 p-[var(--mds-space-2)]">
-                  {variantCount > 0 ? (
-                    <StatusPill label={`${variantCount} أحجام`} variant="info" />
-                  ) : null}
-                  {hasRecipe ? <StatusPill label="وصفة" variant="info" /> : null}
                   {missingRecipeVariantCount > 0 ? (
                     <StatusPill label="تكلفة ناقصة" variant="warning" />
                   ) : null}
                   {product.is_popular ? <StatusPill label="شائع" variant="info" /> : null}
-                  {!product.is_active ? (
-                    <StatusPill label="غير نشط" variant="default" />
-                  ) : null}
                 </div>
               </div>
 
               <div className="flex flex-1 flex-col gap-[var(--mds-space-3)] p-[var(--mds-space-4)]">
                 <div className="min-w-0 space-y-1">
-                  <p className="truncate text-xs font-medium text-muted-foreground">
-                    {category?.name ?? "غير مصنف"}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-xs font-medium text-muted-foreground">
+                      {category?.name ?? "غير مصنف"}
+                    </p>
+                    <StatusPill
+                      label={product.is_active ? "نشط" : "متوقف"}
+                      variant={product.is_active ? "success" : "warning"}
+                    />
+                  </div>
                   <h3 className="line-clamp-2 text-base font-semibold leading-snug tracking-tight">
                     {product.name}
                   </h3>
                   <p className="truncate font-mono text-[11px] text-muted-foreground" dir="ltr">
-                    {product.sku}
-                    {product.barcode ? ` · ${product.barcode}` : ""}
+                    {code}
                   </p>
                 </div>
 
-                <div className="mt-auto flex items-end justify-between gap-2 border-t border-border/60 pt-[var(--mds-space-3)]">
-                  <div className="min-w-0">
-                    {priceMode === "cost" ? (
-                      <p className="text-[11px] text-muted-foreground">تكلفة الوحدة</p>
-                    ) : showVariantPrice && priceRange ? (
-                      <p className="text-[11px] text-muted-foreground">نطاق السعر</p>
-                    ) : null}
-                    <p className="truncate text-lg font-semibold tabular-nums tracking-tight">
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-[var(--mds-radius-md)] border border-border/60 bg-muted/20 p-[var(--mds-space-3)]">
+                  <div className="min-w-0 space-y-0.5">
+                    <dt className="text-[11px] text-muted-foreground">
+                      {priceMode === "cost"
+                        ? "تكلفة الوحدة"
+                        : showVariantPrice && priceRange
+                          ? "نطاق السعر"
+                          : "السعر"}
+                    </dt>
+                    <dd className="truncate text-sm font-semibold tabular-nums tracking-tight">
                       {formatCurrency(amount, currency)}
                       {priceRange ? (
                         <span className="text-xs font-normal text-muted-foreground">
@@ -167,22 +217,54 @@ export function ProductGrid({
                           {unitSuffix}
                         </span>
                       ) : null}
-                    </p>
+                    </dd>
                   </div>
-                  {product.track_inventory ? (
-                    <StatusPill label="متتبع" variant="success" />
-                  ) : (
-                    <StatusPill label="غير متتبع" variant="default" />
-                  )}
-                </div>
+                  <div className="min-w-0 space-y-0.5 text-end">
+                    <dt className="text-[11px] text-muted-foreground">المخزون</dt>
+                    <dd className="truncate text-sm font-semibold tabular-nums tracking-tight">
+                      {stock == null ? (
+                        <span className="font-normal text-muted-foreground">غير متتبع</span>
+                      ) : (
+                        <>
+                          {stock}{" "}
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {formatUnit(product.unit)}
+                          </span>
+                        </>
+                      )}
+                    </dd>
+                  </div>
+                  {variantCount > 0 || hasRecipe ? (
+                    <div className="col-span-2 flex flex-wrap gap-1 border-t border-border/50 pt-2">
+                      {variantCount > 0 ? (
+                        <StatusPill label={`${variantCount} أحجام`} variant="info" />
+                      ) : null}
+                      {hasRecipe ? <StatusPill label="وصفة" variant="info" /> : null}
+                    </div>
+                  ) : null}
+                </dl>
 
-                <div className="flex gap-2">
+                <div className="mt-auto flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={product.is_active ? "outline" : "default"}
+                    className="h-9 flex-1"
+                    disabled={pending}
+                    onClick={() => setActive(product, !product.is_active)}
+                    aria-label={
+                      product.is_active ? `إيقاف ${product.name}` : `تفعيل ${product.name}`
+                    }
+                  >
+                    <Power className="size-3.5" />
+                    {product.is_active ? "إيقاف" : "تفعيل"}
+                  </Button>
                   {showEdit ? (
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-9 flex-1"
+                      className="h-9"
                       onClick={() =>
                         onEdit({
                           product,
@@ -194,9 +276,9 @@ export function ProductGrid({
                           variants,
                         })
                       }
+                      aria-label={`تعديل ${product.name}`}
                     >
                       <Pencil className="size-3.5" />
-                      تعديل
                     </Button>
                   ) : null}
                   <Button

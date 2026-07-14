@@ -158,6 +158,183 @@ export async function createDraftPurchase(input: {
   return invoice;
 }
 
+export type ReorderDraftLineInput = {
+  productId: string;
+  warehouseId: string;
+  quantity: number;
+};
+
+export type ReorderSupplierPurchaseHint = {
+  supplierId: string;
+  status: PurchaseInvoice["status"];
+  receivedAt: string | null;
+  createdAt: string;
+  lines: Array<{ productId: string }>;
+};
+
+/** Last received supplier per product (newest first). Skips unknown/removed suppliers. */
+export function resolveLastSupplierByProduct(input: {
+  productIds: string[];
+  purchases: ReorderSupplierPurchaseHint[];
+  validSupplierIds: ReadonlySet<string>;
+}): Map<string, string> {
+  const needed = new Set(input.productIds.filter(Boolean));
+  const result = new Map<string, string>();
+  if (needed.size === 0) return result;
+
+  const ordered = [...input.purchases]
+    .filter((purchase) => purchase.status === "received")
+    .sort((a, b) => {
+      const aAt = new Date(a.receivedAt ?? a.createdAt).getTime();
+      const bAt = new Date(b.receivedAt ?? b.createdAt).getTime();
+      return bAt - aAt;
+    });
+
+  for (const purchase of ordered) {
+    if (!input.validSupplierIds.has(purchase.supplierId)) continue;
+    for (const line of purchase.lines) {
+      if (!needed.has(line.productId) || result.has(line.productId)) continue;
+      result.set(line.productId, purchase.supplierId);
+      if (result.size === needed.size) return result;
+    }
+  }
+
+  return result;
+}
+
+/** One draft bucket per warehouse × supplier. Missing history → fallback supplier. */
+export function groupReorderLinesByWarehouseAndSupplier(input: {
+  lines: ReorderDraftLineInput[];
+  lastSupplierByProduct: Map<string, string>;
+  fallbackSupplierId: string;
+}): Map<string, { warehouseId: string; supplierId: string; lines: ReorderDraftLineInput[] }> {
+  const buckets = new Map<
+    string,
+    { warehouseId: string; supplierId: string; lines: ReorderDraftLineInput[] }
+  >();
+
+  for (const line of input.lines) {
+    if (!line.productId || !line.warehouseId) continue;
+    const qty = Math.max(0, Number(line.quantity) || 0);
+    if (qty <= 0) continue;
+
+    const supplierId =
+      input.lastSupplierByProduct.get(line.productId) ?? input.fallbackSupplierId;
+    const key = `${line.warehouseId}::${supplierId}`;
+    const bucket = buckets.get(key) ?? {
+      warehouseId: line.warehouseId,
+      supplierId,
+      lines: [],
+    };
+    bucket.lines.push({ ...line, quantity: qty });
+    buckets.set(key, bucket);
+  }
+
+  return buckets;
+}
+
+/**
+ * Builds one draft invoice per warehouse × last supplier from reorder suggestions.
+ * Products without purchase history use the fallback (first) supplier for review.
+ */
+export async function createDraftPurchasesFromReorder(input: {
+  storeId: string;
+  createdBy: string;
+  lines: ReorderDraftLineInput[];
+}): Promise<PurchaseInvoice[]> {
+  if (input.lines.length === 0) {
+    throw new Error("مفيش أصناف مقترحة لإنشاء المسودة");
+  }
+
+  const suppliers = await purchaseRepo.listSuppliers();
+  const fallbackSupplier = suppliers[0];
+  if (!fallbackSupplier) {
+    throw new Error("أضف مورد أولاً من إدارة الموردين قبل إنشاء مسودة شراء");
+  }
+
+  const productIds = [...new Set(input.lines.map((line) => line.productId).filter(Boolean))];
+  const [products, orgPurchases] = await Promise.all([
+    catalogRepo.listProducts(),
+    purchaseRepo.listPurchases(),
+  ]);
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  const received = orgPurchases.filter((invoice) => invoice.status === "received");
+  const purchaseLines = await purchaseRepo.getPurchaseLinesForInvoices(
+    received.map((invoice) => invoice.id)
+  );
+  const linesByInvoice = new Map<string, typeof purchaseLines>();
+  for (const line of purchaseLines) {
+    const list = linesByInvoice.get(line.invoice_id) ?? [];
+    list.push(line);
+    linesByInvoice.set(line.invoice_id, list);
+  }
+
+  const lastSupplierByProduct = resolveLastSupplierByProduct({
+    productIds,
+    validSupplierIds: new Set(suppliers.map((supplier) => supplier.id)),
+    purchases: received.map((invoice) => ({
+      supplierId: invoice.supplier_id,
+      status: invoice.status,
+      receivedAt: invoice.received_at,
+      createdAt: invoice.created_at,
+      lines: (linesByInvoice.get(invoice.id) ?? []).map((line) => ({
+        productId: line.product_id,
+      })),
+    })),
+  });
+
+  const buckets = groupReorderLinesByWarehouseAndSupplier({
+    lines: input.lines,
+    lastSupplierByProduct,
+    fallbackSupplierId: fallbackSupplier.id,
+  });
+
+  if (buckets.size === 0) {
+    throw new Error("مفيش كميات صالحة لإنشاء المسودة");
+  }
+
+  const stamp = new Date();
+  const yymmdd = [
+    String(stamp.getFullYear()).slice(2),
+    String(stamp.getMonth() + 1).padStart(2, "0"),
+    String(stamp.getDate()).padStart(2, "0"),
+  ].join("");
+  const runId = Math.random().toString(36).slice(2, 6).toUpperCase();
+
+  const created: PurchaseInvoice[] = [];
+  let bucketIndex = 0;
+  for (const bucket of buckets.values()) {
+    bucketIndex += 1;
+    const suffix = String(bucketIndex).padStart(2, "0");
+    const invoice = await createDraftPurchase({
+      storeId: input.storeId,
+      warehouseId: bucket.warehouseId,
+      supplierId: bucket.supplierId,
+      invoiceNumber: `إعادة-${yymmdd}-${runId}-${suffix}`,
+      createdBy: input.createdBy,
+    });
+
+    for (const line of bucket.lines) {
+      const product = productMap.get(line.productId);
+      if (!product) continue;
+      await addPurchaseLine({
+        invoiceId: invoice.id,
+        productId: line.productId,
+        quantity: line.quantity,
+        unitCost: Math.max(0, product.last_unit_cost ?? 0),
+      });
+    }
+
+    created.push(invoice);
+  }
+
+  if (created.length === 0) {
+    throw new Error("تعذر إنشاء مسودة الشراء من الاقتراحات");
+  }
+
+  return created;
+}
+
 export async function addPurchaseLine(input: {
   invoiceId: string;
   productId: string;

@@ -17,6 +17,7 @@ import {
   resolveStockLevels,
   toLowStockViews,
   type StockCategoryGroup,
+  type StockLevelView,
 } from "@/modules/inventory/services/stock.service";
 
 const TIMELINE_LIMIT = 20;
@@ -84,8 +85,12 @@ export async function getInventoryHubData(input: {
   const alerts = levelsToAlerts(lowStock);
   const expiryAlerts = summarizeExpiryBatches(batches, products);
   const movements = attachMovementNames(recentMovements, products, warehouses);
+  // Reorder drafts need concrete warehouse_id; aggregated all-warehouse view blanks it.
+  const reorderLevels: StockLevelView[] = selectedWarehouseId
+    ? lowStock
+    : toLowStockViews(attachProductsToLevels(rawLevels, products), products);
   const reorderSuggestions = buildReorderSuggestions(
-    lowStock,
+    reorderLevels,
     warehouses,
     averageDailyUsageByStockKey(consumptionMovements)
   );

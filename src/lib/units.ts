@@ -82,8 +82,8 @@ export function isWeightUnit(unit: MeasurementUnit): boolean {
   return unit === "kg" || unit === "gram";
 }
 
-/** Packaging units typically used for purchase invoices (cartons/packs). */
-export const PURCHASE_PACK_UNITS: MeasurementUnit[] = ["carton", "pack", "box"];
+/** Packaging units typically used for purchase invoices (cartons/packs/bags). */
+export const PURCHASE_PACK_UNITS: MeasurementUnit[] = ["carton", "pack", "box", "bag"];
 
 type PurchasePackProduct = {
   cost_unit: MeasurementUnit;
@@ -92,6 +92,10 @@ type PurchasePackProduct = {
   units_per_purchase_unit?: number;
 };
 
+export function isPurchasePackUnit(unit: MeasurementUnit): boolean {
+  return (PURCHASE_PACK_UNITS as readonly MeasurementUnit[]).includes(unit);
+}
+
 export function productPurchaseFactor(product: PurchasePackProduct): number {
   const factor = Number(product.units_per_purchase_unit ?? 1);
   return Number.isFinite(factor) && factor > 0 ? factor : 1;
@@ -99,12 +103,17 @@ export function productPurchaseFactor(product: PurchasePackProduct): number {
 
 export function productHasPurchasePacking(product: PurchasePackProduct): boolean {
   const base = product.base_unit ?? product.unit;
-  return product.cost_unit !== base && productPurchaseFactor(product) > 1;
+  return (
+    isPurchasePackUnit(product.cost_unit) &&
+    product.cost_unit !== base &&
+    productPurchaseFactor(product) > 0
+  );
 }
 
 /**
  * Convert a purchase line entry (piece or carton) into base-unit qty + unit cost.
  * Stock and purchase_invoice_lines always persist in base units.
+ * Factor may be fractional (e.g. carton = 2.5 kg).
  */
 export function convertPurchaseEntryToBase(input: {
   quantity: number;
@@ -121,7 +130,11 @@ export function convertPurchaseEntryToBase(input: {
       ? input.unitsPerPurchaseUnit
       : 1;
 
-  if (input.entryUnit === input.baseUnit || factor <= 1 || input.purchaseUnit === input.baseUnit) {
+  if (
+    input.entryUnit === input.baseUnit ||
+    input.purchaseUnit === input.baseUnit ||
+    !isPurchasePackUnit(input.purchaseUnit)
+  ) {
     const lineTotal = Number((qty * cost).toFixed(2));
     return { quantity: qty, unitCost: cost, lineTotal };
   }

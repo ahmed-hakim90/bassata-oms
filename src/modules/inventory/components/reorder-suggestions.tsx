@@ -1,12 +1,14 @@
 "use client";
 
-import Link from "next/link";
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ShoppingBasket } from "lucide-react";
+import { toast } from "sonner";
 import { GlassPanel } from "@/components/SweetFlow/glass-panel";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { createPurchaseDraftFromReorderAction } from "@/modules/purchases/actions/purchase.actions";
 import type { ReorderSuggestion } from "@/modules/inventory/services/reorder.service";
 
 interface ReorderSuggestionsProps {
@@ -14,15 +16,50 @@ interface ReorderSuggestionsProps {
 }
 
 export function ReorderSuggestions({ suggestions }: ReorderSuggestionsProps) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
   if (suggestions.length === 0) {
     return (
       <GlassPanel className="p-5 text-sm text-muted-foreground">
-        No reorder suggestions right now.
+        مفيش اقتراحات شراء دلوقتي — المخزون فوق حد إعادة الطلب.
       </GlassPanel>
     );
   }
 
   const estimatedTotal = suggestions.reduce((sum, item) => sum + item.estimatedCost, 0);
+
+  function handleCreateDraft() {
+    startTransition(async () => {
+      const result = await createPurchaseDraftFromReorderAction(
+        suggestions.map((item) => ({
+          productId: item.productId,
+          warehouseId: item.warehouseId,
+          quantity: item.suggestedQuantity,
+        }))
+      );
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+
+      const firstId = result.data.invoiceIds[0];
+      if (result.data.count > 1) {
+        toast.success(
+          `اتعملت ${result.data.count} مسودات شراء (مخزن × مورد حسب آخر شراء). راجع وعدّل قبل الاستلام.`
+        );
+      } else {
+        toast.success("اتعملت مسودة شراء من الاقتراحات — راجع وعدّل قبل الاستلام");
+      }
+
+      if (firstId) {
+        router.push(`/inventory/purchases?invoice=${firstId}&tab=drafts`);
+      } else {
+        router.push("/inventory/purchases?tab=drafts");
+      }
+      router.refresh();
+    });
+  }
 
   return (
     <GlassPanel className="grid gap-4 p-5">
@@ -30,18 +67,25 @@ export function ReorderSuggestions({ suggestions }: ReorderSuggestionsProps) {
         <div>
           <div className="flex items-center gap-2">
             <ShoppingBasket className="size-4 text-primary" />
-            <h2 className="font-semibold">Reorder suggestions</h2>
+            <h2 className="font-semibold">اقتراحات إعادة الطلب</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {suggestions.length} items · estimated {formatCurrency(estimatedTotal)}
+            {suggestions.length} صنف · تقديري {formatCurrency(estimatedTotal)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            إنشاء مسودة → راجع الكمية والتكلفة → احفظ واستلم لاحقًا
           </p>
         </div>
-        <Link
-          href="/inventory/purchases"
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          className="rounded-xl"
+          disabled={pending}
+          onClick={handleCreateDraft}
         >
-          Create purchase
-        </Link>
+          {pending ? "جاري الإنشاء…" : "إنشاء مسودة شراء"}
+        </Button>
       </div>
 
       <div className="grid gap-2">
@@ -54,23 +98,21 @@ export function ReorderSuggestions({ suggestions }: ReorderSuggestionsProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-medium">{suggestion.productName}</p>
                 <StatusPill
-                  label={suggestion.priority === "urgent" ? "Urgent" : "Soon"}
+                  label={suggestion.priority === "urgent" ? "عاجل" : "قريب"}
                   variant={suggestion.priority === "urgent" ? "danger" : "warning"}
                 />
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {suggestion.warehouseName} · {suggestion.message}
+                {suggestion.warehouseName} · اقترح شراء {suggestion.suggestedQuantity}
               </p>
               {suggestion.averageDailyUsage > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Recent usage: {suggestion.averageDailyUsage.toFixed(2)} per day
+                  استهلاك تقريبي: {suggestion.averageDailyUsage.toFixed(2)} / يوم
                 </p>
               ) : null}
             </div>
             <div className="text-left sm:text-right">
-              <p className="font-semibold tabular-nums">
-                {suggestion.suggestedQuantity}
-              </p>
+              <p className="font-semibold tabular-nums">{suggestion.suggestedQuantity}</p>
               <p className="text-xs text-muted-foreground">
                 {formatCurrency(suggestion.estimatedCost)}
               </p>
@@ -79,7 +121,7 @@ export function ReorderSuggestions({ suggestions }: ReorderSuggestionsProps) {
         ))}
         {suggestions.length > 6 ? (
           <p className="text-xs text-muted-foreground">
-            +{suggestions.length - 6} more suggestions
+            +{suggestions.length - 6} أصناف تانية في المسودة
           </p>
         ) : null}
       </div>

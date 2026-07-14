@@ -136,6 +136,27 @@ export async function getLowStock(
   return toLowStockViews(levels, products);
 }
 
+/**
+ * Low-stock rows for reorder / purchase drafts.
+ * Keeps real `warehouse_id` — never aggregates across warehouses
+ * (aggregation blanks warehouse_id and breaks draft creation).
+ */
+export async function getLowStockForReorder(
+  storeId: string,
+  warehouseId?: string,
+  preloaded?: { levels?: StockLevel[]; products?: Product[] }
+): Promise<StockLevelView[]> {
+  const [rawLevels, products] = await Promise.all([
+    preloaded?.levels
+      ? Promise.resolve(preloaded.levels)
+      : inventoryRepo.listStockLevels(storeId, warehouseId),
+    preloaded?.products
+      ? Promise.resolve(preloaded.products)
+      : catalogRepo.listProducts(),
+  ]);
+  return toLowStockViews(attachProductsToLevels(rawLevels, products), products);
+}
+
 export async function groupStockByCategory(
   storeId: string,
   warehouseId?: string,

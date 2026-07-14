@@ -504,7 +504,7 @@ export function ProductsPage({
               عرض {filtered.length} من {visibleSource.length}
               {categoryId ? " · تصنيف محدد" : ""}
               {layout === "table"
-                ? " · عدّل السعر وتتبع المخزون مباشرة من الجدول"
+                ? " · عدّل السعر والحالة وتتبع المخزون مباشرة من الجدول"
                 : ""}
             </span>
             {pending ? <span>جاري التحديث…</span> : null}
@@ -538,6 +538,8 @@ export function ProductsPage({
               priceMode={
                 showIngredientsCatalog && view === "ingredients" ? "cost" : "sale"
               }
+              availableStockByProductId={availableStockByProductId}
+              availableStockByVariantId={availableStockByVariantId}
               onEdit={
                 showIngredientsCatalog && view === "ingredients"
                   ? openEditIngredient

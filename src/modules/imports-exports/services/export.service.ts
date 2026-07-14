@@ -177,6 +177,20 @@ function supermarketSamples() {
       track_inventory: true,
       import_action: "upsert",
     },
+    {
+      name: "سكر",
+      sku: "SUGAR-BAG",
+      barcode: "6224000000003",
+      category: "بقالة",
+      definition: "supermarket_weight_product",
+      base_price: 35,
+      last_unit_cost: 28,
+      unit: "kg",
+      cost_unit: "bag",
+      units_per_purchase_unit: 25,
+      track_inventory: true,
+      import_action: "upsert",
+    },
   ];
 }
 
@@ -276,9 +290,9 @@ function buildReadmeSheet(group: TemplateGroup, activityType: BusinessActivityTy
       ["definition", "retail_product for piece shelf items; supermarket_weight_product for kg items"],
       ["base_price", "Sell price (piece) or sell price per kg (weight) — سعر البيع / سعر الكيلو"],
       ["last_unit_cost", "Purchase cost per sale unit — سعر الشراء"],
-      ["cost_unit + units_per_purchase_unit", "Purchase carton/pack: e.g. cost_unit=carton and units_per_purchase_unit=24"],
+      ["cost_unit + units_per_purchase_unit", "Purchase pack: carton/pack/box/bag with base units inside (pieces or kg, e.g. carton=24 pieces or bag=25 kg)"],
       ["Arabic headers", "اسم المنتج، باركود، سعر، سعر_الشراء، الوحدة، وحدة_الشراء، قطع_في_الكرتونة"],
-      ["Purchases", "Buy by piece or carton on purchase invoices; stock stays in piece/base unit"],
+      ["Purchases", "Buy by loose unit or pack on purchase invoices; stock stays in base unit (piece or kg)"],
       ["activity", activityType],
     ]);
   }

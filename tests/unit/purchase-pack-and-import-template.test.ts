@@ -26,6 +26,20 @@ describe("purchase pack conversion", () => {
     expect(result.lineTotal).toBe(240);
   });
 
+  it("converts weight pack entry into base kg and unit cost", () => {
+    const result = convertPurchaseEntryToBase({
+      quantity: 4,
+      unitCost: 100,
+      entryUnit: "carton",
+      baseUnit: "kg",
+      purchaseUnit: "carton",
+      unitsPerPurchaseUnit: 2.5,
+    });
+    expect(result.quantity).toBe(10);
+    expect(result.unitCost).toBe(40);
+    expect(result.lineTotal).toBe(400);
+  });
+
   it("keeps piece entry unchanged", () => {
     const result = convertPurchaseEntryToBase({
       quantity: 10,
@@ -47,6 +61,22 @@ describe("purchase pack conversion", () => {
         units_per_purchase_unit: 24,
       })
     ).toBe(true);
+    expect(
+      productHasPurchasePacking({
+        unit: "kg",
+        base_unit: "kg",
+        cost_unit: "bag",
+        units_per_purchase_unit: 2.5,
+      })
+    ).toBe(true);
+    expect(
+      productHasPurchasePacking({
+        unit: "kg",
+        base_unit: "kg",
+        cost_unit: "kg",
+        units_per_purchase_unit: 1,
+      })
+    ).toBe(false);
     expect(productPurchaseFactor({ unit: "piece", cost_unit: "carton", units_per_purchase_unit: 24 })).toBe(
       24
     );

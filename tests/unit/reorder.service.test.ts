@@ -58,4 +58,39 @@ describe("stockLevelToReorderSuggestion", () => {
 
     expect(suggestion).toBeNull();
   });
+
+  it("keeps warehouseId so purchase drafts can be created", () => {
+    const suggestion = stockLevelToReorderSuggestion(baseLevel, "المخزن الرئيسي");
+
+    expect(suggestion?.warehouseId).toBe("warehouse-1");
+    expect(suggestion?.warehouseName).toBe("المخزن الرئيسي");
+  });
+});
+
+describe("buildReorderSuggestions", () => {
+  it("skips aggregated rows that blank warehouse_id", async () => {
+    const { buildReorderSuggestions } = await import(
+      "@/modules/inventory/services/reorder.service"
+    );
+    const aggregated = {
+      ...baseLevel,
+      warehouse_id: "",
+    };
+    const suggestions = buildReorderSuggestions(
+      [aggregated, baseLevel],
+      [
+        {
+          id: "warehouse-1",
+          name: "المخزن الرئيسي",
+          store_id: "store-1",
+          is_default: true,
+          is_active: true,
+        } as never,
+      ],
+      new Map()
+    );
+
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].warehouseId).toBe("warehouse-1");
+  });
 });

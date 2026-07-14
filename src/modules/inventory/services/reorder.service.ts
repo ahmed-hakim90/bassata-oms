@@ -3,7 +3,7 @@ import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import type { InventoryMovement, MovementType, Warehouse } from "@/lib/types";
 import type { StockLevelView } from "@/modules/inventory/services/stock.service";
-import { getLowStock } from "@/modules/inventory/services/stock.service";
+import { getLowStockForReorder } from "@/modules/inventory/services/stock.service";
 
 export interface ReorderSuggestion {
   id: string;
@@ -112,10 +112,11 @@ export function buildReorderSuggestions(
   const warehouseMap = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse.name]));
 
   return levels
+    .filter((level) => Boolean(level.warehouse_id))
     .map((level) =>
       stockLevelToReorderSuggestion(
         level,
-        warehouseMap.get(level.warehouse_id) ?? "Unknown warehouse",
+        warehouseMap.get(level.warehouse_id) ?? "مخزن غير معروف",
         usageByKey.get(getConsumptionKey(level)) ?? 0
       )
     )
@@ -138,7 +139,7 @@ export async function getReorderSuggestions(
   const [levels, warehouses] = await Promise.all([
     preloaded?.levels
       ? Promise.resolve(preloaded.levels)
-      : getLowStock(storeId, warehouseId),
+      : getLowStockForReorder(storeId, warehouseId),
     preloaded?.warehouses
       ? Promise.resolve(preloaded.warehouses)
       : warehouseRepo.listWarehouses(storeId),

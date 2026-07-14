@@ -253,7 +253,7 @@ export function ImportProductsDialog({
             {fileName ? <p className="text-xs text-muted-foreground">{fileName}</p> : null}
             <p className="max-w-sm text-xs text-muted-foreground">
               {activityType === "supermarket"
-                ? "ورقة المنتجات: قطعة بباركود، منتج وزني بسعر الكيلو، ووحدة شراء (كرتونة) مع عدد القطع."
+                ? "ورقة المنتجات: قطعة بباركود، منتج وزني بسعر الكيلو، ووحدة شراء (كرتونة/كيس) مع عدد القطع أو الكيلو."
                 : "Use Products for items and ingredients, Variants for sizes and prices, and Recipes when you need inventory deduction."}
             </p>
           </GlassPanel>

@@ -72,7 +72,8 @@ function formatProductUnits(product: Product): string {
   ) {
     const packUnit = formatUnit(product.cost_unit);
     const count = product.units_per_purchase_unit ?? 1;
-    return `${sell} · ${packUnit} فيها ${count}`;
+    const contentUnit = formatUnit(product.base_unit ?? product.unit);
+    return `${sell} · ${packUnit} فيها ${count} ${contentUnit}`;
   }
   return sell;
 }
@@ -250,6 +251,19 @@ export function ProductTable({
     });
   }
 
+  function setActive(product: Product, isActive: boolean) {
+    if (product.is_active === isActive) return;
+    startTransition(async () => {
+      try {
+        await updateProductAction(product.id, { is_active: isActive });
+        toast.success(isActive ? `تم تفعيل ${product.name}` : `تم إيقاف ${product.name}`);
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "تعذر تحديث حالة المنتج");
+      }
+    });
+  }
+
   return (
     <DataTableShell
       title={`جدول المنتجات · ${currency}`}
@@ -403,10 +417,31 @@ export function ProductTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <StatusPill
-                    label={row.product.is_active ? "نشط" : "متوقف"}
-                    variant={row.product.is_active ? "success" : "warning"}
-                  />
+                  {isFirstProductRow ? (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={row.product.is_active}
+                        disabled={pending}
+                        aria-label={
+                          row.product.is_active
+                            ? `إيقاف ${row.product.name}`
+                            : `تفعيل ${row.product.name}`
+                        }
+                        onCheckedChange={(value) =>
+                          setActive(row.product, value === true)
+                        }
+                      />
+                      <StatusPill
+                        label={row.product.is_active ? "نشط" : "متوقف"}
+                        variant={row.product.is_active ? "success" : "warning"}
+                      />
+                    </div>
+                  ) : (
+                    <StatusPill
+                      label={row.product.is_active ? "نشط" : "متوقف"}
+                      variant={row.product.is_active ? "success" : "warning"}
+                    />
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">

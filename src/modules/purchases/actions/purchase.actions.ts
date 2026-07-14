@@ -9,6 +9,7 @@ import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import {
   addPurchaseLine,
   createDraftPurchase,
+  createDraftPurchasesFromReorder,
   deleteDraftPurchase,
   enrichPurchases,
   getPurchase,
@@ -75,6 +76,28 @@ export async function createPurchaseAction(input: {
     });
     revalidatePath("/inventory/purchases");
     return invoice;
+  });
+}
+
+/** Creates draft purchase invoice(s) from inventory reorder suggestions for review. */
+export async function createPurchaseDraftFromReorderAction(
+  lines: { productId: string; warehouseId: string; quantity: number }[]
+): Promise<PurchaseActionResult<{ invoiceIds: string[]; count: number }>> {
+  return runPurchaseAction(async () => {
+    await requireFeature("purchases");
+    const user = await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
+    const storeId = await getValidatedActiveStoreId();
+    const invoices = await createDraftPurchasesFromReorder({
+      storeId,
+      createdBy: user.id,
+      lines,
+    });
+    revalidatePath("/inventory/purchases");
+    revalidatePath("/inventory");
+    return {
+      invoiceIds: invoices.map((invoice) => invoice.id),
+      count: invoices.length,
+    };
   });
 }
 
