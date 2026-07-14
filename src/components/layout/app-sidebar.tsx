@@ -25,6 +25,7 @@ import {
   Shield,
   ShoppingCart,
   Trash2,
+  Tag,
   TrendingUp,
   Truck,
   Users,
@@ -69,6 +70,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Wallet,
   Users,
   Heart,
+  Tag,
   Landmark,
   BarChart3,
   Barcode,
@@ -91,12 +93,16 @@ const ROLE_SUBTITLE: Record<UserRole, string> = {
 export function AppSidebar({
   userRole,
   featureFlags,
+  enableWholesaleSales,
+  allowCashierWholesale,
   permissions = [],
   className,
   forceExpanded = false,
 }: {
   userRole: UserRole;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
+  enableWholesaleSales?: boolean;
+  allowCashierWholesale?: boolean;
   permissions?: PermissionKey[];
   className?: string;
   forceExpanded?: boolean;
@@ -109,7 +115,8 @@ export function AppSidebar({
   const navGroups = filterNavByAccess(
     userRole,
     new Set(permissions),
-    featureFlags
+    featureFlags,
+    { enableWholesaleSales, allowCashierWholesale }
   );
   const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
 

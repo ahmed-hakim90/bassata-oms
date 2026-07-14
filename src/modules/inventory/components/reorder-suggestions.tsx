@@ -52,12 +52,12 @@ export function ReorderSuggestions({ suggestions }: ReorderSuggestionsProps) {
         toast.success("اتعملت مسودة شراء من الاقتراحات — راجع وعدّل قبل الاستلام");
       }
 
+      // Navigate immediately — awaiting refresh made "جاري الإنشاء…" linger.
       if (firstId) {
         router.push(`/inventory/purchases?invoice=${firstId}&tab=drafts`);
       } else {
         router.push("/inventory/purchases?tab=drafts");
       }
-      router.refresh();
     });
   }
 

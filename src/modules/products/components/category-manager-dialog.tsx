@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Edit2, Plus, Save, Trash2, X } from "lucide-react";
 import type { Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -67,11 +67,24 @@ export function CategoryManagerDialog({
 }: CategoryManagerDialogProps) {
   const [form, setForm] = useState<CategoryFormState>(DEFAULT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [localCategories, setLocalCategories] = useState(categories);
+  const [dirty, setDirty] = useState(false);
+  const snapshotRef = useRef<Category[] | null>(null);
+  const cancelledTempIdsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (open) {
+      setLocalCategories(categories);
+      setDirty(false);
+    }
+  }, [open, categories]);
 
   const sortedCategories = useMemo(
-    () => [...categories].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)),
-    [categories]
+    () =>
+      [...localCategories].sort(
+        (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)
+      ),
+    [localCategories]
   );
 
   const isEditing = Boolean(editingId);
@@ -82,27 +95,83 @@ export function CategoryManagerDialog({
   }
 
   function editCategory(category: Category) {
+    if (category.id.startsWith("temp-")) return;
     setEditingId(category.id);
     setForm(toForm(category));
   }
 
   function submit() {
-    startTransition(async () => {
-      try {
-        const payload = buildPayload(form);
-        if (editingId) {
-          await updateCategoryAction(editingId, payload);
-          toast.success("تم تحديث التصنيف");
-        } else {
-          await createCategoryAction(payload);
-          toast.success("تم إنشاء التصنيف");
+    let payload: ReturnType<typeof buildPayload>;
+    try {
+      payload = buildPayload(form);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذر حفظ التصنيف");
+      return;
+    }
+
+    if (editingId) {
+      snapshotRef.current = localCategories;
+      setLocalCategories((prev) =>
+        prev.map((category) =>
+          category.id === editingId ? { ...category, ...payload } : category
+        )
+      );
+      setDirty(true);
+      resetForm();
+
+      void (async () => {
+        try {
+          const updated = await updateCategoryAction(editingId, payload);
+          if (!updated) throw new Error("التصنيف غير موجود");
+          setLocalCategories((prev) =>
+            prev.map((category) => (category.id === editingId ? updated : category))
+          );
+        } catch (error) {
+          if (snapshotRef.current) setLocalCategories(snapshotRef.current);
+          toast.error(error instanceof Error ? error.message : "تعذر حفظ التصنيف");
         }
-        resetForm();
-        onSaved?.();
+      })();
+      return;
+    }
+
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimistic: Category = {
+      id: tempId,
+      org_id: "",
+      name: payload.name,
+      color: payload.color,
+      icon: payload.icon,
+      sort_order: payload.sort_order,
+    };
+    snapshotRef.current = localCategories;
+    setLocalCategories((prev) => [...prev, optimistic]);
+    setDirty(true);
+    resetForm();
+
+    void (async () => {
+      try {
+        const created = await createCategoryAction(payload);
+        if (cancelledTempIdsRef.current.has(tempId)) {
+          cancelledTempIdsRef.current.delete(tempId);
+          try {
+            await deleteCategoryAction(created.id);
+          } catch {
+            /* best-effort */
+          }
+          return;
+        }
+        setLocalCategories((prev) => {
+          const withoutTemp = prev.filter((category) => category.id !== tempId);
+          if (withoutTemp.some((category) => category.id === created.id)) {
+            return withoutTemp;
+          }
+          return [...withoutTemp, created];
+        });
       } catch (error) {
+        if (snapshotRef.current) setLocalCategories(snapshotRef.current);
         toast.error(error instanceof Error ? error.message : "تعذر حفظ التصنيف");
       }
-    });
+    })();
   }
 
   function removeCategory(category: Category) {
@@ -113,20 +182,31 @@ export function CategoryManagerDialog({
         : `حذف «${category.name}»؟`;
     if (!confirm(message)) return;
 
-    startTransition(async () => {
+    snapshotRef.current = localCategories;
+    setLocalCategories((prev) => prev.filter((row) => row.id !== category.id));
+    setDirty(true);
+    if (editingId === category.id) resetForm();
+
+    if (category.id.startsWith("temp-")) {
+      cancelledTempIdsRef.current.add(category.id);
+      return;
+    }
+
+    void (async () => {
       try {
         await deleteCategoryAction(category.id);
-        if (editingId === category.id) resetForm();
-        toast.success("تم حذف التصنيف");
-        onSaved?.();
       } catch (error) {
+        if (snapshotRef.current) setLocalCategories(snapshotRef.current);
         toast.error(error instanceof Error ? error.message : "تعذر حذف التصنيف");
       }
-    });
+    })();
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) resetForm();
+    if (!nextOpen) {
+      resetForm();
+      if (dirty) onSaved?.();
+    }
     onOpenChange(nextOpen);
   }
 
@@ -198,12 +278,12 @@ export function CategoryManagerDialog({
             </div>
 
             <div className="flex gap-2">
-              <Button className="flex-1" onClick={submit} disabled={pending}>
+              <Button className="flex-1" onClick={submit}>
                 {isEditing ? <Save className="size-4" /> : <Plus className="size-4" />}
                 {isEditing ? "حفظ" : "إضافة"}
               </Button>
               {isEditing ? (
-                <Button variant="outline" size="icon" onClick={resetForm} disabled={pending}>
+                <Button variant="outline" size="icon" onClick={resetForm}>
                   <X className="size-4" />
                 </Button>
               ) : null}
@@ -238,7 +318,7 @@ export function CategoryManagerDialog({
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => editCategory(category)}
-                    disabled={pending}
+                    disabled={category.id.startsWith("temp-")}
                   >
                     <Edit2 className="size-4" />
                   </Button>
@@ -246,7 +326,6 @@ export function CategoryManagerDialog({
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => removeCategory(category)}
-                    disabled={pending}
                   >
                     <Trash2 className="size-4 text-destructive" />
                   </Button>

@@ -538,6 +538,7 @@ export async function updateStoreAction(
       orderingPaused?: boolean;
       orderingHours?: unknown;
       fulfillment?: unknown;
+      theme?: string;
     };
   }
 ) {
@@ -577,6 +578,15 @@ export async function updateStoreAction(
         input.onlineMenu.unlisted ?? existing.settings.online_menu_unlisted === true,
       online_menu_token: nextToken,
     };
+
+    if (input.onlineMenu.theme !== undefined) {
+      const { isMenuThemeSlug, DEFAULT_MENU_THEME_SLUG } = await import(
+        "@/modules/online-menu/lib/menu-themes"
+      );
+      settings.online_menu_theme = isMenuThemeSlug(input.onlineMenu.theme)
+        ? input.onlineMenu.theme
+        : DEFAULT_MENU_THEME_SLUG;
+    }
 
     if (input.onlineMenu.orderingPaused !== undefined) {
       settings.online_ordering_paused = input.onlineMenu.orderingPaused === true;
@@ -687,9 +697,12 @@ export async function updateDeviceAction(
 ) {
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   const device = await updateDevice(id, input, user.id);
-  revalidatePath("/settings");
-  revalidatePath("/pos");
-  revalidatePath("/device/pair");
+  // Active-only toggles stay local; name/store edits refresh settings/POS surfaces.
+  if (input.name != null || input.storeId != null) {
+    revalidatePath("/settings");
+    revalidatePath("/pos");
+    revalidatePath("/device/pair");
+  }
   return device;
 }
 

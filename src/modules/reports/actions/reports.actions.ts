@@ -27,7 +27,7 @@ import { getOutstandingBalances, getAgingReport } from "@/modules/customers/serv
 import {
   getProfitReport,
   getHighestWasteReport,
-  getProductRankings,
+  productRankingsFromReport,
 } from "@/modules/reports/services/profit-report.service";
 
 function resolveReportStoreId(
@@ -76,8 +76,9 @@ export async function getReportsData(
   if (showCosts) {
     try {
       await requirePermissionOrRole("expense_view_all", ["owner", "manager"]);
+      const profit = await getProfitReport(reportOpts);
       accounting = {
-        profit: await getProfitReport(reportOpts),
+        profit,
         expensesByCenter: await getExpensesByCostCenter(reportOpts),
         expensesByStore: await getExpensesByStore(reportOpts),
         expensesByCategory: await getExpensesByCategory(reportOpts),
@@ -85,7 +86,7 @@ export async function getReportsData(
         sessionExpenses: await getSessionExpensesReport(reportOpts),
         topExpenses: await getTopExpenses(reportOpts),
         highestWaste: await getHighestWasteReport(reportStoreId, days),
-        productRankings: await getProductRankings(reportOpts),
+        productRankings: productRankingsFromReport(profit),
       };
     } catch {
       accounting = null;

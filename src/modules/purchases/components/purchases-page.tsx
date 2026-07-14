@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Tags } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,7 @@ import type { PurchaseWithLines } from "@/modules/purchases/services/purchase.se
 import type { SupplierPriceSummary } from "@/modules/purchases/services/price-history.service";
 import { PurchaseForm } from "./purchase-form";
 import { SupplierPriceHistory } from "./supplier-price-history";
+import { DocumentPrintPreviewModal } from "@/components/print/document-print-preview-modal";
 
 interface PurchasesPageProps {
   purchases: PurchaseWithLines[];
@@ -49,8 +50,8 @@ function isPurchasesTab(value: string | null): value is PurchasesTab {
 }
 
 function sortByNewest(a: PurchaseWithLines, b: PurchaseWithLines) {
-  const aAt = a.received_at ?? a.created_at;
-  const bAt = b.received_at ?? b.created_at;
+  const aAt = a.received_at ?? `${a.document_date}T12:00:00.000Z`;
+  const bAt = b.received_at ?? `${b.document_date}T12:00:00.000Z`;
   return new Date(bAt).getTime() - new Date(aAt).getTime();
 }
 
@@ -58,13 +59,17 @@ function PurchaseInvoiceCard({
   purchase,
   currency,
   onOpen,
+  onPrintReceipt,
 }: {
   purchase: PurchaseWithLines;
   currency: string;
   onOpen: (id: string) => void;
+  onPrintReceipt: (purchase: PurchaseWithLines) => void;
 }) {
   const isDraft = purchase.status === "draft";
-  const stamp = purchase.received_at ?? purchase.created_at;
+  const isReceived = purchase.status === "received";
+  const stamp =
+    purchase.received_at ?? `${purchase.document_date}T12:00:00.000Z`;
 
   return (
     <OperationalCard accent="var(--mds-color-action-primary)">
@@ -94,14 +99,38 @@ function PurchaseInvoiceCard({
             {formatCurrency(purchase.total, currency)}
           </p>
         </div>
-        <Button
-          variant={isDraft ? "default" : "outline"}
-          className="min-h-11 w-full sm:w-auto sm:self-end"
-          onClick={() => onOpen(purchase.id)}
-        >
-          <Pencil className="size-4" />
-          {isDraft ? "متابعة" : "فتح"}
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+          {purchase.lines.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 w-full border-primary text-primary sm:w-auto"
+              onClick={() => onPrintReceipt(purchase)}
+            >
+              ريسيت
+            </Button>
+          ) : null}
+          {isReceived ? (
+            <Link
+              href={`/inventory/purchases/price-list?invoice=${purchase.id}`}
+              className={cn(
+                buttonVariants({ variant: "default" }),
+                "min-h-11 w-full justify-center sm:w-auto"
+              )}
+            >
+              <Tags className="size-4" />
+              قائمة أسعار البيع
+            </Link>
+          ) : null}
+          <Button
+            variant={isDraft ? "default" : "outline"}
+            className="min-h-11 w-full sm:w-auto"
+            onClick={() => onOpen(purchase.id)}
+          >
+            <Pencil className="size-4" />
+            {isDraft ? "متابعة" : "فتح"}
+          </Button>
+        </div>
       </div>
     </OperationalCard>
   );
@@ -114,6 +143,7 @@ function InvoiceList({
   emptyDescription,
   emptyAction,
   onOpen,
+  onPrintReceipt,
 }: {
   items: PurchaseWithLines[];
   currency: string;
@@ -121,6 +151,7 @@ function InvoiceList({
   emptyDescription: string;
   emptyAction?: React.ReactNode;
   onOpen: (id: string) => void;
+  onPrintReceipt: (purchase: PurchaseWithLines) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -141,6 +172,7 @@ function InvoiceList({
           purchase={purchase}
           currency={currency}
           onOpen={onOpen}
+          onPrintReceipt={onPrintReceipt}
         />
       ))}
     </div>
@@ -159,8 +191,19 @@ export function PurchasesPage({
   const searchParams = useSearchParams();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [printPreview, setPrintPreview] = useState<{
+    href: string;
+    title: string;
+  } | null>(null);
   const invoiceFromQuery = searchParams.get("invoice");
   const activeEditingId = editingId ?? invoiceFromQuery;
+
+  function openPurchaseReceipt(purchase: PurchaseWithLines) {
+    setPrintPreview({
+      href: `/print/purchases/${purchase.id}/receipt?embed=1`,
+      title: purchase.status === "draft" ? "ريسيت مشتريات مؤقت" : "ريسيت مشتريات",
+    });
+  }
 
   const drafts = useMemo(
     () => purchases.filter((p) => p.status === "draft").sort(sortByNewest),
@@ -231,6 +274,16 @@ export function PurchasesPage({
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             <Link
+              href="/inventory/purchases/price-list"
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "min-h-11 justify-center"
+              )}
+            >
+              <Tags className="size-4" />
+              قائمة أسعار من منتجات
+            </Link>
+            <Link
               href="/inventory/suppliers"
               className={cn(
                 buttonVariants({ variant: "outline" }),
@@ -278,6 +331,7 @@ export function PurchasesPage({
             emptyDescription="أنشئ مسودة، أضف الأصناف، وبعدين استلم عشان المخزون يتحدّث."
             emptyAction={newPurchaseButton}
             onOpen={setEditingId}
+            onPrintReceipt={openPurchaseReceipt}
           />
         </TabsContent>
 
@@ -289,6 +343,7 @@ export function PurchasesPage({
             emptyDescription="بعد استلام المسودة هتظهر هنا مع تحديث المخزون."
             emptyAction={newPurchaseButton}
             onOpen={setEditingId}
+            onPrintReceipt={openPurchaseReceipt}
           />
         </TabsContent>
 
@@ -305,11 +360,21 @@ export function PurchasesPage({
                 emptyTitle="مفيش سجل إلغاءات"
                 emptyDescription="الفواتير الملغاة هتظهر هنا. سجل أسعار الموردين فوق."
                 onOpen={setEditingId}
+                onPrintReceipt={openPurchaseReceipt}
               />
             </div>
           </div>
         </TabsContent>
       </Tabs>
+
+      <DocumentPrintPreviewModal
+        open={Boolean(printPreview)}
+        onOpenChange={(open) => {
+          if (!open) setPrintPreview(null);
+        }}
+        href={printPreview?.href ?? null}
+        title={printPreview?.title}
+      />
     </>
   );
 }

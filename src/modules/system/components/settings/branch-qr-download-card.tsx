@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Download, ExternalLink, Printer, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
+import { firstGrapheme } from "@/lib/first-grapheme";
 
 interface BranchQrDownloadCardProps {
   storeName: string;
@@ -54,7 +55,7 @@ function buildPosterSvg(input: {
   const storeCode = escapeXml(input.storeCode || "MENU");
   const address = escapeXml(truncateText(input.address?.trim() || "امسح الكود وشوف المنيو", 58));
   const phone = escapeXml(input.phone?.trim() || "");
-  const initial = escapeXml(input.storeName.trim().slice(0, 1) || "M");
+  const initial = escapeXml(firstGrapheme(input.storeName, "M"));
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${POSTER_WIDTH}" height="${POSTER_HEIGHT}" viewBox="0 0 ${POSTER_WIDTH} ${POSTER_HEIGHT}">

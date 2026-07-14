@@ -1,11 +1,14 @@
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as sessionRepo from "@/lib/repositories/session.repository";
+import { roundMoney } from "@/lib/money";
 import {
   earnPoints,
   getCustomerLoyaltyBalance,
   getLoyaltyRule,
   redeemPoints,
 } from "@/modules/loyalty/services/loyalty.service";
+import { computePosCartTotals, rawCartSubtotal } from "@/modules/pos/lib/cart-totals";
+import { evaluateCartPromotions } from "@/modules/promotions/services/promotion.service";
 import { getSessionSettings, isFeatureEnabled } from "@/modules/system/services/settings.service";
 import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
 import type { CartLine, CashierSession, Customer, Order, PaymentMethod, PaymentSplit } from "@/lib/types";
@@ -23,25 +26,23 @@ export interface CheckoutInput {
   payments?: PaymentSplit[];
   salesMode?: SalesMode;
   discount?: number;
+  couponCode?: string | null;
   loyaltyPoints?: number;
   override?: {
     expiredSession?: boolean;
   };
   /** When the action already loaded the open session, skip a second fetch. */
   session?: CashierSession;
+  /**
+   * Caller already verified open session + lifecycle (or expired override).
+   * Skips a second settings/lifecycle pass on the checkout hot path.
+   */
+  sessionGateChecked?: boolean;
 }
 
 export interface CheckoutResult {
   order: Order;
   orderNumber: string;
-}
-
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function getCartSubtotal(cart: CartLine[]): number {
-  return roundMoney(cart.reduce((sum, line) => sum + line.lineTotal, 0));
 }
 
 export async function completeCheckout(input: CheckoutInput): Promise<CheckoutResult> {
@@ -51,34 +52,52 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
 
   // Catalog/stock/variant/device checks live in complete_checkout RPC — avoid
   // duplicate pre-RPC round-trips that dominate cashier save latency.
-  const [session, settings] = await Promise.all([
-    input.session && input.session.id === input.sessionId
-      ? Promise.resolve(input.session)
-      : sessionRepo.getSession(input.sessionId),
-    getSessionSettings(),
-  ]);
-
-  if (!session || session.status !== "open" || session.store_id !== input.storeId) {
+  let session = input.session && input.session.id === input.sessionId ? input.session : null;
+  if (!input.sessionGateChecked || !session) {
+    const [loadedSession, settings] = await Promise.all([
+      session ?? sessionRepo.getSession(input.sessionId),
+      getSessionSettings(),
+    ]);
+    session = loadedSession;
+    if (!session || session.status !== "open" || session.store_id !== input.storeId) {
+      throw new Error("جلسة الكاشير غير صالحة أو مغلقة");
+    }
+    const lifecycle = computeSessionLifecycle(session, settings);
+    if (lifecycle.blocksSales && !input.override?.expiredSession) {
+      throw new Error("انتهت الجلسة - أغلق الوردية للمتابعة");
+    }
+  } else if (session.status !== "open" || session.store_id !== input.storeId) {
     throw new Error("جلسة الكاشير غير صالحة أو مغلقة");
-  }
-
-  const lifecycle = computeSessionLifecycle(session, settings);
-  if (lifecycle.blocksSales && !input.override?.expiredSession) {
-    throw new Error("انتهت الجلسة - أغلق الوردية للمتابعة");
   }
 
   if (input.cart.length === 0) {
     throw new Error("السلة فارغة");
   }
 
-  const subtotal = getCartSubtotal(input.cart);
+  const listSubtotal = rawCartSubtotal(input.cart);
   const orderDiscount = roundMoney(input.discount ?? 0);
   if (orderDiscount < 0) {
     throw new Error("قيمة الخصم غير صالحة");
   }
-  if (orderDiscount > subtotal + 0.01) {
+  if (orderDiscount > listSubtotal + 0.01) {
     throw new Error("قيمة الخصم أكبر من إجمالي الفاتورة");
   }
+
+  const promotionsEnabled = await isFeatureEnabled("promotions");
+  const promoPreview = promotionsEnabled
+    ? await evaluateCartPromotions({
+        lines: input.cart.map((line, index) => ({
+          line_key: line.id || String(index),
+          product_id: line.productId,
+          category_id: line.categoryId ?? null,
+          quantity: line.quantity,
+          unit_price: line.unitPrice,
+        })),
+        storeId: input.storeId,
+        saleMode: input.salesMode ?? "retail",
+        couponCode: input.couponCode,
+      })
+    : null;
 
   const lines = input.cart.map((line) => ({
     product_id: line.productId,
@@ -92,6 +111,13 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   const requestedPoints = Math.floor(input.loyaltyPoints ?? 0);
   let loyaltyDiscount = 0;
   let loyaltyRule = null;
+
+  // Preview totals without loyalty first so redemption cap matches UI.
+  const totalsBeforeLoyalty = computePosCartTotals({
+    cart: input.cart,
+    discountAmount: orderDiscount,
+    promoPreview,
+  });
 
   // Only block the sale for redemption validation. Earn runs after response.
   if (requestedPoints > 0) {
@@ -109,14 +135,19 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     if (requestedPoints > balance) {
       throw new Error("رصيد نقاط العميل غير كافٍ");
     }
-    loyaltyDiscount = Math.round(requestedPoints * loyaltyRule.redemption_rate * 100) / 100;
-    const maxDiscount = Math.max(0, subtotal - orderDiscount);
+    loyaltyDiscount = roundMoney(requestedPoints * loyaltyRule.redemption_rate);
+    const maxDiscount = totalsBeforeLoyalty.payableBeforeLoyalty;
     if (loyaltyDiscount > maxDiscount + 0.01) {
       throw new Error("قيمة النقاط المستبدلة أكبر من إجمالي الفاتورة");
     }
   }
 
-  const expectedTotal = roundMoney(Math.max(0, subtotal - orderDiscount - loyaltyDiscount));
+  const expectedTotal = computePosCartTotals({
+    cart: input.cart,
+    discountAmount: orderDiscount,
+    loyaltyAmount: loyaltyDiscount,
+    promoPreview,
+  }).payableTotal;
   let payments =
     input.payments
       ?.map((payment) => ({
@@ -142,6 +173,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     paymentMethod: payments[0]?.method ?? input.paymentMethod,
     salesMode: input.salesMode ?? "retail",
     discount: roundMoney(orderDiscount + loyaltyDiscount),
+    couponCode: input.couponCode?.trim() ? input.couponCode.trim() : null,
     lines,
   };
   let result;

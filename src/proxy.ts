@@ -74,6 +74,7 @@ export async function proxy(request: NextRequest) {
 
   const response = supabaseResponse;
   response.headers.set("x-pathname", pathname);
+  response.headers.set("x-search", request.nextUrl.search);
   return response;
 }
 

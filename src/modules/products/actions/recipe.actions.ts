@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireCatalogRead, requireFeature, requirePermissionOrRole } from "@/lib/auth/guards";
 import * as recipeService from "@/modules/products/services/recipe.service";
 
@@ -21,16 +20,12 @@ export async function saveRecipeAction(
 ) {
   await requireFeature("recipes");
   const user = await requirePermissionOrRole("recipe_manage", ["owner", "manager"]);
-  const recipe = await recipeService.saveRecipe(productId, ingredients, user.id, variantId);
-  revalidatePath("/products");
-  revalidatePath("/pos");
-  return recipe;
+  // Skip revalidatePath — keep product dialog open without remounting the page.
+  return recipeService.saveRecipe(productId, ingredients, user.id, variantId);
 }
 
 export async function deleteRecipeAction(productId: string, variantId?: string | null) {
   await requireFeature("recipes");
   const user = await requirePermissionOrRole("recipe_manage", ["owner", "manager"]);
   await recipeService.deleteRecipe(productId, user.id, variantId);
-  revalidatePath("/products");
-  revalidatePath("/pos");
 }

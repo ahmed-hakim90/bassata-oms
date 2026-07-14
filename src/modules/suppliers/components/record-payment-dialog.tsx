@@ -39,6 +39,8 @@ interface RecordPaymentDialogProps {
   currency?: string;
   /** Pre-select when opening in picker mode. */
   initialSupplierId?: string;
+  /** Suppliers list still loading (dashboard quick open). */
+  loading?: boolean;
 }
 
 export function RecordPaymentDialog({
@@ -49,6 +51,7 @@ export function RecordPaymentDialog({
   suppliers,
   currency,
   initialSupplierId,
+  loading = false,
 }: RecordPaymentDialogProps) {
   const { t } = useTranslation();
   const [pending, startTransition] = useTransition();
@@ -134,32 +137,38 @@ export function RecordPaymentDialog({
           {pickerMode ? (
             <div className="space-y-2">
               <Label>المورد</Label>
-              <Select
-                value={selectedSupplierId || undefined}
-                onValueChange={(v) => setSelectedSupplierId(v ?? "")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="اختار المورد">
-                    {(value) =>
-                      value
-                        ? (suppliers?.find((s) => s.id === value)?.name ?? value)
-                        : null
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {(suppliers ?? []).map((s) => (
-                    <SelectItem key={s.id} value={s.id} label={s.name}>
-                      <span className="truncate">{s.name}</span>
-                      {currency != null ? (
-                        <SelectItemMeta>
-                          {formatCurrency(s.balanceDue, currency)}
-                        </SelectItemMeta>
-                      ) : null}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {loading ? (
+                <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                  جاري تحميل الموردين…
+                </p>
+              ) : (
+                <Select
+                  value={selectedSupplierId || undefined}
+                  onValueChange={(v) => setSelectedSupplierId(v ?? "")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختار المورد">
+                      {(value) =>
+                        value
+                          ? (suppliers?.find((s) => s.id === value)?.name ?? value)
+                          : null
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(suppliers ?? []).map((s) => (
+                      <SelectItem key={s.id} value={s.id} label={s.name}>
+                        <span className="truncate">{s.name}</span>
+                        {currency != null ? (
+                          <SelectItemMeta>
+                            {formatCurrency(s.balanceDue, currency)}
+                          </SelectItemMeta>
+                        ) : null}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {selectedSummary && currency != null ? (
                 <p className="text-xs text-muted-foreground">
                   الرصيد المستحق حاليًا{" "}
@@ -216,7 +225,7 @@ export function RecordPaymentDialog({
               onChange={(e) => setPaidAt(e.target.value)}
             />
           </div>
-          <Button onClick={submit} disabled={pending}>
+          <Button onClick={submit} disabled={pending || loading}>
             حفظ الدفعة
           </Button>
         </div>

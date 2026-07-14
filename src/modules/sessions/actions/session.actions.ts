@@ -18,10 +18,7 @@ import {
   withdrawFromCashierVault,
 } from "@/modules/sessions/services/cashier-vault.service";
 import { getSessionSettings } from "@/modules/system/services/settings.service";
-
-function money(value: number): number {
-  return Math.round(value * 100) / 100;
-}
+import { roundMoney } from "@/lib/money";
 
 function mapPosAccessError(error: PosAccessError): string {
   const messages: Record<PosAccessError["code"], string> = {
@@ -59,7 +56,7 @@ export async function resolveOpeningCashForOpen(input: {
     return pending;
   }
 
-  const requested = money(input.requestedOpeningCash);
+  const requested = roundMoney(input.requestedOpeningCash);
   if (requested < 0) {
     throw new Error("رصيد بداية الوردية لازم يكون صفر أو أكبر");
   }

@@ -1,3 +1,4 @@
+import { roundMoney } from "@/lib/money";
 /**
  * First-party pickup/delivery + zone fees in `stores.settings` (JSON only).
  *
@@ -49,10 +50,6 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function money(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -73,7 +70,7 @@ export function parseOnlineFulfillment(settings: Record<string, unknown>): Onlin
     const feeNum = Number(row.fee);
     if (!name || !Number.isFinite(feeNum) || feeNum < 0) continue;
     const id = text(row.id) || zoneId();
-    zones.push({ id: id.slice(0, 40), name, fee: money(feeNum) });
+    zones.push({ id: id.slice(0, 40), name, fee: roundMoney(feeNum) });
   }
 
   const pickupEnabled = raw.pickupEnabled !== false;
@@ -101,7 +98,7 @@ export function serializeOnlineFulfillment(config: OnlineFulfillmentConfig): Rec
     zones: config.zones.map((zone) => ({
       id: zone.id,
       name: zone.name,
-      fee: money(zone.fee),
+      fee: roundMoney(zone.fee),
     })),
   };
 }
@@ -138,7 +135,7 @@ export function validateOnlineFulfillmentInput(input: unknown): OnlineFulfillmen
     zones.push({
       id: text(row.id) || zoneId(),
       name,
-      fee: money(feeNum),
+      fee: roundMoney(feeNum),
     });
   }
 
@@ -196,7 +193,7 @@ export function resolveOnlineFulfillmentFee(
     fulfillmentType: "delivery",
     deliveryArea: zone.name,
     deliveryAddress: address,
-    deliveryFee: money(zone.fee),
+    deliveryFee: roundMoney(zone.fee),
     zoneId: zone.id,
   };
 }

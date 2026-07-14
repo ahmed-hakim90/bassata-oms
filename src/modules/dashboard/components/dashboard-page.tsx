@@ -8,9 +8,11 @@ import { PageHeader } from "@/components/SweetFlow/page-header";
 import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import {
+  buildProfitSnapshot,
   getActiveSessions,
   getDashboardInventory,
   getDashboardSales,
+  getMonthToDateExpenses,
   getMonthToDateSales,
   getOwnerFinanceSnapshot,
 } from "@/modules/dashboard/services/dashboard.service";
@@ -21,6 +23,7 @@ import { RecentOrdersFeed } from "@/modules/dashboard/components/recent-orders-f
 import { TopProductsRanking } from "@/modules/dashboard/components/top-products-ranking";
 import { OwnerFinanceOverview } from "@/modules/dashboard/components/owner-finance-overview";
 import { formatCurrency } from "@/lib/format";
+import { getBusinessActivitySettings } from "@/modules/system/services/settings.service";
 
 export async function DashboardPage() {
   const user = await ensureTenantUser(await getCurrentUser());
@@ -33,16 +36,28 @@ export async function DashboardPage() {
   const org = await orgRepo.getOrganization();
 
   const products = await catalogRepo.listProducts();
-  const [sales, inventory, activeSessions, monthSales, finance] = await Promise.all([
+  const [
+    sales,
+    inventory,
+    activeSessions,
+    monthSales,
+    finance,
+    businessActivity,
+    expensesMtd,
+  ] = await Promise.all([
     getDashboardSales(storeId, { products }),
     getDashboardInventory(storeId, products),
     getActiveSessions(storeId),
     isOwner ? getMonthToDateSales(storeId) : Promise.resolve(null),
     isOwner ? getOwnerFinanceSnapshot(storeId) : Promise.resolve(null),
+    getBusinessActivitySettings(),
+    getMonthToDateExpenses(storeId),
   ]);
 
+  const profit = buildProfitSnapshot(inventory.inventoryExpectedProfit, expensesMtd);
+
   const { stats, topProducts, recentOrders } = sales;
-  const { lowStock, inventoryValue, nearExpiryCount } = inventory;
+  const { lowStock, inventoryValue, nearExpiryCount, inventoryCostValue } = inventory;
 
   return (
     <div className="flex flex-col gap-[var(--mds-space-6)]">
@@ -98,7 +113,30 @@ export async function DashboardPage() {
         </OperationalCard>
       )}
 
-      <QuickActionsBar />
+      <QuickActionsBar
+        enableWholesaleSales={businessActivity.enable_wholesale_sales}
+      />
+
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-3">
+        <KpiCard
+          label="ربح متوقع من المخزون"
+          value={formatCurrency(profit.inventoryExpectedProfit, org.currency)}
+          change={`بيع ${formatCurrency(inventoryValue, org.currency)} − شراء ${formatCurrency(inventoryCostValue, org.currency)}`}
+          trend={profit.inventoryExpectedProfit >= 0 ? "up" : "down"}
+        />
+        <KpiCard
+          label="مصاريف الشهر"
+          value={formatCurrency(profit.expensesMtd, org.currency)}
+          change="معتمدة فقط"
+          trend="neutral"
+        />
+        <KpiCard
+          label="الربح بعد المصاريف"
+          value={formatCurrency(profit.profitAfterExpenses, org.currency)}
+          change="ربح المخزون المتوقع − مصاريف الشهر"
+          trend={profit.profitAfterExpenses >= 0 ? "up" : "down"}
+        />
+      </div>
 
       <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard

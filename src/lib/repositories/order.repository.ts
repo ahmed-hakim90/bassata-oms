@@ -1,6 +1,8 @@
 import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapOrder, mapOrderItem, mapOrderItemDeduction, mapOrderPayment } from "@/lib/repositories/mappers";
 import { listStores } from "@/lib/repositories/store.repository";
+import { roundMoney } from "@/lib/money";
+import { computeInvoiceTotals } from "@/modules/sales-invoices/lib/invoice-math";
 import type {
   Order,
   OrderItem,
@@ -90,6 +92,13 @@ export async function getOrderItems(orderId: string): Promise<OrderItem[]> {
   const { data, error } = await db.from("order_items").select("*").eq("order_id", orderId);
   if (error) throwDbError(error, "getOrderItems");
   return (data ?? []).map(mapOrderItem);
+}
+
+export async function getOrderItem(lineId: string): Promise<OrderItem | null> {
+  const db = await getDb();
+  const { data, error } = await db.from("order_items").select("*").eq("id", lineId).maybeSingle();
+  if (error) throwDbError(error, "getOrderItem");
+  return data ? mapOrderItem(data) : null;
 }
 
 export async function getOrderPayments(orderId: string): Promise<OrderPayment[]> {
@@ -189,6 +198,7 @@ export async function completeCheckoutRpc(input: {
   paymentMethod: PaymentMethod;
   salesMode?: SalesMode;
   discount: number;
+  couponCode?: string | null;
   lines: {
     product_id: string;
     variant_id: string | null;
@@ -214,6 +224,7 @@ export async function completeCheckoutRpc(input: {
     p_lines: input.lines,
     p_device_id: input.deviceId ?? null,
     p_sales_mode: input.salesMode ?? "retail",
+    p_coupon_code: input.couponCode ?? null,
   });
   if (error) throwDbError(error, "completeCheckout");
   const result = data as Record<string, unknown>;
@@ -235,6 +246,7 @@ export async function completeCheckoutSplitRpc(input: {
   paymentMethod: PaymentMethod;
   salesMode?: SalesMode;
   discount: number;
+  couponCode?: string | null;
   lines: {
     product_id: string;
     variant_id: string | null;
@@ -264,6 +276,7 @@ export async function completeCheckoutSplitRpc(input: {
     p_payments: input.payments,
     p_device_id: input.deviceId ?? null,
     p_sales_mode: input.salesMode ?? "retail",
+    p_coupon_code: input.couponCode ?? null,
   });
   if (error) throwDbError(error, "completeCheckoutSplit");
   const result = data as Record<string, unknown>;
@@ -293,6 +306,7 @@ export async function completeCheckoutExpiredOverrideRpc(input: {
   paymentMethod: PaymentMethod;
   salesMode?: SalesMode;
   discount: number;
+  couponCode?: string | null;
   lines: {
     product_id: string;
     variant_id: string | null;
@@ -318,6 +332,7 @@ export async function completeCheckoutExpiredOverrideRpc(input: {
     p_lines: input.lines,
     p_device_id: input.deviceId ?? null,
     p_sales_mode: input.salesMode ?? "retail",
+    p_coupon_code: input.couponCode ?? null,
   });
   if (error) throwDbError(error, "completeCheckoutExpiredOverride");
   const result = data as Record<string, unknown>;
@@ -339,6 +354,7 @@ export async function completeCheckoutSplitExpiredOverrideRpc(input: {
   paymentMethod: PaymentMethod;
   salesMode?: SalesMode;
   discount: number;
+  couponCode?: string | null;
   lines: {
     product_id: string;
     variant_id: string | null;
@@ -370,6 +386,7 @@ export async function completeCheckoutSplitExpiredOverrideRpc(input: {
       p_payments: input.payments,
       p_device_id: input.deviceId ?? null,
       p_sales_mode: input.salesMode ?? "retail",
+      p_coupon_code: input.couponCode ?? null,
     }
   );
   if (error) throwDbError(error, "completeCheckoutSplitExpiredOverride");
@@ -478,3 +495,284 @@ export async function voidOrderRpc(input: {
   if (error) throwDbError(error, "voidOrder");
   return mapOrderReverseRpc((data ?? {}) as Record<string, unknown>);
 }
+
+export async function listSalesInvoices(storeId: string): Promise<Order[]> {
+  const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0 || !storeIds.includes(storeId)) return [];
+  const { data, error } = await db
+    .from("orders")
+    .select("*")
+    .eq("store_id", storeId)
+    .not("document_status", "is", null)
+    .order("document_date", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throwDbError(error, "listSalesInvoices");
+  return (data ?? []).map(mapOrder);
+}
+
+/** Count SI drafts/issued/delivered on a document_date — for numbering. */
+export async function countSalesInvoicesOnDocumentDate(
+  storeId: string,
+  documentDate: string
+): Promise<number> {
+  const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0 || !storeIds.includes(storeId)) return 0;
+  const { count, error } = await db
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("store_id", storeId)
+    .not("document_status", "is", null)
+    .eq("document_date", documentDate);
+  if (error) throwDbError(error, "countSalesInvoicesOnDocumentDate");
+  return count ?? 0;
+}
+
+export async function insertSalesInvoiceDraft(input: {
+  storeId: string;
+  warehouseId: string;
+  customerId: string | null;
+  orderNumber: string;
+  createdBy: string;
+  salesMode: SalesMode;
+  activityType: string;
+  documentDate: string;
+  discount?: number;
+  subtotal?: number;
+  tax?: number;
+  total?: number;
+}): Promise<Order> {
+  const db = await getDb();
+  const { data, error } = await db
+    .from("orders")
+    .insert({
+      store_id: input.storeId,
+      session_id: null,
+      order_number: input.orderNumber,
+      customer_id: input.customerId,
+      status: "open",
+      document_status: "draft",
+      document_date: input.documentDate,
+      warehouse_id: input.warehouseId,
+      subtotal: input.subtotal ?? 0,
+      discount: input.discount ?? 0,
+      tax: input.tax ?? 0,
+      total: input.total ?? 0,
+      payment_status: "unpaid",
+      created_by: input.createdBy,
+      sales_mode: input.salesMode,
+      activity_type: input.activityType as Order["activity_type"],
+    })
+    .select("*")
+    .single();
+  if (error || !data) throwDbError(error, "insertSalesInvoiceDraft");
+  return mapOrder(data);
+}
+
+export async function updateSalesInvoiceDraft(
+  orderId: string,
+  patch: {
+    customerId?: string | null;
+    warehouseId?: string;
+    discount?: number;
+    subtotal?: number;
+    tax?: number;
+    total?: number;
+    documentDate?: string;
+  }
+): Promise<Order> {
+  const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) throw new Error("Store scope empty");
+  const { data, error } = await db
+    .from("orders")
+    .update({
+      ...(patch.customerId !== undefined ? { customer_id: patch.customerId } : {}),
+      ...(patch.warehouseId !== undefined ? { warehouse_id: patch.warehouseId } : {}),
+      ...(patch.discount !== undefined ? { discount: patch.discount } : {}),
+      ...(patch.subtotal !== undefined ? { subtotal: patch.subtotal } : {}),
+      ...(patch.tax !== undefined ? { tax: patch.tax } : {}),
+      ...(patch.total !== undefined ? { total: patch.total } : {}),
+      ...(patch.documentDate !== undefined ? { document_date: patch.documentDate } : {}),
+    })
+    .eq("id", orderId)
+    .eq("document_status", "draft")
+    .in("store_id", storeIds)
+    .select("*")
+    .single();
+  if (error || !data) throwDbError(error, "updateSalesInvoiceDraft");
+  return mapOrder(data);
+}
+
+export async function insertSalesInvoiceLine(input: {
+  orderId: string;
+  productId: string;
+  variantId?: string | null;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  saleUnit?: string | null;
+  baseQuantity?: number | null;
+  tierId?: string | null;
+  wholesaleApplied?: boolean;
+  listUnitPrice?: number;
+}): Promise<OrderItem> {
+  const db = await getDb();
+  // list_unit_price / promotion columns may exist beyond generated Insert types.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (db as any)
+    .from("order_items")
+    .insert({
+      order_id: input.orderId,
+      product_id: input.productId,
+      variant_id: input.variantId ?? null,
+      quantity: input.quantity,
+      unit_price: input.unitPrice,
+      modifiers: [],
+      line_total: input.lineTotal,
+      unit_cost: 0,
+      line_cost: 0,
+      sale_unit: (input.saleUnit as OrderItem["sale_unit"]) ?? null,
+      base_quantity: input.baseQuantity ?? input.quantity,
+      sale_input_mode: null,
+      tier_id: input.tierId ?? null,
+      wholesale_applied: input.wholesaleApplied ?? true,
+      line_note: null,
+      list_unit_price: input.listUnitPrice ?? input.unitPrice,
+      discount_amount: 0,
+      promotion_rule_id: null,
+    })
+    .select("*")
+    .single();
+  if (error || !data) throwDbError(error, "insertSalesInvoiceLine");
+  return mapOrderItem(data);
+}
+
+export async function updateSalesInvoiceLine(
+  lineId: string,
+  patch: {
+    quantity?: number;
+    unitPrice?: number;
+    lineTotal?: number;
+    baseQuantity?: number | null;
+    tierId?: string | null;
+    wholesaleApplied?: boolean;
+  }
+): Promise<OrderItem> {
+  const db = await getDb();
+  const { data, error } = await db
+    .from("order_items")
+    .update({
+      ...(patch.quantity !== undefined ? { quantity: patch.quantity } : {}),
+      ...(patch.unitPrice !== undefined ? { unit_price: patch.unitPrice } : {}),
+      ...(patch.lineTotal !== undefined ? { line_total: patch.lineTotal } : {}),
+      ...(patch.baseQuantity !== undefined ? { base_quantity: patch.baseQuantity } : {}),
+      ...(patch.tierId !== undefined ? { tier_id: patch.tierId } : {}),
+      ...(patch.wholesaleApplied !== undefined
+        ? { wholesale_applied: patch.wholesaleApplied }
+        : {}),
+    })
+    .eq("id", lineId)
+    .select("*")
+    .single();
+  if (error || !data) throwDbError(error, "updateSalesInvoiceLine");
+  return mapOrderItem(data);
+}
+
+export async function deleteSalesInvoiceLine(lineId: string): Promise<void> {
+  const db = await getDb();
+  const { error } = await db.from("order_items").delete().eq("id", lineId);
+  if (error) throwDbError(error, "deleteSalesInvoiceLine");
+}
+
+export async function deleteSalesInvoiceDraft(orderId: string): Promise<void> {
+  const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) throw new Error("Store scope empty");
+  const { error: linesError } = await db.from("order_items").delete().eq("order_id", orderId);
+  if (linesError) throwDbError(linesError, "deleteSalesInvoiceDraftLines");
+  const { error } = await db
+    .from("orders")
+    .delete()
+    .eq("id", orderId)
+    .eq("document_status", "draft")
+    .in("store_id", storeIds);
+  if (error) throwDbError(error, "deleteSalesInvoiceDraft");
+}
+
+export async function recalcSalesInvoiceTotals(
+  orderId: string,
+  taxRate: number,
+  options?: { order?: Order; items?: OrderItem[]; subtotalDelta?: number }
+): Promise<Order> {
+  const order = options?.order ?? (await getOrder(orderId));
+  if (!order) throw new Error("Order not found");
+
+  let subtotal: number;
+  if (typeof options?.subtotalDelta === "number") {
+    subtotal = roundMoney(order.subtotal + options.subtotalDelta);
+    const discount = Math.max(0, order.discount);
+    const tax = roundMoney(Math.max(0, subtotal - discount) * taxRate);
+    const total = roundMoney(Math.max(0, subtotal - discount + tax));
+    return updateSalesInvoiceDraft(orderId, { subtotal, tax, total });
+  }
+
+  const items = options?.items ?? (await getOrderItems(orderId));
+  const totals = computeInvoiceTotals({
+    lines: items,
+    discount: order.discount,
+    taxRate,
+  });
+  return updateSalesInvoiceDraft(orderId, {
+    subtotal: totals.subtotal,
+    tax: totals.tax,
+    total: totals.total,
+  });
+}
+
+export async function issueSalesInvoiceRpc(orderId: string): Promise<void> {
+  const { error } = await callRpc("issue_sales_invoice", { p_order_id: orderId });
+  if (error) throwDbError(error, "issueSalesInvoice");
+}
+
+export async function deliverSalesInvoiceRpc(input: {
+  orderId: string;
+  paymentMethod: PaymentMethod | null;
+  payments?: PaymentSplit[];
+}): Promise<void> {
+  const { error } = await callRpc("deliver_sales_invoice", {
+    p_order_id: input.orderId,
+    p_payment_method: input.paymentMethod,
+    p_payments: input.payments ?? null,
+  });
+  if (error) throwDbError(error, "deliverSalesInvoice");
+}
+
+/** Updates COGS snapshot only — does not touch qty, price, stock, or payments. */
+export async function updateDeliveredOrderItemCosts(
+  orderId: string,
+  updates: Array<{ lineId: string; unitCost: number; lineCost: number }>
+): Promise<void> {
+  if (updates.length === 0) return;
+  const db = await getDb();
+  await Promise.all(
+    updates.map(async (row) => {
+      const { data, error } = await db
+        .from("order_items")
+        .update({
+          unit_cost: row.unitCost,
+          line_cost: row.lineCost,
+        })
+        .eq("id", row.lineId)
+        .eq("order_id", orderId)
+        .select("id")
+        .maybeSingle();
+      if (error) throwDbError(error, "updateDeliveredOrderItemCosts");
+      if (!data) {
+        throw new Error(`تعذر تحديث تكلفة السطر ${row.lineId}`);
+      }
+    })
+  );
+}
+

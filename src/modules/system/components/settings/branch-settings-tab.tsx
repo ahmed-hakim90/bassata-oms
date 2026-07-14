@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,13 @@ import {
   type OnlineDeliveryZone,
   type OnlineFulfillmentConfig,
 } from "@/modules/online-menu/lib/online-fulfillment";
+import {
+  MENU_THEME_SLUGS,
+  MENU_THEMES,
+  parseOnlineMenuTheme,
+  type MenuThemeSlug,
+} from "@/modules/online-menu/lib/menu-themes";
+import { firstGrapheme } from "@/lib/first-grapheme";
 
 const ADD_STORE_TAB = "__new__";
 
@@ -60,6 +67,7 @@ function storeEditDefaults(store: Store) {
     onlineMenuOrderingEnabled: store.settings.online_menu_ordering_enabled === true,
     onlineMenuSlug: getOnlineMenuSlug(store),
     onlineMenuUnlisted: store.settings.online_menu_unlisted === true,
+    onlineMenuTheme: parseOnlineMenuTheme(store.settings as Record<string, unknown>),
     onlineOrderingPaused: store.settings.online_ordering_paused === true,
     orderingHoursEnforce: hours.enforce,
     orderingHours: seededHours,
@@ -106,6 +114,8 @@ interface BranchSettingsTabProps {
 export function BranchSettingsTab({ stores, warehouses, devices }: BranchSettingsTabProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [localDevices, setLocalDevices] = useState(devices);
+  const deviceSnapshotRef = useRef(devices);
   const [storeForm, setStoreForm] = useState({
     name: "",
     code: "",
@@ -136,6 +146,13 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
     () => stores[0]?.id ?? ADD_STORE_TAB
   );
   const [storeSection, setStoreSection] = useState<StoreSection>("details");
+
+  useEffect(() => {
+    setLocalDevices(devices);
+    setDeviceEdits(
+      Object.fromEntries(devices.map((d) => [d.id, { name: d.name, storeId: d.store_id }]))
+    );
+  }, [devices]);
 
   useEffect(() => {
     if (selectedStoreId === ADD_STORE_TAB) return;
@@ -170,6 +187,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
             orderingEnabled: edit.onlineMenuOrderingEnabled,
             slug: edit.onlineMenuSlug,
             unlisted: edit.onlineMenuUnlisted,
+            theme: edit.onlineMenuTheme,
             orderingPaused: edit.onlineOrderingPaused,
             orderingHours: {
               ...edit.orderingHours,
@@ -217,7 +235,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
 
           {stores.map((store) => {
             const storeWarehouses = warehouses.filter((w) => w.store_id === store.id);
-            const storeDevices = devices.filter((d) => d.store_id === store.id);
+            const storeDevices = localDevices.filter((d) => d.store_id === store.id);
             const edit = storeEdits[store.id] ?? storeEditDefaults(store);
             const onlineMenuSlug = edit.onlineMenuSlug;
             const onlineMenuToken = getOnlineMenuToken(store);
@@ -242,7 +260,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                         />
                       ) : (
                         <div className="flex size-12 shrink-0 items-center justify-center rounded-[var(--mds-radius-lg)] bg-primary/10 text-lg font-semibold text-primary">
-                          {store.name.slice(0, 1)}
+                          {firstGrapheme(store.name, "?")}
                         </div>
                       )}
                       <div className="min-w-0">
@@ -489,6 +507,79 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                             يجب أن يكون فريدًا على مستوى النظام بالكامل.
                           </p>
                         </div>
+
+                        <div className="space-y-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">مظهر المنيو</Label>
+                            <p className="text-xs text-muted-foreground">
+                              اختر ثيم العرض العام للضيوف. المعاينة: أضف{" "}
+                              <span className="font-mono">?theme=slug</span> لرابط المنيو.
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            {MENU_THEME_SLUGS.map((themeSlug) => {
+                              const theme = MENU_THEMES[themeSlug];
+                              const selected = edit.onlineMenuTheme === themeSlug;
+                              const previewHref = onlineMenuHref
+                                ? `${onlineMenuHref}${onlineMenuHref.includes("?") ? "&" : "?"}theme=${themeSlug}`
+                                : "";
+                              return (
+                                <button
+                                  key={themeSlug}
+                                  type="button"
+                                  onClick={() =>
+                                    setStoreEdits({
+                                      ...storeEdits,
+                                      [store.id]: {
+                                        ...edit,
+                                        onlineMenuTheme: themeSlug as MenuThemeSlug,
+                                      },
+                                    })
+                                  }
+                                  className={[
+                                    "rounded-xl border p-3 text-start transition",
+                                    selected
+                                      ? "border-primary bg-primary/5 ring-2 ring-primary/30"
+                                      : "border-border/60 bg-background hover:border-primary/40",
+                                  ].join(" ")}
+                                >
+                                  <div
+                                    className="mb-2 flex h-10 overflow-hidden rounded-lg border border-black/5"
+                                    aria-hidden
+                                  >
+                                    <span
+                                      className="w-1/2"
+                                      style={{ background: theme.previewColors.background }}
+                                    />
+                                    <span
+                                      className="w-1/4"
+                                      style={{ background: theme.previewColors.primary }}
+                                    />
+                                    <span
+                                      className="w-1/4"
+                                      style={{ background: theme.previewColors.accent }}
+                                    />
+                                  </div>
+                                  <p className="text-sm font-medium">{theme.nameAr}</p>
+                                  <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {theme.descriptionAr}
+                                  </p>
+                                  {previewHref ? (
+                                    <a
+                                      href={previewHref}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 inline-block text-xs text-primary underline-offset-2 hover:underline"
+                                      onClick={(event) => event.stopPropagation()}
+                                    >
+                                      معاينة
+                                    </a>
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">توكن الوصول</Label>
                           <div className="flex flex-col gap-2 sm:flex-row">
@@ -512,6 +603,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                         orderingEnabled: edit.onlineMenuOrderingEnabled,
                                         slug: edit.onlineMenuSlug,
                                         unlisted: edit.onlineMenuUnlisted,
+                                        theme: edit.onlineMenuTheme,
                                         orderingPaused: edit.onlineOrderingPaused,
                                         orderingHours: {
                                           ...edit.orderingHours,
@@ -1004,22 +1096,36 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                 <Checkbox
                                   checked={device.is_active}
                                   onCheckedChange={(v) => {
-                                    startTransition(async () => {
+                                    const isActive = v === true;
+                                    if (device.is_active === isActive) return;
+                                    deviceSnapshotRef.current = localDevices;
+                                    setLocalDevices((prev) =>
+                                      prev.map((row) =>
+                                        row.id === device.id ? { ...row, is_active: isActive } : row
+                                      )
+                                    );
+                                    void (async () => {
                                       try {
                                         const updated = await updateDeviceAction(device.id, {
-                                          isActive: v === true,
+                                          isActive,
                                         });
                                         syncDeviceEdit(updated);
-                                        refreshSettings();
-                                        toast.success("تم تحديث الجهاز");
+                                        setLocalDevices((prev) =>
+                                          prev.map((row) =>
+                                            row.id === device.id
+                                              ? { ...row, is_active: updated.is_active }
+                                              : row
+                                          )
+                                        );
                                       } catch (error) {
+                                        setLocalDevices(deviceSnapshotRef.current);
                                         toast.error(
                                           error instanceof Error
                                             ? error.message
                                             : "فشل تحديث الجهاز"
                                         );
                                       }
-                                    });
+                                    })();
                                   }}
                                 />
                                 نشط

@@ -11,6 +11,11 @@ import {
   type OnlineFulfillmentConfig,
 } from "@/modules/online-menu/lib/online-fulfillment";
 import { assertOnlinePublicRateLimit } from "@/modules/online-menu/lib/online-public-rate-limit";
+import {
+  getMenuTheme,
+  parseOnlineMenuTheme,
+  type MenuThemeSlug,
+} from "@/modules/online-menu/lib/menu-themes";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -49,9 +54,12 @@ export type OnlineMenuData = {
     id: string;
     name: string;
     logoUrl: string | null;
+    coverUrl: string | null;
     address: string;
     phone: string;
     description: string;
+    /** Public menu visual theme slug. */
+    theme: MenuThemeSlug;
     /** Feature flag: store allows online ordering at all. */
     orderingEnabled: boolean;
     /** Effective: flag + pause + hours window. */
@@ -80,6 +88,8 @@ export type GetOnlineMenuBySlugOptions = {
   token?: string | null;
   /** Skip rate limit (e.g. internal tests). Default enforces. */
   skipRateLimit?: boolean;
+  /** Optional preview override (`?theme=`). Ignored if not a known slug. */
+  themeOverride?: string | null;
 };
 
 function asRecord(value: Json | null | undefined): JsonRecord {
@@ -213,6 +223,14 @@ export async function getOnlineMenuBySlug(
     variantsByProduct.set(variant.product_id, list);
   }
 
+  const theme = getMenuTheme(
+    options?.themeOverride || parseOnlineMenuTheme(storeSettings)
+  ).slug;
+
+  const coverFromSettings = text(storeSettings.online_menu_cover_url) || null;
+  const coverFromCatalog =
+    scopedProducts.find((product) => text(product.image_url))?.image_url ?? null;
+
   return {
     organization: {
       name: organization.name,
@@ -223,9 +241,11 @@ export async function getOnlineMenuBySlug(
       id: store.id,
       name: store.name,
       logoUrl: text(storeSettings.online_menu_logo_url) || null,
+      coverUrl: coverFromSettings || coverFromCatalog,
       address: store.address,
       phone: text(storeSettings.phone) || store.phone,
       description: text(storeSettings.online_menu_description),
+      theme,
       orderingEnabled: availability.orderingEnabled,
       canOrder: availability.canOrder,
       availability: {

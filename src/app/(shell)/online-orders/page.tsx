@@ -6,9 +6,9 @@ import {
   listOnlineOrdersWithItems,
   listStaffOnlineProductOptions,
 } from "@/modules/online-orders/services/online-order.service";
+import { enabledPaymentMethodsFromFlags } from "@/lib/enabled-payment-methods";
 import { getFeatureFlags } from "@/modules/system/services/settings.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
-import type { PaymentMethod } from "@/lib/types";
 
 export default async function OnlineOrdersRoute() {
   const store = await requirePageStoreId("/online-orders");
@@ -22,13 +22,7 @@ export default async function OnlineOrdersRoute() {
     getFeatureFlags(),
     getReportBranding(storeId),
   ]);
-  const enabledPaymentMethods: PaymentMethod[] = [
-    flags.payment_cash ? "cash" : null,
-    flags.payment_card ? "card" : null,
-    flags.payment_wallet ? "wallet" : null,
-    flags.payment_other ? "other" : null,
-    flags.credit_sales ? "credit" : null,
-  ].filter((method): method is PaymentMethod => Boolean(method));
+  const enabledPaymentMethods = enabledPaymentMethodsFromFlags(flags);
 
   return (
     <div className="space-y-6">

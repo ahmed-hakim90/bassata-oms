@@ -69,6 +69,10 @@ describe("online-ordering-hours", () => {
     });
     expect(result.canOrder).toBe(false);
     expect(result.reason).toBe("outside_hours");
+    expect(result.messageAr).toBe(
+      "خارج مواعيد الطلب حالياً. يمكنك الطلب اليوم من 10:00 إلى 12:00."
+    );
+    expect(result.messageAr).not.toMatch(/Africa\/|UTC|بتوقيت/);
   });
 
   it("treats missing enforced day as closed", () => {

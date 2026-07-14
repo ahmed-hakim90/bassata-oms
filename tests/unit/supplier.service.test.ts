@@ -67,6 +67,7 @@ describe("supplier opening balance", () => {
         extra_cost: 0,
         tax: 0,
         total: 200,
+        document_date: "2026-07-01",
         received_at: "2026-07-01T00:00:00.000Z",
         cancelled_at: null,
         created_by: "u1",

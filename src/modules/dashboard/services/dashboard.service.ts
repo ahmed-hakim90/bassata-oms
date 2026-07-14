@@ -4,8 +4,9 @@ import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as accountRepo from "@/lib/repositories/customer-account.repository";
 import * as paymentRepo from "@/lib/repositories/supplier-payment.repository";
+import * as expenseRepo from "@/lib/repositories/expense.repository";
 import { getDb } from "@/lib/repositories/client";
-import type { CashierSession, Order, Product } from "@/lib/types";
+import type { CashierSession, Expense, Order, Product } from "@/lib/types";
 import { listSupplierSummaries } from "@/modules/suppliers/services/supplier.service";
 
 export interface DashboardStats {
@@ -42,10 +43,26 @@ export interface LowStockItem {
   reorderPoint: number;
 }
 
-export interface DashboardInventorySummary {
+export interface InventoryValuationTotals {
+  /** Σ(qty × sell price) — retail facing value of on-hand stock. */
+  inventorySellValue: number;
+  /** Σ(qty × last unit cost) — purchase/cost basis of on-hand stock. */
+  inventoryCostValue: number;
+  /** Sell − cost: expected gross profit if current stock sells at list price. */
+  inventoryExpectedProfit: number;
+}
+
+export interface DashboardInventorySummary extends InventoryValuationTotals {
   lowStock: LowStockItem[];
+  /** @deprecated Prefer inventorySellValue — kept for existing callers. */
   inventoryValue: number;
   nearExpiryCount: number;
+}
+
+export interface DashboardProfitSnapshot {
+  inventoryExpectedProfit: number;
+  expensesMtd: number;
+  profitAfterExpenses: number;
 }
 
 export interface DashboardSalesBundle {
@@ -159,6 +176,53 @@ function aggregateStockLevels(
   );
 }
 
+/** Sell vs cost valuation for on-hand stock lines (pure — unit-tested). */
+export function summarizeInventoryValuation(
+  levels: { product_id: string; quantity: number }[],
+  productMap: Map<string, Pick<Product, "base_price" | "last_unit_cost">>
+): InventoryValuationTotals {
+  let inventorySellValue = 0;
+  let inventoryCostValue = 0;
+  for (const level of levels) {
+    const product = productMap.get(level.product_id);
+    const qty = level.quantity;
+    inventorySellValue += qty * (product?.base_price ?? 0);
+    inventoryCostValue += qty * (product?.last_unit_cost ?? 0);
+  }
+  return {
+    inventorySellValue,
+    inventoryCostValue,
+    inventoryExpectedProfit: inventorySellValue - inventoryCostValue,
+  };
+}
+
+/** Approved expenses whose created_at falls in [from, to] inclusive. */
+export function sumApprovedExpensesInRange(
+  expenses: Pick<Expense, "amount" | "status" | "created_at">[],
+  fromIso: string,
+  toIso: string
+): number {
+  const fromTs = new Date(fromIso).getTime();
+  const toTs = new Date(toIso).getTime();
+  return expenses.reduce((sum, expense) => {
+    if (expense.status !== "approved") return sum;
+    const ts = new Date(expense.created_at).getTime();
+    if (Number.isNaN(ts) || ts < fromTs || ts > toTs) return sum;
+    return sum + expense.amount;
+  }, 0);
+}
+
+export function buildProfitSnapshot(
+  inventoryExpectedProfit: number,
+  expensesMtd: number
+): DashboardProfitSnapshot {
+  return {
+    inventoryExpectedProfit,
+    expensesMtd,
+    profitAfterExpenses: inventoryExpectedProfit - expensesMtd,
+  };
+}
+
 export async function getLiveStats(storeId: string): Promise<DashboardStats> {
   const { from, to } = todayRange();
   const orders = await orderRepo.listOrders({
@@ -252,16 +316,41 @@ export async function getDashboardInventory(
     }))
     .sort((a, b) => a.quantity - b.quantity);
 
-  const inventoryValue = rawLevels.reduce((total, level) => {
-    const cost = productMap.get(level.product_id)?.base_price ?? 0;
-    return total + level.quantity * cost;
-  }, 0);
+  const valuation = summarizeInventoryValuation(rawLevels, productMap);
 
   const nearExpiryCount = batches.filter(
     (batch) => Boolean(batch.expiry_date) && !batch.is_expired && batch.remaining_quantity > 0
   ).length;
 
-  return { lowStock, inventoryValue, nearExpiryCount };
+  return {
+    lowStock,
+    inventoryValue: valuation.inventorySellValue,
+    ...valuation,
+    nearExpiryCount,
+  };
+}
+
+/** Month-to-date approved expenses for a store. */
+export async function getMonthToDateExpenses(storeId: string): Promise<number> {
+  const { from, to } = monthToDateRange();
+  // Repo `to` appends T23:59:59 — pass calendar date only.
+  const fromDate = from.slice(0, 10);
+  const toDate = to.slice(0, 10);
+  const expenses = await expenseRepo.listExpenses({
+    storeId,
+    status: "approved",
+    from: fromDate,
+    to: toDate,
+  });
+  return sumApprovedExpensesInRange(expenses, from, to);
+}
+
+export async function getDashboardProfitSnapshot(
+  storeId: string,
+  inventoryExpectedProfit: number
+): Promise<DashboardProfitSnapshot> {
+  const expensesMtd = await getMonthToDateExpenses(storeId);
+  return buildProfitSnapshot(inventoryExpectedProfit, expensesMtd);
 }
 
 export async function getRecentOrders(storeId: string, limit = 8): Promise<Order[]> {

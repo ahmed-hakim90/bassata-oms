@@ -1,3 +1,4 @@
+import { orderBusinessAt } from "@/lib/document-date";
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as orgRepo from "@/lib/repositories/organization.repository";
@@ -58,7 +59,7 @@ export async function getTaxReport(options: {
   const filtered = orders.filter((o) => {
     if (o.status !== "completed") return false;
     if (o.payment_status === "unpaid") return false;
-    const at = new Date(o.created_at).getTime();
+    const at = new Date(orderBusinessAt(o)).getTime();
     return at >= options.from.getTime() && at <= options.to.getTime();
   });
 
@@ -68,7 +69,8 @@ export async function getTaxReport(options: {
   let grossSales = 0;
 
   const orderRows: TaxOrderRow[] = filtered.map((o) => {
-    const day = o.created_at.slice(0, 10);
+    const businessAt = orderBusinessAt(o);
+    const day = businessAt.slice(0, 10);
     const dayRow = byDayMap.get(day) ?? {
       date: day,
       orderCount: 0,
@@ -90,7 +92,7 @@ export async function getTaxReport(options: {
       id: o.id,
       orderNumber: o.order_number,
       storeName: storeMap.get(o.store_id) ?? "—",
-      createdAt: o.created_at,
+      createdAt: businessAt,
       subtotal: o.subtotal,
       discount: o.discount,
       tax: o.tax,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Product, ProductVariant } from "@/lib/types";
@@ -33,7 +33,6 @@ export function VariantEditor({
 }: VariantEditorProps) {
   const [variants, setVariants] = useState<ProductVariant[]>(initialVariants);
   const [loading, setLoading] = useState(initialVariants.length === 0);
-  const [pending, startTransition] = useTransition();
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState({
     name: "",
@@ -47,11 +46,8 @@ export function VariantEditor({
     price_mode: "calculate_from_unit_price" as NonNullable<ProductVariant["price_mode"]>,
     fixed_price: "",
   });
-
-  async function reload() {
-    const rows = await listVariantsAction(product.id);
-    setVariants(rows);
-  }
+  const snapshotRef = useRef<ProductVariant[] | null>(null);
+  const cancelledTempIdsRef = useRef(new Set<string>());
 
   function nextVariantSku() {
     const base = product.sku || product.name.replace(/\s+/g, "-").toUpperCase();
@@ -87,65 +83,110 @@ export function VariantEditor({
       toast.error("الاسم والسعر مطلوبان");
       return;
     }
-    startTransition(async () => {
+    const sku = draft.sku.trim() || nextVariantSku();
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimistic: ProductVariant = {
+      id: tempId,
+      product_id: product.id,
+      name: draft.name.trim(),
+      sku,
+      barcode: draft.barcode.trim() || sku,
+      price_delta: 0,
+      price,
+      image_url: draft.image_url.trim() || null,
+      is_active: true,
+      variant_kind: draft.variant_kind,
+      quantity_value: draft.quantity_value ? Number(draft.quantity_value) : null,
+      quantity_unit: draft.quantity_unit,
+      price_mode: "fixed_price",
+      fixed_price: price,
+    };
+
+    snapshotRef.current = variants;
+    setVariants((prev) => [...prev, optimistic]);
+    setDraft({
+      name: "",
+      sku: "",
+      barcode: "",
+      price: "",
+      image_url: "",
+      variant_kind: "standard",
+      quantity_value: "",
+      quantity_unit: "kg",
+      price_mode: "fixed_price",
+      fixed_price: "",
+    });
+    setAddOpen(false);
+
+    void (async () => {
       try {
-        const sku = draft.sku.trim() || nextVariantSku();
-        await createVariantAction(product.id, {
-          name: draft.name.trim(),
-          sku,
-          barcode: draft.barcode.trim() || sku,
+        const created = await createVariantAction(product.id, {
+          name: optimistic.name,
+          sku: optimistic.sku,
+          barcode: optimistic.barcode,
           price_delta: 0,
           price,
-          image_url: draft.image_url.trim() || null,
+          image_url: optimistic.image_url,
           is_active: true,
-          variant_kind: draft.variant_kind,
-          quantity_value: draft.quantity_value ? Number(draft.quantity_value) : null,
-          quantity_unit: draft.quantity_unit,
+          variant_kind: optimistic.variant_kind,
+          quantity_value: optimistic.quantity_value,
+          quantity_unit: optimistic.quantity_unit,
           price_mode: "fixed_price",
           fixed_price: price,
         });
-        setDraft({
-          name: "",
-          sku: "",
-          barcode: "",
-          price: "",
-          image_url: "",
-          variant_kind: "standard",
-          quantity_value: "",
-          quantity_unit: "kg",
-          price_mode: "fixed_price",
-          fixed_price: "",
+        if (cancelledTempIdsRef.current.has(tempId)) {
+          cancelledTempIdsRef.current.delete(tempId);
+          try {
+            await deleteVariantAction(created.id);
+          } catch {
+            /* best-effort */
+          }
+          return;
+        }
+        setVariants((prev) => {
+          const withoutTemp = prev.filter((v) => v.id !== tempId);
+          if (withoutTemp.some((v) => v.id === created.id)) return withoutTemp;
+          return [...withoutTemp, created];
         });
-        await reload();
-        setAddOpen(false);
-        toast.success("تم إنشاء الحجم");
       } catch {
+        if (snapshotRef.current) setVariants(snapshotRef.current);
         toast.error("تعذر إنشاء الحجم");
       }
-    });
+    })();
   }
 
   function handleUpdate(id: string, patch: Partial<ProductVariant>) {
-    startTransition(async () => {
+    if (id.startsWith("temp-")) return;
+    snapshotRef.current = variants;
+    setVariants((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+
+    void (async () => {
       try {
-        await updateVariantAction(id, patch);
-        await reload();
+        const updated = await updateVariantAction(id, patch);
+        setVariants((prev) => prev.map((v) => (v.id === id ? updated : v)));
       } catch {
+        if (snapshotRef.current) setVariants(snapshotRef.current);
         toast.error("تعذر تحديث الحجم");
       }
-    });
+    })();
   }
 
   function handleDelete(id: string) {
-    startTransition(async () => {
+    snapshotRef.current = variants;
+    setVariants((prev) => prev.filter((v) => v.id !== id));
+    if (id.startsWith("temp-")) {
+      cancelledTempIdsRef.current.add(id);
+      return;
+    }
+
+    void (async () => {
       try {
         await deleteVariantAction(id);
-        await reload();
-        toast.success("تم حذف الحجم");
       } catch {
+        if (snapshotRef.current) setVariants(snapshotRef.current);
         toast.error("تعذر حذف الحجم");
       }
-    });
+    })();
   }
 
   if (loading) {
@@ -218,7 +259,7 @@ export function VariantEditor({
               <option value="weight_portion">وزن / حصة</option>
             </select>
           </div>
-          <Button size="sm" onClick={handleCreate} disabled={pending}>
+          <Button size="sm" onClick={handleCreate}>
             <Plus className="size-4" /> حفظ
           </Button>
           {draft.variant_kind === "weight_portion" ? (
@@ -297,6 +338,8 @@ export function VariantEditor({
                   <Label className="text-xs">الاسم</Label>
                   <Input
                     defaultValue={variant.name}
+                    key={`name-${variant.id}-${variant.name}`}
+                    disabled={variant.id.startsWith("temp-")}
                     onBlur={(e) => {
                       if (e.target.value !== variant.name) {
                         handleUpdate(variant.id, { name: e.target.value });
@@ -310,6 +353,8 @@ export function VariantEditor({
                     type="number"
                     step="0.01"
                     defaultValue={variant.price ?? ""}
+                    key={`price-${variant.id}-${variant.price ?? "empty"}`}
+                    disabled={variant.id.startsWith("temp-")}
                     onBlur={(e) => {
                       const price = e.target.value ? Number(e.target.value) : null;
                       if (price !== variant.price) {
@@ -326,6 +371,8 @@ export function VariantEditor({
                   <Label className="text-xs">SKU</Label>
                   <Input
                     defaultValue={variant.sku}
+                    key={`sku-${variant.id}-${variant.sku}`}
+                    disabled={variant.id.startsWith("temp-")}
                     onBlur={(e) => {
                       if (e.target.value !== variant.sku) {
                         handleUpdate(variant.id, { sku: e.target.value });
@@ -337,6 +384,8 @@ export function VariantEditor({
                   <Label className="text-xs">باركود</Label>
                   <Input
                     defaultValue={variant.barcode}
+                    key={`barcode-${variant.id}-${variant.barcode}`}
+                    disabled={variant.id.startsWith("temp-")}
                     onBlur={(e) => {
                       if (e.target.value !== variant.barcode) {
                         handleUpdate(variant.id, { barcode: e.target.value });
@@ -347,6 +396,7 @@ export function VariantEditor({
                 <label className="flex h-8 items-center gap-2 text-sm">
                   <Checkbox
                     checked={variant.is_active}
+                    disabled={variant.id.startsWith("temp-")}
                     onCheckedChange={(v) => handleUpdate(variant.id, { is_active: Boolean(v) })}
                   />
                   نشط
@@ -355,7 +405,6 @@ export function VariantEditor({
                   variant="destructive"
                   size="sm"
                   onClick={() => handleDelete(variant.id)}
-                  disabled={pending}
                 >
                   <Trash2 className="size-4" /> حذف
                 </Button>
@@ -363,7 +412,7 @@ export function VariantEditor({
               <p className="text-xs text-muted-foreground">
                 سعر البيع: {formatCurrency(variant.price ?? product.base_price + variant.price_delta, currency)}
               </p>
-              {recipesEnabled ? (
+              {recipesEnabled && !variant.id.startsWith("temp-") ? (
                 <div className="rounded-xl border p-3">
                   <p className="mb-2 text-sm font-medium">وصفة {variant.name}</p>
                   <RecipeEditor

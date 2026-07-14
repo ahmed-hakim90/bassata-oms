@@ -24,6 +24,7 @@ import {
   Settings,
   Shield,
   ShoppingCart,
+  Tag,
   Trash2,
   TrendingUp,
   Truck,
@@ -65,6 +66,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Wallet,
   Users,
   Heart,
+  Tag,
   Landmark,
   BarChart3,
   Barcode,
@@ -117,10 +119,14 @@ export function CommandPalette({
   userRole,
   permissions = [],
   featureFlags,
+  enableWholesaleSales,
+  allowCashierWholesale,
 }: {
   userRole: UserRole;
   permissions?: PermissionKey[];
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
+  enableWholesaleSales?: boolean;
+  allowCashierWholesale?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -130,8 +136,12 @@ export function CommandPalette({
 
   const permissionSet = useMemo(() => new Set(permissions), [permissions]);
   const navGroups = useMemo(
-    () => filterNavByAccess(userRole, permissionSet, featureFlags),
-    [userRole, permissionSet, featureFlags]
+    () =>
+      filterNavByAccess(userRole, permissionSet, featureFlags, {
+        enableWholesaleSales,
+        allowCashierWholesale,
+      }),
+    [userRole, permissionSet, featureFlags, enableWholesaleSales, allowCashierWholesale]
   );
 
   const allItems = useMemo(

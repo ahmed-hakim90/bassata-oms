@@ -1,7 +1,8 @@
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { getOrgId } from "@/lib/repositories/organization.repository";
-import { convertUnit } from "@/lib/units";
-import type { MeasurementUnit, ProductPriceTier, SalesMode } from "@/lib/types";
+import type { ProductPriceTier } from "@/lib/types";
+
+export { resolveUnitPrice } from "@/modules/products/lib/resolve-unit-price";
 
 export async function listPriceTiers(productId: string): Promise<ProductPriceTier[]> {
   const db = await getDb();
@@ -14,6 +15,31 @@ export async function listPriceTiers(productId: string): Promise<ProductPriceTie
     .order("min_quantity", { ascending: true });
   if (error) throwDbError(error, "listPriceTiers");
   return (data ?? []) as ProductPriceTier[];
+}
+
+/** Wholesale tiers for many products — sales invoice live pricing. */
+export async function listWholesalePriceTiersByProductIds(
+  productIds: string[]
+): Promise<Map<string, ProductPriceTier[]>> {
+  const map = new Map<string, ProductPriceTier[]>();
+  if (productIds.length === 0) return map;
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("product_price_tiers")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("sale_mode", "wholesale")
+    .eq("active", true)
+    .in("product_id", productIds)
+    .order("min_quantity", { ascending: true });
+  if (error) throwDbError(error, "listWholesalePriceTiersByProductIds");
+  for (const row of (data ?? []) as ProductPriceTier[]) {
+    const list = map.get(row.product_id) ?? [];
+    list.push(row);
+    map.set(row.product_id, list);
+  }
+  return map;
 }
 
 export async function upsertPriceTier(
@@ -49,28 +75,3 @@ export async function deletePriceTier(id: string): Promise<void> {
   if (error) throwDbError(error, "deletePriceTier");
 }
 
-export function resolveUnitPrice(params: {
-  basePrice: number;
-  quantity: number;
-  saleUnit: MeasurementUnit;
-  saleMode: SalesMode;
-  autoApplyWholesale: boolean;
-  tiers: ProductPriceTier[];
-}) {
-  const { basePrice, quantity, saleUnit, saleMode, autoApplyWholesale, tiers } = params;
-  const byMode = tiers.filter((t) => t.active && t.sale_mode === saleMode);
-  let candidates = byMode;
-  if (saleMode === "retail" && autoApplyWholesale) {
-    candidates = tiers.filter((t) => t.active);
-  }
-  const eligible = candidates
-    .filter((t) => convertUnit(quantity, saleUnit, t.unit) >= t.min_quantity)
-    .sort((a, b) => b.min_quantity - a.min_quantity);
-  const tier = eligible[0];
-  if (!tier) return { unitPrice: basePrice, tierId: null as string | null, wholesaleApplied: false };
-  return {
-    unitPrice: tier.price,
-    tierId: tier.id,
-    wholesaleApplied: false,
-  };
-}

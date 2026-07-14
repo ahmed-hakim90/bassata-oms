@@ -71,12 +71,17 @@ export async function adjustStock(input: {
   productName: string;
   unit?: string;
   batch?: BatchInput;
+  /** When set, skips a settings round-trip per movement. */
+  preventNegativeStock?: boolean;
+  /** Optional business timestamp for backdated documents. */
+  createdAt?: string;
 }): Promise<InventoryMovement | null> {
   if (!input.trackInventory) return null;
   const db = await getDb();
   const variantId = input.variantId ?? null;
   const current = await getStockLevel(input.storeId, input.warehouseId, input.productId, variantId);
-  const preventNegativeStock = await isFeatureEnabled("prevent_negative_stock");
+  const preventNegativeStock =
+    input.preventNegativeStock ?? (await isFeatureEnabled("prevent_negative_stock"));
   if (preventNegativeStock && input.quantityDelta < 0 && current + input.quantityDelta < 0) {
     throw new Error(`Insufficient stock for ${input.productName}`);
   }
@@ -209,6 +214,7 @@ export async function adjustStock(input: {
         ) ??
         null,
       created_by: input.createdBy,
+      ...(input.createdAt ? { created_at: input.createdAt } : {}),
     })
     .select()
     .single();

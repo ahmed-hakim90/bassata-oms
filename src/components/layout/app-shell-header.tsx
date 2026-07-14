@@ -32,6 +32,7 @@ import type { PosReadinessState } from "@/lib/auth/pos-readiness";
 import { ROLE_LABELS_AR } from "@/lib/auth/nav";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { useUiStore } from "@/stores/ui-store";
+import { firstGrapheme } from "@/lib/first-grapheme";
 
 interface AppShellHeaderProps {
   userName: string;
@@ -39,6 +40,8 @@ interface AppShellHeaderProps {
   stores: StoreType[];
   activeStoreId: string | null;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
+  enableWholesaleSales?: boolean;
+  allowCashierWholesale?: boolean;
   permissions?: PermissionKey[];
   posReadinessState?: PosReadinessState;
 }
@@ -82,6 +85,8 @@ export function AppShellHeader({
   stores,
   activeStoreId,
   featureFlags,
+  enableWholesaleSales,
+  allowCashierWholesale,
   permissions = [],
   posReadinessState,
 }: AppShellHeaderProps) {
@@ -148,6 +153,8 @@ export function AppShellHeader({
               <AppSidebar
                 userRole={userRole}
                 featureFlags={featureFlags}
+                enableWholesaleSales={enableWholesaleSales}
+                allowCashierWholesale={allowCashierWholesale}
                 permissions={permissions}
                 forceExpanded
                 className="h-full w-full border-e-0 shadow-none"
@@ -165,7 +172,7 @@ export function AppShellHeader({
               className="hidden size-7 shrink-0 select-none items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary md:flex dark:bg-primary/15"
               aria-hidden
             >
-              {userName.charAt(0)}
+              {firstGrapheme(userName, "?")}
             </span>
 
             <div className="min-w-0">

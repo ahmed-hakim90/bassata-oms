@@ -69,12 +69,12 @@ export async function addTransferLineAction(input: {
   transferId: string;
   productId: string;
   quantity: number;
-}): Promise<TransferActionResult> {
+}): Promise<TransferActionResult<TransferOrderLine>> {
   return runTransferAction(async () => {
     await requireFeature("transfers");
     await requirePermissionOrRole("transfer_manage", ["owner", "manager", "inventory"]);
-    await addTransferLine(input);
-    revalidatePath("/inventory/transfers");
+    // Skip revalidatePath — draft line edits stay local; list refreshes on send/receive/delete.
+    return addTransferLine(input);
   });
 }
 
@@ -83,7 +83,6 @@ export async function removeTransferLineAction(lineId: string): Promise<Transfer
     await requireFeature("transfers");
     await requirePermissionOrRole("transfer_manage", ["owner", "manager", "inventory"]);
     await removeTransferLine(lineId);
-    revalidatePath("/inventory/transfers");
   });
 }
 
@@ -98,9 +97,7 @@ export async function updateDraftTransferAction(input: {
     await requireFeature("transfers");
     await requirePermissionOrRole("transfer_manage", ["owner", "manager", "inventory"]);
     const { transferId, ...stores } = input;
-    const transfer = await updateDraftTransfer(transferId, stores);
-    revalidatePath("/inventory/transfers");
-    return transfer;
+    return updateDraftTransfer(transferId, stores);
   });
 }
 
@@ -111,9 +108,7 @@ export async function updateTransferLineAction(input: {
   return runTransferAction(async () => {
     await requireFeature("transfers");
     await requirePermissionOrRole("transfer_manage", ["owner", "manager", "inventory"]);
-    const line = await updateTransferLineQuantity(input.lineId, input.quantity);
-    revalidatePath("/inventory/transfers");
-    return line;
+    return updateTransferLineQuantity(input.lineId, input.quantity);
   });
 }
 

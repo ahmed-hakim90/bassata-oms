@@ -78,6 +78,25 @@ export async function deleteHeldCart(id: string): Promise<boolean> {
   return Boolean(data);
 }
 
+/** One round-trip delete scoped to store+device (no prior get + listStores). */
+export async function deleteHeldCartForDevice(input: {
+  id: string;
+  storeId: string;
+  deviceId: string;
+}): Promise<boolean> {
+  const db = await getDb();
+  const { data, error } = await db
+    .from("pos_held_carts")
+    .delete()
+    .eq("id", input.id)
+    .eq("store_id", input.storeId)
+    .eq("device_id", input.deviceId)
+    .select("id")
+    .maybeSingle();
+  if (error) throwDbError(error, "deleteHeldCartForDevice");
+  return Boolean(data);
+}
+
 export function payloadAsRecord(payload: Json): Record<string, unknown> {
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     return payload as Record<string, unknown>;

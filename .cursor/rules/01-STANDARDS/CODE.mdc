@@ -24,7 +24,7 @@ TypeScript strictness as configured. Prefer explicit domain types over `any`. Pa
 
 ## Reuse
 
-Before creating a component/hook/util/service: search the codebase. Extend existing patterns.
+**Mandatory.** Follow `.cursor/rules/01-STANDARDS/REUSE.mdc` (always apply): single implementation, no page-owned reusable logic, shared first, extend don’t duplicate. If you’d build it again → reuse or extend instead.
 
 ## Errors
 

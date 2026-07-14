@@ -1,0 +1,63 @@
+---
+description: Mandatory reuse — single implementation, no page-owned logic, shared first
+alwaysApply: true
+---
+
+# Reuse Policy (Mandatory)
+
+## Single Source of Truth
+
+أي منطق أو UI أو Hook أو Service يمكن استخدامه في أكثر من مكان **يجب أن يكون له تنفيذ واحد فقط (Single Implementation)**، ويعاد استخدامه في جميع الصفحات.
+
+يحظر نسخ نفس المنطق أو إعادة كتابته داخل صفحات مختلفة.
+
+---
+
+## Mandatory Rules
+
+### 1. No Page-Owned Logic
+
+لا يجوز أن تمتلك `page.tsx` أي Business Logic أو Helper أو Component يمكن إعادة استخدامه.
+
+الصفحة مسؤولة فقط عن: Layout · Routing · Wiring · Composition
+
+### 2. Extract Before Duplicate
+
+إذا كان المنطق أو الـ Component أو الـ Hook مستخدمًا في أكثر من صفحة، أو واضح أنه سيستخدم في صفحة أخرى — استخرجه مباشرة إلى المكان المناسب **قبل** كتابة نسخة جديدة.
+
+### 3. Single Implementation
+
+ممنوع أكثر من تنفيذ لنفس الوظيفة (مثل: `formatPrice` في 3 ملفات، `ProductPicker` داخل كل صفحة، `calculateDiscount` في كل module، `PrintDialog` مكرر، `SearchProducts` في أكثر من صفحة).
+
+### 4. Shared First
+
+قبل إنشاء Function / Hook / Component / Dialog / Table / Form / Service / Utility: ابحث أولًا. إن وُجد مشابه → أعد استخدامه أو طوّره. لا تنشئ نسخة جديدة.
+
+### 5. Correct Ownership
+
+| Kind | Location |
+|------|----------|
+| Pure helpers | `src/lib` |
+| Domain helpers | `modules/<domain>/lib` |
+| Business rules | `services` |
+| Shared hooks | `hooks` |
+| Shared UI | `components/ui` / SweetFlow |
+| Domain components | `modules/<domain>/components` |
+
+### 6. Extend, Don't Duplicate
+
+سلوك إضافي لمكون موجود → طوّر المكون الحالي بـ Props أو Composition. لا تنسخه.
+
+### 7. One Fix Updates Everywhere
+
+إصلاح أو تحسين في المشترك ينعكس تلقائيًا على كل الصفحات التي تستخدمه.
+
+---
+
+## Gate before new code
+
+If you are about to build something that already exists (or nearly exists): **stop → reuse or extend → do not re-implement.**
+
+## Architecture Goal
+
+كل Function / Hook / Service / Component / Dialog / Table / Form له مكان واحد فقط، ويعاد استخدامه أينما احتيج. لا نسخة خاصة بالصفحة طالما يوجد تنفيذ مناسب يمكن إعادة استخدامه أو تطويره.

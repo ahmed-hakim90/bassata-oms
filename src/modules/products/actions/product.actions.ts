@@ -46,7 +46,16 @@ export async function createProductAction(input: ProductInput) {
 export async function updateProductAction(id: string, input: Partial<ProductInput>) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   const product = await productService.updateProduct(id, input, user.id);
-  revalidatePath("/products");
+  // Keep open sales-invoice / POS catalogs from serving stale prices after navigation.
+  const priceTouched =
+    input.base_price !== undefined ||
+    input.sale_price !== undefined ||
+    input.wholesale_enabled !== undefined ||
+    input.is_active !== undefined;
+  if (priceTouched) {
+    revalidatePath("/sales-invoices");
+    revalidatePath("/pos");
+  }
   return product;
 }
 
@@ -217,26 +226,18 @@ export async function deleteProductAction(
 
 export async function createCategoryAction(input: CategoryInput) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
-  const category = await productService.createCategory(input, user.id);
-  revalidatePath("/products");
-  revalidatePath("/menu", "layout");
-  return category;
+  // Skip revalidatePath — category manager reconciles locally; products page refreshes on dialog close.
+  return productService.createCategory(input, user.id);
 }
 
 export async function updateCategoryAction(id: string, input: Partial<CategoryInput>) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
-  const category = await productService.updateCategory(id, input, user.id);
-  revalidatePath("/products");
-  revalidatePath("/menu", "layout");
-  return category;
+  return productService.updateCategory(id, input, user.id);
 }
 
 export async function deleteCategoryAction(id: string) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
-  const ok = await productService.deleteCategory(id, user.id);
-  revalidatePath("/products");
-  revalidatePath("/menu", "layout");
-  return ok;
+  return productService.deleteCategory(id, user.id);
 }
 
 export type CafeMenuItemInput = {

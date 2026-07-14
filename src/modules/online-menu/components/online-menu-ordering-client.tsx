@@ -9,8 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { firstGrapheme } from "@/lib/first-grapheme";
 import { submitPublicOnlineOrderAction } from "@/modules/online-orders/actions/public-online-order.actions";
+import { getMenuTheme } from "@/modules/online-menu/lib/menu-themes";
 import type { OnlineMenuData, OnlineMenuItem, OnlineMenuVariant } from "@/modules/online-menu/services/online-menu.service";
+import { formatCurrency } from "@/lib/format";
+import { resolveDisplayPriceRange } from "@/modules/products/lib/display-price-range";
 
 type CartLine = {
   id: string;
@@ -42,14 +46,6 @@ type FulfillmentForm = {
   address: string;
 };
 
-function formatMoney(amount: number, currency: string) {
-  return new Intl.NumberFormat("ar-EG-u-nu-latn", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 function lineId(productId: string, variantId: string | null) {
   return `${productId}:${variantId ?? ""}`;
 }
@@ -57,23 +53,25 @@ function lineId(productId: string, variantId: string | null) {
 function getMenuItemDisplayPrice(item: OnlineMenuItem, currency: string) {
   const variantPrices = item.variants
     .map((variant) => variant.price)
-    .filter((price) => Number.isFinite(price))
-    .sort((a, b) => a - b);
-  const minVariantPrice = variantPrices[0];
-  const maxVariantPrice = variantPrices.at(-1);
-  const hasVariantPrice = minVariantPrice != null && maxVariantPrice != null;
+    .filter((price) => Number.isFinite(price));
+  const hasVariantPrice = variantPrices.length > 0;
+  const { amount, rangeLabel } = resolveDisplayPriceRange({
+    variantPrices,
+    baseAmount: item.price,
+    currency,
+    rangeSeparator: "arabic",
+  });
+  const min = [...variantPrices].sort((a, b) => a - b)[0];
+  const max = [...variantPrices].sort((a, b) => a - b).at(-1);
 
   return {
     label: hasVariantPrice
-      ? maxVariantPrice > minVariantPrice
+      ? max != null && min != null && max > min
         ? "من أقل سعر"
         : "سعر الأحجام"
       : null,
-    amount: hasVariantPrice ? minVariantPrice : item.price,
-    range:
-      hasVariantPrice && maxVariantPrice > minVariantPrice
-        ? ` إلى ${formatMoney(maxVariantPrice, currency)}`
-        : "",
+    amount,
+    range: rangeLabel,
   };
 }
 
@@ -102,7 +100,7 @@ function CategoryMark({ group, size = "sm" }: { group: Group; size?: "sm" | "lg"
           className="object-cover"
         />
       ) : (
-        group.name.slice(0, 1)
+        firstGrapheme(group.name)
       )}
     </span>
   );
@@ -115,8 +113,11 @@ interface OnlineMenuOrderingClientProps {
 }
 
 export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderingClientProps) {
+  const theme = getMenuTheme(menu.store.theme);
+  const isListLayout = theme.layout === "list";
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState<CustomerForm>({ name: "", phone: "", notes: "" });
+  const [couponCode, setCouponCode] = useState("");
   const [fulfillment, setFulfillment] = useState<FulfillmentForm>(() => {
     const config = menu.store.fulfillment;
     const defaultType =
@@ -292,6 +293,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
           fulfillmentType: fulfillment.type,
           zoneId: fulfillment.type === "delivery" ? fulfillment.zoneId : null,
           deliveryAddress: fulfillment.type === "delivery" ? fulfillment.address : null,
+          couponCode: couponCode.trim() || null,
           lines: cart.map((line) => ({
             productId: line.productId,
             variantId: line.variantId,
@@ -300,6 +302,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
         });
         setCart([]);
         setCustomer({ name: "", phone: "", notes: "" });
+        setCouponCode("");
         setFulfillment((current) => ({ ...current, address: "" }));
         setLastOrder({ id: result.id, trackingPath: result.trackingPath });
         setIsCartOpen(false);
@@ -310,10 +313,30 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
     });
   }
 
+  const isPremiumList = theme.slug === "antika" || theme.slug === "soul";
+  const chipInactiveClass =
+    theme.slug === "antika"
+      ? "h-10 shrink-0 rounded-full border border-[#d7c7b2] bg-[#fffaf1] px-3 text-[#2a160f] hover:bg-[#f0dfc4]"
+      : theme.slug === "soul"
+        ? "h-10 shrink-0 rounded-full border border-[#d4af37]/25 bg-[#252018] px-3 text-[#f5f0e8] hover:bg-[#2a2520]"
+        : theme.slug === "bistro"
+          ? "h-10 shrink-0 rounded-full border border-[#c9a84c]/25 bg-[#1c1915] px-3 text-[#f5f0e8] hover:bg-[#252018]"
+          : "h-10 shrink-0 rounded-full border bg-card/90 px-3";
+
   return (
-    <div id="online-menu-items" className="pb-28">
+    <div id="online-menu-items" className="pb-28" data-menu-layout={theme.layout} data-menu-theme={theme.slug}>
       <section
-        className="sticky top-2 z-20 mb-5 rounded-3xl border border-border/50 bg-card/98 p-3 backdrop-blur"
+        className={[
+          "sticky top-2 z-20 mb-5 border p-3 backdrop-blur",
+          isPremiumList ? "rounded-none bg-card/95" : "rounded-3xl border-border/50 bg-card/98",
+          theme.slug === "antika"
+            ? "border-[#d7c7b2]"
+            : theme.slug === "soul"
+              ? "border-[#3d3528]"
+              : theme.slug === "bistro"
+                ? "border-[#3d3528]"
+                : "border-border/50",
+        ].join(" ")}
         style={{ boxShadow: "var(--mds-elevation-2)" }}
       >
         <div className="relative">
@@ -345,11 +368,15 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                   nativeButton={false}
                   variant="outline"
                   size="sm"
-                  className="h-10 shrink-0 rounded-full border bg-card/90 px-3"
-                  style={{
-                    borderColor: `${group.color}40`,
-                    background: `linear-gradient(135deg, ${group.color}18, transparent)`,
-                  }}
+                  className={chipInactiveClass}
+                  style={
+                    isPremiumList || theme.slug === "bistro"
+                      ? undefined
+                      : {
+                          borderColor: `${group.color}40`,
+                          background: `linear-gradient(135deg, ${group.color}18, transparent)`,
+                        }
+                  }
                   render={<a href={`#menu-category-${group.id}`} />}
                 >
                   <CategoryMark group={group} />
@@ -391,27 +418,210 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
             لا توجد نتائج مطابقة لـ <span className="font-medium">{searchQuery}</span>.
           </section>
         ) : (
-          visibleGroups.map((group) => (
-            <section id={`menu-category-${group.id}`} key={group.id} className="scroll-mt-28 space-y-3">
+          visibleGroups.map((group) => {
+            const useThemedCategory =
+              theme.slug === "antika" || theme.slug === "soul";
+            const categoryBlockClass = useThemedCategory
+              ? theme.slug === "antika"
+                ? "antika-category-block space-y-2"
+                : "soul-category-block space-y-2"
+              : "space-y-3";
+            const headingClass = useThemedCategory
+              ? theme.slug === "antika"
+                ? "antika-category-heading"
+                : "soul-category-heading"
+              : "flex items-center justify-between gap-3 rounded-3xl border border-border/40 bg-card/80 p-3";
+            const titleClass = useThemedCategory
+              ? theme.slug === "antika"
+                ? "antika-section-title"
+                : "soul-section-title"
+              : "";
+            const rowClass =
+              theme.slug === "antika"
+                ? "antika-product-row"
+                : theme.slug === "soul"
+                  ? "soul-product-row"
+                  : theme.slug === "minimal"
+                    ? "minimal-product-row"
+                    : "";
+            const priceClass =
+              theme.slug === "antika"
+                ? "antika-price"
+                : theme.slug === "soul"
+                  ? "soul-price"
+                  : "";
+
+            return (
+            <section
+              id={`menu-category-${group.id}`}
+              key={group.id}
+              className={`scroll-mt-28 ${categoryBlockClass}`}
+            >
               <div
-                className="flex items-center justify-between gap-3 rounded-3xl border border-border/40 bg-card/80 p-3"
-                style={{
-                  borderColor: `${group.color}30`,
-                  background: `linear-gradient(135deg, ${group.color}1a, hsl(var(--card) / 0.9))`,
-                  boxShadow: "var(--mds-elevation-1)",
-                }}
+                className={headingClass}
+                style={
+                  useThemedCategory
+                    ? undefined
+                    : {
+                        borderColor: `${group.color}30`,
+                        background: `linear-gradient(135deg, ${group.color}1a, color-mix(in srgb, var(--card) 90%, transparent))`,
+                        boxShadow: "var(--mds-elevation-1)",
+                      }
+                }
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <CategoryMark group={group} size="lg" />
-                  <div className="min-w-0">
-                    <h2 className="truncate text-xl font-semibold">{group.name}</h2>
-                    <p className="text-sm text-muted-foreground">{group.items.length} صنف</p>
-                  </div>
-                </div>
-                {normalizedSearchQuery ? (
-                  <Badge variant="outline">{group.items.length} نتيجة</Badge>
-                ) : null}
+                {useThemedCategory ? (
+                  <h2 className={titleClass}>
+                    <span>{group.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {group.items.length} صنف
+                    </span>
+                  </h2>
+                ) : (
+                  <>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <CategoryMark group={group} size="lg" />
+                      <div className="min-w-0">
+                        <h2 className="truncate text-xl font-semibold">{group.name}</h2>
+                        <p className="text-sm text-muted-foreground">{group.items.length} صنف</p>
+                      </div>
+                    </div>
+                    {normalizedSearchQuery ? (
+                      <Badge variant="outline">{group.items.length} نتيجة</Badge>
+                    ) : null}
+                  </>
+                )}
               </div>
+
+              {isListLayout ? (
+                <div className="space-y-0">
+                  {group.items.map((item) => {
+                    const displayPrice = getMenuItemDisplayPrice(
+                      item,
+                      menu.organization.currency
+                    );
+                    const isPremiumRow = theme.slug === "antika" || theme.slug === "soul";
+                    const showThumb = theme.showImages;
+                    const thumbBorder =
+                      theme.slug === "antika"
+                        ? "border border-[#d7c7b2] bg-[#fffaf1]"
+                        : theme.slug === "soul"
+                          ? "border border-[#3d3528] bg-[#252018]"
+                          : "rounded-xl bg-primary/10";
+                    const leaderClass =
+                      theme.slug === "antika"
+                        ? "h-px min-w-8 flex-1 bg-[#2a160f]/35 transition-colors group-hover:bg-[#b67b31]"
+                        : theme.slug === "soul"
+                          ? "h-px min-w-8 flex-1 bg-[#d4af37]/25 transition-colors group-hover:bg-[#d4af37]"
+                          : "h-px min-w-8 flex-1 bg-border";
+                    const addBtnClass =
+                      theme.slug === "antika"
+                        ? "h-8 w-8 rounded-full bg-[#2a160f] p-0 text-[#f5eee3] hover:bg-[#b67b31]"
+                        : theme.slug === "soul"
+                          ? "h-8 w-8 rounded-full bg-[#d4af37] p-0 text-[#1c1915] hover:bg-[#e0c25a]"
+                          : "h-8 w-8 rounded-full p-0";
+                    const justAdded = recentlyAddedLineId === lineId(item.id, null);
+
+                    return (
+                      <article
+                        key={item.id}
+                        className={`group ${rowClass || "flex items-center gap-3 border-b border-border/50 py-3"}`}
+                      >
+                        {showThumb ? (
+                          <div
+                            className={`relative h-14 w-14 shrink-0 overflow-hidden sm:h-16 sm:w-16 ${thumbBorder}`}
+                          >
+                            {item.imageUrl ? (
+                              <Image
+                                src={item.imageUrl}
+                                alt={item.name}
+                                fill
+                                sizes="64px"
+                                unoptimized
+                                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                              />
+                            ) : (
+                              <span className="flex size-full items-center justify-center text-lg font-bold text-primary/40">
+                                {firstGrapheme(item.name)}
+                              </span>
+                            )}
+                          </div>
+                        ) : null}
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-semibold sm:text-base">
+                                {item.name}
+                                {item.isPopular ? (
+                                  <span className="ms-2 text-xs font-normal text-primary">★</span>
+                                ) : null}
+                              </p>
+                              {item.description ? (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {item.description}
+                                </p>
+                              ) : null}
+                            </div>
+                            {isPremiumRow ? <div className={leaderClass} /> : null}
+                            <span
+                              className={`shrink-0 text-base tabular-nums ${priceClass} ${
+                                theme.slug === "antika"
+                                  ? "text-[#b67b31]"
+                                  : theme.slug === "soul"
+                                    ? "text-[#d4af37]"
+                                    : "font-bold text-primary"
+                              }`}
+                            >
+                              {formatCurrency(displayPrice.amount, menu.organization.currency)}
+                            </span>
+                          </div>
+
+                          {item.variants.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {item.variants.map((variant) => {
+                                const variantLineId = lineId(item.id, variant.id);
+                                const wasJustAdded = recentlyAddedLineId === variantLineId;
+                                return (
+                                  <Button
+                                    key={variant.id}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 rounded-full px-2.5 text-xs"
+                                    data-added={wasJustAdded}
+                                    disabled={!menu.store.canOrder}
+                                    onClick={() => addToCart(item, variant)}
+                                  >
+                                    {variant.name} ·{" "}
+                                    {formatCurrency(variant.price, menu.organization.currency)}
+                                    {wasJustAdded ? (
+                                      <Check className="size-3.5" />
+                                    ) : (
+                                      <Plus className="size-3.5" />
+                                    )}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {item.variants.length === 0 && menu.store.canOrder ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            className={addBtnClass}
+                            onClick={() => addToCart(item)}
+                            aria-label="أضف للسلة"
+                          >
+                            {justAdded ? <Check className="size-4" /> : <Plus className="size-4" />}
+                          </Button>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
                 {group.items.map((item) => {
                   const displayPrice = getMenuItemDisplayPrice(
@@ -425,6 +635,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                       className="group flex flex-col overflow-hidden rounded-3xl border border-border/40 bg-card transition hover:-translate-y-0.5"
                       style={{ boxShadow: "var(--mds-elevation-1)" }}
                     >
+                      {theme.showImages ? (
                       <div className="relative flex aspect-[4/3] w-full shrink-0 items-center justify-center overflow-hidden bg-primary/10">
                         {item.imageUrl ? (
                           <Image
@@ -437,7 +648,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                           />
                         ) : (
                           <span className="text-5xl font-bold text-primary/30 sm:text-6xl">
-                            {item.name.slice(0, 1)}
+                            {firstGrapheme(item.name)}
                           </span>
                         )}
                         {item.imageUrl ? (
@@ -449,6 +660,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                           </Badge>
                         ) : null}
                       </div>
+                      ) : null}
 
                       <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-2.5 sm:gap-3 sm:p-4">
                         <div className="grid gap-2">
@@ -465,7 +677,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                               <p className="text-xs text-primary/80">{displayPrice.label}</p>
                             ) : null}
                             <p className="text-sm font-bold tabular-nums text-primary sm:text-base">
-                              {formatMoney(displayPrice.amount, menu.organization.currency)}
+                              {formatCurrency(displayPrice.amount, menu.organization.currency)}
                               {displayPrice.range ? (
                                 <span className="ms-1 text-[11px] font-normal text-muted-foreground sm:text-xs">
                                   {displayPrice.range}
@@ -495,7 +707,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                                   <span className="min-w-0 truncate font-medium">{variant.name}</span>
                                   <span className="flex shrink-0 items-center justify-between gap-1.5 sm:justify-end sm:gap-2">
                                     <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-semibold tabular-nums sm:px-2.5 sm:text-xs">
-                                      {formatMoney(variant.price, menu.organization.currency)}
+                                      {formatCurrency(variant.price, menu.organization.currency)}
                                     </span>
                                     <span className="inline-flex h-7 items-center gap-1 rounded-full bg-primary px-2 text-xs font-semibold text-primary-foreground sm:px-2.5">
                                       {wasJustAdded ? (
@@ -540,8 +752,10 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                   );
                 })}
               </div>
+              )}
             </section>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -589,7 +803,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                           <p className="mt-0.5 text-xs text-muted-foreground">{line.variantName}</p>
                         ) : null}
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {formatMoney(line.unitPrice, menu.organization.currency)}
+                          {formatCurrency(line.unitPrice, menu.organization.currency)}
                         </p>
                       </div>
                       <Button
@@ -625,7 +839,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                         </Button>
                       </div>
                       <p className="shrink-0 text-base font-bold tabular-nums text-primary">
-                        {formatMoney(line.unitPrice * line.quantity, menu.organization.currency)}
+                        {formatCurrency(line.unitPrice * line.quantity, menu.organization.currency)}
                       </p>
                     </div>
                   </li>
@@ -644,21 +858,21 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span>مجموع الأصناف</span>
                   <span className="tabular-nums">
-                    {formatMoney(subtotal, menu.organization.currency)}
+                    {formatCurrency(subtotal, menu.organization.currency)}
                   </span>
                 </div>
                 {deliveryFee > 0 ? (
                   <div className="flex items-center justify-between text-muted-foreground">
                     <span>رسوم التوصيل</span>
                     <span className="tabular-nums">
-                      {formatMoney(deliveryFee, menu.organization.currency)}
+                      {formatCurrency(deliveryFee, menu.organization.currency)}
                     </span>
                   </div>
                 ) : null}
                 <div className="mt-1 flex items-end justify-between gap-3 border-t border-primary/15 pt-2">
                   <span className="text-sm text-muted-foreground">الإجمالي النهائي</span>
                   <span className="text-xl font-bold tabular-nums text-primary">
-                    {formatMoney(orderTotal, menu.organization.currency)}
+                    {formatCurrency(orderTotal, menu.organization.currency)}
                   </span>
                 </div>
               </div>
@@ -714,7 +928,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                           >
                             {fulfillmentConfig.zones.map((zone) => (
                               <option key={zone.id} value={zone.id}>
-                                {zone.name} — {formatMoney(zone.fee, menu.organization.currency)}
+                                {zone.name} — {formatCurrency(zone.fee, menu.organization.currency)}
                               </option>
                             ))}
                           </select>
@@ -767,6 +981,13 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                     inputMode="tel"
                     aria-invalid={customerPrompt !== null && Boolean(customer.phone.trim()) && customer.phone.trim().length < 5}
                     className="h-11 rounded-2xl"
+                  />
+                  <Input
+                    value={couponCode}
+                    onChange={(event) => setCouponCode(event.target.value)}
+                    placeholder="كود خصم (اختياري)"
+                    className="h-11 rounded-2xl uppercase"
+                    autoCapitalize="characters"
                   />
                   <Textarea
                     value={customer.notes}
@@ -903,10 +1124,30 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
       </Dialog>
 
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border/40 bg-background/97 px-4 py-3 backdrop-blur"
+        className={[
+          "fixed inset-x-0 bottom-0 z-40 border-t px-4 py-3 backdrop-blur",
+          theme.slug === "antika"
+            ? "border-[#b67b31]/40 bg-[#2a160f]/95 text-[#f5eee3]"
+            : theme.slug === "soul"
+              ? "border-[#d4af37]/30 bg-[#1c1915]/95 text-[#f5f0e8]"
+              : theme.slug === "bistro"
+                ? "border-[#c9a84c]/25 bg-[#141210]/95 text-[#f5f0e8]"
+                : "border-border/40 bg-background/97",
+        ].join(" ")}
         style={{ boxShadow: "var(--mds-elevation-3)" }}
       >
-        <div className="mx-auto flex max-w-5xl items-center gap-3 rounded-3xl border border-border/40 bg-card p-2" style={{ boxShadow: "var(--mds-elevation-1)" }}>
+        <div
+          className={[
+            "mx-auto flex items-center gap-3 rounded-3xl border p-2",
+            isPremiumList || theme.slug === "bistro" ? "max-w-5xl" : "max-w-4xl",
+            theme.slug === "antika"
+              ? "border-[#b67b31]/30 bg-[#3a2418]/80"
+              : theme.slug === "soul" || theme.slug === "bistro"
+                ? "border-[#d4af37]/20 bg-[#252018]/90"
+                : "border-border/40 bg-card",
+          ].join(" ")}
+          style={{ boxShadow: "var(--mds-elevation-1)" }}
+        >
           <div
             className={`flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary transition ${
               recentlyAddedLineId ? "scale-110 bg-primary text-primary-foreground" : ""
@@ -920,7 +1161,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
               <p className="truncate text-sm text-muted-foreground">
                 <span className="font-bold tabular-nums text-foreground">{cartItemCount}</span> قطعة ·{" "}
                 <span className="font-bold tabular-nums text-primary">
-                  {formatMoney(orderTotal, menu.organization.currency)}
+                  {formatCurrency(orderTotal, menu.organization.currency)}
                 </span>
               </p>
             ) : (
@@ -929,7 +1170,14 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
           </div>
           <Button
             type="button"
-            className="h-12 rounded-2xl px-5 text-base font-semibold"
+            className={[
+              "h-12 rounded-2xl px-5 text-base font-semibold",
+              theme.slug === "soul" || theme.slug === "bistro"
+                ? "bg-[#d4af37] text-[#1c1915] hover:bg-[#e0c25a]"
+                : theme.slug === "antika"
+                  ? "bg-[#b67b31] text-[#fffaf1] hover:bg-[#c48a3d]"
+                  : "",
+            ].join(" ")}
             disabled={!menu.store.canOrder && cart.length === 0}
             onClick={() => setIsCartOpen(true)}
           >

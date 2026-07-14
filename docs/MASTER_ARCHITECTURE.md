@@ -323,7 +323,7 @@ App layer: validate UX, build payload, call RPC, handle errors, print receipt.
 | Pricing | Base price, variants, wholesale tiers, weight calc | Keep in RPC + price_tiers; document algorithm |
 | Discount | Order-level + manager override + bounds CHECK | Keep; product-level discounts Phase 5 |
 | Tax | Org tax settings + flag `tax` | Keep inclusive/exclusive policy |
-| Promotion | **MISSING** as engine | Phase 5: `promotion_rules` table; evaluate in RPC |
+| Promotion | `promotion_rules` + `evaluate_cart_promotions` + checkout wire | Phase 5 V1 shipped |
 | Returns / Refunds | Order status refunded + flag | Keep; restock policy explicit in RPC |
 | Exchange (goods) | **MISSING** | Phase 5: return+new sale linked, not FX |
 | Split payments | `order_payments` multi-row | Keep; finish partial credit split |
@@ -724,12 +724,12 @@ Durations assume focused work after Pilot freeze decisions.
 
 **Tasks:**
 - [x] Daily close report; customer/supplier aging; tax export basics. — **S15 (2026-07-13)**  
-- Product-level discount + promotion_rules (simple). — Future  
+- [x] Product-level discount + promotion_rules (simple). — **V1 (2026-07-14)**  
 - Loyalty rule flexibility (amount/category) without new product surface sprawl. — Future  
 
 **Definition of Done:**
 - [x] Owner can explain day cash from report alone — S15 `/reports/daily-close`  
-- [ ] Promotion applies only via server/RPC — Future (not in S15 scope)  
+- [x] Promotion applies only via server/RPC — V1 (`evaluate_cart_promotions` + `complete_checkout`)  
 
 ---
 

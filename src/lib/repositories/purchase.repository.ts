@@ -144,6 +144,85 @@ export async function getPurchaseLinesForInvoices(
   return (data ?? []).map(mapPurchaseLine);
 }
 
+/**
+ * Received-purchase hints for specific products only — used to pick last supplier
+ * without loading the entire purchase history.
+ */
+export async function listReceivedSupplierHintsForProducts(productIds: string[]): Promise<
+  Array<{
+    supplierId: string;
+    status: PurchaseInvoice["status"];
+    receivedAt: string | null;
+    createdAt: string;
+    lines: Array<{ productId: string }>;
+  }>
+> {
+  const uniqueIds = [...new Set(productIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return [];
+
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0) return [];
+
+  const db = await getDb();
+  const { data, error } = await db
+    .from("purchase_invoice_lines")
+    .select(
+      `
+      product_id,
+      invoice_id,
+      purchase_invoices!inner (
+        supplier_id,
+        status,
+        received_at,
+        created_at,
+        store_id
+      )
+    `
+    )
+    .in("product_id", uniqueIds)
+    .eq("purchase_invoices.status", "received")
+    .in("purchase_invoices.store_id", storeIds)
+    .limit(2000);
+  if (error) throwDbError(error, "listReceivedSupplierHintsForProducts");
+
+  type InvoiceEmbed = {
+    supplier_id: string;
+    status: PurchaseInvoice["status"];
+    received_at: string | null;
+    created_at: string;
+    store_id: string;
+  };
+
+  const byInvoice = new Map<
+    string,
+    {
+      supplierId: string;
+      status: PurchaseInvoice["status"];
+      receivedAt: string | null;
+      createdAt: string;
+      lines: Array<{ productId: string }>;
+    }
+  >();
+
+  for (const row of data ?? []) {
+    const invoiceRaw = row.purchase_invoices as InvoiceEmbed | InvoiceEmbed[] | null;
+    const invoice = Array.isArray(invoiceRaw) ? invoiceRaw[0] : invoiceRaw;
+    if (!invoice) continue;
+    const invoiceId = String(row.invoice_id);
+    const bucket = byInvoice.get(invoiceId) ?? {
+      supplierId: invoice.supplier_id,
+      status: invoice.status,
+      receivedAt: invoice.received_at,
+      createdAt: invoice.created_at,
+      lines: [],
+    };
+    bucket.lines.push({ productId: String(row.product_id) });
+    byInvoice.set(invoiceId, bucket);
+  }
+
+  return [...byInvoice.values()];
+}
+
 export async function insertPurchase(
   invoice: Omit<PurchaseInvoice, "id" | "created_at">,
   lines: Omit<PurchaseInvoiceLine, "id" | "invoice_id">[]

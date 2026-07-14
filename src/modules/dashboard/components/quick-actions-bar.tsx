@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Banknote,
   Clock,
+  FilePlus2,
   Receipt,
   ShoppingCart,
   Wallet,
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 import type { SupplierListSummary } from "@/lib/types";
 import { getSuppliersPageDataAction } from "@/modules/suppliers/actions/supplier.actions";
 import { RecordPaymentDialog } from "@/modules/suppliers/components/record-payment-dialog";
+import { quickCreateSalesInvoiceAction } from "@/modules/sales-invoices/actions/sales-invoice.actions";
 
 const linkActions = [
   {
@@ -46,33 +48,55 @@ const linkActions = [
 const chipClassName =
   "inline-flex items-center gap-2 rounded-[var(--mds-radius-lg)] bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-[var(--mds-elevation-1)] ring-1 ring-border transition hover:bg-muted hover:shadow-[var(--mds-elevation-2)]";
 
-export function QuickActionsBar() {
+export function QuickActionsBar({
+  enableWholesaleSales = false,
+}: {
+  enableWholesaleSales?: boolean;
+}) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [salesPending, startSales] = useTransition();
   const [showPayment, setShowPayment] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [summaries, setSummaries] = useState<SupplierListSummary[]>([]);
   const [currency, setCurrency] = useState("EGP");
-  const [canManagePayments, setCanManagePayments] = useState(false);
 
   const openSupplierPayment = () => {
-    startTransition(async () => {
+    // Open immediately — load suppliers in the background.
+    setShowPayment(true);
+    setPaymentLoading(true);
+    void (async () => {
       try {
         const data = await getSuppliersPageDataAction();
         if (!data.canManagePayments) {
+          setShowPayment(false);
           toast.error("تسجيل دفعة المورد متاح للمالك أو المدير فقط");
           return;
         }
         if (data.summaries.length === 0) {
+          setShowPayment(false);
           toast.error("أضف موردًا أولاً من صفحة الموردين");
           return;
         }
         setSummaries(data.summaries);
         setCurrency(data.currency);
-        setCanManagePayments(true);
-        setShowPayment(true);
       } catch (e) {
+        setShowPayment(false);
         toast.error(e instanceof Error ? e.message : "تعذر تحميل الموردين");
+      } finally {
+        setPaymentLoading(false);
       }
+    })();
+  };
+
+  const quickCreateSalesInvoice = () => {
+    startSales(async () => {
+      const result = await quickCreateSalesInvoiceAction();
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("اتعملت مسودة فاتورة جملة");
+      router.push(`/sales-invoices?open=${result.data.id}`);
     });
   };
 
@@ -85,28 +109,40 @@ export function QuickActionsBar() {
             {label}
           </Link>
         ))}
+        {enableWholesaleSales ? (
+          <button
+            type="button"
+            className={cn(chipClassName, "cursor-pointer disabled:opacity-60")}
+            onClick={quickCreateSalesInvoice}
+            disabled={salesPending}
+          >
+            <FilePlus2 className="size-4 text-[var(--mds-color-action-primary)]" />
+            فاتورة بيع
+          </button>
+        ) : null}
         <button
           type="button"
-          className={cn(chipClassName, "cursor-pointer disabled:opacity-60")}
+          className={cn(chipClassName, "cursor-pointer")}
           onClick={openSupplierPayment}
-          disabled={pending}
         >
           <Banknote className="size-4 text-[var(--mds-color-feedback-warning)]" />
           دفعة مورد
         </button>
       </div>
 
-      {canManagePayments ? (
-        <RecordPaymentDialog
-          open={showPayment}
-          onOpenChange={setShowPayment}
-          suppliers={summaries}
-          currency={currency}
-          onSuccess={() => {
-            router.refresh();
-          }}
-        />
-      ) : null}
+      <RecordPaymentDialog
+        open={showPayment}
+        onOpenChange={(open) => {
+          setShowPayment(open);
+          if (!open) setPaymentLoading(false);
+        }}
+        suppliers={summaries}
+        currency={currency}
+        loading={paymentLoading}
+        onSuccess={() => {
+          router.refresh();
+        }}
+      />
     </>
   );
 }

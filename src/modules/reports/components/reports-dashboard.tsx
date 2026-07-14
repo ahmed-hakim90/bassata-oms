@@ -585,6 +585,27 @@ export function ReportsDashboard({
               </ul>
             </OperationalCard>
 
+            <OperationalCard title="أعلى منتجات بيعًا">
+              <ul className="space-y-2 text-sm">
+                {(accounting.productRankings.highestSelling ?? []).slice(0, 5).map((p) => (
+                  <li key={p.productId} className="flex justify-between gap-2">
+                    <span>{p.name}</span>
+                    <span className="text-end font-medium">
+                      {formatCurrency(p.revenue, currency)}
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        ربح {formatCurrency(p.profit, currency)}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+                {(accounting.productRankings.highestSelling ?? []).length === 0 && (
+                  <p className="text-muted-foreground">لا توجد بيانات منتجات بعد</p>
+                )}
+              </ul>
+            </OperationalCard>
+          </div>
+
+          <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-2">
             <OperationalCard title="أعلى منتجات تكلفة">
               <ul className="space-y-2 text-sm">
                 {accounting.productRankings.highestCost.slice(0, 5).map((p) => (

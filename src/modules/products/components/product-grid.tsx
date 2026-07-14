@@ -1,8 +1,7 @@
 "use client";
 
-import { useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { Package, Pencil, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
@@ -12,6 +11,7 @@ import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { resolveDisplayPriceRange } from "@/modules/products/lib/display-price-range";
 import { updateProductAction } from "../actions/product.actions";
 
 export interface ProductGridItem {
@@ -66,23 +66,35 @@ export function ProductGrid({
   onDelete,
   emptyAction,
 }: ProductGridProps) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [localItems, setLocalItems] = useState(items);
+  const snapshotRef = useRef<ProductGridItem[] | null>(null);
+
+  useEffect(() => {
+    setLocalItems(items);
+  }, [items]);
 
   function setActive(product: Product, isActive: boolean) {
     if (product.is_active === isActive) return;
-    startTransition(async () => {
+    snapshotRef.current = localItems;
+    setLocalItems((prev) =>
+      prev.map((item) =>
+        item.product.id === product.id
+          ? { ...item, product: { ...item.product, is_active: isActive } }
+          : item
+      )
+    );
+
+    void (async () => {
       try {
         await updateProductAction(product.id, { is_active: isActive });
-        toast.success(isActive ? `تم تفعيل ${product.name}` : `تم إيقاف ${product.name}`);
-        router.refresh();
       } catch (error) {
+        if (snapshotRef.current) setLocalItems(snapshotRef.current);
         toast.error(error instanceof Error ? error.message : "تعذر تحديث حالة المنتج");
       }
-    });
+    })();
   }
 
-  if (items.length === 0) {
+  if (localItems.length === 0) {
     return (
       <EmptyStateBlock
         title="لا توجد منتجات مطابقة"
@@ -94,7 +106,7 @@ export function ProductGrid({
 
   return (
     <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-      {items.map(
+      {localItems.map(
         ({
           product,
           category,
@@ -104,28 +116,20 @@ export function ProductGrid({
           missingRecipeVariantCount = 0,
           variantPrices = [],
         }) => {
-          const sortedVariantPrices = variantPrices
-            .filter((price) => Number.isFinite(price))
-            .sort((a, b) => a - b);
-          const minVariantPrice = sortedVariantPrices[0];
-          const maxVariantPrice = sortedVariantPrices.at(-1);
+          const sortedVariantPrices = variantPrices.filter((price) => Number.isFinite(price));
           const showVariantPrice =
-            priceMode === "sale" &&
-            minVariantPrice != null &&
-            maxVariantPrice != null &&
-            variantCount > 0;
-          const amount =
-            priceMode === "cost"
-              ? product.last_unit_cost
-              : showVariantPrice
-                ? minVariantPrice
-                : product.base_price;
+            priceMode === "sale" && sortedVariantPrices.length > 0 && variantCount > 0;
+          const saleDisplay = resolveDisplayPriceRange({
+            variantPrices: showVariantPrice ? sortedVariantPrices : [],
+            baseAmount: product.base_price,
+            currency,
+            showRange: showVariantPrice,
+            rangeSeparator: "en-dash",
+          });
+          const amount = priceMode === "cost" ? product.last_unit_cost : saleDisplay.amount;
           const unitSuffix =
             priceMode === "cost" && product.cost_unit ? ` / ${formatUnit(product.cost_unit)}` : "";
-          const priceRange =
-            showVariantPrice && maxVariantPrice > minVariantPrice
-              ? ` – ${formatCurrency(maxVariantPrice, currency)}`
-              : "";
+          const priceRange = priceMode === "sale" ? saleDisplay.rangeLabel : "";
           const stock = stockForProduct(
             product,
             variants,
@@ -250,7 +254,6 @@ export function ProductGrid({
                     size="sm"
                     variant={product.is_active ? "outline" : "default"}
                     className="h-9 flex-1"
-                    disabled={pending}
                     onClick={() => setActive(product, !product.is_active)}
                     aria-label={
                       product.is_active ? `إيقاف ${product.name}` : `تفعيل ${product.name}`

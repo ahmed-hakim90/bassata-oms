@@ -174,9 +174,13 @@ export function permissionAllowsPath(
   pathname: string,
   permissions: Set<PermissionKey>
 ): boolean {
-  const match = Object.entries(PATH_PERMISSIONS).find(
-    ([path]) => pathname === path || (path !== "/" && pathname.startsWith(`${path}/`))
-  );
+  // Longest prefix wins so `/inventory/purchases/…` uses purchase_manage, not inventory_view.
+  const match = Object.entries(PATH_PERMISSIONS)
+    .filter(
+      ([path]) =>
+        pathname === path || (path !== "/" && pathname.startsWith(`${path}/`))
+    )
+    .sort((a, b) => b[0].length - a[0].length)[0];
   if (!match) return true;
   const required = match[1];
   if (!required) return true;

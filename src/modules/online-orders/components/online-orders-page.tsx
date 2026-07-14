@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   CalendarClock,
   CheckCircle2,
@@ -52,6 +52,7 @@ import type {
   StaffOnlineProductOption,
 } from "@/modules/online-orders/services/online-order.service";
 import type { OnlineOrderStatus } from "@/lib/types";
+import { formatCurrency } from "@/lib/format";
 
 type DraftLine = {
   key: string;
@@ -112,14 +113,6 @@ function filterOrders(orders: OnlineOrderWithItems[], filter: BoardFilter) {
   }
 }
 
-function formatMoney(amount: number) {
-  return new Intl.NumberFormat("ar-EG", {
-    style: "currency",
-    currency: "EGP",
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 function formatOrderDate(value: string) {
   return new Date(value).toLocaleString("ar-EG", {
     dateStyle: "medium",
@@ -164,13 +157,28 @@ interface OnlineOrdersPageClientProps {
 }
 
 export function OnlineOrdersPageClient({
-  orders,
+  orders: initialOrders,
   products,
   compact = false,
   enabledPaymentMethods = ["cash", "card", "wallet", "other"],
   receiptBranding = null,
 }: OnlineOrdersPageClientProps) {
   const [boardFilter, setBoardFilter] = useState<BoardFilter>("active");
+  const [orders, setOrders] = useState(initialOrders);
+
+  useEffect(() => {
+    setOrders(initialOrders);
+  }, [initialOrders]);
+
+  function upsertOrder(next: OnlineOrderWithItems) {
+    setOrders((prev) => {
+      const idx = prev.findIndex((order) => order.id === next.id);
+      if (idx === -1) return [next, ...prev];
+      const copy = [...prev];
+      copy[idx] = next;
+      return copy;
+    });
+  }
 
   if (orders.length === 0) {
     return (
@@ -252,6 +260,7 @@ export function OnlineOrdersPageClient({
             compact={compact}
             enabledPaymentMethods={enabledPaymentMethods}
             receiptBranding={receiptBranding}
+            onOrderChange={upsertOrder}
           />
         ))
       )}
@@ -265,12 +274,14 @@ function OnlineOrderCard({
   compact,
   enabledPaymentMethods,
   receiptBranding,
+  onOrderChange,
 }: {
   order: OnlineOrderWithItems;
   products: StaffOnlineProductOption[];
   compact: boolean;
   enabledPaymentMethods: PaymentMethod[];
   receiptBranding: ReportBranding | null;
+  onOrderChange: (order: OnlineOrderWithItems) => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => makeDraft(order));
   const [isEditingItems, setIsEditingItems] = useState(false);
@@ -278,8 +289,11 @@ function OnlineOrderCard({
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptPayload | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [invoicePending, startInvoice] = useTransition();
+  const [receiptPending, startReceipt] = useTransition();
   const router = useRouter();
+  const statusSnapshotRef = useRef<OnlineOrderWithItems | null>(null);
+  const detailsSnapshotRef = useRef<OnlineOrderWithItems | null>(null);
   const isLocked = order.status === "cancelled" || order.status === "invoiced";
   const nextStatus = primaryNextOnlineOrderStatus(order.status);
   const transitionTargets = allowedOnlineOrderStatusTransitions(order.status).filter(
@@ -295,6 +309,10 @@ function OnlineOrderCard({
       ),
     [draft.lines, productMap]
   );
+
+  useEffect(() => {
+    setDraft(makeDraft(order));
+  }, [order]);
 
   function addLine() {
     const product = products[0];
@@ -321,9 +339,12 @@ function OnlineOrderCard({
   }
 
   function saveDetails() {
-    startTransition(async () => {
+    detailsSnapshotRef.current = order;
+    setIsEditingItems(false);
+
+    void (async () => {
       try {
-        await updateOnlineOrderDetailsAction(order.id, {
+        const updated = await updateOnlineOrderDetailsAction(order.id, {
           customerName: draft.customerName,
           customerPhone: draft.customerPhone,
           notes: draft.notes,
@@ -333,25 +354,29 @@ function OnlineOrderCard({
             quantity: line.quantity,
           })),
         });
+        onOrderChange(updated);
         toast.success("تم حفظ الطلب");
-        setIsEditingItems(false);
-        router.refresh();
       } catch (error) {
+        if (detailsSnapshotRef.current) onOrderChange(detailsSnapshotRef.current);
+        setIsEditingItems(true);
         toast.error(error instanceof Error ? error.message : "تعذر حفظ الطلب");
       }
-    });
+    })();
   }
 
   function changeStatus(status: Exclude<OnlineOrderStatus, "invoiced">) {
-    startTransition(async () => {
+    statusSnapshotRef.current = order;
+    onOrderChange({ ...order, status });
+
+    void (async () => {
       try {
-        await updateOnlineOrderStatusAction(order.id, status);
-        toast.success("تم تحديث الحالة");
-        router.refresh();
+        const updated = await updateOnlineOrderStatusAction(order.id, status);
+        onOrderChange(updated);
       } catch (error) {
+        if (statusSnapshotRef.current) onOrderChange(statusSnapshotRef.current);
         toast.error(error instanceof Error ? error.message : "تعذر تحديث الحالة");
       }
-    });
+    })();
   }
 
   function openPayment() {
@@ -359,7 +384,7 @@ function OnlineOrderCard({
   }
 
   function completeInvoice(payments: PaymentSplit[]) {
-    startTransition(async () => {
+    startInvoice(async () => {
       try {
         const result = await invoiceOnlineOrderAction(order.id, payments);
         playPosSuccessSound();
@@ -386,7 +411,7 @@ function OnlineOrderCard({
   }
 
   function viewReceipt() {
-    startTransition(async () => {
+    startReceipt(async () => {
       try {
         const payload = await getOnlineOrderReceiptPayloadAction(order.id);
         setReceipt(payload);
@@ -479,7 +504,7 @@ function OnlineOrderCard({
               {order.fulfillment_type === "delivery" && order.delivery_area ? (
                 <span className="rounded-[var(--mds-radius-md)] bg-muted/40 px-2 py-1">
                   {order.delivery_area}
-                  {order.delivery_fee > 0 ? ` · ${formatMoney(order.delivery_fee)}` : ""}
+                  {order.delivery_fee > 0 ? ` · ${formatCurrency(order.delivery_fee)}` : ""}
                 </span>
               ) : null}
               {order.fulfillment_type === "delivery" && order.delivery_address ? (
@@ -496,7 +521,7 @@ function OnlineOrderCard({
               variant="outline"
               size={compact ? "sm" : "default"}
               className="rounded-[var(--mds-radius-md)]"
-              disabled={isPending}
+              disabled={receiptPending}
               onClick={viewReceipt}
             >
               <FileText className="size-4" />
@@ -507,7 +532,7 @@ function OnlineOrderCard({
             type="button"
             size={compact ? "sm" : "default"}
             className="rounded-[var(--mds-radius-md)] shadow-[var(--mds-elevation-1)]"
-            disabled={isPending || isLocked}
+            disabled={invoicePending || isLocked}
             onClick={openPayment}
           >
             <ReceiptText className="size-4" />
@@ -549,7 +574,7 @@ function OnlineOrderCard({
                     {item.quantity} × {orderItemName(item)}
                   </span>
                   <span className="shrink-0 font-medium tabular-nums">
-                    {formatMoney(item.line_total)}
+                    {formatCurrency(item.line_total)}
                   </span>
                 </div>
               ))}
@@ -667,7 +692,7 @@ function OnlineOrderCard({
                     className={cn("rounded-[var(--mds-radius-md)]", compact ? "h-8 px-2 text-xs" : "h-10")}
                   />
                   <div className={cn("rounded-[var(--mds-radius-md)] bg-background font-medium tabular-nums", compact ? "px-2 py-1.5 text-xs" : "px-3 py-2 text-sm")}>
-                    {formatMoney(unitPrice * line.quantity)}
+                    {formatCurrency(unitPrice * line.quantity)}
                   </div>
                   <Button
                     type="button"
@@ -696,7 +721,7 @@ function OnlineOrderCard({
                   <Plus className="size-4" />
                   إضافة صنف
                 </Button>
-                <Button type="button" size={compact ? "sm" : "default"} className="rounded-[var(--mds-radius-md)] shadow-[var(--mds-elevation-1)]" disabled={isPending || isLocked} onClick={saveDetails}>
+                <Button type="button" size={compact ? "sm" : "default"} className="rounded-[var(--mds-radius-md)] shadow-[var(--mds-elevation-1)]" disabled={isLocked} onClick={saveDetails}>
                   <Save className="size-4" />
                   حفظ التعديل
                 </Button>
@@ -708,15 +733,15 @@ function OnlineOrderCard({
         <aside className={cn("border border-border bg-muted/30", compact ? "space-y-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "space-y-[var(--mds-space-4)] rounded-[var(--mds-radius-lg)] p-[var(--mds-space-4)]")}>
           <div className={cn("bg-card shadow-[var(--mds-elevation-1)]", compact ? "rounded-[var(--mds-radius-md)] p-[var(--mds-space-2)]" : "rounded-[var(--mds-radius-lg)] p-[var(--mds-space-4)]")}>
             <p className="text-sm text-muted-foreground">الإجمالي</p>
-            <p className={cn("mt-[var(--mds-space-1)] font-semibold tabular-nums", compact ? "text-lg" : "text-2xl")}>{formatMoney(order.total)}</p>
+            <p className={cn("mt-[var(--mds-space-1)] font-semibold tabular-nums", compact ? "text-lg" : "text-2xl")}>{formatCurrency(order.total)}</p>
             {order.delivery_fee > 0 ? (
               <p className="mt-[var(--mds-space-1)] text-xs text-muted-foreground">
-                أصناف {formatMoney(order.subtotal)} + توصيل {formatMoney(order.delivery_fee)}
+                أصناف {formatCurrency(order.subtotal)} + توصيل {formatCurrency(order.delivery_fee)}
               </p>
             ) : null}
             {Math.abs(draftTotal - order.subtotal) > 0.01 ? (
               <p className="mt-[var(--mds-space-1)] text-xs text-amber-700 dark:text-amber-300">
-                مسودة الأصناف: {formatMoney(draftTotal)} (الفوترة على الأصناف فقط)
+                مسودة الأصناف: {formatCurrency(draftTotal)} (الفوترة على الأصناف فقط)
               </p>
             ) : null}
             {order.delivery_fee > 0 ? (
@@ -736,7 +761,6 @@ function OnlineOrderCard({
                   compact ? "h-9 text-xs" : "h-11",
                   STATUS_STYLES[nextStatus]
                 )}
-                disabled={isPending}
                 onClick={() => changeStatus(nextStatus)}
               >
                 <CheckCircle2 className="size-4" />
@@ -757,7 +781,6 @@ function OnlineOrderCard({
                         compact ? "h-8 min-w-24 px-2 text-xs" : "h-10 min-w-28 px-3",
                         STATUS_STYLES[status]
                       )}
-                      disabled={isPending}
                       onClick={() => changeStatus(status)}
                     >
                       <Clock3 className="size-4 text-muted-foreground" />
@@ -774,7 +797,6 @@ function OnlineOrderCard({
                   "w-full justify-center rounded-[var(--mds-radius-md)] border border-destructive/30 text-destructive",
                   compact ? "h-8 text-xs" : "h-10"
                 )}
-                disabled={isPending}
                 onClick={() => setCancelConfirmOpen(true)}
               >
                 <XCircle className="size-4" />
@@ -812,7 +834,7 @@ function OnlineOrderCard({
       onComplete={completeInvoice}
       enabledMethods={enabledPaymentMethods}
       customerName={draft.customerName || null}
-      loading={isPending}
+      loading={invoicePending}
       fixedTotal={draftTotal || order.subtotal}
       creditCustomerLinked={Boolean(draft.customerPhone?.trim())}
     />

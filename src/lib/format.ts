@@ -3,8 +3,13 @@ import { format, formatDistanceToNow } from "date-fns";
 export function formatCurrency(
   amount: number,
   currency = "EGP",
-  locale = "ar-EG"
+  locale = "ar-EG",
+  options?: { compact?: "egp-glyph" }
 ): string {
+  if (options?.compact === "egp-glyph") {
+    if (Number.isInteger(amount)) return `${amount} ج`;
+    return `${Number(amount).toFixed(2)} ج`;
+  }
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,

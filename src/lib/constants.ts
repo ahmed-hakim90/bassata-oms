@@ -14,6 +14,7 @@ export const ROLES = ["owner", "manager", "cashier", "inventory"] as const;
 export type UserRole = (typeof ROLES)[number];
 
 export const ORDER_STATUSES = ["open", "completed", "voided", "refunded"] as const;
+export const SALES_DOCUMENT_STATUSES = ["draft", "issued", "delivered"] as const;
 export const ONLINE_ORDER_STATUSES = [
   "pending",
   "accepted",
@@ -107,6 +108,7 @@ export const PERMISSIONS = [
   "customer_payment_receive",
   "customer_ledger_view",
   "loyalty_manage",
+  "manage_promotions",
   // Reports
   "reports_view",
   "costs_view",
@@ -177,6 +179,7 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/": "order_view",
   "/pos": "pos_access",
   "/orders": "order_view",
+  "/sales-invoices": "checkout_create",
   "/online-orders": "order_view",
   "/devices": "settings_manage",
   "/inventory/warehouses": "settings_manage",
@@ -192,6 +195,7 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/expenses": "expense_view_all",
   "/customers": "customer_manage",
   "/customers/loyalty": "loyalty_manage",
+  "/promotions": "manage_promotions",
   "/reports": "reports_view",
   "/reports/sales": "reports_view",
   "/reports/sessions": "reports_view",
@@ -297,6 +301,15 @@ export function canPrintReports(
   return role === "owner" || role === "manager";
 }
 
+/** Label Studio + `/print/labels` — independent of `reports_print`. */
+export function canPrintBarcodeLabels(
+  role: UserRole,
+  permissions?: Set<PermissionKey>
+): boolean {
+  if (permissions?.has("barcode_label_print")) return true;
+  return role === "owner" || role === "manager" || role === "inventory";
+}
+
 export function canExportExcel(
   role: UserRole,
   permissions?: Set<PermissionKey>
@@ -327,7 +340,9 @@ export const NAV_GROUPS = [
       { label: "POS", href: "/pos", icon: "ShoppingCart" },
       { label: "POS Devices", href: "/devices", icon: "MonitorSmartphone" },
       { label: "Orders", href: "/orders", icon: "Receipt" },
+      { label: "Sales Invoices", href: "/sales-invoices", icon: "Receipt" },
       { label: "Online Orders", href: "/online-orders", icon: "Receipt" },
+      { label: "Promotions", href: "/promotions", icon: "Tag" },
       { label: "Sessions", href: "/sessions", icon: "Clock" },
     ],
   },
@@ -390,6 +405,7 @@ export const FEATURE_FLAGS = [
   "inventory_deduction",
   "loyalty",
   "customer_discounts",
+  "promotions",
   "reports",
   "imports_exports",
   "cash_drawer",
@@ -443,6 +459,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   inventory_deduction: true,
   loyalty: true,
   customer_discounts: false,
+  promotions: false,
   reports: true,
   imports_exports: true,
   cash_drawer: false,
@@ -613,10 +630,13 @@ function productTemplateSet(
   };
 }
 
-export const ACTIVITY_PRESETS: Record<
-  BusinessActivityType,
-  Partial<BusinessActivitySettings> & { featureFlags?: Partial<Record<FeatureFlag, boolean>> }
-> = {
+/**
+ * Default business_activity settings per activity type.
+ * Sales modes, weight/wholesale, variants, inventory policies only.
+ * Managed feature flags (recipes, credit_sales, barcode, …) live exclusively in
+ * `buildBusinessActivityFeatureFlags` — do not add feature toggles here.
+ */
+export const ACTIVITY_PRESETS: Record<BusinessActivityType, Partial<BusinessActivitySettings>> = {
   cafe: {
     activity_type: "cafe",
     enabled_sales_modes: ["retail"],
@@ -648,7 +668,6 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { recipes: true },
   },
   juice_bar: {
     activity_type: "juice_bar",
@@ -665,7 +684,6 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { recipes: true },
   },
   supermarket: {
     activity_type: "supermarket",
@@ -682,7 +700,6 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { recipes: false },
   },
   restaurant: {
     activity_type: "restaurant",
@@ -699,7 +716,6 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { recipes: true },
   },
   retail: {
     activity_type: "retail",
@@ -716,7 +732,6 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { recipes: false },
   },
   wholesale: {
     activity_type: "wholesale",
@@ -736,7 +751,6 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: false,
     enable_serial_tracking: false,
-    featureFlags: { recipes: false, credit_sales: true },
   },
   mixed: {
     activity_type: "mixed",
@@ -756,7 +770,6 @@ export const ACTIVITY_PRESETS: Record<
     enable_batch_tracking: true,
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
-    featureFlags: { recipes: false },
   },
 };
 

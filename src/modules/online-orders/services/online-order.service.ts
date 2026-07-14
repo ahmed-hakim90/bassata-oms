@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { roundMoney } from "@/lib/money";
 import type { Json } from "@/lib/supabase/database.types";
 import * as onlineOrderRepo from "@/lib/repositories/online-order.repository";
 import * as orderRepo from "@/lib/repositories/order.repository";
@@ -22,6 +23,11 @@ import { buildOnlineOrderTrackingPath } from "@/modules/online-orders/lib/online
 import { canTransitionOnlineOrderStatus } from "@/modules/online-orders/lib/online-order-status";
 import { normalizeOnlineMenuSlug } from "@/lib/slugify";
 import type { OnlineOrder, OnlineOrderItem, OnlineOrderStatus } from "@/lib/types";
+import { DEFAULT_FEATURE_FLAGS } from "@/lib/constants";
+import {
+  evaluateCartPromotions,
+  loadActivePromotionRulesViaAdmin,
+} from "@/modules/promotions/services/promotion.service";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -41,6 +47,7 @@ export type PublicOnlineOrderInput = {
   fulfillmentType: OnlineFulfillmentType;
   zoneId?: string | null;
   deliveryAddress?: string | null;
+  couponCode?: string | null;
   lines: OnlineOrderLineInput[];
 };
 
@@ -48,6 +55,7 @@ export type StaffOnlineOrderInput = {
   customerName: string;
   customerPhone: string;
   notes?: string;
+  couponCode?: string | null;
   lines: OnlineOrderLineInput[];
 };
 
@@ -67,10 +75,6 @@ function asRecord(value: Json | null | undefined): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonRecord)
     : {};
-}
-
-function money(value: number): number {
-  return Math.round(value * 100) / 100;
 }
 
 function normalizeLineInputs(lines: OnlineOrderLineInput[]) {
@@ -95,7 +99,12 @@ function normalizeLineInputs(lines: OnlineOrderLineInput[]) {
   return result;
 }
 
-async function priceLinesForPublicOrder(storeOrgId: string, lines: OnlineOrderLineInput[]) {
+async function priceLinesForPublicOrder(
+  storeOrgId: string,
+  storeId: string,
+  lines: OnlineOrderLineInput[],
+  couponCode?: string | null
+) {
   const admin = createAdminClient();
   const normalized = normalizeLineInputs(lines);
   const productIds = [...new Set(normalized.map((line) => line.productId))];
@@ -106,7 +115,7 @@ async function priceLinesForPublicOrder(storeOrgId: string, lines: OnlineOrderLi
       admin
         .from("products")
         .select(
-          "id, org_id, name, base_price, sale_price, is_active, product_type, inventory_product_type, show_on_online_menu"
+          "id, org_id, name, category_id, base_price, sale_price, is_active, product_type, inventory_product_type, show_on_online_menu"
         )
         .eq("org_id", storeOrgId)
         .eq("is_active", true)
@@ -182,18 +191,71 @@ async function priceLinesForPublicOrder(storeOrgId: string, lines: OnlineOrderLi
 
     return {
       product_id: product.id,
+      category_id: (product.category_id as string | null) ?? null,
       variant_id: line.variantId ?? null,
       product_name: product.name,
       variant_name: variantName,
       quantity: line.quantity,
-      unit_price: money(unitPrice),
-      line_total: money(unitPrice * line.quantity),
+      unit_price: roundMoney(unitPrice),
+      line_total: roundMoney(unitPrice * line.quantity),
+      list_unit_price: roundMoney(unitPrice),
+      discount_amount: 0,
+      promotion_rule_id: null as string | null,
     };
   });
 
+  const { data: flagsRow } = await admin
+    .from("app_settings")
+    .select("value")
+    .eq("org_id", storeOrgId)
+    .eq("key", "feature_flags")
+    .maybeSingle();
+  const flags = (flagsRow?.value as Record<string, unknown> | null) ?? {};
+  const promotionsEnabled =
+    typeof flags.promotions === "boolean"
+      ? flags.promotions
+      : DEFAULT_FEATURE_FLAGS.promotions;
+
+  const rules = await loadActivePromotionRulesViaAdmin(
+    storeOrgId,
+    admin,
+    promotionsEnabled
+  );
+  let cartDiscount = 0;
+  let items = priced;
+  if (rules.length > 0) {
+    const preview = await evaluateCartPromotions({
+      rules,
+      storeId,
+      saleMode: "retail",
+      couponCode,
+      lines: priced.map((item, index) => ({
+        line_key: String(index),
+        product_id: item.product_id,
+        category_id: item.category_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+      })),
+    });
+    cartDiscount = preview.cart_discount;
+    items = priced.map((item, index) => {
+      const hit = preview.lines[index];
+      if (!hit) return item;
+      return {
+        ...item,
+        list_unit_price: hit.list_unit_price,
+        unit_price: hit.unit_price,
+        line_total: hit.line_total,
+        discount_amount: hit.discount_amount,
+        promotion_rule_id: hit.promotion_rule_id,
+      };
+    });
+  }
+
   return {
-    items: priced,
-    subtotal: money(priced.reduce((sum, item) => sum + item.line_total, 0)),
+    items,
+    subtotal: roundMoney(items.reduce((sum, item) => sum + item.line_total, 0)),
+    promo_discount: cartDiscount,
   };
 }
 
@@ -230,14 +292,14 @@ async function priceLinesForStaffOrder(lines: OnlineOrderLineInput[]) {
       product_name: product.name,
       variant_name: variant?.name ?? null,
       quantity: line.quantity,
-      unit_price: money(unitPrice),
-      line_total: money(unitPrice * line.quantity),
+      unit_price: roundMoney(unitPrice),
+      line_total: roundMoney(unitPrice * line.quantity),
     });
   }
 
   return {
     items: priced,
-    subtotal: money(priced.reduce((sum, item) => sum + item.line_total, 0)),
+    subtotal: roundMoney(priced.reduce((sum, item) => sum + item.line_total, 0)),
   };
 }
 
@@ -344,8 +406,13 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     deliveryAddress: input.deliveryAddress,
   });
 
-  const priced = await priceLinesForPublicOrder(store.org_id, input.lines);
-  const total = money(priced.subtotal + fulfillment.deliveryFee);
+  const priced = await priceLinesForPublicOrder(
+    store.org_id,
+    store.id,
+    input.lines,
+    input.couponCode
+  );
+  const total = roundMoney(priced.subtotal - priced.promo_discount + fulfillment.deliveryFee);
 
   if (customerPhone) {
     await ensureCustomerForPublicOrder({
@@ -355,7 +422,7 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     });
   }
 
-  const { data: order, error: orderError } = await admin
+  const { data: order, error: orderError } = await (admin as any)
     .from("online_orders")
     .insert({
       store_id: store.id,
@@ -364,7 +431,9 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
       notes,
       subtotal: priced.subtotal,
       total,
-      discount: 0,
+      discount: priced.promo_discount,
+      promo_discount: priced.promo_discount,
+      coupon_code: input.couponCode?.trim() ? input.couponCode.trim().toUpperCase() : null,
       tax: 0,
       status: "pending",
       fulfillment_type: fulfillment.fulfillmentType,
@@ -372,7 +441,7 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
       delivery_address: fulfillment.deliveryAddress,
       delivery_fee: fulfillment.deliveryFee,
     })
-    .select()
+    .select("*")
     .single();
   if (orderError || !order) {
     const msg = orderError?.message ?? "";
@@ -382,9 +451,23 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     throw new Error(msg || "تعذر إرسال الطلب");
   }
 
-  const { error: itemsError } = await admin
+  const { error: itemsError } = await (admin as any)
     .from("online_order_items")
-    .insert(priced.items.map((item) => ({ online_order_id: order.id, ...item })));
+    .insert(
+      priced.items.map((item) => ({
+        online_order_id: order.id,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        product_name: item.product_name,
+        variant_name: item.variant_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        line_total: item.line_total,
+        list_unit_price: item.list_unit_price,
+        discount_amount: item.discount_amount,
+        promotion_rule_id: item.promotion_rule_id,
+      }))
+    );
   if (itemsError) throw new Error(itemsError.message);
 
   return {
@@ -464,13 +547,13 @@ export async function listStaffOnlineProductOptions(): Promise<StaffOnlineProduc
     return {
       id: product.id,
       name: product.name,
-      price: money(basePrice),
+      price: roundMoney(basePrice),
       variants: (variantMap.get(product.id) ?? [])
         .filter((variant) => variant.is_active)
         .map((variant) => ({
           id: variant.id,
           name: variant.name,
-          price: money(resolveVariantPrice(basePrice, variant)),
+          price: roundMoney(resolveVariantPrice(basePrice, variant)),
         })),
     };
   });
@@ -495,13 +578,13 @@ export async function updateOnlineOrderDetails(
   }
 
   const priced = await priceLinesForStaffOrder(input.lines);
-  const deliveryFee = money(existing.delivery_fee ?? 0);
+  const deliveryFee = roundMoney(existing.delivery_fee ?? 0);
   await onlineOrderRepo.updateOnlineOrder(id, {
     customer_name: customerName,
     customer_phone: customerPhone || null,
     notes: input.notes?.trim() ?? "",
     subtotal: priced.subtotal,
-    total: money(priced.subtotal + deliveryFee),
+    total: roundMoney(priced.subtotal + deliveryFee),
     discount: 0,
     tax: 0,
   });
@@ -587,7 +670,6 @@ export async function invoiceOnlineOrder(input: {
     variant_id: item.variant_id,
     quantity: item.quantity,
   }));
-  const roundMoney = (value: number) => Math.round(value * 100) / 100;
   const payments = input.payments
     .map((payment) => ({
       method: payment.method,

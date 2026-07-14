@@ -76,10 +76,12 @@ export async function updateFeatureFlags(
   return upsertSetting("feature_flags", next, userId);
 }
 
-export async function getBusinessActivitySettings(): Promise<BusinessActivitySettings> {
-  const setting = await getSetting("business_activity");
-  return normalizeBusinessActivitySettings(setting?.value ?? null);
-}
+export const getBusinessActivitySettings = cache(
+  async (): Promise<BusinessActivitySettings> => {
+    const setting = await getSetting("business_activity");
+    return normalizeBusinessActivitySettings(setting?.value ?? null);
+  }
+);
 
 function normalizeProductTemplate(
   template: unknown,
@@ -220,12 +222,9 @@ export async function applyActivityPreset(activityType: BusinessActivityType, us
   if (!preset) {
     throw new Error("إعدادات النشاط غير معروفة.");
   }
-  const { featureFlags, ...business } = preset;
-  void featureFlags;
-
   const setting = await updateBusinessActivitySettings(
     {
-      ...business,
+      ...preset,
       activity_type: activityType,
     },
     userId

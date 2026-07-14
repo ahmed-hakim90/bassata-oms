@@ -9,7 +9,10 @@ import { getPageAccessDenial } from "@/lib/auth/page-access";
 import { requireStoreAccess } from "@/lib/auth/guards";
 import { redirectOnAuthFailure } from "@/lib/auth/redirect-on-auth-failure";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
-import { getFeatureFlags } from "@/modules/system/services/settings.service";
+import {
+  getBusinessActivitySettings,
+  getFeatureFlags,
+} from "@/modules/system/services/settings.service";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import * as storeRepo from "@/lib/repositories/store.repository";
 
@@ -20,6 +23,7 @@ export default async function ShellLayout({
 }) {
   let user;
   let featureFlags;
+  let businessActivity;
   let allStores;
   let cookieStoreId;
   let permissions;
@@ -27,13 +31,15 @@ export default async function ShellLayout({
 
   try {
     user = await ensureTenantUser(await getCurrentUser());
-    [featureFlags, allStores, cookieStoreId, permissions, posReadiness] = await Promise.all([
-      getFeatureFlags(),
-      storeRepo.listStores(),
-      getActiveStoreId(),
-      getEffectivePermissions(user),
-      getPosReadiness(),
-    ]);
+    [featureFlags, businessActivity, allStores, cookieStoreId, permissions, posReadiness] =
+      await Promise.all([
+        getFeatureFlags(),
+        getBusinessActivitySettings(),
+        storeRepo.listStores(),
+        getActiveStoreId(),
+        getEffectivePermissions(user),
+        getPosReadiness(),
+      ]);
   } catch (error) {
     redirectOnAuthFailure(error, "/");
   }
@@ -54,13 +60,25 @@ export default async function ShellLayout({
     }
   }
   const pathname = (await headers()).get("x-pathname") ?? "/";
-  const denial = getPageAccessDenial(pathname, user.role, featureFlags, permissions);
+  const navAccess = {
+    enableWholesaleSales: businessActivity.enable_wholesale_sales,
+    allowCashierWholesale: businessActivity.allow_cashier_wholesale,
+  };
+  const denial = getPageAccessDenial(
+    pathname,
+    user.role,
+    featureFlags,
+    permissions,
+    navAccess
+  );
 
   return (
     <AppShell
       userRole={user.role}
       userName={user.name}
       featureFlags={featureFlags}
+      enableWholesaleSales={businessActivity.enable_wholesale_sales}
+      allowCashierWholesale={businessActivity.allow_cashier_wholesale}
       stores={stores}
       activeStoreId={activeStoreId}
       permissions={[...permissions]}

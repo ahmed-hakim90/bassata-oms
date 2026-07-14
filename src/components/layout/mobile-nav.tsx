@@ -17,6 +17,7 @@ import {
   Settings,
   Shield,
   ShoppingCart,
+  Tag,
   Trash2,
   Truck,
   Users,
@@ -44,13 +45,14 @@ const iconMap = {
   Settings,
   Shield,
   ShoppingCart,
+  Tag,
   Trash2,
   Truck,
   Users,
   Warehouse,
 };
 
-const CASHIER_PRIORITY = ["/pos", "/orders", "/sessions", "/online-orders", "/settings"];
+const CASHIER_PRIORITY = ["/pos", "/sales-invoices", "/orders", "/sessions", "/online-orders", "/settings"];
 const MANAGER_PRIORITY = ["/", "/orders", "/sessions", "/reports", "/expenses"];
 const OWNER_PRIORITY = ["/", "/pos", "/products", "/inventory", "/settings"];
 const INVENTORY_PRIORITY = ["/", "/products", "/inventory", "/inventory/purchases", "/settings"];
@@ -67,10 +69,14 @@ function priorityForRole(role: UserRole): string[] {
 export function MobileNav({
   userRole,
   featureFlags,
+  enableWholesaleSales,
+  allowCashierWholesale,
   permissions = [],
 }: {
   userRole: UserRole;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
+  enableWholesaleSales?: boolean;
+  allowCashierWholesale?: boolean;
   permissions?: PermissionKey[];
 }) {
   const { t } = useTranslation();
@@ -78,7 +84,8 @@ export function MobileNav({
   const allItems = filterNavByAccess(
     userRole,
     new Set(permissions),
-    featureFlags
+    featureFlags,
+    { enableWholesaleSales, allowCashierWholesale }
   ).flatMap((group) => group.items);
   const allowedItems = new Set<string>(allItems.map((item) => item.href));
   const allHrefs = allItems.map((item) => item.href);

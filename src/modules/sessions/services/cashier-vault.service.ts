@@ -2,6 +2,7 @@ import * as vaultRepo from "@/lib/repositories/cashier-vault.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import type { CashierVault } from "@/lib/types";
+import { roundMoney } from "@/lib/money";
 
 export type CashierVaultSummary = {
   cashierId: string;
@@ -12,10 +13,6 @@ export type CashierVaultSummary = {
   vaultId: string | null;
   updatedAt: string | null;
 };
-
-function money(value: number): number {
-  return Math.round(value * 100) / 100;
-}
 
 /** Virtual zero vault when no row exists yet. */
 export function emptyVaultView(storeId: string, cashierId: string): CashierVault {
@@ -102,7 +99,7 @@ export async function takeOpeningFloatFromVault(input: {
   amount: number;
 }): Promise<CashierVault> {
   await assertPeriodOpen(input.storeId);
-  const amount = money(input.amount);
+  const amount = roundMoney(input.amount);
   if (amount < 0) throw new Error("رصيد بداية الوردية لازم يكون صفر أو أكبر");
   return vaultRepo.takeOpeningFloat({
     storeId: input.storeId,
@@ -117,7 +114,7 @@ export async function depositClosingCashToVault(input: {
   amount: number;
   sessionId: string;
 }): Promise<CashierVault> {
-  const amount = money(input.amount);
+  const amount = roundMoney(input.amount);
   if (amount < 0) throw new Error("مبلغ تسليم الدرج لازم يكون صفر أو أكبر");
   return vaultRepo.depositClosing({
     storeId: input.storeId,
@@ -135,8 +132,8 @@ export async function withdrawFromCashierVault(input: {
   notes?: string;
 }): Promise<CashierVault> {
   await assertPeriodOpen(input.storeId);
-  const withdrawAmount = money(input.withdrawAmount);
-  const nextOpeningFloat = money(input.nextOpeningFloat);
+  const withdrawAmount = roundMoney(input.withdrawAmount);
+  const nextOpeningFloat = roundMoney(input.nextOpeningFloat);
   if (withdrawAmount < 0 || nextOpeningFloat < 0) {
     throw new Error("المبالغ يجب تكون صفر أو أكبر");
   }
@@ -193,12 +190,12 @@ export async function batchWithdrawStoreCashierVaults(input: {
     input.items && input.items.length > 0
       ? input.items
       : rows.map((row) => {
-          const nextOpeningFloat = money(
+          const nextOpeningFloat = roundMoney(
             Math.min(row.pendingOpeningFloat, row.balance)
           );
           return {
             cashierId: row.cashierId,
-            withdrawAmount: money(row.balance - nextOpeningFloat),
+            withdrawAmount: roundMoney(row.balance - nextOpeningFloat),
           };
         });
 
@@ -214,7 +211,7 @@ export async function batchWithdrawStoreCashierVaults(input: {
       items.push({
         cashierId: req.cashierId,
         cashierName: "كاشير غير معروف",
-        withdrawAmount: money(req.withdrawAmount),
+        withdrawAmount: roundMoney(req.withdrawAmount),
         nextOpeningFloat: 0,
         ok: false,
         error: "الكاشير مش موجود على خزائن الفرع",
@@ -222,9 +219,9 @@ export async function batchWithdrawStoreCashierVaults(input: {
       continue;
     }
 
-    const nextOpeningFloat = money(Math.min(row.pendingOpeningFloat, row.balance));
-    const maxWithdraw = money(row.balance - nextOpeningFloat);
-    const withdrawAmount = money(req.withdrawAmount);
+    const nextOpeningFloat = roundMoney(Math.min(row.pendingOpeningFloat, row.balance));
+    const maxWithdraw = roundMoney(row.balance - nextOpeningFloat);
+    const withdrawAmount = roundMoney(req.withdrawAmount);
 
     if (withdrawAmount <= 1e-9) continue;
 
@@ -249,7 +246,7 @@ export async function batchWithdrawStoreCashierVaults(input: {
         nextOpeningFloat,
         notes: note,
       });
-      withdrawnTotal = money(withdrawnTotal + withdrawAmount);
+      withdrawnTotal = roundMoney(withdrawnTotal + withdrawAmount);
       succeeded += 1;
       items.push({
         cashierId: row.cashierId,

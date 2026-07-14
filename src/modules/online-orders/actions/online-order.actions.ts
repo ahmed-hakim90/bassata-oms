@@ -23,9 +23,9 @@ export async function updateOnlineOrderDetailsAction(
   input: StaffOnlineOrderInput
 ) {
   const user = await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
+  // Skip revalidatePath — board reconciles from returned order locally.
   const order = await updateOnlineOrderDetails(orderId, input, user.id);
-  revalidatePath("/online-orders");
-  revalidatePath(`/online-orders/${orderId}`);
+  if (!order) throw new Error("الطلب غير موجود");
   return order;
 }
 
@@ -37,9 +37,10 @@ export async function updateOnlineOrderStatusAction(
     status === "cancelled"
       ? await requirePermissionOrRole("order_void", ["owner", "manager"])
       : await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
-  const order = await updateOnlineOrderStatus(orderId, status, user.id);
-  revalidatePath("/online-orders");
-  revalidatePath(`/online-orders/${orderId}`);
+  // Skip revalidatePath — status progression stays local until invoice/refresh.
+  await updateOnlineOrderStatus(orderId, status, user.id);
+  const order = await getOnlineOrderWithItems(orderId);
+  if (!order) throw new Error("الطلب غير موجود");
   return order;
 }
 

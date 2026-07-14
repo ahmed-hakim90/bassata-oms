@@ -49,14 +49,21 @@ export function PrintableDocument({
         <div className="flex items-start justify-between gap-4">
           <div>
             {branding.orgLogoUrl ? (
-              <Image
-                src={branding.orgLogoUrl}
-                alt={branding.orgName}
-                width={isReceipt ? 80 : 120}
-                height={isReceipt ? 40 : 60}
-                className="mb-2 h-auto w-auto object-contain"
-                unoptimized
-              />
+              <div
+                className={cn(
+                  "mb-2 shrink-0 overflow-hidden rounded-md bg-white",
+                  isReceipt ? "size-10" : "size-14"
+                )}
+              >
+                <Image
+                  src={branding.orgLogoUrl}
+                  alt={branding.orgName}
+                  width={isReceipt ? 40 : 56}
+                  height={isReceipt ? 40 : 56}
+                  className="size-full object-contain"
+                  unoptimized
+                />
+              </div>
             ) : null}
             <h1 className="text-lg font-bold">{branding.orgName}</h1>
             {branding.storeName ? (

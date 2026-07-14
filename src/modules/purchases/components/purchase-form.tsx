@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Barcode, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronUp, Plus, Tags, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,6 +35,7 @@ import {
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { LoadingStateBlock } from "@/components/SweetFlow/state-blocks";
+import { DocumentPrintPreviewModal } from "@/components/print/document-print-preview-modal";
 import { formatCurrency } from "@/lib/format";
 import { sanitizeDecimalInput } from "@/lib/digits";
 import { PAYMENT_METHODS } from "@/lib/constants";
@@ -44,6 +48,8 @@ import {
   productHasPurchasePacking,
   productPurchaseFactor,
 } from "@/lib/units";
+import { ProductSearchCombobox } from "@/modules/products/components/product-search-combobox";
+import { matchProducts } from "@/modules/products/lib/match-products";
 import type {
   MeasurementUnit,
   PaymentMethod,
@@ -132,14 +138,19 @@ export function PurchaseForm({
   onComplete,
 }: PurchaseFormProps) {
   const { t } = useTranslation();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(!!initialInvoiceId);
   const [invoice, setInvoice] = useState<PurchaseWithLines | null>(null);
+  const [showPriceListCta, setShowPriceListCta] = useState(false);
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? "");
   const [warehouseId, setWarehouseId] = useState(
     warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? ""
   );
   const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [documentDate, setDocumentDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [extraCost, setExtraCost] = useState("");
   const [barcode, setBarcode] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
@@ -153,12 +164,15 @@ export function PurchaseForm({
   const [confirmVoid, setConfirmVoid] = useState(false);
   const [confirmReceive, setConfirmReceive] = useState(false);
   const [receivePending, setReceivePending] = useState(false);
+  const [printPreview, setPrintPreview] = useState<{
+    href: string;
+    title: string;
+  } | null>(null);
   const [amountPaidNow, setAmountPaidNow] = useState("0");
   const [receivePaymentMethod, setReceivePaymentMethod] =
     useState<PaymentMethod>("cash");
   const [showLineDetails, setShowLineDetails] = useState(false);
   const [showHeader, setShowHeader] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const barcodeRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
@@ -173,30 +187,12 @@ export function PurchaseForm({
     const base = product.base_unit ?? product.unit;
     setEntryUnit(productHasPurchasePacking(product) ? product.cost_unit : base);
     setBarcode(product.name);
-    setSearchOpen(false);
     setHighlightIndex(0);
     setTimeout(() => {
       qtyRef.current?.focus();
       qtyRef.current?.select();
     }, 50);
   }, []);
-
-  const searchMatches = useMemo(() => {
-    const q = barcode.trim().toLowerCase();
-    if (q.length < 1) return [];
-    const exact = products.find(
-      (p) => p.barcode?.toLowerCase() === q || p.sku?.toLowerCase() === q
-    );
-    if (exact) return [exact];
-    return products
-      .filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.barcode?.toLowerCase().includes(q) ?? false) ||
-          (p.sku?.toLowerCase().includes(q) ?? false)
-      )
-      .slice(0, 8);
-  }, [barcode, products]);
 
   const selectedProduct = selectedProductId ? productMap.get(selectedProductId) : undefined;
   const selectedHasPacking = selectedProduct ? productHasPurchasePacking(selectedProduct) : false;
@@ -236,7 +232,6 @@ export function PurchaseForm({
     setProductionDate("");
     setExpiryDate("");
     setSelectedProductId("");
-    setSearchOpen(false);
     setHighlightIndex(0);
     setTimeout(() => barcodeRef.current?.focus(), 50);
   };
@@ -254,6 +249,9 @@ export function PurchaseForm({
       setSupplierId(result.data.supplier_id);
       setWarehouseId(result.data.warehouse_id);
       setInvoiceNumber(result.data.invoice_number);
+      setDocumentDate(
+        result.data.document_date ?? result.data.created_at.slice(0, 10)
+      );
       setExtraCost(
         result.data.extra_cost > 0 ? String(result.data.extra_cost) : ""
       );
@@ -271,6 +269,7 @@ export function PurchaseForm({
         warehouseId,
         invoiceNumber: invoiceNumber.trim(),
         extraCost: parseFloat(extraCost) || 0,
+        documentDate,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -419,7 +418,9 @@ export function PurchaseForm({
     e.preventDefault();
     const found = lookupBarcode(barcode);
 
-    if (searchOpen && searchMatches.length > 0 && !found) {
+    const searchMatches = matchProducts(products, barcode);
+    
+    if (!found && searchMatches.length > 0) {
       const pick = searchMatches[Math.min(highlightIndex, searchMatches.length - 1)];
       if (pick) {
         selectProduct(pick);
@@ -438,7 +439,6 @@ export function PurchaseForm({
     }
 
     if (!selectedProductId && searchMatches.length > 1) {
-      setSearchOpen(true);
       toast.info("اختار المنتج من القائمة");
       return;
     }
@@ -494,7 +494,8 @@ export function PurchaseForm({
           : "تم الحفظ النهائي — تم تحديث المخزون"
       );
       setConfirmReceive(false);
-      onComplete();
+      setInvoice(result.data);
+      setShowPriceListCta(true);
     } finally {
       setReceivePending(false);
     }
@@ -506,27 +507,43 @@ export function PurchaseForm({
 
   const saveHeader = () => {
     if (!invoice || invoice.status !== "draft") return;
-    startTransition(async () => {
+    const nextExtra = parseFloat(extraCost) || 0;
+    const supplier = suppliers.find((s) => s.id === supplierId);
+    const invoiceNumberTrimmed = invoiceNumber.trim();
+    snapshotRef.current = invoice;
+    setInvoice({
+      ...invoice,
+      supplier_id: supplierId,
+      invoice_number: invoiceNumberTrimmed,
+      document_date: documentDate,
+      ...withLineTotals(invoice.lines, nextExtra),
+      supplierName: supplier?.name ?? invoice.supplierName,
+    });
+
+    void (async () => {
       const result = await updateDraftPurchaseAction({
         invoiceId: invoice.id,
         supplierId,
-        invoiceNumber: invoiceNumber.trim(),
-        extraCost: parseFloat(extraCost) || 0,
+        invoiceNumber: invoiceNumberTrimmed,
+        extraCost: nextExtra,
+        documentDate,
       });
       if (!result.ok) {
+        if (snapshotRef.current) setInvoice(snapshotRef.current);
         toast.error(result.error);
         return;
       }
-      const supplier = suppliers.find((s) => s.id === supplierId);
-      const nextExtra = parseFloat(extraCost) || 0;
-      setInvoice({
-        ...invoice,
-        ...result.data,
-        ...withLineTotals(invoice.lines, nextExtra),
-        supplierName: supplier?.name ?? invoice.supplierName,
-      });
-      toast.success("تم الحفظ المؤقت");
-    });
+      setInvoice((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...result.data,
+              ...withLineTotals(prev.lines, nextExtra),
+              supplierName: supplier?.name ?? prev.supplierName,
+            }
+          : prev
+      );
+    })();
   };
 
   const updateLine = (
@@ -685,6 +702,16 @@ export function PurchaseForm({
             />
           </div>
           <div className="space-y-2">
+            <Label>تاريخ الفاتورة</Label>
+            <Input
+              className="min-h-11"
+              type="date"
+              max={new Date().toISOString().slice(0, 10)}
+              value={documentDate}
+              onChange={(e) => setDocumentDate(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
             <Label>تكلفة إضافية (اختياري)</Label>
             <Input
               className="min-h-11"
@@ -828,11 +855,11 @@ export function PurchaseForm({
               onClick={() => setShowHeader((v) => !v)}
             >
               {showHeader ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-              بيانات الفاتورة (مورد / رقم / إضافات)
+              بيانات الفاتورة (مورد / رقم / تاريخ / إضافات)
             </Button>
 
             {showHeader ? (
-              <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-2">
                   <Label>المورد</Label>
                   <Select value={supplierId} onValueChange={(v) => setSupplierId(v ?? "")}>
@@ -869,22 +896,21 @@ export function PurchaseForm({
                 </div>
                 <div className="space-y-2">
                   <Label>رقم الفاتورة</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      className="min-h-11"
-                      value={invoiceNumber}
-                      onChange={(e) => setInvoiceNumber(e.target.value)}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-11 shrink-0"
-                      onClick={saveHeader}
-                      disabled={pending}
-                    >
-                      حفظ
-                    </Button>
-                  </div>
+                  <Input
+                    className="min-h-11"
+                    value={invoiceNumber}
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>تاريخ الفاتورة</Label>
+                  <Input
+                    className="min-h-11"
+                    type="date"
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={documentDate}
+                    onChange={(e) => setDocumentDate(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>تكلفة إضافية</Label>
@@ -897,95 +923,40 @@ export function PurchaseForm({
                     placeholder="0"
                   />
                 </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 w-full"
+                    onClick={saveHeader}
+                    disabled={pending}
+                  >
+                    حفظ بيانات الفاتورة
+                  </Button>
+                </div>
               </div>
             ) : null}
 
             <form onSubmit={handleBarcodeSubmit} className="grid gap-3">
-              <div className="relative space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Barcode className="size-4" /> باركود / بحث منتج
-                </Label>
-                <Input
-                  ref={barcodeRef}
-                  value={barcode}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setBarcode(value);
-                    setSearchOpen(value.trim().length > 0);
-                    setHighlightIndex(0);
-                    if (selectedProductId) {
-                      const selected = productMap.get(selectedProductId);
-                      if (selected && value !== selected.name) {
-                        setSelectedProductId("");
-                      }
+              <ProductSearchCombobox
+                products={products}
+                value={barcode}
+                onChange={(value) => {
+                  setBarcode(value);
+                  setHighlightIndex(0);
+                  if (selectedProductId) {
+                    const selected = productMap.get(selectedProductId);
+                    if (selected && value !== selected.name) {
+                      setSelectedProductId("");
                     }
-                  }}
-                  onFocus={() => {
-                    if (barcode.trim().length > 0) setSearchOpen(true);
-                  }}
-                  onBlur={() => {
-                    // Delay so list item click registers
-                    setTimeout(() => setSearchOpen(false), 150);
-                  }}
-                  onKeyDown={(e) => {
-                    if (!searchOpen || searchMatches.length === 0) return;
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setHighlightIndex((i) => (i + 1) % searchMatches.length);
-                    } else if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      setHighlightIndex(
-                        (i) => (i - 1 + searchMatches.length) % searchMatches.length
-                      );
-                    } else if (e.key === "Escape") {
-                      setSearchOpen(false);
-                    }
-                  }}
-                  placeholder="امسح باركود أو ابحث بالاسم…"
-                  autoComplete="off"
-                  enterKeyHint="next"
-                  className="min-h-12 text-lg"
-                />
-                {searchOpen && barcode.trim().length > 0 ? (
-                  <ul
-                    role="listbox"
-                    className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border/70 bg-popover p-1 shadow-lg"
-                  >
-                    {searchMatches.length === 0 ? (
-                      <li className="px-3 py-3 text-sm text-muted-foreground">
-                        لا يوجد منتج مطابق
-                      </li>
-                    ) : (
-                      searchMatches.map((p, index) => (
-                        <li key={p.id}>
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={index === highlightIndex}
-                            className={
-                              index === highlightIndex
-                                ? "flex w-full flex-col items-start gap-0.5 rounded-lg bg-accent px-3 py-2.5 text-right"
-                                : "flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2.5 text-right hover:bg-muted/60"
-                            }
-                            onMouseDown={(ev) => {
-                              ev.preventDefault();
-                              selectProduct(p);
-                            }}
-                            onMouseEnter={() => setHighlightIndex(index)}
-                          >
-                            <span className="font-medium">{p.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatUnit(p.unit)}
-                              {p.sku ? ` · ${p.sku}` : ""}
-                              {p.barcode ? ` · ${p.barcode}` : ""}
-                            </span>
-                          </button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                ) : null}
-              </div>
+                  }
+                }}
+                onSelect={selectProduct}
+                selectedProductId={selectedProductId}
+                label="باركود / بحث منتج"
+                placeholder="امسح باركود أو ابحث بالاسم…"
+                className="min-h-12 text-lg"
+              />
               <div className="space-y-2">
                 <Label>المنتج {selectedProduct ? "المختار" : ""}</Label>
                 <Select
@@ -1302,18 +1273,102 @@ export function PurchaseForm({
                 </Button>
               </>
             )}
+            {(isDraft || isReceived) && invoice.lines.length > 0 ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 justify-center"
+                  onClick={() =>
+                    setPrintPreview({
+                      href: `/print/purchases/${invoice.id}?embed=1`,
+                      title: isDraft ? "فاتورة شراء مؤقتة" : "فاتورة شراء",
+                    })
+                  }
+                >
+                  فاتورة
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 justify-center border-primary text-primary"
+                  onClick={() =>
+                    setPrintPreview({
+                      href: `/print/purchases/${invoice.id}/receipt?embed=1`,
+                      title: isDraft ? "ريسيت مشتريات مؤقت" : "ريسيت مشتريات",
+                    })
+                  }
+                >
+                  ريسيت
+                </Button>
+              </>
+            ) : null}
             {isReceived && (
-              <Button
-                variant="outline"
-                className="col-span-2 min-h-11"
-                onClick={() => setConfirmVoid(true)}
-              >
-                إلغاء الاستلام
-              </Button>
+              <>
+                <Link
+                  href={`/inventory/purchases/price-list?invoice=${invoice.id}`}
+                  className={cn(
+                    buttonVariants({ variant: "default" }),
+                    "col-span-2 min-h-11 justify-center sm:col-span-1"
+                  )}
+                >
+                  <Tags className="size-4" />
+                  إنشاء قائمة أسعار البيع
+                </Link>
+                <Button
+                  variant="outline"
+                  className="col-span-2 min-h-11 sm:col-span-1"
+                  onClick={() => setConfirmVoid(true)}
+                >
+                  إلغاء الاستلام
+                </Button>
+              </>
             )}
           </div>
         </div>
       </div>
+
+      <DocumentPrintPreviewModal
+        open={Boolean(printPreview)}
+        onOpenChange={(open) => {
+          if (!open) setPrintPreview(null);
+        }}
+        href={printPreview?.href ?? null}
+        title={printPreview?.title}
+      />
+
+      <Dialog open={showPriceListCta} onOpenChange={setShowPriceListCta}>
+        <DialogContent className="rounded-3xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>تم استلام الفاتورة</DialogTitle>
+            <DialogDescription>
+              تقدّر تعمل قائمة أسعار جملة من أصناف الفاتورة دي وتحفظها صورة أو PDF للمشاركة.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-start">
+            <Button
+              className="min-h-11"
+              onClick={() => {
+                if (!invoice) return;
+                router.push(`/inventory/purchases/price-list?invoice=${invoice.id}`);
+              }}
+            >
+              <Tags className="size-4" />
+              إنشاء قائمة أسعار البيع
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => {
+                setShowPriceListCta(false);
+                onComplete();
+              }}
+            >
+              لاحقاً — رجوع للقائمة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmActionDialog
         open={confirmDelete}

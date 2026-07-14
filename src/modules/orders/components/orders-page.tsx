@@ -1,11 +1,14 @@
+import Link from "next/link";
 import { AccessDenied } from "@/components/SweetFlow/access-denied";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { buttonVariants } from "@/components/ui/button";
 import { OrdersTable } from "@/modules/orders/components/orders-table";
 import { listOrders } from "@/modules/orders/services/order.service";
 import { formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export async function OrdersPage() {
   const storeResult = await requirePageStoreId("/orders");
@@ -31,6 +34,14 @@ export async function OrdersPage() {
         breadcrumb={<span>المبيعات · الطلبات</span>}
         title="الطلبات"
         description="فواتير مكتملة وملغاة — راجع وأعد الطباعة عند الحاجة"
+        action={
+          <Link
+            href="/sales-invoices"
+            className={cn(buttonVariants({ size: "sm", variant: "outline" }), "rounded-full")}
+          >
+            فاتورة جملة جديدة
+          </Link>
+        }
       />
 
       <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">

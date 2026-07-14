@@ -58,6 +58,7 @@ function purchase(id: string, date: string, unitCost: number): PurchaseWithLines
     extra_cost: 0,
     tax: 0,
     total: unitCost * 2,
+    document_date: date.slice(0, 10),
     received_at: date,
     cancelled_at: null,
     created_by: "user-1",

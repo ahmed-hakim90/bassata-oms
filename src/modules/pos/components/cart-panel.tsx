@@ -21,7 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/format";
 import type { PaymentMethod } from "@/lib/types";
-import { getCartSubtotal, getCartTotal, usePosStore } from "@/stores/pos-store";
+import { computePosCartTotals } from "@/modules/pos/lib/cart-totals";
+import { getCartSubtotal, usePosStore } from "@/stores/pos-store";
 import { CustomerAttach } from "@/modules/pos/components/customer-attach";
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
@@ -81,6 +82,10 @@ interface CartPanelProps {
   checkoutDisabled?: boolean;
   checkoutBlockedReason?: string | null;
   discountsEnabled?: boolean;
+  promotionsEnabled?: boolean;
+  promoCartDiscount?: number;
+  promoItemSavings?: number;
+  promoAdjustedSubtotal?: number | null;
   loyaltyEnabled?: boolean;
   enabledPaymentMethods?: PaymentMethod[];
   loyaltyRedemptionRate?: number | null;
@@ -96,6 +101,10 @@ export function CartPanel({
   checkoutDisabled,
   checkoutBlockedReason = null,
   discountsEnabled = false,
+  promotionsEnabled = false,
+  promoCartDiscount = 0,
+  promoItemSavings = 0,
+  promoAdjustedSubtotal = null,
   loyaltyEnabled = false,
   enabledPaymentMethods = ["cash", "card", "wallet", "other"],
   loyaltyRedemptionRate = null,
@@ -112,12 +121,15 @@ export function CartPanel({
   const loyaltyBalance = usePosStore((s) => s.customerLoyaltyBalance);
   const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
   const discountAmount = usePosStore((s) => s.discountAmount);
+  const couponCode = usePosStore((s) => s.couponCode);
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
   const clearCart = usePosStore((s) => s.clearCart);
   const setDiscountAmount = usePosStore((s) => s.setDiscountAmount);
+  const setCouponCode = usePosStore((s) => s.setCouponCode);
   const setLoyaltyRedemption = usePosStore((s) => s.setLoyaltyRedemption);
-  const applyServerHold = usePosStore((s) => s.applyServerHold);
+  const holdCartLocal = usePosStore((s) => s.holdCart);
+  const reconcileHeldCartId = usePosStore((s) => s.reconcileHeldCartId);
   const resumeHeldCart = usePosStore((s) => s.resumeHeldCart);
   const removeHeldCart = usePosStore((s) => s.removeHeldCart);
   const salesMode = usePosStore((s) => s.salesMode);
@@ -125,7 +137,7 @@ export function CartPanel({
   const [discountOpenInternal, setDiscountOpenInternal] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [heldDeleteId, setHeldDeleteId] = useState<string | null>(null);
-  const [holdPending, startHoldTransition] = useTransition();
+  const [discardPending, startDiscardTransition] = useTransition();
 
   const attachControlled = attachExpandedProp !== undefined;
   const discountControlled = discountOpenProp !== undefined;
@@ -142,10 +154,27 @@ export function CartPanel({
     onDiscountOpenChange?.(next);
   }
 
-  const subtotal = getCartSubtotal(cart);
-  const totalBeforeRedemption = getCartTotal(cart, discountAmount);
+  // Single definitions — promo-adjusted subtotal when available, else cart sum.
   const redemptionAmount = loyaltyRedemption?.amount ?? 0;
-  const total = Math.max(0, totalBeforeRedemption - redemptionAmount);
+  const cartSubtotal = getCartSubtotal(cart);
+  const totals = computePosCartTotals({
+    cart,
+    discountAmount,
+    loyaltyAmount: redemptionAmount,
+    promoPreview:
+      promoAdjustedSubtotal != null
+        ? {
+            lines: [],
+            subtotal: promoAdjustedSubtotal,
+            cart_discount: promoCartDiscount,
+            cart_rule_id: null,
+            applications: [],
+          }
+        : null,
+  });
+  const subtotal = totals.promoAdjustedSubtotal;
+  const totalBeforeRedemption = totals.payableBeforeLoyalty;
+  const total = totals.payableTotal;
   const loyaltyAvailable =
     loyaltyEnabled &&
     Boolean(customer) &&
@@ -195,29 +224,65 @@ export function CartPanel({
   }
 
   function handleHoldCart() {
-    if (!hasCart || holdPending) return;
+    if (!hasCart) return;
+    const state = usePosStore.getState();
     const snapshot = {
-      name: customer?.name,
-      cart: [...cart],
-      customer,
-      discountAmount,
-      salesMode,
+      cart: [...state.cart],
+      customer: state.customer,
+      customerLoyaltyBalance: state.customerLoyaltyBalance,
+      loyaltyRedemption: state.loyaltyRedemption,
+      discountAmount: state.discountAmount,
+      couponCode: state.couponCode,
+      salesMode: state.salesMode,
+      paymentMethod: state.paymentMethod,
+      paymentSplits: [...state.paymentSplits],
+      heldCarts: [...state.heldCarts],
     };
-    startHoldTransition(async () => {
-      const result = await holdCartAction(snapshot);
+    const payload = {
+      name: state.customer?.name,
+      cart: snapshot.cart,
+      customer: snapshot.customer,
+      discountAmount: snapshot.discountAmount,
+      couponCode: snapshot.couponCode,
+      salesMode: snapshot.salesMode,
+    };
+    const localHeld = holdCartLocal(payload.name);
+    if (!localHeld) return;
+    toast.success("تم تعليق الفاتورة");
+
+    void holdCartAction(payload).then((result) => {
       if (!result.success) {
+        usePosStore.setState(snapshot);
         playPosErrorSound();
         toast.error(result.error);
         return;
       }
-      applyServerHold(result.heldCart);
-      toast.success("تم تعليق الفاتورة");
+      reconcileHeldCartId(localHeld.id, result.heldCart);
     });
   }
 
   function handleResumeHeldCart(id: string) {
-    if (holdPending) return;
     const state = usePosStore.getState();
+    const target = state.heldCarts.find((held) => held.id === id);
+    if (!target) return;
+    if (target.id.startsWith("temp-hold-")) {
+      toast.error("لسه بنحفظ الفاتورة المعلّقة… حاول تاني لحظات");
+      return;
+    }
+
+    const snapshot = {
+      cart: [...state.cart],
+      customer: state.customer,
+      customerLoyaltyBalance: state.customerLoyaltyBalance,
+      loyaltyRedemption: state.loyaltyRedemption,
+      discountAmount: state.discountAmount,
+      couponCode: state.couponCode,
+      salesMode: state.salesMode,
+      paymentMethod: state.paymentMethod,
+      paymentSplits: [...state.paymentSplits],
+      heldCarts: [...state.heldCarts],
+    };
+
     const parkCurrent =
       state.cart.length > 0
         ? {
@@ -225,29 +290,56 @@ export function CartPanel({
             cart: [...state.cart],
             customer: state.customer,
             discountAmount: state.discountAmount,
+            couponCode: state.couponCode,
             salesMode: state.salesMode,
           }
         : null;
-    startHoldTransition(async () => {
-      const result = await resumeHeldCartAction({
-        resumeId: id,
-        parkCurrent,
-      });
+
+    const parkedLocal =
+      parkCurrent && parkCurrent.cart.length > 0
+        ? {
+            id: `temp-hold-${crypto.randomUUID()}`,
+            name:
+              parkCurrent.name?.trim() ||
+              parkCurrent.customer?.name ||
+              `معلّقة ${state.heldCarts.length + 1}`,
+            cart: parkCurrent.cart,
+            customer: parkCurrent.customer,
+            discountAmount: parkCurrent.discountAmount,
+            couponCode: parkCurrent.couponCode,
+            salesMode: parkCurrent.salesMode,
+            createdAt: new Date().toISOString(),
+          }
+        : null;
+
+    const ok = resumeHeldCart(id, parkedLocal);
+    if (!ok) {
+      toast.error("الفاتورة المعلّقة غير موجودة");
+      return;
+    }
+
+    void resumeHeldCartAction({
+      resumeId: id,
+      parkCurrent,
+    }).then((result) => {
       if (!result.success) {
+        usePosStore.setState(snapshot);
         playPosErrorSound();
         toast.error(result.error);
         return;
       }
-      const ok = resumeHeldCart(id, result.parked);
-      if (!ok) {
-        toast.error("الفاتورة المعلّقة غير موجودة محليًا — حدّث الصفحة");
-        return;
+      if (parkedLocal && result.parked) {
+        reconcileHeldCartId(parkedLocal.id, result.parked);
       }
     });
   }
 
   function handleDiscardHeldCart(id: string) {
-    startHoldTransition(async () => {
+    if (id.startsWith("temp-hold-")) {
+      removeHeldCart(id);
+      return;
+    }
+    startDiscardTransition(async () => {
       const result = await discardHeldCartAction(id);
       if (!result.success) {
         playPosErrorSound();
@@ -282,7 +374,7 @@ export function CartPanel({
                   type="button"
                   className="max-w-28 truncate px-2 text-sm font-medium"
                   onClick={() => handleResumeHeldCart(held.id)}
-                  disabled={holdPending}
+                  disabled={held.id.startsWith("temp-hold-") || discardPending}
                 >
                   {held.name}
                 </button>
@@ -291,6 +383,7 @@ export function CartPanel({
                   size="icon-xs"
                   className="size-7 rounded-lg"
                   aria-label="حذف الفاتورة المعلقة"
+                  disabled={discardPending}
                   onClick={() => setHeldDeleteId(held.id)}
                 >
                   <Trash2 className="size-3.5 text-muted-foreground" />
@@ -386,12 +479,33 @@ export function CartPanel({
 
       <div className="shrink-0 border-t border-border/60 bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mb-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5">
-          {(discountAmount > 0 || redemptionAmount > 0) && (
+          {(discountAmount > 0 ||
+            redemptionAmount > 0 ||
+            promoCartDiscount > 0 ||
+            promoItemSavings > 0) && (
             <div className="flex justify-between pb-1.5 text-sm text-muted-foreground">
               <span>قبل الخصم</span>
-              <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+              <span className="tabular-nums">
+                {formatCurrency(getCartSubtotal(cart))}
+              </span>
             </div>
           )}
+          {promoItemSavings > 0 ? (
+            <div className="flex justify-between pb-1 text-sm">
+              <span className="text-muted-foreground">توفير أصناف</span>
+              <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+                -{formatCurrency(promoItemSavings)}
+              </span>
+            </div>
+          ) : null}
+          {promoCartDiscount > 0 ? (
+            <div className="flex justify-between pb-1 text-sm">
+              <span className="text-muted-foreground">عرض فاتورة</span>
+              <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+                -{formatCurrency(promoCartDiscount)}
+              </span>
+            </div>
+          ) : null}
           {discountAmount > 0 ? (
             <div className="flex justify-between pb-1 text-sm">
               <span className="text-muted-foreground">خصم</span>
@@ -412,7 +526,10 @@ export function CartPanel({
               </span>
             </div>
           ) : null}
-          {(discountAmount > 0 || redemptionAmount > 0) && (
+          {(discountAmount > 0 ||
+            redemptionAmount > 0 ||
+            promoCartDiscount > 0 ||
+            promoItemSavings > 0) && (
             <div className="mb-1.5 border-t border-border/50" />
           )}
           <div className="flex items-center justify-between gap-2">
@@ -528,6 +645,35 @@ export function CartPanel({
               placeholder="0.00"
               inputMode="decimal"
             />
+            {promotionsEnabled ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" htmlFor="cart-coupon">
+                  كود خصم
+                </label>
+                <Input
+                  id="cart-coupon"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="SAVE10"
+                  className="h-11 rounded-xl bg-background uppercase"
+                  autoCapitalize="characters"
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : promotionsEnabled ? (
+          <div className="mb-2 space-y-1.5 rounded-xl border border-border bg-muted/40 p-2.5">
+            <label className="text-sm font-medium" htmlFor="cart-coupon-standalone">
+              كود خصم
+            </label>
+            <Input
+              id="cart-coupon-standalone"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value)}
+              placeholder="SAVE10"
+              className="h-11 rounded-xl bg-background uppercase"
+              autoCapitalize="characters"
+            />
           </div>
         ) : null}
 
@@ -562,11 +708,11 @@ export function CartPanel({
             variant="ghost"
             size="sm"
             className="h-9 rounded-lg px-2.5 text-xs"
-            disabled={!hasCart || holdPending}
+            disabled={!hasCart}
             onClick={() => handleHoldCart()}
           >
             <Pause className="size-3.5" />
-            {holdPending ? "جاري…" : "تعليق"}
+            تعليق
           </Button>
           <Button
             type="button"

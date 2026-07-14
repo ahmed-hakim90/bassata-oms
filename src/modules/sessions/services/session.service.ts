@@ -6,6 +6,7 @@ import * as vaultRepo from "@/lib/repositories/cashier-vault.repository";
 import { takeOpeningFloatFromVault } from "@/modules/sessions/services/cashier-vault.service";
 import type { CashierSession } from "@/lib/types";
 import { cache } from "react";
+import { roundMoney } from "@/lib/money";
 
 export async function listSessions(storeId?: string): Promise<CashierSession[]> {
   return sessionRepo.listSessions(storeId);
@@ -33,7 +34,7 @@ export async function openSession(input: {
   const existing = await sessionRepo.getActiveSession(input.storeId, input.cashierId);
   if (existing) return existing;
 
-  const openingCash = Math.round(input.openingCash * 100) / 100;
+  const openingCash = roundMoney(input.openingCash);
   if (openingCash < 0) {
     throw new Error("رصيد بداية الوردية لازم يكون صفر أو أكبر");
   }

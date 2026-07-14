@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import type { Product, ProductVariant } from "@/lib/types";
 import { formatUnit, productHasPurchasePacking } from "@/lib/units";
 import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
@@ -142,11 +141,15 @@ export function ProductTable({
   emptyAction,
   toolbar,
 }: ProductTableProps) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const selectable = typeof onSelectedIdsChange === "function";
+  const [localItems, setLocalItems] = useState(items);
+  const snapshotRef = useRef<ProductGridItem[] | null>(null);
 
-  const rows = useMemo(() => buildRows(items, priceMode), [items, priceMode]);
+  useEffect(() => {
+    setLocalItems(items);
+  }, [items]);
+
+  const rows = useMemo(() => buildRows(localItems, priceMode), [localItems, priceMode]);
   const visibleProductIds = useMemo(
     () => [...new Set(rows.map((row) => row.product.id))],
     [rows]
@@ -158,7 +161,7 @@ export function ProductTable({
   const someVisibleSelected =
     !allVisibleSelected && visibleProductIds.some((id) => selectedSet.has(id));
 
-  if (items.length === 0) {
+  if (localItems.length === 0) {
     return (
       <EmptyStateBlock
         title="لا توجد منتجات مطابقة"
@@ -194,6 +197,30 @@ export function ProductTable({
     onSelectedIdsChange(selectedIds.filter((id) => !hide.has(id)));
   }
 
+  function patchProduct(productId: string, patch: Partial<Product>) {
+    setLocalItems((prev) =>
+      prev.map((item) =>
+        item.product.id === productId
+          ? { ...item, product: { ...item.product, ...patch } }
+          : item
+      )
+    );
+  }
+
+  function patchVariant(productId: string, variantId: string, patch: Partial<ProductVariant>) {
+    setLocalItems((prev) =>
+      prev.map((item) => {
+        if (item.product.id !== productId || !item.variants) return item;
+        return {
+          ...item,
+          variants: item.variants.map((variant) =>
+            variant.id === variantId ? { ...variant, ...patch } : variant
+          ),
+        };
+      })
+    );
+  }
+
   function savePrice(row: TableRowModel, raw: string, field: "sale" | "purchase" = "sale") {
     const next = raw.trim() === "" ? null : Number(raw);
     if (next != null && !Number.isFinite(next)) {
@@ -203,7 +230,20 @@ export function ProductTable({
     const current = field === "purchase" ? row.product.last_unit_cost : row.price;
     if (next === current) return;
 
-    startTransition(async () => {
+    snapshotRef.current = localItems;
+    if (field === "purchase" || priceMode === "cost") {
+      patchProduct(row.product.id, { last_unit_cost: next ?? 0 });
+    } else if (row.kind === "variant" && row.variant) {
+      patchVariant(row.product.id, row.variant.id, {
+        price: next,
+        fixed_price: next,
+        price_mode: next != null ? "fixed_price" : row.variant.price_mode,
+      });
+    } else {
+      patchProduct(row.product.id, { base_price: next ?? 0 });
+    }
+
+    void (async () => {
       try {
         if (field === "purchase") {
           await updateProductAction(row.product.id, {
@@ -224,44 +264,49 @@ export function ProductTable({
             base_price: next ?? 0,
           });
         }
-        toast.success("تم تحديث السعر");
-        router.refresh();
       } catch (error) {
+        if (snapshotRef.current) setLocalItems(snapshotRef.current);
         toast.error(error instanceof Error ? error.message : "تعذر تحديث السعر");
       }
-    });
+    })();
   }
 
   function setTracking(product: Product, trackInventory: boolean) {
     if (product.track_inventory === trackInventory) return;
-    startTransition(async () => {
+    snapshotRef.current = localItems;
+    patchProduct(product.id, {
+      track_inventory: trackInventory,
+      inventory_tracking_mode: trackInventory ? "standard" : "none",
+      ...(trackInventory ? {} : { expiry_tracking_enabled: false }),
+    });
+
+    void (async () => {
       try {
         await updateProductAction(product.id, {
           track_inventory: trackInventory,
           inventory_tracking_mode: trackInventory ? "standard" : "none",
           ...(trackInventory ? {} : { expiry_tracking_enabled: false }),
         });
-        toast.success(
-          trackInventory ? `تم تفعيل تتبع المخزون لـ ${product.name}` : `تم إيقاف التتبع لـ ${product.name}`
-        );
-        router.refresh();
       } catch (error) {
+        if (snapshotRef.current) setLocalItems(snapshotRef.current);
         toast.error(error instanceof Error ? error.message : "تعذر تحديث التتبع");
       }
-    });
+    })();
   }
 
   function setActive(product: Product, isActive: boolean) {
     if (product.is_active === isActive) return;
-    startTransition(async () => {
+    snapshotRef.current = localItems;
+    patchProduct(product.id, { is_active: isActive });
+
+    void (async () => {
       try {
         await updateProductAction(product.id, { is_active: isActive });
-        toast.success(isActive ? `تم تفعيل ${product.name}` : `تم إيقاف ${product.name}`);
-        router.refresh();
       } catch (error) {
+        if (snapshotRef.current) setLocalItems(snapshotRef.current);
         toast.error(error instanceof Error ? error.message : "تعذر تحديث حالة المنتج");
       }
-    });
+    })();
   }
 
   return (
@@ -356,7 +401,7 @@ export function ProductTable({
                       className="h-8 tabular-nums"
                       defaultValue={row.product.last_unit_cost ?? ""}
                       key={`${row.key}:cost:${row.product.last_unit_cost ?? "empty"}`}
-                      disabled={pending || row.kind === "variant"}
+                      disabled={row.kind === "variant"}
                       aria-label={`سعر الشراء لـ ${row.label}`}
                       onBlur={(event) => savePrice(row, event.target.value, "purchase")}
                       onKeyDown={(event) => {
@@ -376,7 +421,6 @@ export function ProductTable({
                     className="h-8 tabular-nums"
                     defaultValue={row.price ?? ""}
                     key={`${row.key}:${row.price ?? "empty"}`}
-                    disabled={pending}
                     aria-label={`${priceHeader} لـ ${row.label}`}
                     onBlur={(event) => savePrice(row, event.target.value, "sale")}
                     onKeyDown={(event) => {
@@ -404,7 +448,6 @@ export function ProductTable({
                   {isFirstProductRow ? (
                     <Checkbox
                       checked={row.product.track_inventory}
-                      disabled={pending}
                       aria-label={`تتبع مخزون ${row.product.name}`}
                       onCheckedChange={(value) =>
                         setTracking(row.product, value === true)
@@ -421,7 +464,6 @@ export function ProductTable({
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={row.product.is_active}
-                        disabled={pending}
                         aria-label={
                           row.product.is_active
                             ? `إيقاف ${row.product.name}`

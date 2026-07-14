@@ -37,6 +37,7 @@ describe("pos-store held carts", () => {
       cart: [line],
       customer: null,
       discountAmount: 2,
+      couponCode: "",
       salesMode: "retail",
       createdAt: "2026-07-13T12:00:00.000Z",
     });
@@ -55,6 +56,7 @@ describe("pos-store held carts", () => {
           cart: [line],
           customer: null,
           discountAmount: 1,
+          couponCode: "SAVE10",
           salesMode: "retail",
           createdAt: "2026-07-13T12:00:00.000Z",
         },
@@ -67,12 +69,14 @@ describe("pos-store held carts", () => {
       cart: [{ ...line, id: "line-2", name: "Tea", lineTotal: 15, unitPrice: 15 }],
       customer: null,
       discountAmount: 0,
+      couponCode: "",
       salesMode: "retail" as const,
       createdAt: "2026-07-13T12:01:00.000Z",
     };
     expect(usePosStore.getState().resumeHeldCart("hold-a", parked)).toBe(true);
     const state = usePosStore.getState();
     expect(state.cart[0]?.name).toBe("Latte");
+    expect(state.couponCode).toBe("SAVE10");
     expect(state.heldCarts.map((h) => h.id)).toEqual(["hold-parked"]);
   });
 });

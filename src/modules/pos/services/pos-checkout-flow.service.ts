@@ -28,6 +28,7 @@ export type CheckoutFlowInput = {
   payments?: PaymentSplit[];
   salesMode?: SalesMode;
   discount?: number;
+  couponCode?: string | null;
   loyaltyPoints?: number;
   override?: CheckoutOverride;
 };
@@ -143,8 +144,10 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
       payments,
       salesMode: input.salesMode ?? "retail",
       discount: input.discount ?? 0,
+      couponCode: input.couponCode,
       loyaltyPoints: input.loyaltyPoints,
       session,
+      sessionGateChecked: true,
       override: {
         expiredSession: input.override?.expiredSession,
       },

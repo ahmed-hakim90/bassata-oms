@@ -21,11 +21,14 @@ import {
 import { printReceiptViaUsb } from "@/modules/pos/services/receipt-usb-printer.service";
 import { findPosProductByBarcode } from "@/modules/pos/utils/barcode-lookup";
 import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
-import type { Category, CostCenter, ExpenseCategory, ExpenseSettings, Product } from "@/lib/types";
+import type { Category, CostCenter, ExpenseCategory, ExpenseSettings, Product, PromotionRule } from "@/lib/types";
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { FeatureFlag, SalesMode } from "@/lib/constants";
 import type { ReportBranding } from "@/modules/reports/core/report-context";
-import { usePosStore, getCartTotal, type HeldCart } from "@/stores/pos-store";
+import { usePosStore, type HeldCart } from "@/stores/pos-store";
+import { computePosCartTotals } from "@/modules/pos/lib/cart-totals";
+import { previewPosPromotions } from "@/modules/pos/lib/pos-promo-preview";
+import type { PromotionRuleInput } from "@/modules/promotions/lib/evaluate-promotions";
 import { PosReadinessBanner } from "@/components/SweetFlow/pos-readiness-banner";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { PosPinSwitch } from "@/modules/pos/components/pos-pin-switch";
@@ -57,10 +60,7 @@ import type {
   OnlineOrderWithItems,
   StaffOnlineProductOption,
 } from "@/modules/online-orders/services/online-order.service";
-
-function money(value: number): number {
-  return Math.round(value * 100) / 100;
-}
+import { roundMoney } from "@/lib/money";
 
 function toStaffOnlineProductOptions(products: POSProduct[]): StaffOnlineProductOption[] {
   return products
@@ -73,11 +73,11 @@ function toStaffOnlineProductOptions(products: POSProduct[]): StaffOnlineProduct
     .map((product) => ({
       id: product.id,
       name: product.name,
-      price: money(product.sale_price ?? product.base_price),
+      price: roundMoney(product.sale_price ?? product.base_price),
       variants: product.variants.map((variant) => ({
         id: variant.id,
         name: variant.name,
-        price: money(variant.price),
+        price: roundMoney(variant.price),
       })),
     }));
 }
@@ -89,6 +89,7 @@ async function postPosCheckout(input: {
   payments: PaymentSplit[];
   salesMode: SalesMode;
   discount: number;
+  couponCode?: string | null;
   loyaltyPoints?: number;
   override?: {
     discount?: boolean;
@@ -161,6 +162,7 @@ interface PosScreenProps {
   currentUserName?: string | null;
   loyaltyRedemptionRate?: number | null;
   minimumLoyaltyRedeemPoints?: number;
+  promotionRules?: PromotionRule[];
   receiptBranding: ReportBranding;
   onlineOrders?: OnlineOrderWithItems[];
   onlineOrderProducts?: StaffOnlineProductOption[];
@@ -203,6 +205,7 @@ export function PosScreen({
   currentUserName = null,
   loyaltyRedemptionRate = null,
   minimumLoyaltyRedeemPoints = 0,
+  promotionRules = [],
   receiptBranding,
   onlineOrders: onlineOrdersProp = [],
   onlineOrderProducts: onlineOrderProductsProp = [],
@@ -244,6 +247,7 @@ export function PosScreen({
   const paymentMethod = usePosStore((s) => s.paymentMethod);
   const setPaymentMethod = usePosStore((s) => s.setPaymentMethod);
   const discountAmount = usePosStore((s) => s.discountAmount);
+  const couponCode = usePosStore((s) => s.couponCode);
   const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
   const salesMode = usePosStore((s) => s.salesMode);
   const [weightProduct, setWeightProduct] = useState<POSProduct | null>(null);
@@ -330,8 +334,58 @@ export function PosScreen({
     !(readinessState === "session_expired" && canManagerOverride);
   const cashDrawerEnabled = featureFlags.cash_drawer === true;
   const discountsEnabled = featureFlags.customer_discounts === true;
+  const promotionsEnabled = featureFlags.promotions === true;
+  const promoRuleInputs = useMemo<PromotionRuleInput[]>(
+    () =>
+      promotionRules.map((rule) => ({
+        id: rule.id,
+        name: rule.name,
+        is_active: rule.is_active,
+        rule_type: rule.rule_type,
+        priority: rule.priority,
+        starts_at: rule.starts_at,
+        ends_at: rule.ends_at,
+        store_ids: rule.store_ids,
+        sale_modes: rule.sale_modes,
+        coupon_code: rule.coupon_code,
+        stackable_with_cart: rule.stackable_with_cart,
+        min_subtotal: rule.min_subtotal,
+        scope_type: rule.scope_type,
+        scope_ids: rule.scope_ids,
+        config: rule.config,
+        usage_limit_total: rule.usage_limit_total,
+        usage_count: rule.usage_count,
+      })),
+    [promotionRules]
+  );
+  const promoPreview = useMemo(() => {
+    if (!promotionsEnabled || promoRuleInputs.length === 0 || cart.length === 0) return null;
+    return previewPosPromotions({
+      rules: promoRuleInputs,
+      cart,
+      storeId,
+      saleMode: salesMode,
+      couponCode,
+    });
+  }, [promotionsEnabled, promoRuleInputs, cart, storeId, salesMode, couponCode]);
+  const cartTotals = useMemo(
+    () =>
+      computePosCartTotals({
+        cart,
+        discountAmount,
+        loyaltyAmount: loyaltyRedemption?.amount ?? 0,
+        promoPreview,
+      }),
+    [cart, discountAmount, loyaltyRedemption?.amount, promoPreview]
+  );
+  const {
+    promoCartDiscount,
+    promoItemDiscount: promoItemSavings,
+    promoAdjustedSubtotal,
+    payableBeforeLoyalty: cartTotal,
+    payableTotal: cartPayableTotal,
+  } = cartTotals;
   const loyaltyEnabled = featureFlags.loyalty !== false;
-  const cartTotal = getCartTotal(cart, discountAmount);
   const cartItemCount = cart.reduce((total, line) => total + line.quantity, 0);
   const noPaymentMethods = enabledPaymentMethods.length === 0;
   const checkoutBlockedReason = pending
@@ -354,10 +408,7 @@ export function PosScreen({
       setCreditOpen(true);
       return;
     }
-    const total = Math.max(
-      0,
-      getCartTotal(cart, discountAmount) - (loyaltyRedemption?.amount ?? 0)
-    );
+    const total = cartPayableTotal;
     handleComplete([{ method, amount: total }]);
   }
   const activeOnlineOrdersCount = onlineOrders.filter(
@@ -417,6 +468,7 @@ export function PosScreen({
       name,
       quantity: 1,
       unitPrice,
+      categoryId: product.category_id ?? null,
       modifiers: [],
       imageUrl: resolved?.imageUrl ?? product.image_url,
     });
@@ -477,8 +529,8 @@ export function PosScreen({
       const collectionMethod =
         payments.find((payment) => payment.method !== "credit")?.method ?? "cash";
       const redemptionAmount = loyaltyRedemption?.amount ?? 0;
-      const receiptDiscount = discountAmount + redemptionAmount;
-      const receiptTotal = Math.max(0, getCartTotal(cart, discountAmount) - redemptionAmount);
+      const receiptDiscount = discountAmount + redemptionAmount + promoCartDiscount + promoItemSavings;
+      const receiptTotal = cartPayableTotal;
       try {
         const result = await postPosCheckout({
           cart,
@@ -487,6 +539,7 @@ export function PosScreen({
           payments,
           salesMode,
           discount: discountAmount,
+          couponCode: promotionsEnabled ? couponCode || null : null,
           loyaltyPoints: loyaltyRedemption?.points,
           override:
             needsDiscountOverride || needsExpiredSessionOverride
@@ -524,28 +577,30 @@ export function PosScreen({
         clearCart();
         setCreditOpen(false);
         playPosSuccessSound();
+        // Don't wait on account collection — cashier already has a completed sale.
+        toast.success(`تم إتمام الطلب ${result.orderNumber}`);
 
-        let collectionNote = "";
         if (
           accountCollection > 0.001 &&
           attachedCustomer &&
           collectionMethod !== "credit"
         ) {
-          const collected = await postPosCustomerPayment({
+          void postPosCustomerPayment({
             customerId: attachedCustomer.id,
             amount: accountCollection,
             paymentMethod: collectionMethod,
             reference: result.orderNumber,
             notes: `تحصيل مع فاتورة ${result.orderNumber}`,
+          }).then((collected) => {
+            if (!collected.success) {
+              toast.error(`تم البيع، لكن تحصيل المستحق فشل: ${collected.error}`);
+              return;
+            }
+            toast.success(
+              `اتحصل ${formatCurrency(accountCollection)} من حساب العميل مع الفاتورة`
+            );
           });
-          if (!collected.success) {
-            toast.error(`تم البيع، لكن تحصيل المستحق فشل: ${collected.error}`);
-          } else {
-            collectionNote = ` · وتحصيل ${formatCurrency(accountCollection)} من الحساب`;
-          }
         }
-
-        toast.success(`تم إتمام الطلب ${result.orderNumber}${collectionNote}`);
       } catch (error) {
         playPosErrorSound();
         toast.error(error instanceof Error ? error.message : "فشل إتمام البيع");
@@ -877,6 +932,10 @@ export function PosScreen({
             checkoutDisabled={payLocked || cart.length === 0}
             checkoutBlockedReason={checkoutBlockedReason}
             discountsEnabled={discountsEnabled}
+            promotionsEnabled={promotionsEnabled}
+            promoCartDiscount={promoCartDiscount}
+            promoItemSavings={promoItemSavings}
+            promoAdjustedSubtotal={promoAdjustedSubtotal}
             loyaltyEnabled={loyaltyEnabled}
             enabledPaymentMethods={enabledPaymentMethods}
             loyaltyRedemptionRate={loyaltyRedemptionRate}
@@ -919,6 +978,10 @@ export function PosScreen({
                 checkoutDisabled={payLocked || cart.length === 0}
                 checkoutBlockedReason={checkoutBlockedReason}
                 discountsEnabled={discountsEnabled}
+                promotionsEnabled={promotionsEnabled}
+                promoCartDiscount={promoCartDiscount}
+                promoItemSavings={promoItemSavings}
+                promoAdjustedSubtotal={promoAdjustedSubtotal}
                 loyaltyEnabled={loyaltyEnabled}
                 enabledPaymentMethods={enabledPaymentMethods}
                 loyaltyRedemptionRate={loyaltyRedemptionRate}
@@ -952,10 +1015,7 @@ export function PosScreen({
         <PosCreditCheckoutDialog
           open={creditOpen}
           onOpenChange={setCreditOpen}
-          total={Math.max(
-            0,
-            getCartTotal(cart, discountAmount) - (loyaltyRedemption?.amount ?? 0)
-          )}
+          total={cartPayableTotal}
           customer={customer}
           enabledMethods={enabledPaymentMethods}
           loading={pending}
@@ -1005,6 +1065,7 @@ export function PosScreen({
             name: weightProduct.name,
             quantity,
             unitPrice: unitPrice > 0 ? unitPrice : (resolved?.price ?? weightProduct.base_price),
+            categoryId: weightProduct.category_id ?? null,
             modifiers: [],
             imageUrl: weightProduct.image_url,
             saleUnit: weightProduct.sale_unit,

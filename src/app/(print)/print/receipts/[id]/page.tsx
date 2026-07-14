@@ -1,16 +1,7 @@
 import { notFound } from "next/navigation";
-import { formatCurrency, formatDateTime } from "@/lib/format";
-import type { PaymentMethod } from "@/lib/types";
 import { getOrder } from "@/modules/orders/services/order.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
-
-const PAYMENT_LABELS: Record<PaymentMethod, string> = {
-  cash: "نقدي",
-  card: "كارت",
-  wallet: "محفظة",
-  credit: "آجل",
-  other: "أخرى",
-};
+import { ReceiptPrintServer } from "@/modules/pos/components/receipt-print-server";
 
 export default async function PrintReceiptPage({
   params,
@@ -23,98 +14,24 @@ export default async function PrintReceiptPage({
   const branding = await getReportBranding(order.store_id);
 
   const subtotal = order.items.reduce((sum, item) => sum + item.line_total, 0);
-  const primaryPayment = order.payments[0]?.method ?? null;
 
   return (
-    <main
-      data-print-layout="receipt"
-      className="mx-auto w-[72mm] max-w-[72mm] bg-white p-3 font-mono text-[11px] leading-snug text-black print:p-0"
-      dir="rtl"
-    >
-      <header className="text-center">
-        <p className="text-sm font-bold">{branding.orgName || "Velora"}</p>
-        {branding.storeName ? <p>{branding.storeName}</p> : null}
-        {branding.storeAddress ? <p>{branding.storeAddress}</p> : null}
-        {branding.storePhone ? <p dir="ltr">{branding.storePhone}</p> : null}
-        {branding.receiptHeader ? (
-          <p className="mt-2 whitespace-pre-wrap">{branding.receiptHeader}</p>
-        ) : null}
-        <p className="mt-2 font-semibold">ريسيت #{order.order_number}</p>
-        <p>{formatDateTime(order.created_at)}</p>
-        {order.customerName ? <p>العميل: {order.customerName}</p> : null}
-      </header>
-
-      <hr className="my-3 border-dashed border-black" />
-
-      <ul className="space-y-2">
-        {order.items.map((item) => (
-          <li key={item.id}>
-            <div className="flex justify-between gap-2">
-              <span className="min-w-0">
-                {item.productName}
-                <br />
-                <span dir="ltr">
-                  {item.quantity} × {formatCurrency(item.unit_price, branding.currency)}
-                </span>
-              </span>
-              <span className="shrink-0">
-                {formatCurrency(item.line_total, branding.currency)}
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <hr className="my-3 border-dashed border-black" />
-
-      <div className="space-y-1">
-        <div className="flex justify-between">
-          <span>الإجمالي قبل الخصم</span>
-          <span>{formatCurrency(subtotal, branding.currency)}</span>
-        </div>
-        {order.discount > 0 ? (
-          <div className="flex justify-between">
-            <span>خصم</span>
-            <span>-{formatCurrency(order.discount, branding.currency)}</span>
-          </div>
-        ) : null}
-        {order.tax > 0 ? (
-          <div className="flex justify-between">
-            <span>ضريبة</span>
-            <span>{formatCurrency(order.tax, branding.currency)}</span>
-          </div>
-        ) : null}
-        <div className="flex justify-between text-sm font-bold">
-          <span>الإجمالي</span>
-          <span>{formatCurrency(order.total, branding.currency)}</span>
-        </div>
-      </div>
-
-      <div className="mt-3 space-y-1">
-        {order.payment_status === "unpaid" ? (
-          <div className="flex justify-between font-semibold">
-            <span>حالة الدفع</span>
-            <span>غير مدفوع</span>
-          </div>
-        ) : primaryPayment ? (
-          <div className="flex justify-between">
-            <span>الدفع</span>
-            <span>{PAYMENT_LABELS[primaryPayment]}</span>
-          </div>
-        ) : null}
-        {order.payments.length > 1
-          ? order.payments.map((payment) => (
-              <div key={payment.id} className="flex justify-between">
-                <span>{PAYMENT_LABELS[payment.method]}</span>
-                <span>{formatCurrency(payment.amount, branding.currency)}</span>
-              </div>
-            ))
-          : null}
-      </div>
-
-      <p className="mt-6 whitespace-pre-wrap text-center">
-        {branding.receiptFooter || "شكراً لزيارتكم"}
-      </p>
-    </main>
+    <ReceiptPrintServer
+      documentLabel="ريسيت مبيعات"
+      orderNumber={order.order_number}
+      createdAt={order.created_at}
+      items={order.items}
+      subtotal={subtotal}
+      discount={order.discount}
+      promoDiscount={order.promo_discount ?? undefined}
+      tax={order.tax}
+      total={order.total}
+      paymentStatus={order.payment_status}
+      payments={order.payments}
+      partyLabel="العميل"
+      partyName={order.customerName}
+      isDraft={order.document_status === "draft"}
+      branding={branding}
+    />
   );
 }

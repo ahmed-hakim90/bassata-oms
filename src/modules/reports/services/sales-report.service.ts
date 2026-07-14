@@ -1,3 +1,4 @@
+import { orderBusinessAt } from "@/lib/document-date";
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
@@ -68,8 +69,8 @@ export async function getSalesReport(options?: {
     (o) =>
       o.status === "completed" &&
       o.payment_status !== "unpaid" &&
-      new Date(o.created_at) >= rangeStart &&
-      new Date(o.created_at) <= rangeEnd
+      new Date(orderBusinessAt(o)) >= rangeStart &&
+      new Date(orderBusinessAt(o)) <= rangeEnd
   );
 
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
@@ -185,7 +186,7 @@ export async function getSalesReport(options?: {
     );
   }
   for (const order of orders) {
-    const date = order.created_at.slice(0, 10);
+    const date = orderBusinessAt(order).slice(0, 10);
     const existing = dayMap.get(date) ?? { revenue: 0, cost: 0, orders: 0 };
     existing.revenue += order.total;
     existing.cost += orderCostMap.get(order.id) ?? 0;

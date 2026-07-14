@@ -11,10 +11,7 @@ import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
 import { formatCurrency } from "@/lib/format";
 import { batchWithdrawCashierVaultsAction } from "@/modules/sessions/actions/session.actions";
 import type { CashierVaultSummary } from "@/modules/sessions/services/cashier-vault.service";
-
-function money(value: number): number {
-  return Math.round(value * 100) / 100;
-}
+import { roundMoney } from "@/lib/money";
 
 type EditableVaultRow = {
   cashierId: string;
@@ -27,10 +24,10 @@ type EditableVaultRow = {
 function buildEditableRows(rows: CashierVaultSummary[]): EditableVaultRow[] {
   return rows
     .map((row) => {
-      const nextOpeningFloat = money(
+      const nextOpeningFloat = roundMoney(
         Math.min(row.pendingOpeningFloat, row.balance)
       );
-      const maxWithdraw = money(row.balance - nextOpeningFloat);
+      const maxWithdraw = roundMoney(row.balance - nextOpeningFloat);
       return {
         cashierId: row.cashierId,
         cashierName: row.cashierName,
@@ -75,18 +72,18 @@ export function CashierVaultBatchWithdrawDialog({
     for (const row of editableRows) {
       const raw = amounts[row.cashierId] ?? "";
       const value = parseFloat(raw);
-      const amount = Number.isFinite(value) ? money(value) : NaN;
+      const amount = Number.isFinite(value) ? roundMoney(value) : NaN;
 
       if (!raw.trim() || amount === 0) continue;
       if (!Number.isFinite(amount) || amount < 0 || amount > row.maxWithdraw + 1e-9) {
         hasInvalid = true;
         continue;
       }
-      total = money(total + amount);
+      total = roundMoney(total + amount);
       activeCount += 1;
     }
 
-    const floatKept = money(
+    const floatKept = roundMoney(
       editableRows.reduce((sum, row) => sum + row.nextOpeningFloat, 0)
     );
 
@@ -127,7 +124,7 @@ export function CashierVaultBatchWithdrawDialog({
 
     const items = editableRows
       .map((row) => {
-        const amount = money(parseFloat(amounts[row.cashierId] || "0") || 0);
+        const amount = roundMoney(parseFloat(amounts[row.cashierId] || "0") || 0);
         return { cashierId: row.cashierId, withdrawAmount: amount };
       })
       .filter((item) => item.withdrawAmount > 1e-9);
@@ -233,7 +230,7 @@ export function CashierVaultBatchWithdrawDialog({
                 {editableRows.map((row) => {
                   const raw = amounts[row.cashierId] ?? "";
                   const value = parseFloat(raw);
-                  const amount = Number.isFinite(value) ? money(value) : NaN;
+                  const amount = Number.isFinite(value) ? roundMoney(value) : NaN;
                   const invalid =
                     raw.trim() !== "" &&
                     (!Number.isFinite(amount) ||

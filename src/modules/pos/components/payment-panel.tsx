@@ -9,6 +9,7 @@ import type { PaymentMethod, PaymentSplit } from "@/lib/types";
 import { getCartSubtotal, getCartTotal, usePosStore } from "@/stores/pos-store";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
+import { roundMoney } from "@/lib/money";
 
 interface PaymentPanelProps {
   open: boolean;
@@ -120,10 +121,6 @@ export function PaymentPanel({
       setSplitMode(false);
       setSplits([]);
     }
-  }
-
-  function roundMoney(value: number) {
-    return Math.round(value * 100) / 100;
   }
 
   // Keep the first split line in sync when the payable total changes (discount/loyalty).

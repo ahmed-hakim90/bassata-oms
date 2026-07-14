@@ -7,6 +7,7 @@ import type {
   MEASUREMENT_UNITS,
   ONLINE_ORDER_STATUSES,
   ORDER_STATUSES,
+  SALES_DOCUMENT_STATUSES,
   PAYMENT_METHODS,
   PERMISSIONS,
   PRODUCT_TYPES,
@@ -45,6 +46,7 @@ export type MovementType = (typeof MOVEMENT_TYPES)[number];
 export type ProductType = (typeof PRODUCT_TYPES)[number];
 export type MeasurementUnit = (typeof MEASUREMENT_UNITS)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export type SalesDocumentStatus = (typeof SALES_DOCUMENT_STATUSES)[number];
 export type OnlineOrderStatus = (typeof ONLINE_ORDER_STATUSES)[number];
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export interface PaymentSplit {
@@ -318,6 +320,8 @@ export interface PurchaseInvoice {
   extra_cost: number;
   tax: number;
   total: number;
+  /** Business calendar date (YYYY-MM-DD); editable on drafts. */
+  document_date: string;
   received_at: string | null;
   cancelled_at: string | null;
   created_by: string;
@@ -476,6 +480,8 @@ export interface Order {
   status: OrderStatus;
   subtotal: number;
   discount: number;
+  /** Cart-level promotion discount (included in discount). */
+  promo_discount?: number;
   tax: number;
   total: number;
   payment_status: "paid" | "unpaid" | "partial";
@@ -483,6 +489,12 @@ export interface Order {
   created_at: string;
   sales_mode?: SalesMode;
   activity_type?: BusinessActivityType;
+  document_status?: SalesDocumentStatus | null;
+  /** Business calendar date (YYYY-MM-DD); editable on sales-invoice drafts. */
+  document_date?: string;
+  issued_at?: string | null;
+  delivered_at?: string | null;
+  warehouse_id?: string | null;
 }
 
 export interface OrderItem {
@@ -492,6 +504,11 @@ export interface OrderItem {
   variant_id: string | null;
   quantity: number;
   unit_price: number;
+  /** Unit price before item promo (after tiers / scheduled sale). */
+  list_unit_price?: number | null;
+  /** Item-level promotion savings. */
+  discount_amount?: number;
+  promotion_rule_id?: string | null;
   modifiers: { name: string; price: number }[];
   line_total: number;
   unit_cost: number;
@@ -559,6 +576,8 @@ export interface OnlineOrder {
   status: OnlineOrderStatus;
   subtotal: number;
   discount: number;
+  promo_discount?: number;
+  coupon_code?: string | null;
   tax: number;
   total: number;
   notes: string;
@@ -579,7 +598,56 @@ export interface OnlineOrderItem {
   variant_name: string | null;
   quantity: number;
   unit_price: number;
+  list_unit_price?: number | null;
+  discount_amount?: number;
+  promotion_rule_id?: string | null;
   line_total: number;
+  created_at: string;
+}
+
+export type PromotionRuleType =
+  | "percent_off_item"
+  | "fixed_off_item"
+  | "scheduled_sale_price"
+  | "cart_percent"
+  | "cart_fixed"
+  | "bogo"
+  | "qty_threshold";
+
+export type PromotionScopeType = "all" | "product" | "category";
+
+export interface PromotionRule {
+  id: string;
+  org_id: string;
+  name: string;
+  is_active: boolean;
+  rule_type: PromotionRuleType;
+  priority: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  store_ids: string[] | null;
+  sale_modes: ("retail" | "wholesale")[];
+  coupon_code: string | null;
+  stackable_with_cart: boolean;
+  min_subtotal: number;
+  scope_type: PromotionScopeType;
+  scope_ids: string[];
+  config: Record<string, number | undefined>;
+  usage_limit_total: number | null;
+  usage_count: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderPromotionApplication {
+  id: string;
+  order_id: string;
+  promotion_rule_id: string | null;
+  order_item_id: string | null;
+  level: "item" | "cart";
+  amount: number;
+  rule_name: string | null;
   created_at: string;
 }
 
@@ -798,6 +866,9 @@ export interface CartLine {
   name: string;
   quantity: number;
   unitPrice: number;
+  categoryId?: string | null;
+  /** Preview savings from an item promotion (display only). */
+  promoDiscountAmount?: number;
   modifiers: { name: string; price: number }[];
   lineTotal: number;
   imageUrl: string | null;

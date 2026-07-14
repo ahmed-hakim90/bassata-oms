@@ -7,7 +7,10 @@ import {
 } from "@/lib/auth/guards";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
-import { getProfitReport, getProductRankings } from "@/modules/reports/services/profit-report.service";
+import {
+  getProfitReport,
+  productRankingsFromReport,
+} from "@/modules/reports/services/profit-report.service";
 import { getOutstandingBalances } from "@/modules/customers/services/customer-account.service";
 import { listSupplierSummaries } from "@/modules/suppliers/services/supplier.service";
 import { buildReportContext } from "@/modules/reports/services/report-branding.service";
@@ -38,14 +41,14 @@ export async function getProfitReportPageData(params: Record<string, string | un
     from: filters.from,
     to: filters.to,
   };
-  const [org, stores, profit, rankings, outstanding, suppliers] = await Promise.all([
+  const [org, stores, profit, outstanding, suppliers] = await Promise.all([
     orgRepo.getOrganization(),
     storeRepo.listStores(),
     getProfitReport(reportOpts),
-    getProductRankings(reportOpts),
     getOutstandingBalances(),
     listSupplierSummaries(storeId ?? activeStoreId),
   ]);
+  const rankings = productRankingsFromReport(profit);
   const context = await buildReportContext(filters, user.name, storeId);
   return {
     filters,
@@ -81,17 +84,71 @@ export async function exportProfitReportExcel(params: Record<string, string | un
           { metric: "Expenses", value: data.profit.totalExpenses },
           { metric: "Net profit", value: data.profit.estimatedNetProfit },
           { metric: "Waste cost", value: data.profit.wasteCost },
+          { metric: "Avg order profit", value: data.profit.avgOrderProfit },
+          {
+            metric: "Inventory sell value",
+            value: data.profit.inventory.inventorySellValue,
+          },
+          {
+            metric: "Inventory cost value",
+            value: data.profit.inventory.inventoryCostValue,
+          },
+          {
+            metric: "Inventory expected profit",
+            value: data.profit.inventory.inventoryExpectedProfit,
+          },
         ] as Record<string, unknown>[],
+      },
+      {
+        name: "Invoices",
+        columns: [
+          { header: "Invoice", accessor: (r) => r.orderNumber },
+          { header: "Date", accessor: (r) => r.createdAt },
+          { header: "Revenue", accessor: (r) => r.revenue },
+          { header: "Cost", accessor: (r) => r.cost },
+          { header: "Profit", accessor: (r) => r.profit },
+          { header: "Margin %", accessor: (r) => r.margin },
+        ],
+        rows: data.profit.invoices.map((r) => ({ ...r })) as Record<string, unknown>[],
+      },
+      {
+        name: "Purchases",
+        columns: [
+          { header: "Invoice", accessor: (r) => r.invoiceNumber },
+          { header: "Received", accessor: (r) => r.receivedAt },
+          { header: "Purchase cost", accessor: (r) => r.purchaseCost },
+          { header: "Expected sell", accessor: (r) => r.expectedSellValue },
+          { header: "Expected profit", accessor: (r) => r.expectedProfit },
+          { header: "Margin %", accessor: (r) => r.margin },
+        ],
+        rows: data.profit.purchaseInvoices.map((r) => ({ ...r })) as Record<
+          string,
+          unknown
+        >[],
+      },
+      {
+        name: "By Day",
+        columns: [
+          { header: "Date", accessor: (r) => r.date },
+          { header: "Orders", accessor: (r) => r.orders },
+          { header: "Revenue", accessor: (r) => r.revenue },
+          { header: "Cost", accessor: (r) => r.cost },
+          { header: "Profit", accessor: (r) => r.profit },
+          { header: "Margin %", accessor: (r) => r.margin },
+        ],
+        rows: data.profit.byDay.map((r) => ({ ...r })) as Record<string, unknown>[],
       },
       {
         name: "Products",
         columns: [
           { header: "Product", accessor: (r) => r.name },
+          { header: "Qty", accessor: (r) => r.quantitySold },
           { header: "Revenue", accessor: (r) => r.revenue },
+          { header: "Cost", accessor: (r) => r.cost },
           { header: "Profit", accessor: (r) => r.profit },
           { header: "Margin %", accessor: (r) => r.margin },
         ],
-        rows: data.rankings.highestProfit.map((r) => ({ ...r })) as Record<string, unknown>[],
+        rows: data.profit.products.map((r) => ({ ...r })) as Record<string, unknown>[],
       },
     ],
   });

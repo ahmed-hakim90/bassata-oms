@@ -1684,8 +1684,12 @@ export type Database = {
           created_at: string
           created_by: string
           customer_id: string | null
+          delivered_at: string | null
           discount: number
+          document_date: string
+          document_status: Database["public"]["Enums"]["sales_document_status"] | null
           id: string
+          issued_at: string | null
           order_number: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           sales_mode: Database["public"]["Enums"]["sales_mode"]
@@ -1695,14 +1699,19 @@ export type Database = {
           subtotal: number
           tax: number
           total: number
+          warehouse_id: string | null
         }
         Insert: {
           activity_type?: Database["public"]["Enums"]["business_activity_type"]
           created_at?: string
           created_by: string
           customer_id?: string | null
+          delivered_at?: string | null
           discount?: number
+          document_date?: string
+          document_status?: Database["public"]["Enums"]["sales_document_status"] | null
           id?: string
+          issued_at?: string | null
           order_number: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           sales_mode?: Database["public"]["Enums"]["sales_mode"]
@@ -1712,14 +1721,19 @@ export type Database = {
           subtotal?: number
           tax?: number
           total?: number
+          warehouse_id?: string | null
         }
         Update: {
           activity_type?: Database["public"]["Enums"]["business_activity_type"]
           created_at?: string
           created_by?: string
           customer_id?: string | null
+          delivered_at?: string | null
           discount?: number
+          document_date?: string
+          document_status?: Database["public"]["Enums"]["sales_document_status"] | null
           id?: string
+          issued_at?: string | null
           order_number?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           sales_mode?: Database["public"]["Enums"]["sales_mode"]
@@ -1729,6 +1743,7 @@ export type Database = {
           subtotal?: number
           tax?: number
           total?: number
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -2581,6 +2596,7 @@ export type Database = {
           cancelled_at: string | null
           created_at: string
           created_by: string
+          document_date: string
           extra_cost: number
           id: string
           invoice_number: string
@@ -2597,6 +2613,7 @@ export type Database = {
           cancelled_at?: string | null
           created_at?: string
           created_by: string
+          document_date?: string
           extra_cost?: number
           id?: string
           invoice_number: string
@@ -2613,6 +2630,7 @@ export type Database = {
           cancelled_at?: string | null
           created_at?: string
           created_by?: string
+          document_date?: string
           extra_cost?: number
           id?: string
           invoice_number?: string
@@ -3976,6 +3994,7 @@ export type Database = {
       product_type: "finished" | "ingredient"
       purchase_status: "draft" | "received" | "cancelled"
       sales_mode: "retail" | "wholesale"
+      sales_document_status: "draft" | "issued" | "delivered"
       session_status: "open" | "closed"
       shelf_life_unit_type: "days" | "months" | "years"
       stock_count_status:
@@ -4259,6 +4278,7 @@ export const Constants = {
       product_type: ["finished", "ingredient"],
       purchase_status: ["draft", "received", "cancelled"],
       sales_mode: ["retail", "wholesale"],
+      sales_document_status: ["draft", "issued", "delivered"],
       session_status: ["open", "closed"],
       shelf_life_unit_type: ["days", "months", "years"],
       stock_count_status: [

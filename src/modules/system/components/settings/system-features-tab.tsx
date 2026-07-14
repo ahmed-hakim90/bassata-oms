@@ -13,6 +13,7 @@ const featureFlagLabels: Partial<Record<FeatureFlag, string>> = {
   inventory_deduction: "خصم المخزون تلقائيًا",
   loyalty: "برنامج الولاء",
   customer_discounts: "خصومات العملاء",
+  promotions: "محرك العروض",
   reports: "التقارير",
   imports_exports: "الاستيراد والتصدير",
   dark_mode: "الوضع الداكن",

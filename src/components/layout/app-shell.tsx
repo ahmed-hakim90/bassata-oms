@@ -13,6 +13,8 @@ interface AppShellProps {
   userRole: UserRole;
   userName: string;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
+  enableWholesaleSales?: boolean;
+  allowCashierWholesale?: boolean;
   stores?: Store[];
   activeStoreId?: string | null;
   permissions?: PermissionKey[];
@@ -24,6 +26,8 @@ export function AppShell({
   userRole,
   userName,
   featureFlags,
+  enableWholesaleSales,
+  allowCashierWholesale,
   stores = [],
   activeStoreId = null,
   permissions = [],
@@ -32,7 +36,13 @@ export function AppShell({
   return (
     <div className="flex h-dvh max-h-dvh overflow-hidden bg-[var(--mds-color-bg-canvas)]">
       <div className="hidden h-full min-h-0 shrink-0 overflow-hidden md:flex">
-        <AppSidebar userRole={userRole} featureFlags={featureFlags} permissions={permissions} />
+        <AppSidebar
+          userRole={userRole}
+          featureFlags={featureFlags}
+          enableWholesaleSales={enableWholesaleSales}
+          allowCashierWholesale={allowCashierWholesale}
+          permissions={permissions}
+        />
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -42,6 +52,8 @@ export function AppShell({
           stores={stores}
           activeStoreId={activeStoreId}
           featureFlags={featureFlags}
+          enableWholesaleSales={enableWholesaleSales}
+          allowCashierWholesale={allowCashierWholesale}
           posReadinessState={posReadinessState}
           permissions={permissions}
         />
@@ -51,11 +63,19 @@ export function AppShell({
         </main>
       </div>
 
-      <MobileNav userRole={userRole} featureFlags={featureFlags} permissions={permissions} />
+      <MobileNav
+        userRole={userRole}
+        featureFlags={featureFlags}
+        enableWholesaleSales={enableWholesaleSales}
+        allowCashierWholesale={allowCashierWholesale}
+        permissions={permissions}
+      />
       <CommandPalette
         userRole={userRole}
         permissions={permissions}
         featureFlags={featureFlags}
+        enableWholesaleSales={enableWholesaleSales}
+        allowCashierWholesale={allowCashierWholesale}
       />
     </div>
   );

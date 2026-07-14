@@ -21,7 +21,7 @@ SweetFlow feature flags live in `app_settings.key = 'feature_flags'` (JSONB).
 - `transfers` — `transfer_orders`
 - `waste` — `waste_records`
 - `stock_count` — `stock_counts`
-- Checkout RPC: `inventory_deduction`, `payment_*`, `customer_discounts`, `tax`, `prevent_negative_stock`
+- Checkout RPC: `inventory_deduction`, `payment_*`, `customer_discounts`, `tax`, `prevent_negative_stock`, `promotions`
 
 `monthly_closing` triggers were removed with the monthly closes table (cleanup). Do not re-enable in app Settings until period lock returns (Future).
 
@@ -29,7 +29,7 @@ SweetFlow feature flags live in `app_settings.key = 'feature_flags'` (JSONB).
 
 ### System Features tab (`ADVANCED_FEATURE_FLAGS`)
 
-Barcode, inventory deduction, loyalty, discounts, reports, imports/exports, dark mode, prevent negative stock, session expenses, refunds, stock count, transfers, purchases, waste, recipes, credit sales.
+Barcode, inventory deduction, loyalty, discounts, promotions, reports, imports/exports, dark mode, prevent negative stock, session expenses, refunds, stock count, transfers, purchases, waste, recipes, credit sales.
 
 ### POS & Sessions tab (`POS_OPERATIONAL_FEATURE_FLAGS`)
 

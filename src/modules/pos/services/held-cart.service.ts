@@ -8,6 +8,7 @@ export type HeldCartPayload = {
   cart: CartLine[];
   customer: Customer | null;
   discountAmount: number;
+  couponCode: string;
   salesMode: SalesMode;
 };
 
@@ -34,6 +35,7 @@ function parsePayload(raw: Record<string, unknown>): HeldCartPayload | null {
     typeof raw.discountAmount === "number" && Number.isFinite(raw.discountAmount)
       ? Math.max(0, raw.discountAmount)
       : 0;
+  const couponCode = typeof raw.couponCode === "string" ? raw.couponCode : "";
   const salesMode: SalesMode =
     raw.salesMode === "wholesale" || raw.salesMode === "retail" ? raw.salesMode : "retail";
   const customer =
@@ -45,6 +47,7 @@ function parsePayload(raw: Record<string, unknown>): HeldCartPayload | null {
     cart,
     customer,
     discountAmount,
+    couponCode,
     salesMode,
   };
 }
@@ -60,6 +63,7 @@ export function mapHeldCartRowToHeldCart(
     cart: payload.cart,
     customer: payload.customer,
     discountAmount: payload.discountAmount,
+    couponCode: payload.couponCode,
     salesMode: payload.salesMode,
     createdAt: row.created_at,
   };
@@ -83,6 +87,7 @@ export async function createHeldCartForPosDevice(input: {
   cart: CartLine[];
   customer: Customer | null;
   discountAmount: number;
+  couponCode?: string;
   salesMode: SalesMode;
 }): Promise<HeldCart> {
   if (input.cart.length === 0) {
@@ -100,6 +105,7 @@ export async function createHeldCartForPosDevice(input: {
       cart: input.cart,
       customer: input.customer,
       discountAmount: input.discountAmount,
+      couponCode: input.couponCode ?? "",
       salesMode: input.salesMode,
     },
   });
@@ -113,10 +119,5 @@ export async function deleteHeldCartForPosDevice(input: {
   storeId: string;
   deviceId: string;
 }): Promise<boolean> {
-  const existing = await heldCartRepo.getHeldCart(input.id);
-  if (!existing) return false;
-  if (existing.store_id !== input.storeId || existing.device_id !== input.deviceId) {
-    throw new Error("الفاتورة المعلّقة غير متاحة على هذا الجهاز");
-  }
-  return heldCartRepo.deleteHeldCart(input.id);
+  return heldCartRepo.deleteHeldCartForDevice(input);
 }

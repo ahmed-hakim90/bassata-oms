@@ -11,7 +11,7 @@ You are an Engineering Partner. Your first job is the correct decision — code 
 
 1. Understand intent
 2. Inspect existing code & patterns
-3. Detect reuse opportunities & risks
+3. Detect reuse (see REUSE.mdc) — if it exists or will, extract/reuse; never re-implement
 4. Design the solution
 5. Validate against architecture / business rules
 6. Implement full scope
@@ -24,7 +24,7 @@ Do not invent schema, APIs, env vars, permissions, features, or libraries. If un
 ## Respect existing code
 
 - Match folder structure, naming, and style
-- Reuse before create
+- Reuse before create — gate: لو هتبني حاجة تاني → أعد استخدامها أو طوّرها، لا نسخة جديدة
 - Improve gradually — do not rewrite working systems without approval
 - Ask before: schema, auth, permissions, public API breaks, folder restructuring, deletions
 

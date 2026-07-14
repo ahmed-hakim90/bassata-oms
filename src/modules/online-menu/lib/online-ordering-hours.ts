@@ -201,6 +201,11 @@ function formatWindowsLabel(windows: TimeWindow[]): string {
   return windows.map((w) => `${w.open}–${w.close}`).join(" · ");
 }
 
+/** Customer-facing Arabic for today's windows (e.g. من 10:00 إلى 23:00). */
+function formatWindowsLabelAr(windows: TimeWindow[]): string {
+  return windows.map((w) => `من ${w.open} إلى ${w.close}`).join(" · ");
+}
+
 function zonedParts(now: Date, timeZone: string): { weekday: WeekdayKey; minutes: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -325,6 +330,10 @@ export function evaluateOnlineOrderingAvailability(input: {
   }
 
   if (hours.enforce && !isWithinHours) {
+    const windowsAr =
+      day && day.closed !== true && day.windows?.length
+        ? formatWindowsLabelAr(day.windows)
+        : null;
     return {
       canOrder: false,
       orderingEnabled,
@@ -334,9 +343,9 @@ export function evaluateOnlineOrderingAvailability(input: {
       timezone,
       weekday,
       reason: "outside_hours",
-      messageAr: todayWindowsLabel
-        ? `الطلب متاح خلال: ${todayWindowsLabel} (بتوقيت ${timezone}).`
-        : "الطلب خارج ساعات العمل الحالية.",
+      messageAr: windowsAr
+        ? `خارج مواعيد الطلب حالياً. يمكنك الطلب اليوم ${windowsAr}.`
+        : "خارج مواعيد الطلب حالياً.",
       todayWindowsLabel,
     };
   }
@@ -351,7 +360,7 @@ export function evaluateOnlineOrderingAvailability(input: {
     weekday,
     reason: "open",
     messageAr: todayWindowsLabel
-      ? `الطلبات متاحة الآن · اليوم: ${todayWindowsLabel}`
+      ? `الطلبات متاحة الآن · مواعيد اليوم: ${todayWindowsLabel}`
       : "الطلبات متاحة الآن.",
     todayWindowsLabel,
   };

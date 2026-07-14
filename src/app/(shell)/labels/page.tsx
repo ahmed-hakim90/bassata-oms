@@ -6,6 +6,7 @@ export default async function LabelsRoute() {
   return (
     <LabelsPage
       products={data.products}
+      categories={data.categories}
       currency={data.currency}
       initialSettings={data.settings}
     />

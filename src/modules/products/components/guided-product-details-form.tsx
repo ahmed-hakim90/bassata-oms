@@ -50,6 +50,7 @@ type Props = {
   currency: string;
   activityType: BusinessActivityType;
   enablePriceByAmount?: boolean;
+  enableWholesaleSales?: boolean;
   onSubmit: (values: ProductFormValues) => void | Promise<void>;
   onCancel: () => void;
   onImageFileChange?: (file: File | null) => void;
@@ -132,6 +133,7 @@ export function GuidedProductDetailsForm({
   currency,
   activityType,
   enablePriceByAmount = false,
+  enableWholesaleSales = false,
   onSubmit,
   onCancel,
   onImageFileChange,
@@ -160,7 +162,7 @@ export function GuidedProductDetailsForm({
   const isSupermarket = activityType === "supermarket";
   const stepTitles = isSupermarket ? SUPERMARKET_STEP_TITLES : STEP_TITLES;
   const productTypeChoices = isSupermarket ? SUPERMARKET_PRODUCT_TYPE_CHOICES : PRODUCT_TYPE_CHOICES;
-  const showWholesale = false;
+  const showWholesale = enableWholesaleSales;
   const showSerialNumber = false;
   const baseUnit = values.base_unit ?? values.unit;
   const isWeightSell = values.sales_unit_type === "weight";
@@ -850,8 +852,11 @@ export function GuidedProductDetailsForm({
               ) : null}
               {showWholesale ? (
                 <label className="flex items-center gap-2 rounded-xl border p-2">
-                  <Checkbox checked={values.wholesale_enabled} onCheckedChange={(v) => form.setValue("wholesale_enabled", v === true)} />
-                  <span className="text-xs">جملة</span>
+                  <Checkbox
+                    checked={values.wholesale_enabled}
+                    onCheckedChange={(v) => form.setValue("wholesale_enabled", v === true)}
+                  />
+                  <span className="text-xs">جملة — السعر من تبويب «أسعار الجملة»</span>
                 </label>
               ) : null}
             </div>

@@ -61,6 +61,7 @@ export async function createPurchaseAction(input: {
   supplierId: string;
   invoiceNumber: string;
   extraCost?: number;
+  documentDate?: string;
 }): Promise<PurchaseActionResult<PurchaseInvoice>> {
   return runPurchaseAction(async () => {
     await requireFeature("purchases");
@@ -73,6 +74,7 @@ export async function createPurchaseAction(input: {
       invoiceNumber: input.invoiceNumber,
       extraCost: input.extraCost,
       createdBy: user.id,
+      documentDate: input.documentDate,
     });
     revalidatePath("/inventory/purchases");
     return invoice;
@@ -92,8 +94,8 @@ export async function createPurchaseDraftFromReorderAction(
       createdBy: user.id,
       lines,
     });
+    // Purchases list is the next screen; inventory hub refreshes when operator returns.
     revalidatePath("/inventory/purchases");
-    revalidatePath("/inventory");
     return {
       invoiceIds: invoices.map((invoice) => invoice.id),
       count: invoices.length,
@@ -139,6 +141,7 @@ export async function updateDraftPurchaseAction(input: {
   supplierId?: string;
   invoiceNumber?: string;
   extraCost?: number;
+  documentDate?: string;
 }): Promise<PurchaseActionResult<PurchaseInvoice>> {
   return runPurchaseAction(async () => {
     await requireFeature("purchases");
@@ -190,14 +193,13 @@ export async function receivePurchaseAction(
     amountPaid?: number;
     paymentMethod?: import("@/lib/types").PaymentMethod;
   }
-): Promise<PurchaseActionResult<PurchaseInvoice>> {
+): Promise<PurchaseActionResult<PurchaseWithLines>> {
   return runPurchaseAction(async () => {
     await requireFeature("purchases");
     const user = await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
     const invoice = await receivePurchase(invoiceId, user.id, options);
+    // One list path is enough; inventory/suppliers refresh on next visit.
     revalidatePath("/inventory/purchases");
-    revalidatePath("/inventory");
-    revalidatePath("/inventory/suppliers");
     return invoice;
   });
 }

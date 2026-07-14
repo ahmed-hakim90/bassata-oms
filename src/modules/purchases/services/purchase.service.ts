@@ -4,12 +4,18 @@ import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
+import {
+  documentDateToOccurredAt,
+  normalizeDocumentDate,
+  todayDocumentDate,
+} from "@/lib/document-date";
 import { adjustStock, getStockLevel } from "@/lib/services/inventory-movement.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import { calculateExpiryDate, toIsoDate } from "@/lib/inventory/expiry";
 import { convertPurchaseEntryToBase, productPurchaseFactor } from "@/lib/units";
 import type { MeasurementUnit, PaymentMethod, PurchaseInvoice, PurchaseInvoiceLine } from "@/lib/types";
 import { createSupplierPayment } from "@/modules/suppliers/services/supplier.service";
+import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 
 export interface PurchaseWithLines extends PurchaseInvoice {
   lines: PurchaseInvoiceLine[];
@@ -126,8 +132,10 @@ export async function createDraftPurchase(input: {
   invoiceNumber: string;
   extraCost?: number;
   createdBy: string;
+  documentDate?: string;
 }): Promise<PurchaseInvoice> {
-  await assertPeriodOpen(input.storeId);
+  const documentDate = normalizeDocumentDate(input.documentDate ?? todayDocumentDate());
+  await assertPeriodOpen(input.storeId, documentDateToOccurredAt(documentDate));
   await assertWarehouseBelongsToStore(input.warehouseId, input.storeId);
   const invoice = await purchaseRepo.insertPurchase(
     {
@@ -140,6 +148,7 @@ export async function createDraftPurchase(input: {
       extra_cost: Math.max(0, input.extraCost ?? 0),
       tax: 0,
       total: Math.max(0, input.extraCost ?? 0),
+      document_date: documentDate,
       received_at: null,
       cancelled_at: null,
       created_by: input.createdBy,
@@ -246,41 +255,33 @@ export async function createDraftPurchasesFromReorder(input: {
     throw new Error("مفيش أصناف مقترحة لإنشاء المسودة");
   }
 
-  const suppliers = await purchaseRepo.listSuppliers();
+  const productIds = [...new Set(input.lines.map((line) => line.productId).filter(Boolean))];
+  const warehouseIds = [
+    ...new Set(input.lines.map((line) => line.warehouseId).filter(Boolean)),
+  ];
+
+  const [suppliers, productMap, purchaseHints] = await Promise.all([
+    purchaseRepo.listSuppliers(),
+    catalogRepo.getProductsByIds(productIds),
+    purchaseRepo.listReceivedSupplierHintsForProducts(productIds),
+  ]);
+
   const fallbackSupplier = suppliers[0];
   if (!fallbackSupplier) {
     throw new Error("أضف مورد أولاً من إدارة الموردين قبل إنشاء مسودة شراء");
   }
 
-  const productIds = [...new Set(input.lines.map((line) => line.productId).filter(Boolean))];
-  const [products, orgPurchases] = await Promise.all([
-    catalogRepo.listProducts(),
-    purchaseRepo.listPurchases(),
-  ]);
-  const productMap = new Map(products.map((p) => [p.id, p]));
-  const received = orgPurchases.filter((invoice) => invoice.status === "received");
-  const purchaseLines = await purchaseRepo.getPurchaseLinesForInvoices(
-    received.map((invoice) => invoice.id)
+  await assertPeriodOpen(input.storeId);
+  await Promise.all(
+    warehouseIds.map((warehouseId) =>
+      assertWarehouseBelongsToStore(warehouseId, input.storeId)
+    )
   );
-  const linesByInvoice = new Map<string, typeof purchaseLines>();
-  for (const line of purchaseLines) {
-    const list = linesByInvoice.get(line.invoice_id) ?? [];
-    list.push(line);
-    linesByInvoice.set(line.invoice_id, list);
-  }
 
   const lastSupplierByProduct = resolveLastSupplierByProduct({
     productIds,
     validSupplierIds: new Set(suppliers.map((supplier) => supplier.id)),
-    purchases: received.map((invoice) => ({
-      supplierId: invoice.supplier_id,
-      status: invoice.status,
-      receivedAt: invoice.received_at,
-      createdAt: invoice.created_at,
-      lines: (linesByInvoice.get(invoice.id) ?? []).map((line) => ({
-        productId: line.product_id,
-      })),
-    })),
+    purchases: purchaseHints,
   });
 
   const buckets = groupReorderLinesByWarehouseAndSupplier({
@@ -300,33 +301,78 @@ export async function createDraftPurchasesFromReorder(input: {
     String(stamp.getDate()).padStart(2, "0"),
   ].join("");
   const runId = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const orgId = await getOrgId();
 
-  const created: PurchaseInvoice[] = [];
-  let bucketIndex = 0;
-  for (const bucket of buckets.values()) {
-    bucketIndex += 1;
-    const suffix = String(bucketIndex).padStart(2, "0");
-    const invoice = await createDraftPurchase({
-      storeId: input.storeId,
-      warehouseId: bucket.warehouseId,
-      supplierId: bucket.supplierId,
-      invoiceNumber: `إعادة-${yymmdd}-${runId}-${suffix}`,
-      createdBy: input.createdBy,
-    });
+  const bucketList = [...buckets.values()];
+  const created = await Promise.all(
+    bucketList.map(async (bucket, index) => {
+      const suffix = String(index + 1).padStart(2, "0");
+      const mergedLines = new Map<
+        string,
+        { productId: string; quantity: number; unitCost: number }
+      >();
 
-    for (const line of bucket.lines) {
-      const product = productMap.get(line.productId);
-      if (!product) continue;
-      await addPurchaseLine({
-        invoiceId: invoice.id,
-        productId: line.productId,
+      for (const line of bucket.lines) {
+        const product = productMap.get(line.productId);
+        if (!product) continue;
+        const unitCost = Math.max(0, product.last_unit_cost ?? 0);
+        const existing = mergedLines.get(line.productId);
+        if (existing) {
+          existing.quantity += line.quantity;
+          continue;
+        }
+        mergedLines.set(line.productId, {
+          productId: line.productId,
+          quantity: line.quantity,
+          unitCost,
+        });
+      }
+
+      const draftLines = [...mergedLines.values()].map((line) => ({
+        product_id: line.productId,
+        variant_id: null as string | null,
         quantity: line.quantity,
-        unitCost: Math.max(0, product.last_unit_cost ?? 0),
-      });
-    }
+        unit_cost: line.unitCost,
+        line_total: Number((line.quantity * line.unitCost).toFixed(2)),
+        landed_unit_cost: null as number | null,
+        landed_line_total: null as number | null,
+        batch_number: null as string | null,
+        production_date: null as string | null,
+        expiry_date: null as string | null,
+      }));
 
-    created.push(invoice);
-  }
+      const subtotal = draftLines.reduce((sum, line) => sum + line.line_total, 0);
+      const invoice = await purchaseRepo.insertPurchase(
+        {
+          store_id: input.storeId,
+          warehouse_id: bucket.warehouseId,
+          supplier_id: bucket.supplierId,
+          invoice_number: `إعادة-${yymmdd}-${runId}-${suffix}`,
+          status: "draft",
+          subtotal,
+          extra_cost: 0,
+          tax: 0,
+          total: subtotal,
+          document_date: todayDocumentDate(),
+          received_at: null,
+          cancelled_at: null,
+          created_by: input.createdBy,
+        },
+        draftLines
+      );
+
+      await writeAuditLog({
+        orgId,
+        storeId: input.storeId,
+        userId: input.createdBy,
+        action: "purchase.created",
+        entityType: "purchase_invoice",
+        entityId: invoice.id,
+      });
+
+      return invoice;
+    })
+  );
 
   if (created.length === 0) {
     throw new Error("تعذر إنشاء مسودة الشراء من الاقتراحات");
@@ -427,12 +473,14 @@ export async function receivePurchase(
     amountPaid?: number;
     paymentMethod?: PaymentMethod;
   }
-): Promise<PurchaseInvoice> {
+): Promise<PurchaseWithLines> {
   const invoice = await purchaseRepo.getPurchase(invoiceId);
   if (!invoice) throw new Error("Purchase not found");
   if (invoice.status === "received") throw new Error("Already received");
   if (invoice.status !== "draft") throw new Error("Only draft purchases can be received");
-  await assertPeriodOpen(invoice.store_id);
+  const documentDate = normalizeDocumentDate(invoice.document_date ?? todayDocumentDate());
+  const occurredAt = documentDateToOccurredAt(documentDate);
+  await assertPeriodOpen(invoice.store_id, occurredAt);
 
   const amountPaid = options?.amountPaid ?? 0;
   if (!Number.isFinite(amountPaid) || amountPaid < 0) {
@@ -450,19 +498,38 @@ export async function receivePurchase(
 
   const lines = await purchaseRepo.getPurchaseLines(invoiceId);
   if (lines.length === 0) throw new Error("Add at least one line");
+
+  const productIds = [...new Set(lines.map((line) => line.product_id))];
+  const [warehouse, products, orgId, preventNegativeStock] = await Promise.all([
+    warehouseRepo.getWarehouse(invoice.warehouse_id),
+    catalogRepo.getProductsByIds(productIds),
+    getOrgId(),
+    isFeatureEnabled("prevent_negative_stock"),
+  ]);
+  if (!warehouse || warehouse.store_id !== invoice.store_id || !warehouse.is_active) {
+    throw new Error("Warehouse does not belong to the selected store");
+  }
+
   const allocations = allocateLandedCosts(lines, invoice.extra_cost);
+  const receivedDate = documentDate;
 
+  // Landed-cost row updates are independent — run together.
+  await Promise.all(
+    lines.map((line) => {
+      const landed = allocations.get(line.id) ?? {
+        landedUnitCost: line.unit_cost,
+        landedLineTotal: line.line_total,
+      };
+      return purchaseRepo.updatePurchaseLine(line.id, {
+        landed_unit_cost: landed.landedUnitCost,
+        landed_line_total: landed.landedLineTotal,
+      });
+    })
+  );
+
+  // Stock movements stay sequential (same warehouse / batches can collide).
   for (const line of lines) {
-    const landed = allocations.get(line.id) ?? {
-      landedUnitCost: line.unit_cost,
-      landedLineTotal: line.line_total,
-    };
-    await purchaseRepo.updatePurchaseLine(line.id, {
-      landed_unit_cost: landed.landedUnitCost,
-      landed_line_total: landed.landedLineTotal,
-    });
-    const product = await catalogRepo.getProduct(line.product_id);
-
+    const product = products.get(line.product_id) ?? null;
     await adjustStock({
       storeId: invoice.store_id,
       warehouseId: invoice.warehouse_id,
@@ -473,6 +540,12 @@ export async function receivePurchase(
       referenceType: "purchase_invoice",
       referenceId: invoiceId,
       createdBy: userId,
+      periodChecked: true,
+      warehouseChecked: true,
+      product,
+      orgId,
+      preventNegativeStock,
+      createdAt: occurredAt,
       batch: {
         batchNumber:
           line.batch_number ??
@@ -487,25 +560,36 @@ export async function receivePurchase(
           ),
         shelfLifeValue: product?.shelf_life_value ?? 0,
         shelfLifeUnit: product?.shelf_life_unit ?? "days",
-        receivedDate: new Date().toISOString().slice(0, 10),
+        receivedDate,
         supplierId: invoice.supplier_id,
         purchaseInvoiceId: invoice.id,
         sourceType: "purchase",
         sourceDocumentId: invoice.id,
       },
     });
+  }
 
-    if (product) {
-      await catalogRepo.updateProduct(line.product_id, {
-        last_unit_cost: landed.landedUnitCost,
+  // Cost updates are independent of each other after stock posts.
+  const costUpdates = new Map<string, number>();
+  for (const line of lines) {
+    const landed = allocations.get(line.id);
+    if (landed) costUpdates.set(line.product_id, landed.landedUnitCost);
+  }
+  await Promise.all(
+    [...costUpdates.entries()].map(async ([productId, landedUnitCost]) => {
+      const product = products.get(productId);
+      if (!product) return;
+      await catalogRepo.updateProduct(productId, {
+        last_unit_cost: landedUnitCost,
         cost_unit: product.cost_unit ?? product.unit,
       });
-    }
-  }
+    })
+  );
 
   const updated = await purchaseRepo.updatePurchase(invoiceId, {
     status: "received",
-    received_at: new Date().toISOString(),
+    document_date: documentDate,
+    received_at: occurredAt,
   });
   if (!updated) throw new Error("Failed to update purchase");
 
@@ -518,10 +602,10 @@ export async function receivePurchase(
       reference: invoice.invoice_number,
       notes: `دفعة مع استلام فاتورة ${invoice.invoice_number}`,
       createdBy: userId,
+      paidAt: occurredAt,
     });
   }
 
-  const orgId = await getOrgId();
   await writeAuditLog({
     orgId,
     storeId: invoice.store_id,
@@ -536,7 +620,7 @@ export async function receivePurchase(
     },
   });
 
-  return updated;
+  return enrichPurchase(updated);
 }
 
 export async function updatePurchaseLine(input: {
@@ -572,15 +656,28 @@ export async function updatePurchaseLine(input: {
 
 export async function updateDraftPurchase(
   invoiceId: string,
-  input: { supplierId?: string; invoiceNumber?: string; extraCost?: number }
+  input: {
+    supplierId?: string;
+    invoiceNumber?: string;
+    extraCost?: number;
+    documentDate?: string;
+  }
 ): Promise<PurchaseInvoice> {
   const invoice = await purchaseRepo.getPurchase(invoiceId);
   if (!invoice) throw new Error("Purchase not found");
   if (invoice.status !== "draft") throw new Error("Cannot edit received purchase");
+  const documentDate =
+    input.documentDate !== undefined
+      ? normalizeDocumentDate(input.documentDate)
+      : undefined;
+  if (documentDate) {
+    await assertPeriodOpen(invoice.store_id, documentDateToOccurredAt(documentDate));
+  }
   const updated = await purchaseRepo.updatePurchase(invoiceId, {
     ...(input.supplierId !== undefined ? { supplier_id: input.supplierId } : {}),
     ...(input.invoiceNumber !== undefined ? { invoice_number: input.invoiceNumber } : {}),
     ...(input.extraCost !== undefined ? { extra_cost: Math.max(0, input.extraCost) } : {}),
+    ...(documentDate !== undefined ? { document_date: documentDate } : {}),
   });
   if (!updated) throw new Error("Failed to update purchase");
   await purchaseRepo.recalcPurchaseTotals(invoiceId);

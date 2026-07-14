@@ -1,6 +1,5 @@
 "use server";
 
-import { requirePermissionOrRole } from "@/lib/auth/guards";
 import { requirePosAccess } from "@/lib/auth/pos-access";
 import type { SalesMode } from "@/lib/constants";
 import type { CartLine, Customer } from "@/lib/types";
@@ -25,7 +24,7 @@ export type HeldCartDeleteResult =
 
 export async function listHeldCartsAction(): Promise<HeldCartListResult> {
   try {
-    await requirePermissionOrRole("pos_access", ["owner", "manager", "cashier"]);
+    // requirePosAccess already checks pos_access — avoid a second auth round-trip.
     const ctx = await requirePosAccess({ touchSeen: false });
     const heldCarts = await listHeldCartsForPosDevice({
       storeId: ctx.storeId,
@@ -45,10 +44,10 @@ export async function holdCartAction(input: {
   cart: CartLine[];
   customer: Customer | null;
   discountAmount: number;
+  couponCode?: string;
   salesMode: SalesMode;
 }): Promise<HeldCartActionResult> {
   try {
-    await requirePermissionOrRole("pos_access", ["owner", "manager", "cashier"]);
     const ctx = await requirePosAccess({ touchSeen: false });
     const heldCart = await createHeldCartForPosDevice({
       storeId: ctx.storeId,
@@ -58,6 +57,7 @@ export async function holdCartAction(input: {
       cart: input.cart,
       customer: input.customer,
       discountAmount: input.discountAmount,
+      couponCode: input.couponCode,
       salesMode: input.salesMode,
     });
     return { success: true, heldCart };
@@ -71,7 +71,6 @@ export async function holdCartAction(input: {
 
 export async function discardHeldCartAction(id: string): Promise<HeldCartDeleteResult> {
   try {
-    await requirePermissionOrRole("pos_access", ["owner", "manager", "cashier"]);
     const ctx = await requirePosAccess({ touchSeen: false });
     const deleted = await deleteHeldCartForPosDevice({
       id,
@@ -98,6 +97,7 @@ export async function resumeHeldCartAction(input: {
     cart: CartLine[];
     customer: Customer | null;
     discountAmount: number;
+    couponCode?: string;
     salesMode: SalesMode;
   } | null;
 }): Promise<
@@ -105,7 +105,6 @@ export async function resumeHeldCartAction(input: {
   | { success: false; error: string }
 > {
   try {
-    await requirePermissionOrRole("pos_access", ["owner", "manager", "cashier"]);
     const ctx = await requirePosAccess({ touchSeen: false });
 
     let parked: HeldCart | null = null;
@@ -121,6 +120,7 @@ export async function resumeHeldCartAction(input: {
         cart: input.parkCurrent.cart,
         customer: input.parkCurrent.customer,
         discountAmount: input.parkCurrent.discountAmount,
+        couponCode: input.parkCurrent.couponCode,
         salesMode: input.parkCurrent.salesMode,
       });
     }

@@ -23,6 +23,7 @@ import {
 import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
 import { usePosStore } from "@/stores/pos-store";
 import { cn } from "@/lib/utils";
+import { firstGrapheme } from "@/lib/first-grapheme";
 
 async function postPosCustomerPayment(input: {
   customerId: string;
@@ -266,7 +267,7 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
                         onClick={() => resetForm(customer)}
                       >
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
-                          {customer.name.trim().charAt(0) || "؟"}
+                          {firstGrapheme(customer.name, "؟")}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold">{customer.name}</p>
@@ -296,7 +297,7 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
 
               <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-3">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-                  {selected.name.trim().charAt(0) || "؟"}
+                  {firstGrapheme(selected.name, "؟")}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{selected.name}</p>

@@ -27,18 +27,12 @@ export async function updateVariantAction(
   input: Partial<Omit<ProductVariant, "id" | "product_id">>
 ) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
-  const variant = await variantService.updateVariant(id, input, user.id);
-  revalidatePath("/products");
-  revalidatePath("/inventory");
-  revalidatePath("/pos");
-  return variant;
+  // Skip revalidatePath — editor reconciles locally; full refresh on product dialog close.
+  return variantService.updateVariant(id, input, user.id);
 }
 
 export async function deleteVariantAction(id: string) {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
   await variantService.deleteVariant(id, user.id);
-  revalidatePath("/products");
-  revalidatePath("/inventory");
-  revalidatePath("/pos");
   return true;
 }

@@ -43,3 +43,29 @@ Prefer defaults, recent items, autocomplete, suggestions, templates. Do not forc
 ## Operator ease (ops products)
 
 Cashiers, warehouse, HR, field staff need fewer clicks and less typing than admin power-users. Optimize the primary role's path first.
+
+## Optimistic updates
+
+Feel instant for repetitive operator input. Sync the server in the background. Do not block the whole form on every line mutation.
+
+**Optimistic (UI first, server in background):**
+- Add / edit / remove a line on a **draft** document
+- Non-critical header edits (customer, discount, notes)
+- High-frequency scanning / qty / price entry during a work session
+
+**Await server (intentional wait):**
+- Issue / receive / deliver / void
+- Open / close cashier session, collect payment, final stock deduction
+- Any action that moves money or stock and is hard to undo
+- Creating a new document that needs a real `id` before lines can be added (unless a documented temp path exists)
+
+**Rules for every optimistic path:**
+1. Snapshot state before the change
+2. Update local UI immediately and clear entry fields so the next item can start now
+3. Fire the server action in the background (`void` / no full-form lock)
+4. On failure: restore the snapshot + `toast.error`
+5. On success: reconcile from the server response (replace `temp-*` ids, totals)
+6. Never disable the whole screen for line entry — per-action pending only if needed
+7. Do not `router.refresh()` after every line — only after major lifecycle events (issue / delete draft / receive)
+
+Reference pattern: `src/modules/purchases/components/purchase-form.tsx` (`snapshotRef` + local lines + background reconcile).

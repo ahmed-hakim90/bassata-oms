@@ -4,7 +4,7 @@ import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
-import type { InventoryMovement, MovementType } from "@/lib/types";
+import type { InventoryMovement, MovementType, Product } from "@/lib/types";
 
 export interface AdjustStockInput {
   storeId: string;
@@ -29,6 +29,18 @@ export interface AdjustStockInput {
     sourceType?: "purchase" | "opening_stock" | "transfer" | "production" | "adjustment";
     sourceDocumentId?: string | null;
   };
+  /** Caller already ran assertPeriodOpen for this store. */
+  periodChecked?: boolean;
+  /** Caller already validated warehouse belongs to store and is active. */
+  warehouseChecked?: boolean;
+  /** Preloaded product — skips catalog round-trip. */
+  product?: Product | null;
+  /** Preloaded org id — skips org lookup for audit. */
+  orgId?: string;
+  /** Preloaded prevent_negative_stock flag. */
+  preventNegativeStock?: boolean;
+  /** Optional business timestamp for backdated purchase/sales posts. */
+  createdAt?: string;
 }
 
 export async function getStockLevel(
@@ -41,22 +53,41 @@ export async function getStockLevel(
 }
 
 export async function adjustStock(input: AdjustStockInput): Promise<InventoryMovement | null> {
-  await assertPeriodOpen(input.storeId);
-  const warehouse = await warehouseRepo.getWarehouse(input.warehouseId);
-  if (!warehouse || warehouse.store_id !== input.storeId || !warehouse.is_active) {
-    throw new Error("Warehouse does not belong to the selected store");
+  if (!input.periodChecked) {
+    await assertPeriodOpen(input.storeId);
   }
-  const product = await catalogRepo.getProduct(input.productId);
+  if (!input.warehouseChecked) {
+    const warehouse = await warehouseRepo.getWarehouse(input.warehouseId);
+    if (!warehouse || warehouse.store_id !== input.storeId || !warehouse.is_active) {
+      throw new Error("Warehouse does not belong to the selected store");
+    }
+  }
+  const product =
+    input.product !== undefined
+      ? input.product
+      : await catalogRepo.getProduct(input.productId);
   if (!product?.track_inventory) return null;
 
   const movement = await inventoryRepo.adjustStock({
-    ...input,
+    storeId: input.storeId,
+    warehouseId: input.warehouseId,
+    productId: input.productId,
+    variantId: input.variantId,
+    quantityDelta: input.quantityDelta,
+    movementType: input.movementType,
+    referenceType: input.referenceType,
+    referenceId: input.referenceId,
+    reason: input.reason,
+    createdBy: input.createdBy,
     trackInventory: product.track_inventory,
     productName: product.name,
     unit: product.base_unit ?? product.unit,
+    batch: input.batch,
+    preventNegativeStock: input.preventNegativeStock,
+    createdAt: input.createdAt,
   });
 
-  const orgId = await getOrgId();
+  const orgId = input.orgId ?? (await getOrgId());
   await writeAuditLog({
     orgId,
     storeId: input.storeId,

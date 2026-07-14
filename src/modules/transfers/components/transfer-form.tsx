@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ArrowRight, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import type { Product, Store, Warehouse } from "@/lib/types";
+import type { Product, Store, TransferOrderLine, Warehouse } from "@/lib/types";
 import { selectLabelById } from "@/lib/select-label";
 import {
   addTransferLineAction,
@@ -48,7 +48,7 @@ export function TransferForm({
   initialTransferId,
   onComplete,
 }: TransferFormProps) {
-  const [pending, startTransition] = useTransition();
+  const [lifecyclePending, startLifecycle] = useTransition();
   const [loading, setLoading] = useState(!!initialTransferId);
   const [transfer, setTransfer] = useState<TransferWithLines | null>(null);
   const [fromStoreId, setFromStoreId] = useState(defaultFromStoreId);
@@ -71,10 +71,12 @@ export function TransferForm({
   const [quantity, setQuantity] = useState(1);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmVoid, setConfirmVoid] = useState(false);
+  const snapshotRef = useRef<TransferWithLines | null>(null);
+  const cancelledTempIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!initialTransferId) return;
-    startTransition(async () => {
+    startLifecycle(async () => {
       const result = await getTransferDetailAction(initialTransferId);
       setLoading(false);
       if (!result.ok) {
@@ -90,14 +92,14 @@ export function TransferForm({
   }, [initialTransferId]);
 
   const refreshTransfer = (id: string) => {
-    startTransition(async () => {
+    void (async () => {
       const result = await getTransferDetailAction(id);
       if (result.ok) setTransfer(result.data);
-    });
+    })();
   };
 
   const createDraft = () => {
-    startTransition(async () => {
+    startLifecycle(async () => {
       const result = await createTransferAction({
         fromStoreId,
         toStoreId,
@@ -123,58 +125,130 @@ export function TransferForm({
 
   const addLine = () => {
     if (!transfer || !productId || quantity <= 0) return;
-    startTransition(async () => {
+    snapshotRef.current = transfer;
+    const existing = transfer.lines.find(
+      (l) => l.product_id === productId && l.variant_id == null
+    );
+    let nextLines: TransferOrderLine[];
+    let optimisticId: string;
+    if (existing) {
+      optimisticId = existing.id;
+      nextLines = transfer.lines.map((l) =>
+        l.id === existing.id
+          ? { ...l, quantity_sent: l.quantity_sent + quantity }
+          : l
+      );
+    } else {
+      optimisticId = `temp-${crypto.randomUUID()}`;
+      nextLines = [
+        ...transfer.lines,
+        {
+          id: optimisticId,
+          transfer_id: transfer.id,
+          product_id: productId,
+          variant_id: null,
+          quantity_sent: quantity,
+          quantity_received: 0,
+          batch_id: null,
+          batch_number: null,
+        },
+      ];
+    }
+    setTransfer({ ...transfer, lines: nextLines });
+    setProductId("");
+    setQuantity(1);
+
+    void (async () => {
       const result = await addTransferLineAction({
         transferId: transfer.id,
         productId,
         quantity,
       });
       if (!result.ok) {
+        if (snapshotRef.current) setTransfer(snapshotRef.current);
         toast.error(result.error);
         return;
       }
-      refreshTransfer(transfer.id);
-      setProductId("");
-      setQuantity(1);
-      toast.success("تم إضافة السطر");
-    });
+      if (cancelledTempIdsRef.current.has(optimisticId)) {
+        cancelledTempIdsRef.current.delete(optimisticId);
+        void removeTransferLineAction(result.data.id);
+        return;
+      }
+      setTransfer((prev) => {
+        if (!prev) return prev;
+        const stillPresent = prev.lines.some(
+          (l) =>
+            l.id === optimisticId ||
+            (l.product_id === result.data.product_id &&
+              (l.variant_id ?? null) === (result.data.variant_id ?? null))
+        );
+        if (!stillPresent) {
+          void removeTransferLineAction(result.data.id);
+          return prev;
+        }
+        const others = prev.lines.filter(
+          (l) =>
+            !(
+              l.product_id === result.data.product_id &&
+              (l.variant_id ?? null) === (result.data.variant_id ?? null)
+            )
+        );
+        return { ...prev, lines: [...others, result.data] };
+      });
+    })();
   };
 
   const removeLine = (lineId: string) => {
     if (!transfer) return;
-    startTransition(async () => {
+    snapshotRef.current = transfer;
+    setTransfer({
+      ...transfer,
+      lines: transfer.lines.filter((l) => l.id !== lineId),
+    });
+    if (lineId.startsWith("temp-")) {
+      cancelledTempIdsRef.current.add(lineId);
+      return;
+    }
+
+    void (async () => {
       const result = await removeTransferLineAction(lineId);
       if (!result.ok) {
+        if (snapshotRef.current) setTransfer(snapshotRef.current);
         toast.error(result.error);
-        return;
       }
-      setTransfer({
-        ...transfer,
-        lines: transfer.lines.filter((l) => l.id !== lineId),
-      });
-    });
+    })();
   };
 
   const updateLineQty = (lineId: string, qty: number) => {
-    if (!transfer || qty <= 0) return;
-    startTransition(async () => {
+    if (!transfer || qty <= 0 || lineId.startsWith("temp-")) return;
+    snapshotRef.current = transfer;
+    setTransfer({
+      ...transfer,
+      lines: transfer.lines.map((l) =>
+        l.id === lineId ? { ...l, quantity_sent: qty } : l
+      ),
+    });
+
+    void (async () => {
       const result = await updateTransferLineAction({ lineId, quantity: qty });
       if (!result.ok) {
+        if (snapshotRef.current) setTransfer(snapshotRef.current);
         toast.error(result.error);
         return;
       }
-      setTransfer({
-        ...transfer,
-        lines: transfer.lines.map((l) =>
-          l.id === lineId ? { ...l, quantity_sent: qty } : l
-        ),
+      setTransfer((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          lines: prev.lines.map((l) => (l.id === lineId ? result.data : l)),
+        };
       });
-    });
+    })();
   };
 
   const send = () => {
     if (!transfer) return;
-    startTransition(async () => {
+    startLifecycle(async () => {
       const result = await sendTransferAction(transfer.id);
       if (!result.ok) {
         toast.error(result.error);
@@ -187,7 +261,7 @@ export function TransferForm({
 
   const receive = () => {
     if (!transfer) return;
-    startTransition(async () => {
+    startLifecycle(async () => {
       const result = await receiveTransferAction(transfer.id);
       if (!result.ok) {
         toast.error(result.error);
@@ -211,7 +285,24 @@ export function TransferForm({
 
   const saveStores = () => {
     if (!transfer) return;
-    startTransition(async () => {
+    snapshotRef.current = transfer;
+    const from = stores.find((s) => s.id === fromStoreId);
+    const to = stores.find((s) => s.id === toStoreId);
+    const fromWarehouse = warehouses.find((w) => w.id === fromWarehouseId);
+    const toWarehouse = warehouses.find((w) => w.id === toWarehouseId);
+    setTransfer({
+      ...transfer,
+      from_store_id: fromStoreId,
+      to_store_id: toStoreId,
+      from_warehouse_id: fromWarehouseId,
+      to_warehouse_id: toWarehouseId,
+      fromStoreName: from?.name ?? transfer.fromStoreName,
+      toStoreName: to?.name ?? transfer.toStoreName,
+      fromWarehouseName: fromWarehouse?.name ?? transfer.fromWarehouseName,
+      toWarehouseName: toWarehouse?.name ?? transfer.toWarehouseName,
+    });
+
+    void (async () => {
       const result = await updateDraftTransferAction({
         transferId: transfer.id,
         fromStoreId,
@@ -220,26 +311,12 @@ export function TransferForm({
         toWarehouseId,
       });
       if (!result.ok) {
+        if (snapshotRef.current) setTransfer(snapshotRef.current);
         toast.error(result.error);
         return;
       }
-      const from = stores.find((s) => s.id === fromStoreId);
-      const to = stores.find((s) => s.id === toStoreId);
-      const fromWarehouse = warehouses.find((w) => w.id === fromWarehouseId);
-      const toWarehouse = warehouses.find((w) => w.id === toWarehouseId);
-      setTransfer({
-        ...transfer,
-        from_store_id: fromStoreId,
-        to_store_id: toStoreId,
-        from_warehouse_id: fromWarehouseId,
-        to_warehouse_id: toWarehouseId,
-        fromStoreName: from?.name ?? transfer.fromStoreName,
-        toStoreName: to?.name ?? transfer.toStoreName,
-        fromWarehouseName: fromWarehouse?.name ?? transfer.fromWarehouseName,
-        toWarehouseName: toWarehouse?.name ?? transfer.toWarehouseName,
-      });
       toast.success("تم تحديث الفروع");
-    });
+    })();
   };
 
   const handleVoid = async () => {
@@ -345,7 +422,7 @@ export function TransferForm({
         <Button
           className="mt-6"
           onClick={createDraft}
-          disabled={pending || !fromWarehouseId || !toWarehouseId || fromWarehouseId === toWarehouseId}
+          disabled={lifecyclePending || !fromWarehouseId || !toWarehouseId || fromWarehouseId === toWarehouseId}
         >
           إنشاء تحويل
         </Button>
@@ -448,7 +525,7 @@ export function TransferForm({
                   variant="outline"
                   onClick={saveStores}
                   disabled={
-                    pending ||
+                    lifecyclePending ||
                     (fromStoreId === transfer.from_store_id &&
                       toStoreId === transfer.to_store_id &&
                       fromWarehouseId === transfer.from_warehouse_id &&
@@ -484,7 +561,7 @@ export function TransferForm({
               onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
               className="w-24"
             />
-            <Button onClick={addLine} disabled={pending || !productId}>
+            <Button onClick={addLine} disabled={!productId || !transfer}>
               <Plus className="size-4" /> إضافة
             </Button>
           </div>
@@ -516,7 +593,6 @@ export function TransferForm({
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => removeLine(line.id)}
-                    disabled={pending}
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -528,13 +604,13 @@ export function TransferForm({
         <div className="mt-6 flex flex-wrap gap-2">
           {isDraft && (
             <>
-              <Button onClick={send} disabled={pending || transfer.lines.length === 0}>
+              <Button onClick={send} disabled={lifecyclePending || transfer.lines.length === 0}>
                 إرسال التحويل <ArrowRight className="size-4" />
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => setConfirmDelete(true)}
-                disabled={pending}
+                disabled={lifecyclePending}
               >
                 حذف المسودة
               </Button>
@@ -542,20 +618,20 @@ export function TransferForm({
           )}
           {isSent && (
             <>
-              <Button onClick={receive} disabled={pending}>
+              <Button onClick={receive} disabled={lifecyclePending}>
                 الاستلام في الوجهة
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setConfirmVoid(true)}
-                disabled={pending}
+                disabled={lifecyclePending}
               >
                 إلغاء الإرسال
               </Button>
             </>
           )}
           {canVoid && isReceived && (
-            <Button variant="outline" onClick={() => setConfirmVoid(true)} disabled={pending}>
+            <Button variant="outline" onClick={() => setConfirmVoid(true)} disabled={lifecyclePending}>
               إلغاء التحويل
             </Button>
           )}

@@ -281,3 +281,289 @@
     margin: 0 auto !important;
   }
 }
+
+/* ── Public online menu themes (guest-facing) ──
+   Tailwind v4 resolves @theme --color-* against the inheriting element.
+   Re-bind those bridges on every theme shell or utilities keep root Meridian colors. */
+
+.antika-menu,
+.minimal-menu,
+.bistro-menu,
+.soul-menu {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--ring);
+}
+
+.antika-menu,
+.antika-header,
+.soul-menu,
+.soul-header {
+  font-family: var(--font-cairo), sans-serif;
+}
+
+.antika-header::before,
+.antika-header::after,
+.antika-ornament {
+  background:
+    radial-gradient(circle at 50% 12%, transparent 22px, rgba(42, 22, 15, 0.09) 23px 28px, transparent 29px),
+    conic-gradient(from 45deg, rgba(182, 123, 49, 0.12), transparent 24%, rgba(182, 123, 49, 0.12) 25%, transparent 50%);
+  background-size: 88px 88px;
+}
+
+.antika-header::before,
+.antika-header::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: none;
+  width: clamp(24px, 7vw, 96px);
+  background-color: #2a160f;
+  opacity: 0.96;
+}
+
+.antika-header::before {
+  left: 0;
+}
+
+.antika-header::after {
+  right: 0;
+}
+
+@media (min-width: 768px) {
+  .antika-header::before,
+  .antika-header::after {
+    display: block;
+  }
+}
+
+.antika-menu {
+  --background: #f5eee3;
+  --foreground: #2a160f;
+  --card: #fffaf1;
+  --card-foreground: #2a160f;
+  --muted: #eadfce;
+  --muted-foreground: #6f5640;
+  --border: #d7c7b2;
+  --primary: #b67b31;
+  --primary-foreground: #fffaf1;
+  --ring: #b67b31;
+  --accent: #eadfce;
+  --accent-foreground: #2a160f;
+  --secondary: #eadfce;
+  --secondary-foreground: #2a160f;
+  --popover: #fffaf1;
+  --popover-foreground: #2a160f;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(215, 199, 178, 0.34) 0 64px, transparent 65px),
+    radial-gradient(circle at 78% 40%, rgba(215, 199, 178, 0.22) 0 96px, transparent 97px),
+    #f5eee3;
+  color: #2a160f;
+}
+
+.antika-category-block {
+  border-top: 2px solid #b67b31;
+  background: rgba(255, 250, 241, 0.34);
+  padding: 1rem;
+  box-shadow: inset 0 0 0 1px rgba(215, 199, 178, 0.48);
+}
+
+.antika-category-heading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(215, 199, 178, 0.86);
+  background: rgba(245, 238, 227, 0.94);
+  padding: 0.75rem 0;
+  backdrop-filter: blur(16px);
+}
+
+.antika-section-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-weight: 500;
+}
+
+.antika-section-title span:first-child {
+  color: #b67b31;
+  font-size: 1.55rem;
+  font-weight: 400;
+}
+
+.antika-section-title span:last-child {
+  font-size: 1.35rem;
+}
+
+.soul-section-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-weight: 500;
+}
+
+.antika-product-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(215, 199, 178, 0.72);
+  background: rgba(255, 250, 241, 0.48);
+  padding: 0.65rem 0.75rem;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.antika-product-row:hover {
+  background: rgba(255, 250, 241, 0.88);
+  transform: translateY(-1px);
+}
+
+.antika-price {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.minimal-menu {
+  --background: #ffffff;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --primary: #18181b;
+  --primary-foreground: #ffffff;
+  --ring: #18181b;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  background: #ffffff;
+  color: #18181b;
+}
+
+.minimal-product-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 0.5rem;
+  transition: background-color 160ms ease;
+}
+
+.minimal-product-row:hover {
+  background: var(--muted);
+}
+
+.bistro-menu {
+  color-scheme: dark;
+  --background: #141210;
+  --foreground: #f5f0e8;
+  --card: #1c1915;
+  --card-foreground: #f5f0e8;
+  --muted: #252018;
+  --muted-foreground: #a89f8f;
+  --border: #3d3528;
+  --primary: #c9a84c;
+  --primary-foreground: #141210;
+  --ring: #c9a84c;
+  --accent: #252018;
+  --accent-foreground: #f5f0e8;
+  --secondary: #252018;
+  --secondary-foreground: #f5f0e8;
+  --popover: #1c1915;
+  --popover-foreground: #f5f0e8;
+  background: #141210;
+  color: #f5f0e8;
+}
+
+.soul-menu {
+  color-scheme: dark;
+  --background: #1c1915;
+  --foreground: #f5f0e8;
+  --card: #252018;
+  --card-foreground: #f5f0e8;
+  --muted: #2a2520;
+  --muted-foreground: #a89f8f;
+  --border: #3d3528;
+  --primary: #d4af37;
+  --primary-foreground: #1c1915;
+  --ring: #d4af37;
+  --accent: #2a2520;
+  --accent-foreground: #f5f0e8;
+  --secondary: #2a2520;
+  --secondary-foreground: #f5f0e8;
+  --popover: #252018;
+  --popover-foreground: #f5f0e8;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(212, 175, 55, 0.08) 0 80px, transparent 81px),
+    radial-gradient(circle at 88% 30%, rgba(212, 175, 55, 0.05) 0 120px, transparent 121px),
+    #1c1915;
+  color: #f5f0e8;
+}
+
+.soul-category-block {
+  border-top: 2px solid #d4af37;
+  background: rgba(37, 32, 24, 0.72);
+  padding: 1rem;
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.18);
+}
+
+.soul-category-heading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.28);
+  background: rgba(28, 25, 21, 0.94);
+  padding: 0.75rem 0;
+  backdrop-filter: blur(16px);
+}
+
+.soul-section-title span:first-child {
+  color: #d4af37;
+  font-size: 1.55rem;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.soul-section-title span:last-child {
+  font-size: 1.35rem;
+  color: #f5f0e8;
+}
+
+.soul-product-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+  background: rgba(37, 32, 24, 0.48);
+  padding: 0.65rem 0.75rem;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.soul-product-row:hover {
+  background: rgba(37, 32, 24, 0.88);
+  transform: translateY(-1px);
+}
+
+.soul-price {
+  font-family: Georgia, "Times New Roman", serif;
+  color: #d4af37;
+}

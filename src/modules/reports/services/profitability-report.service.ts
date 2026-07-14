@@ -1,3 +1,4 @@
+import { orderBusinessAt } from "@/lib/document-date";
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import { getDb } from "@/lib/repositories/client";
@@ -44,8 +45,8 @@ export async function getProductProfitabilityReport(options?: {
     (o) =>
       o.status === "completed" &&
       o.payment_status !== "unpaid" &&
-      new Date(o.created_at) >= rangeStart &&
-      new Date(o.created_at) <= rangeEnd
+      new Date(orderBusinessAt(o)) >= rangeStart &&
+      new Date(orderBusinessAt(o)) <= rangeEnd
   );
 
   const db = await getDb();

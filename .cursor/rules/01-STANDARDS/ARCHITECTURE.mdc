@@ -26,7 +26,8 @@ Adapt to the repo's existing names (`modules` vs `features` vs DDD layers) — n
 - UI does not embed SQL/business rules
 - Actions do not become god-files of queries
 - Repositories map DB ↔ domain; services own rules + audit
-- Shared UI lives in design-system / `components/ui` — domain UI stays in the module
+- Shared UI lives in design-system / `components/ui` / SweetFlow — domain UI stays in the module
+- Cross-page logic is never owned by a single `page.tsx` — see `REUSE.mdc` (single implementation, correct ownership)
 
 ## Change control
 

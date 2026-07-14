@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { APP_NAME, APP_THEME_COLOR } from "@/lib/constants";
+import { firstGrapheme } from "@/lib/first-grapheme";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
@@ -23,7 +24,7 @@ export default function AppleIcon() {
           fontFamily: "system-ui, sans-serif",
         }}
       >
-        {APP_NAME.slice(0, 1)}
+        {firstGrapheme(APP_NAME, "V")}
       </div>
     ),
     { ...size }

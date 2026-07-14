@@ -1,6 +1,14 @@
 import { NAV_GROUPS, PATH_PERMISSIONS } from "@/lib/constants";
 import type { FeatureFlag, PermissionKey, UserRole } from "@/lib/constants";
 
+/** Activity-driven nav gates (not feature_flags). */
+export type NavAccessOptions = {
+  /** When false, hide /sales-invoices. Omit to leave unchanged (tests / legacy). */
+  enableWholesaleSales?: boolean;
+  /** When false, hide /sales-invoices for cashiers. */
+  allowCashierWholesale?: boolean;
+};
+
 /**
  * Nav href → feature flag. Keep in sync with modules that have a sidebar entry
  * and are toggled from Settings → Features / POS.
@@ -25,6 +33,7 @@ const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/inventory/waste": "waste",
   "/inventory/stock-count": "stock_count",
   "/customers/loyalty": "loyalty",
+  "/promotions": "promotions",
   "/expenses": "session_expenses",
 };
 
@@ -71,6 +80,7 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/devices",
     "/customers",
     "/customers/loyalty",
+    "/promotions",
     "/expenses",
   ]);
   return (href: string) => {
@@ -93,7 +103,8 @@ function filterNavByRoleLegacy(role: UserRole) {
 export function filterNavByAccess(
   role: UserRole,
   permissions: Set<PermissionKey>,
-  flags?: Partial<Record<FeatureFlag, boolean>>
+  flags?: Partial<Record<FeatureFlag, boolean>>,
+  options?: NavAccessOptions
 ) {
   const useLegacy = permissions.size === 0;
   const legacyAllow = useLegacy ? filterNavByRoleLegacy(role) : null;
@@ -103,6 +114,12 @@ export function filterNavByAccess(
     items: group.items.filter((item) => {
       const flag = FEATURE_BY_PATH[item.href];
       if (flag && flags?.[flag] === false) return false;
+      if (item.href === "/sales-invoices") {
+        if (options?.enableWholesaleSales === false) return false;
+        if (role === "cashier" && options?.allowCashierWholesale === false) {
+          return false;
+        }
+      }
       if (role === "owner") return true;
       if (useLegacy && legacyAllow) return legacyAllow(item.href);
       return pathAllowedByPermission(item.href, permissions);
@@ -137,7 +154,8 @@ export const ROLE_LABELS_AR: Record<UserRole, string> = {
 /** @deprecated use filterNavByAccess */
 export function filterNavByRole(
   role: UserRole,
-  flags?: Partial<Record<FeatureFlag, boolean>>
+  flags?: Partial<Record<FeatureFlag, boolean>>,
+  options?: NavAccessOptions
 ) {
-  return filterNavByAccess(role, new Set(), flags);
+  return filterNavByAccess(role, new Set(), flags, options);
 }

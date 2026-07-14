@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { computePosCartTotals, rawCartSubtotal } from "@/modules/pos/lib/cart-totals";
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { SalesMode } from "@/lib/constants";
 
@@ -10,6 +11,7 @@ export interface HeldCart {
   cart: CartLine[];
   customer: Customer | null;
   discountAmount: number;
+  couponCode: string;
   salesMode: SalesMode;
   createdAt: string;
 }
@@ -28,12 +30,14 @@ interface PosState {
   paymentMethod: PaymentMethod;
   paymentSplits: PaymentSplit[];
   discountAmount: number;
+  couponCode: string;
   salesMode: SalesMode;
   addItem: (line: Omit<CartLine, "id" | "lineTotal"> & { id?: string }) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
   removeItem: (lineId: string) => void;
   clearCart: () => void;
   setDiscountAmount: (amount: number) => void;
+  setCouponCode: (code: string) => void;
   setCustomer: (customer: Customer | null) => void;
   setCustomerLoyaltyBalance: (balance: number | null) => void;
   setLoyaltyRedemption: (redemption: LoyaltyRedemption | null) => void;
@@ -42,6 +46,8 @@ interface PosState {
   setSalesMode: (mode: SalesMode) => void;
   setHeldCarts: (heldCarts: HeldCart[]) => void;
   applyServerHold: (heldCart: HeldCart) => void;
+  /** Replace a temp optimistic hold id with the server-persisted row. */
+  reconcileHeldCartId: (tempId: string, heldCart: HeldCart) => void;
   holdCart: (name?: string) => HeldCart | null;
   resumeHeldCart: (id: string, parkedReplacement?: HeldCart | null) => boolean;
   removeHeldCart: (id: string) => void;
@@ -65,6 +71,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   paymentMethod: "cash",
   paymentSplits: [],
   discountAmount: 0,
+  couponCode: "",
   salesMode: "retail",
 
   addItem: (line) => {
@@ -151,6 +158,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       paymentMethod: "cash",
       paymentSplits: [],
       discountAmount: 0,
+      couponCode: "",
       salesMode: "retail",
     }),
 
@@ -159,6 +167,8 @@ export const usePosStore = create<PosState>((set, get) => ({
     const safeAmount = Number.isFinite(amount) ? Math.max(0, amount) : 0;
     set({ discountAmount: Math.min(safeAmount, subtotal) });
   },
+
+  setCouponCode: (code) => set({ couponCode: code }),
 
   setCustomer: (customer) =>
     set({ customer, customerLoyaltyBalance: null, loyaltyRedemption: null }),
@@ -174,7 +184,7 @@ export const usePosStore = create<PosState>((set, get) => ({
 
   setHeldCarts: (heldCarts) => set({ heldCarts }),
 
-  /** Persist succeeded — clear active cart and prepend server hold. */
+  /** Clear active cart and prepend hold (optimistic or after server save). */
   applyServerHold: (heldCart) => {
     set({
       heldCarts: [heldCart, ...get().heldCarts.filter((h) => h.id !== heldCart.id)],
@@ -185,20 +195,28 @@ export const usePosStore = create<PosState>((set, get) => ({
       paymentMethod: "cash",
       paymentSplits: [],
       discountAmount: 0,
+      couponCode: "",
       salesMode: "retail",
     });
   },
 
-  /** Local-only fallback (tests / offline UX). Prefer applyServerHold after server save. */
+  reconcileHeldCartId: (tempId, heldCart) => {
+    set({
+      heldCarts: get().heldCarts.map((h) => (h.id === tempId ? heldCart : h)),
+    });
+  },
+
+  /** Optimistic local hold — sync to server in the background from the UI. */
   holdCart: (name) => {
     const state = get();
     if (state.cart.length === 0) return null;
     const heldCart: HeldCart = {
-      id: `hold-${Date.now()}`,
-      name: name?.trim() || `Hold ${state.heldCarts.length + 1}`,
+      id: `temp-hold-${crypto.randomUUID()}`,
+      name: name?.trim() || `معلّقة ${state.heldCarts.length + 1}`,
       cart: state.cart,
       customer: state.customer,
       discountAmount: state.discountAmount,
+      couponCode: state.couponCode,
       salesMode: state.salesMode,
       createdAt: new Date().toISOString(),
     };
@@ -220,6 +238,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       customerLoyaltyBalance: null,
       loyaltyRedemption: null,
       discountAmount: heldCart.discountAmount,
+      couponCode: heldCart.couponCode ?? "",
       salesMode: heldCart.salesMode,
       paymentMethod: "cash",
       paymentSplits: [],
@@ -233,9 +252,9 @@ export const usePosStore = create<PosState>((set, get) => ({
 }));
 
 export function getCartSubtotal(cart: CartLine[]) {
-  return cart.reduce((s, l) => s + l.lineTotal, 0);
+  return rawCartSubtotal(cart);
 }
 
 export function getCartTotal(cart: CartLine[], discountAmount: number) {
-  return Math.max(0, getCartSubtotal(cart) - discountAmount);
+  return computePosCartTotals({ cart, discountAmount }).payableBeforeLoyalty;
 }

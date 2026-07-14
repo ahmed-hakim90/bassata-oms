@@ -5,7 +5,9 @@ import { Layers3, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { resolveDisplayPriceRange } from "@/modules/products/lib/display-price-range";
 import type { POSProduct } from "@/modules/pos/services/catalog.service";
+import { firstGrapheme } from "@/lib/first-grapheme";
 
 const BADGE_LABELS = {
   in_stock: "متوفر",
@@ -32,24 +34,14 @@ export function ProductTile({
   const outOfStock = product.stockBadge === "out";
   const variantPrices = product.variants
     .map((variant) => variant.price)
-    .filter((price) => Number.isFinite(price))
-    .sort((a, b) => a - b);
-  const minVariantPrice = variantPrices[0];
-  const maxVariantPrice = variantPrices.at(-1);
-  const showVariantPrice =
-    showVariants &&
-    product.hasVariants &&
-    minVariantPrice != null &&
-    maxVariantPrice != null;
-  const displayPrice = showVariantPrice
-    ? minVariantPrice
-    : product.hasVariants && minVariantPrice != null
-      ? minVariantPrice
-      : product.base_price;
-  const priceRange =
-    showVariantPrice && maxVariantPrice > minVariantPrice
-      ? ` إلى ${formatCurrency(maxVariantPrice)}`
-      : "";
+    .filter((price) => Number.isFinite(price));
+  const showVariantPrice = showVariants && product.hasVariants && variantPrices.length > 0;
+  const { amount: displayPrice, rangeLabel: priceRange } = resolveDisplayPriceRange({
+    variantPrices: showVariantPrice || product.hasVariants ? variantPrices : [],
+    baseAmount: product.base_price,
+    showRange: showVariantPrice,
+    rangeSeparator: "arabic",
+  });
 
   return (
     <button
@@ -86,7 +78,7 @@ export function ProductTile({
           )}
           style={{ color: product.categoryColor }}
         >
-          {product.name.charAt(0)}
+          {firstGrapheme(product.name, "?")}
         </span>
         {badgeLabel && (
           <Badge

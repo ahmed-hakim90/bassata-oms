@@ -267,6 +267,9 @@ export function mapPurchase(row: PurchaseRow): PurchaseInvoice {
     extra_cost: num(row.extra_cost ?? 0),
     tax: num(row.tax),
     total: num(row.total),
+    document_date:
+      row.document_date ??
+      (row.received_at ?? row.created_at).slice(0, 10),
     received_at: row.received_at,
     cancelled_at: row.cancelled_at ?? null,
     created_by: row.created_by,
@@ -414,17 +417,28 @@ export function mapOrder(row: OrderRow): Order {
     status: row.status as Order["status"],
     subtotal: num(row.subtotal),
     discount: num(row.discount),
+    promo_discount: num((row as { promo_discount?: number }).promo_discount ?? 0),
     tax: num(row.tax),
     total: num(row.total),
     payment_status: row.payment_status as Order["payment_status"],
     sales_mode: (row.sales_mode ?? "retail") as Order["sales_mode"],
     activity_type: (row.activity_type ?? "retail") as Order["activity_type"],
+    document_status: (row.document_status ?? null) as Order["document_status"],
+    document_date: row.document_date ?? row.created_at.slice(0, 10),
+    issued_at: row.issued_at ?? null,
+    delivered_at: row.delivered_at ?? null,
+    warehouse_id: row.warehouse_id ?? null,
     created_by: row.created_by,
     created_at: row.created_at,
   };
 }
 
 export function mapOrderItem(row: OrderItemRow): OrderItem {
+  const extended = row as OrderItemRow & {
+    list_unit_price?: number | null;
+    discount_amount?: number;
+    promotion_rule_id?: string | null;
+  };
   return {
     id: row.id,
     order_id: row.order_id,
@@ -432,6 +446,9 @@ export function mapOrderItem(row: OrderItemRow): OrderItem {
     variant_id: row.variant_id,
     quantity: row.quantity,
     unit_price: num(row.unit_price),
+    list_unit_price: extended.list_unit_price != null ? num(extended.list_unit_price) : null,
+    discount_amount: num(extended.discount_amount ?? 0),
+    promotion_rule_id: extended.promotion_rule_id ?? null,
     modifiers: (row.modifiers ?? []) as OrderItem["modifiers"],
     line_total: num(row.line_total),
     unit_cost: num(row.unit_cost ?? 0),

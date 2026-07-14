@@ -14,6 +14,71 @@ export function convertUnit(
   return qty;
 }
 
+/** Metric families only — null when units are not convertible via convertUnit. */
+export function tryConvertMetricUnit(
+  qty: number,
+  from: MeasurementUnit,
+  to: MeasurementUnit
+): number | null {
+  if (from === to) return qty;
+  if (
+    (from === "kg" && to === "gram") ||
+    (from === "gram" && to === "kg") ||
+    (from === "liter" && to === "ml") ||
+    (from === "ml" && to === "liter")
+  ) {
+    return convertUnit(qty, from, to);
+  }
+  return null;
+}
+
+export type PricingPacking = {
+  baseUnit: MeasurementUnit;
+  packUnit: MeasurementUnit;
+  unitsPerPack: number;
+};
+
+/**
+ * Convert qty between sale/tier units using metric pairs and optional purchase packing.
+ * Returns null when conversion is impossible (never silent-pass pack mismatches).
+ */
+export function convertQuantityForPricing(input: {
+  quantity: number;
+  from: MeasurementUnit;
+  to: MeasurementUnit;
+  packing?: PricingPacking | null;
+}): number | null {
+  const { quantity, from, to, packing } = input;
+  if (from === to) return quantity;
+
+  const metric = tryConvertMetricUnit(quantity, from, to);
+  if (metric != null) return metric;
+
+  if (!packing) return null;
+  const factor = Number(packing.unitsPerPack);
+  if (!Number.isFinite(factor) || factor <= 0) return null;
+  if (!isPurchasePackUnit(packing.packUnit) || packing.packUnit === packing.baseUnit) {
+    return null;
+  }
+
+  const asBase = (unit: MeasurementUnit, qty: number): number | null => {
+    if (unit === packing.baseUnit) return qty;
+    const viaMetric = tryConvertMetricUnit(qty, unit, packing.baseUnit);
+    if (viaMetric != null) return viaMetric;
+    if (unit === packing.packUnit) return qty * factor;
+    return null;
+  };
+
+  const fromBase = asBase(from, quantity);
+  if (fromBase == null) return null;
+
+  if (to === packing.baseUnit) return fromBase;
+  const toMetric = tryConvertMetricUnit(fromBase, packing.baseUnit, to);
+  if (toMetric != null) return toMetric;
+  if (to === packing.packUnit) return fromBase / factor;
+  return null;
+}
+
 export function normalizeToBaseUnit(
   qty: number,
   from: MeasurementUnit,
@@ -108,6 +173,17 @@ export function productHasPurchasePacking(product: PurchasePackProduct): boolean
     product.cost_unit !== base &&
     productPurchaseFactor(product) > 0
   );
+}
+
+export function productPackingForPricing(
+  product: PurchasePackProduct
+): PricingPacking | null {
+  if (!productHasPurchasePacking(product)) return null;
+  return {
+    baseUnit: product.base_unit ?? product.unit,
+    packUnit: product.cost_unit,
+    unitsPerPack: productPurchaseFactor(product),
+  };
 }
 
 /**

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import {
   convertPurchaseEntryToBase,
+  convertQuantityForPricing,
   productHasPurchasePacking,
   productPurchaseFactor,
 } from "@/lib/units";
@@ -12,6 +13,30 @@ import {
 } from "@/modules/imports-exports/services/import.service";
 
 describe("purchase pack conversion", () => {
+  it("converts pricing qty piece ↔ carton via purchase packing", () => {
+    const packing = {
+      baseUnit: "piece" as const,
+      packUnit: "carton" as const,
+      unitsPerPack: 24,
+    };
+    expect(
+      convertQuantityForPricing({
+        quantity: 48,
+        from: "piece",
+        to: "carton",
+        packing,
+      })
+    ).toBe(2);
+    expect(
+      convertQuantityForPricing({
+        quantity: 2,
+        from: "carton",
+        to: "piece",
+        packing,
+      })
+    ).toBe(48);
+  });
+
   it("converts carton entry into base pieces and unit cost", () => {
     const result = convertPurchaseEntryToBase({
       quantity: 2,

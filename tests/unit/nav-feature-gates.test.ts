@@ -36,6 +36,16 @@ describe("S08 nav feature gates", () => {
     expect(items).not.toContain("/expenses");
   });
 
+  it("hides promotions when promotions flag is false", () => {
+    const items = hrefs("owner", { promotions: false });
+    expect(items).not.toContain("/promotions");
+  });
+
+  it("shows promotions when flag is true", () => {
+    const items = hrefs("owner", { promotions: true }, ["manage_promotions"]);
+    expect(items).toContain("/promotions");
+  });
+
   it("hides all report routes when reports flag is false", () => {
     const items = hrefs("owner", { reports: false });
     expect(items.filter((h) => h.startsWith("/reports"))).toEqual([]);
@@ -49,5 +59,12 @@ describe("S08 nav feature gates", () => {
   it("keeps online-orders visible (store-settings, not feature_flags)", () => {
     const items = hrefs("owner", {});
     expect(items).toContain("/online-orders");
+  });
+
+  it("shows sales-invoices for owner/manager/cashier (not inventory legacy)", () => {
+    expect(hrefs("owner")).toContain("/sales-invoices");
+    expect(hrefs("manager")).toContain("/sales-invoices");
+    expect(hrefs("cashier")).toContain("/sales-invoices");
+    expect(hrefs("inventory")).not.toContain("/sales-invoices");
   });
 });

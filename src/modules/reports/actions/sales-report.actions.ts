@@ -9,6 +9,7 @@ import {
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as reportRepo from "@/lib/repositories/report.repository";
+import { orderBusinessAt } from "@/lib/document-date";
 import * as orderRepo from "@/lib/repositories/order.repository";
 import { getSalesReport } from "@/modules/reports/services/sales-report.service";
 import {
@@ -83,8 +84,8 @@ export async function getSalesReportPageData(params: Record<string, string | und
   const orders = (await orderRepo.listOrders(storeId))
     .filter((o) => o.status === "completed")
     .filter((o) => {
-      const created = new Date(o.created_at);
-      return created >= range.from && created <= range.to;
+      const at = new Date(orderBusinessAt(o));
+      return at >= range.from && at <= range.to;
     })
     .slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize);
 
