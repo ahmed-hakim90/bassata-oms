@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { requireAuth } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageAuth } from "@/lib/auth/page-guard";
 import { getStockCount } from "@/modules/stock-count/services/count.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
 import { PrintableDocument } from "@/modules/reports/components/printable-document";
@@ -10,7 +11,11 @@ export default async function PrintStockCountPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requireAuth();
+  const auth = await requirePageAuth("/print/stock-count");
+  if (!auth.ok) {
+    return <AccessDenied title={auth.denial.title} description={auth.denial.description} />;
+  }
+  const user = auth.data;
   const { id } = await params;
   const count = await getStockCount(id);
   if (!count) notFound();

@@ -1,4 +1,10 @@
-import { getValidatedActiveStoreId, requireAnyPermission, requirePermission } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import {
+  getValidatedActiveStoreId,
+  requireAnyPermission,
+  requirePermission,
+} from "@/lib/auth/guards";
+import { runPageAuth } from "@/lib/auth/page-guard";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { PosReadinessStatus } from "@/components/SweetFlow/pos-readiness-status";
@@ -26,8 +32,14 @@ interface ExpensesPageProps {
 }
 
 export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
-  await requireAnyPermission(["expense_view_all", "expense_create", "session_expense_create"]);
-  const storeId = await getValidatedActiveStoreId();
+  const boot = await runPageAuth(async () => {
+    await requireAnyPermission(["expense_view_all", "expense_create", "session_expense_create"]);
+    return getValidatedActiveStoreId();
+  }, "/expenses");
+  if (!boot.ok) {
+    return <AccessDenied title={boot.denial.title} description={boot.denial.description} />;
+  }
+  const storeId = boot.data;
   const readiness = await getPosReadiness();
 
   const listFilters = {

@@ -1,4 +1,5 @@
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageStoreId } from "@/lib/auth/page-guard";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OnlineOrdersPageClient } from "@/modules/online-orders/components/online-orders-page";
 import {
@@ -10,7 +11,11 @@ import { getReportBranding } from "@/modules/reports/services/report-branding.se
 import type { PaymentMethod } from "@/lib/types";
 
 export default async function OnlineOrdersRoute() {
-  const storeId = await getValidatedActiveStoreId();
+  const store = await requirePageStoreId("/online-orders");
+  if (!store.ok) {
+    return <AccessDenied title={store.denial.title} description={store.denial.description} />;
+  }
+  const storeId = store.storeId;
   const [orders, products, flags, receiptBranding] = await Promise.all([
     listOnlineOrdersWithItems(storeId),
     listStaffOnlineProductOptions(),

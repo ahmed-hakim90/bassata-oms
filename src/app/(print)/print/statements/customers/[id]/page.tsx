@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { requireAuth } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageAuth } from "@/lib/auth/page-guard";
 import { getCustomerStatement } from "@/modules/customers/services/customer-account.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
 import { requireCustomerStatementAccess } from "@/modules/reports/actions/report-access.actions";
@@ -15,7 +16,11 @@ export default async function PrintCustomerStatementPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   await requireCustomerStatementAccess();
-  const user = await requireAuth();
+  const auth = await requirePageAuth("/print/statements/customers");
+  if (!auth.ok) {
+    return <AccessDenied title={auth.denial.title} description={auth.denial.description} />;
+  }
+  const user = auth.data;
   const { id } = await params;
   const query = await searchParams;
   const statement = await getCustomerStatement(id, query);

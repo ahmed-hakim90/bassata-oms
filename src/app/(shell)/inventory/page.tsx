@@ -1,4 +1,5 @@
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageStoreId } from "@/lib/auth/page-guard";
 import type { ProductType } from "@/lib/types";
 import { InventoryHub } from "@/modules/inventory/components/inventory-hub";
 import { getInventoryHubData } from "@/modules/inventory/services/hub.service";
@@ -13,10 +14,13 @@ export default async function InventoryPage({
 }: {
   searchParams?: Promise<{ warehouse?: string; type?: string }>;
 }) {
-  const storeId = await getValidatedActiveStoreId();
+  const store = await requirePageStoreId("/inventory");
+  if (!store.ok) {
+    return <AccessDenied title={store.denial.title} description={store.denial.description} />;
+  }
   const params = await searchParams;
   const data = await getInventoryHubData({
-    storeId,
+    storeId: store.storeId,
     requestedWarehouseId: params?.warehouse,
     productType: parseProductType(params?.type),
   });

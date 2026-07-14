@@ -25,6 +25,11 @@ export default function PosError({
         title="تعذر تحديث شاشة الكاشير"
         description="السلة محفوظة على الجهاز. اضغط إعادة المحاولة للاستمرار بدون ما تفقد البيع."
       />
+      {error.digest ? (
+        <p className="text-xs text-muted-foreground" dir="ltr">
+          ref: {error.digest}
+        </p>
+      ) : null}
       <Button onClick={() => unstable_retry()}>إعادة المحاولة</Button>
     </div>
   );

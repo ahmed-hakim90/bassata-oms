@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorStateBlock } from "@/components/SweetFlow/state-blocks";
 
-export default function ShellError({
+export default function AuthErrorBoundary({
   error,
   unstable_retry,
 }: {
@@ -12,23 +12,21 @@ export default function ShellError({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    console.error("[shell]", error.digest ?? error.message, error);
+    console.error("[auth]", error.digest ?? error.message, error);
   }, [error]);
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 p-6">
       <ErrorStateBlock
-        title="تعذر تحميل هذه الشاشة"
-        description="حاول مرة أخرى. إذا استمرت المشكلة، تواصل مع مسؤول النظام برقم المرجع."
+        title="تعذر تحميل الشاشة"
+        description="حاول مرة أخرى أو ارجع لتسجيل الدخول."
       />
       {error.digest ? (
         <p className="text-xs text-muted-foreground" dir="ltr">
           ref: {error.digest}
         </p>
       ) : null}
-      <div>
-        <Button onClick={() => unstable_retry()}>حاول مرة أخرى</Button>
-      </div>
+      <Button onClick={() => unstable_retry()}>حاول مرة أخرى</Button>
     </div>
   );
 }

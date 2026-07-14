@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageAuth } from "@/lib/auth/page-guard";
 import { getPurchase } from "@/modules/purchases/services/purchase.service";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
-import { requireAuth } from "@/lib/auth/guards";
 import { PrintableDocument } from "@/modules/reports/components/printable-document";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 
@@ -12,7 +13,11 @@ export default async function PrintPurchaseInvoicePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await requireAuth();
+  const auth = await requirePageAuth(`/print/purchases/${id}`);
+  if (!auth.ok) {
+    return <AccessDenied title={auth.denial.title} description={auth.denial.description} />;
+  }
+  const user = auth.data;
   const purchase = await getPurchase(id);
   if (!purchase) notFound();
   const products = await catalogRepo.listProducts();

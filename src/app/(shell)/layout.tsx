@@ -7,6 +7,7 @@ import { getActiveStoreId, getCurrentUser } from "@/lib/auth/session";
 import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
 import { getPageAccessDenial } from "@/lib/auth/page-access";
 import { requireStoreAccess } from "@/lib/auth/guards";
+import { redirectOnAuthFailure } from "@/lib/auth/redirect-on-auth-failure";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
 import { getFeatureFlags } from "@/modules/system/services/settings.service";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
@@ -17,14 +18,26 @@ export default async function ShellLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await ensureTenantUser(await getCurrentUser());
-  const [featureFlags, allStores, cookieStoreId, permissions, posReadiness] = await Promise.all([
-    getFeatureFlags(),
-    storeRepo.listStores(),
-    getActiveStoreId(),
-    getEffectivePermissions(user),
-    getPosReadiness(),
-  ]);
+  let user;
+  let featureFlags;
+  let allStores;
+  let cookieStoreId;
+  let permissions;
+  let posReadiness;
+
+  try {
+    user = await ensureTenantUser(await getCurrentUser());
+    [featureFlags, allStores, cookieStoreId, permissions, posReadiness] = await Promise.all([
+      getFeatureFlags(),
+      storeRepo.listStores(),
+      getActiveStoreId(),
+      getEffectivePermissions(user),
+      getPosReadiness(),
+    ]);
+  } catch (error) {
+    redirectOnAuthFailure(error, "/");
+  }
+
   const stores =
     user.role === "owner" || user.role === "manager"
       ? allStores

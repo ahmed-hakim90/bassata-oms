@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
 import { requireAuth, getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { runPageAuth } from "@/lib/auth/page-guard";
 import { getSupplierStatement } from "@/modules/suppliers/services/supplier.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";
 import { requireSupplierStatementAccess } from "@/modules/reports/actions/report-access.actions";
@@ -15,10 +17,17 @@ export default async function PrintSupplierStatementPage({
   searchParams: Promise<{ from?: string; to?: string; storeId?: string }>;
 }) {
   await requireSupplierStatementAccess();
-  const user = await requireAuth();
   const { id } = await params;
   const query = await searchParams;
-  const storeId = query.storeId ?? (await getValidatedActiveStoreId());
+  const boot = await runPageAuth(async () => {
+    const user = await requireAuth();
+    const storeId = query.storeId ?? (await getValidatedActiveStoreId());
+    return { user, storeId };
+  }, `/print/statements/suppliers/${id}`);
+  if (!boot.ok) {
+    return <AccessDenied title={boot.denial.title} description={boot.denial.description} />;
+  }
+  const { user, storeId } = boot.data;
   const statement = await getSupplierStatement(id, { storeId, from: query.from, to: query.to });
   if (!statement) notFound();
   const [org, branding] = await Promise.all([

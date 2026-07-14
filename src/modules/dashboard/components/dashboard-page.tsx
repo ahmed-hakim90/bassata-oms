@@ -1,4 +1,5 @@
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageStoreId } from "@/lib/auth/page-guard";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
 import * as orgRepo from "@/lib/repositories/organization.repository";
@@ -24,7 +25,11 @@ import { formatCurrency } from "@/lib/format";
 export async function DashboardPage() {
   const user = await ensureTenantUser(await getCurrentUser());
   const isOwner = user.role === "owner";
-  const storeId = await getValidatedActiveStoreId();
+  const store = await requirePageStoreId("/");
+  if (!store.ok) {
+    return <AccessDenied title={store.denial.title} description={store.denial.description} />;
+  }
+  const storeId = store.storeId;
   const org = await orgRepo.getOrganization();
 
   const products = await catalogRepo.listProducts();

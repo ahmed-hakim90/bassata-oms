@@ -19,16 +19,9 @@ import {
   resolvePlatformAdmin,
   type PlatformAdmin,
 } from "@/modules/platform/services/platform-admin.service";
+import { AuthError } from "@/lib/auth/auth-error";
 
-export class AuthError extends Error {
-  constructor(
-    message: string,
-    public status = 403
-  ) {
-    super(message);
-    this.name = "AuthError";
-  }
-}
+export { AuthError } from "@/lib/auth/auth-error";
 
 export async function requireAuth(): Promise<AppUser> {
   const appUser = await getCurrentUser();

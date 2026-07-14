@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageStoreId } from "@/lib/auth/page-guard";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { SessionDetailPage } from "@/modules/sessions/components/session-detail-page";
 import { getSessionDetail } from "@/modules/sessions/services/session-detail.service";
@@ -14,7 +15,11 @@ export default async function SessionDetailRoute({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const storeId = await getValidatedActiveStoreId();
+  const store = await requirePageStoreId(`/sessions/${id}`);
+  if (!store.ok) {
+    return <AccessDenied title={store.denial.title} description={store.denial.description} />;
+  }
+  const storeId = store.storeId;
   const canViewAll = await permissionRepo.hasPermission("session_view_all");
 
   const detail = await getSessionDetail(id, {

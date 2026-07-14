@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
+import { redirectOnAuthFailure } from "@/lib/auth/redirect-on-auth-failure";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
 import { canPrintReports } from "@/lib/constants";
 import { PrintToolbar } from "@/modules/reports/components/print-toolbar";
@@ -12,8 +13,15 @@ export default async function PrintLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await ensureTenantUser(await getCurrentUser());
-  const permissions = await getEffectivePermissions(user);
+  let user;
+  let permissions;
+  try {
+    user = await ensureTenantUser(await getCurrentUser());
+    permissions = await getEffectivePermissions(user);
+  } catch (error) {
+    redirectOnAuthFailure(error, "/reports");
+  }
+
   if (!canPrintReports(user.role, permissions)) {
     redirect("/reports");
   }

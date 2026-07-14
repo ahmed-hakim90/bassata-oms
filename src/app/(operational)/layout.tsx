@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
 import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { redirectOnAuthFailure } from "@/lib/auth/redirect-on-auth-failure";
 import {
   getEffectivePermissions,
   isRbacSeeded,
@@ -13,12 +14,20 @@ export default async function OperationalLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await ensureTenantUser(await getCurrentUser());
+  let user;
+  let permissions;
+  let rbacSeeded;
 
-  const [permissions, rbacSeeded] = await Promise.all([
-    getEffectivePermissions(user),
-    isRbacSeeded(),
-  ]);
+  try {
+    user = await ensureTenantUser(await getCurrentUser());
+    [permissions, rbacSeeded] = await Promise.all([
+      getEffectivePermissions(user),
+      isRbacSeeded(),
+    ]);
+  } catch (error) {
+    redirectOnAuthFailure(error, "/pos");
+  }
+
   const canUsePos =
     user.role === "owner" ||
     permissions.has("pos_access") ||

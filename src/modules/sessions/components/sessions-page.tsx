@@ -1,4 +1,5 @@
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageStoreId } from "@/lib/auth/page-guard";
 import {
   getActiveCashierId,
   getCurrentUser,
@@ -35,7 +36,13 @@ interface SessionsPageProps {
 }
 
 export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps) {
-  const storeId = await getValidatedActiveStoreId();
+  const storeResult = await requirePageStoreId("/sessions");
+  if (!storeResult.ok) {
+    return (
+      <AccessDenied title={storeResult.denial.title} description={storeResult.denial.description} />
+    );
+  }
+  const storeId = storeResult.storeId;
   const canViewAll = await permissionRepo.hasPermission("session_view_all");
   const canForceClose = await permissionRepo.hasPermission("session_force_close");
   const user = await getCurrentUser();

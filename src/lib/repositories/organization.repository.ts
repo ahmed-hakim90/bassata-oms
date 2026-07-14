@@ -2,11 +2,12 @@ import { cache } from "react";
 import { asJson, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapAppSetting, mapOrganization } from "@/lib/repositories/mappers";
 import { getAuthUserId } from "@/lib/auth/auth-user";
+import { AuthError } from "@/lib/auth/auth-error";
 import type { AppSetting, Organization } from "@/lib/types";
 
 export const getOrgId = cache(async (): Promise<string> => {
   const authUserId = await getAuthUserId();
-  if (!authUserId) throw new Error("Not authenticated");
+  if (!authUserId) throw new AuthError("Not authenticated", 401);
   const db = await getDb();
   const { data, error } = await db
     .from("users")

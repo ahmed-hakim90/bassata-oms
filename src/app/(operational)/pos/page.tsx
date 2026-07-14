@@ -1,4 +1,4 @@
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { AuthError, getValidatedActiveStoreId } from "@/lib/auth/guards";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness-copy";
 import { PosScreen } from "@/modules/pos/components/pos-screen";
@@ -46,23 +46,49 @@ async function settled<T>(promise: Promise<T>, fallback: T, label: string): Prom
   }
 }
 
-export default async function PosPage() {
-  const [user, storeId, readiness] = await Promise.all([
-    getCurrentUser(),
-    getValidatedActiveStoreId(),
-    getPosReadiness(),
-  ]);
+async function resolvePosStoreId(preferred: string | null): Promise<string | null> {
+  if (preferred) return preferred;
+  try {
+    return await getValidatedActiveStoreId();
+  } catch (error) {
+    // Auth/store gates are handled by PosReadiness — never crash the POS RSC shell.
+    if (error instanceof AuthError) return null;
+    throw error;
+  }
+}
 
-  if (GATE_ONLY_STATES.has(readiness.state)) {
+export default async function PosPage() {
+  const [user, readiness] = await Promise.all([getCurrentUser(), getPosReadiness()]);
+  const storeId = await resolvePosStoreId(readiness.storeId);
+
+  if (GATE_ONLY_STATES.has(readiness.state) || !storeId) {
+    const effectiveGate: PosReadinessState =
+      !user || readiness.state === "login_required"
+        ? "login_required"
+        : GATE_ONLY_STATES.has(readiness.state)
+          ? readiness.state
+          : "store_required";
+
     const [storeDevices, allStores, flags, receiptBranding] = await Promise.all([
-      readiness.state === "no_device"
+      effectiveGate === "no_device" && storeId
         ? deviceRepo.listDevices(storeId).then((devices) => devices.filter((d) => d.is_active))
         : Promise.resolve([] as Awaited<ReturnType<typeof deviceRepo.listDevices>>),
-      readiness.state === "store_required" || readiness.state === "store_mismatch"
+      effectiveGate === "store_required" || effectiveGate === "store_mismatch"
         ? storeRepo.listStores()
         : Promise.resolve([] as Awaited<ReturnType<typeof storeRepo.listStores>>),
       getFeatureFlags(),
-      getReportBranding(storeId),
+      storeId
+        ? getReportBranding(storeId)
+        : Promise.resolve({
+            orgName: "Velora",
+            orgLogoUrl: null,
+            currency: "EGP",
+            storeName: null,
+            storeAddress: null,
+            storePhone: null,
+            receiptHeader: null,
+            receiptFooter: null,
+          }),
     ]);
 
     const enabledPaymentMethods: PaymentMethod[] = [
@@ -84,10 +110,10 @@ export default async function PosPage() {
         initialProducts={[]}
         hasActiveSession={false}
         enabledPaymentMethods={enabledPaymentMethods}
-        readinessState={readiness.state}
+        readinessState={effectiveGate}
         sessionId={null}
         cashierId={readiness.cashierId}
-        storeId={storeId}
+        storeId={storeId ?? ""}
         receiptBranding={receiptBranding}
         stores={stores}
         storeDevices={storeDevices}

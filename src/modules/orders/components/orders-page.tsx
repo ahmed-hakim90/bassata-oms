@@ -1,4 +1,5 @@
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { requirePageStoreId } from "@/lib/auth/page-guard";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
@@ -7,7 +8,13 @@ import { listOrders } from "@/modules/orders/services/order.service";
 import { formatCurrency } from "@/lib/format";
 
 export async function OrdersPage() {
-  const storeId = await getValidatedActiveStoreId();
+  const storeResult = await requirePageStoreId("/orders");
+  if (!storeResult.ok) {
+    return (
+      <AccessDenied title={storeResult.denial.title} description={storeResult.denial.description} />
+    );
+  }
+  const storeId = storeResult.storeId;
   const store = await storeRepo.getStore(storeId);
   const orders = (await listOrders(storeId)).map((o) => ({
     ...o,
