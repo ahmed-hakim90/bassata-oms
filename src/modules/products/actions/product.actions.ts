@@ -198,11 +198,21 @@ export async function uploadProductImageAction(productId: string, formData: Form
   return publicUrl;
 }
 
-export async function deleteProductAction(id: string) {
+export async function deleteProductAction(
+  id: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requirePermissionOrRole("product_manage", ["owner", "manager"]);
-  const ok = await productService.deleteProduct(id, user.id);
-  revalidatePath("/products");
-  return ok;
+  try {
+    const ok = await productService.deleteProduct(id, user.id);
+    if (!ok) return { ok: false, error: "تعذر حذف المنتج" };
+    revalidatePath("/products");
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "تعذر حذف المنتج",
+    };
+  }
 }
 
 export async function createCategoryAction(input: CategoryInput) {

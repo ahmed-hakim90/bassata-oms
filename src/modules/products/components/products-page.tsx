@@ -166,16 +166,12 @@ export function ProductsPage({
   function handleDelete(product: Product) {
     if (!confirm(`حذف ${product.name}؟`)) return;
     startTransition(async () => {
-      try {
-        const ok = await deleteProductAction(product.id);
-        if (ok) {
-          toast.success("تم حذف المنتج");
-          router.refresh();
-        } else {
-          toast.error("تعذر حذف المنتج");
-        }
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "تعذر حذف المنتج");
+      const result = await deleteProductAction(product.id);
+      if (result.ok) {
+        toast.success("تم حذف المنتج");
+        router.refresh();
+      } else {
+        toast.error(result.error);
       }
     });
   }

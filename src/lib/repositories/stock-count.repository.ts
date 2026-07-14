@@ -72,6 +72,17 @@ export async function createStockCount(
   return mapStockCount(data);
 }
 
+/** True when any stock-count line still references this product (blocks hard delete). */
+export async function productHasStockCountLines(productId: string): Promise<boolean> {
+  const db = await getDb();
+  const { count, error } = await db
+    .from("stock_count_lines")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", productId);
+  if (error) throwDbError(error, "productHasStockCountLines");
+  return (count ?? 0) > 0;
+}
+
 export async function updateStockCount(
   id: string,
   patch: Partial<StockCount>

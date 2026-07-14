@@ -79,6 +79,41 @@ function withLineTotals(
   };
 }
 
+/** Controlled draft field — avoids Base UI warning when line.qty/cost updates after blur. */
+function DraftDecimalInput({
+  value,
+  emptyFallback,
+  className,
+  onCommit,
+}: {
+  value: number;
+  emptyFallback: number;
+  className?: string;
+  onCommit: (next: number) => void;
+}) {
+  const [draft, setDraft] = useState(() => String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      className={className}
+      value={draft}
+      onChange={(e) => setDraft(sanitizeDecimalInput(e.target.value))}
+      onBlur={() => {
+        const raw = sanitizeDecimalInput(draft);
+        const next = parseFloat(raw) || emptyFallback;
+        setDraft(String(next));
+        if (next !== value) onCommit(next);
+      }}
+    />
+  );
+}
+
 interface PurchaseFormProps {
   suppliers: Supplier[];
   products: Product[];
@@ -712,26 +747,20 @@ export function PurchaseForm({
           <div className="space-y-1">
             <Label className="text-xs">الكمية</Label>
             {isDraft ? (
-              <Input
-                type="text"
-                inputMode="decimal"
+              <DraftDecimalInput
                 className="min-h-11"
-                defaultValue={line.quantity}
-                onBlur={(e) => {
-                  const raw = sanitizeDecimalInput(e.target.value);
-                  e.target.value = raw;
-                  const qty = parseFloat(raw) || 1;
-                  if (qty !== line.quantity) {
-                    updateLine(
-                      line.id,
-                      qty,
-                      line.unit_cost,
-                      line.batch_number ?? null,
-                      line.production_date ?? null,
-                      line.expiry_date ?? null
-                    );
-                  }
-                }}
+                value={line.quantity}
+                emptyFallback={1}
+                onCommit={(qty) =>
+                  updateLine(
+                    line.id,
+                    qty,
+                    line.unit_cost,
+                    line.batch_number ?? null,
+                    line.production_date ?? null,
+                    line.expiry_date ?? null
+                  )
+                }
               />
             ) : (
               <p className="min-h-11 content-center text-sm">
@@ -743,26 +772,20 @@ export function PurchaseForm({
           <div className="space-y-1">
             <Label className="text-xs">التكلفة</Label>
             {isDraft ? (
-              <Input
-                type="text"
-                inputMode="decimal"
+              <DraftDecimalInput
                 className="min-h-11"
-                defaultValue={line.unit_cost}
-                onBlur={(e) => {
-                  const raw = sanitizeDecimalInput(e.target.value);
-                  e.target.value = raw;
-                  const cost = parseFloat(raw) || 0;
-                  if (cost !== line.unit_cost) {
-                    updateLine(
-                      line.id,
-                      line.quantity,
-                      cost,
-                      line.batch_number ?? null,
-                      line.production_date ?? null,
-                      line.expiry_date ?? null
-                    );
-                  }
-                }}
+                value={line.unit_cost}
+                emptyFallback={0}
+                onCommit={(cost) =>
+                  updateLine(
+                    line.id,
+                    line.quantity,
+                    cost,
+                    line.batch_number ?? null,
+                    line.production_date ?? null,
+                    line.expiry_date ?? null
+                  )
+                }
               />
             ) : (
               <p className="min-h-11 content-center text-sm">
@@ -1161,26 +1184,20 @@ export function PurchaseForm({
                       <TableCell>{lineProduct?.name ?? line.product_id}</TableCell>
                       <TableCell className="text-right">
                         {isDraft ? (
-                          <Input
-                            type="text"
-                            inputMode="decimal"
+                          <DraftDecimalInput
                             className="ml-auto w-24"
-                            defaultValue={line.quantity}
-                            onBlur={(e) => {
-                              const raw = sanitizeDecimalInput(e.target.value);
-                              e.target.value = raw;
-                              const qty = parseFloat(raw) || 1;
-                              if (qty !== line.quantity) {
-                                updateLine(
-                                  line.id,
-                                  qty,
-                                  line.unit_cost,
-                                  line.batch_number ?? null,
-                                  line.production_date ?? null,
-                                  line.expiry_date ?? null
-                                );
-                              }
-                            }}
+                            value={line.quantity}
+                            emptyFallback={1}
+                            onCommit={(qty) =>
+                              updateLine(
+                                line.id,
+                                qty,
+                                line.unit_cost,
+                                line.batch_number ?? null,
+                                line.production_date ?? null,
+                                line.expiry_date ?? null
+                              )
+                            }
                           />
                         ) : (
                           <span>
@@ -1191,26 +1208,20 @@ export function PurchaseForm({
                       </TableCell>
                       <TableCell className="text-right">
                         {isDraft ? (
-                          <Input
-                            type="text"
-                            inputMode="decimal"
+                          <DraftDecimalInput
                             className="ml-auto w-28"
-                            defaultValue={line.unit_cost}
-                            onBlur={(e) => {
-                              const raw = sanitizeDecimalInput(e.target.value);
-                              e.target.value = raw;
-                              const cost = parseFloat(raw) || 0;
-                              if (cost !== line.unit_cost) {
-                                updateLine(
-                                  line.id,
-                                  line.quantity,
-                                  cost,
-                                  line.batch_number ?? null,
-                                  line.production_date ?? null,
-                                  line.expiry_date ?? null
-                                );
-                              }
-                            }}
+                            value={line.unit_cost}
+                            emptyFallback={0}
+                            onCommit={(cost) =>
+                              updateLine(
+                                line.id,
+                                line.quantity,
+                                cost,
+                                line.batch_number ?? null,
+                                line.production_date ?? null,
+                                line.expiry_date ?? null
+                              )
+                            }
                           />
                         ) : (
                           formatCurrency(line.unit_cost, currency)

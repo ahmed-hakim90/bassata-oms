@@ -1,5 +1,6 @@
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as recipeRepo from "@/lib/repositories/recipe.repository";
+import * as stockCountRepo from "@/lib/repositories/stock-count.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -94,6 +95,49 @@ function isRecipeIngredientConstraintError(error: unknown): boolean {
   );
 }
 
+/** Operator-facing messages for product hard-delete FK blocks (NO ACTION refs). */
+const PRODUCT_DELETE_FK_MESSAGES: Record<string, string> = {
+  stock_count_lines_product_id_fkey:
+    "لا يمكن حذف المنتج لأنه موجود في سجلات جرد مخزون. عطّله من التعديل بدل الحذف.",
+  order_items_product_id_fkey:
+    "لا يمكن حذف المنتج لأنه مستخدم في فواتير مبيعات. عطّله بدل الحذف.",
+  online_order_items_product_id_fkey:
+    "لا يمكن حذف المنتج لأنه مستخدم في طلبات أونلاين. عطّله بدل الحذف.",
+  purchase_invoice_lines_product_id_fkey:
+    "لا يمكن حذف المنتج لأنه مستخدم في فواتير شراء. عطّله بدل الحذف.",
+  transfer_order_lines_product_id_fkey:
+    "لا يمكن حذف المنتج لأنه مستخدم في تحويلات مخزون. عطّله بدل الحذف.",
+  waste_records_product_id_fkey:
+    "لا يمكن حذف المنتج لأنه مستخدم في سجلات هالك. عطّله بدل الحذف.",
+  order_item_deductions_ingredient_product_id_fkey:
+    "لا يمكن حذف المكون لأنه مرتبط بخصومات مخزون من مبيعات. عطّله بدل الحذف.",
+  expenses_inventory_item_id_fkey:
+    "لا يمكن حذف المنتج لأنه مرتبط بمصروفات. عطّله بدل الحذف.",
+  product_recipe_lines_ingredient_product_id_fkey:
+    "لا يمكن حذف هذا المكون لأنه مستخدم في وصفة واحدة أو أكثر. أزله من الوصفات أولاً.",
+};
+
+function mapProductDeleteConstraintError(error: unknown): string | null {
+  if (!(error instanceof Error)) return null;
+  for (const [constraint, message] of Object.entries(PRODUCT_DELETE_FK_MESSAGES)) {
+    if (error.message.includes(constraint)) return message;
+  }
+  if (error.message.includes("violates foreign key constraint")) {
+    return "لا يمكن حذف المنتج لأنه مرتبط بعمليات سابقة. عطّله بدل الحذف.";
+  }
+  return null;
+}
+
+function formatIngredientRecipeUsageError(names: string[]): string {
+  if (names.length === 0) {
+    return "لا يمكن حذف هذا المكون لأنه مستخدم في وصفة واحدة أو أكثر. أزله من الوصفات أولاً.";
+  }
+  const shown = names.slice(0, 5);
+  const extraCount = names.length - shown.length;
+  const suffix = extraCount > 0 ? ` و${extraCount} أصناف أخرى` : "";
+  return `لا يمكن حذف هذا المكون لأنه مستخدم في وصفات: ${shown.join("، ")}${suffix}. أزله من هذه الوصفات أولاً.`;
+}
+
 async function getIngredientRecipeUsageNames(productId: string): Promise<string[]> {
   const usages = await recipeRepo.listRecipeUsagesByIngredient(productId);
   if (usages.length === 0) return [];
@@ -124,16 +168,6 @@ async function getIngredientRecipeUsageNames(productId: string): Promise<string[
       })
     ),
   ];
-}
-
-function formatIngredientRecipeUsageError(names: string[]): string {
-  if (names.length === 0) {
-    return "لا يمكن حذف هذا المكون لأنه مستخدم في وصفة واحدة أو أكثر. أزله من الوصفات أولاً.";
-  }
-  const shown = names.slice(0, 5);
-  const extraCount = names.length - shown.length;
-  const suffix = extraCount > 0 ? ` و${extraCount} أصناف أخرى` : "";
-  return `لا يمكن حذف هذا المكون لأنه مستخدم في وصفات: ${shown.join("، ")}${suffix}. أزله من هذه الوصفات أولاً.`;
 }
 
 export async function listProducts(options?: {
@@ -210,6 +244,9 @@ export async function deleteProduct(id: string, userId: string): Promise<boolean
   if (usageNames.length > 0) {
     throw new Error(formatIngredientRecipeUsageError(usageNames));
   }
+  if (await stockCountRepo.productHasStockCountLines(id)) {
+    throw new Error(PRODUCT_DELETE_FK_MESSAGES.stock_count_lines_product_id_fkey);
+  }
 
   let ok: boolean;
   try {
@@ -218,6 +255,8 @@ export async function deleteProduct(id: string, userId: string): Promise<boolean
     if (isRecipeIngredientConstraintError(error)) {
       throw new Error(formatIngredientRecipeUsageError(await getIngredientRecipeUsageNames(id)));
     }
+    const mapped = mapProductDeleteConstraintError(error);
+    if (mapped) throw new Error(mapped);
     throw error;
   }
   if (ok) {

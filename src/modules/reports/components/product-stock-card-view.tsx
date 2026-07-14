@@ -270,15 +270,24 @@ export function ProductStockCardView({
           <div className="space-y-[var(--mds-space-1)]">
             <Label>الصنف</Label>
             <Select
-              value={filters.productId ?? undefined}
-              onValueChange={(v) => apply({ productId: v || undefined })}
+              value={filters.productId ?? "__unset"}
+              onValueChange={(v) =>
+                apply({ productId: !v || v === "__unset" ? undefined : v })
+              }
             >
               <SelectTrigger className="w-[220px] rounded-[var(--mds-radius-md)]">
                 <SelectValue placeholder="اختر صنف…">
-                  {(value) => selectLabelById(products, value, (p) => p.name)}
+                  {(value) =>
+                    !value || value === "__unset"
+                      ? "اختر صنف…"
+                      : selectLabelById(products, value, (p) => p.name)
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__unset" label="اختر صنف…">
+                  اختر صنف…
+                </SelectItem>
                 {products.length === 0 ? (
                   <SelectItem value="__none" disabled>
                     مفيش أصناف متتبعة
@@ -303,7 +312,7 @@ export function ProductStockCardView({
             <div className="space-y-[var(--mds-space-1)]">
               <Label>الفرع</Label>
               <Select
-                value={filters.storeId ?? undefined}
+                value={filters.storeId ?? "all"}
                 onValueChange={(v) =>
                   apply({
                     storeId: !v || v === "all" ? undefined : v,
@@ -313,10 +322,17 @@ export function ProductStockCardView({
               >
                 <SelectTrigger className="w-[160px] rounded-[var(--mds-radius-md)]">
                   <SelectValue>
-                    {(value) => selectLabelById(stores, value, (s) => s.name)}
+                    {(value) =>
+                      !value || value === "all"
+                        ? "كل الفروع"
+                        : selectLabelById(stores, value, (s) => s.name)
+                    }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all" label="كل الفروع">
+                    كل الفروع
+                  </SelectItem>
                   {stores.map((s) => (
                     <SelectItem key={s.id} value={s.id} label={s.name}>
                       {s.name}

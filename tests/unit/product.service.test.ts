@@ -8,6 +8,9 @@ import * as recipeRepo from "@/lib/repositories/recipe.repository";
 
 vi.mock("@/lib/repositories/catalog.repository");
 vi.mock("@/lib/repositories/recipe.repository");
+vi.mock("@/lib/repositories/stock-count.repository", () => ({
+  productHasStockCountLines: vi.fn(async () => false),
+}));
 vi.mock("@/lib/repositories/store.repository");
 vi.mock("@/lib/services/audit.service", () => ({
   writeAuditLog: vi.fn(),
@@ -158,6 +161,17 @@ describe("deleteProduct", () => {
 
     await expect(deleteProduct("ingredient-1", "user-1")).rejects.toThrow(
       "لا يمكن حذف هذا المكون لأنه مستخدم في وصفات: Latte، Cappuccino - Large. أزله من هذه الوصفات أولاً."
+    );
+    expect(catalogRepo.deleteProduct).not.toHaveBeenCalled();
+  });
+
+  it("blocks delete when product appears on stock count lines", async () => {
+    const stockCountRepo = await import("@/lib/repositories/stock-count.repository");
+    vi.mocked(recipeRepo.listRecipeUsagesByIngredient).mockResolvedValue([]);
+    vi.mocked(stockCountRepo.productHasStockCountLines).mockResolvedValue(true);
+
+    await expect(deleteProduct("product-1", "user-1")).rejects.toThrow(
+      /سجلات جرد مخزون/
     );
     expect(catalogRepo.deleteProduct).not.toHaveBeenCalled();
   });
