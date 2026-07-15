@@ -101,6 +101,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
   const [footerText, setFooterText] = useState("الأسعار سارية حتى نفاد الكمية");
   const [showLogo, setShowLogo] = useState(true);
   const [showOldPrice, setShowOldPrice] = useState(false);
+  const [showUnitLine, setShowUnitLine] = useState(true);
   const [background, setBackground] = useState<string>(DEFAULT_PRICE_LIST_THEME.background);
   const [accent, setAccent] = useState<string>(DEFAULT_PRICE_LIST_THEME.accent);
   const [formatId, setFormatId] = useState<PriceListFormatId>("instagram");
@@ -195,6 +196,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
     footerText,
     showLogo,
     showOldPrice,
+    showUnitLine,
     discountPercent: discount,
     background,
     accent,
@@ -289,7 +291,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
   return (
     <div className="space-y-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <PageHeader
-        title="قائمة أسعار الجملة"
+        title="قائمة أسعار المنتجات"
         description={
           initial.invoiceNumber
             ? `من فاتورة ${initial.invoiceNumber} — السعر الظاهر هو سعر البيع المسجّل للصنف (قابل للتعديل)`
@@ -381,6 +383,13 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
                   onCheckedChange={(v) => setShowOldPrice(v === true)}
                 />
                 إظهار السعر القديم
+              </label>
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                <Checkbox
+                  checked={showUnitLine}
+                  onCheckedChange={(v) => setShowUnitLine(v === true)}
+                />
+                إظهار الوحدة أسفل اسم المنتج
               </label>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label>مقاس التصدير</Label>
@@ -588,6 +597,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
                       accent={accent}
                       rows={posterRows}
                       showOldPrice={showOldPrice}
+                      showUnitLine={showUnitLine}
                     />
                   </div>
                 </div>

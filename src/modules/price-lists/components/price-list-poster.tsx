@@ -19,6 +19,7 @@ type PriceListPosterProps = {
   accent: string;
   rows: PosterRow[];
   showOldPrice: boolean;
+  showUnitLine: boolean;
   className?: string;
 };
 
@@ -53,6 +54,7 @@ export function PriceListPoster({
   accent,
   rows,
   showOldPrice,
+  showUnitLine,
   className,
 }: PriceListPosterProps) {
   const cardBg = "#FFF9E6";
@@ -259,15 +261,18 @@ export function PriceListPoster({
                 >
                   {row.name}
                 </span>
-                <span
-                  style={{
-                    fontSize: metaSize,
-                    opacity: 0.75,
-                    fontWeight: 600,
-                  }}
-                >
-                  {[row.weightLine, row.packUnitLabel].filter(Boolean).join(" · ")}
-                </span>
+                {showUnitLine &&
+                [row.weightLine, row.packUnitLabel].filter(Boolean).length > 0 ? (
+                  <span
+                    style={{
+                      fontSize: metaSize,
+                      opacity: 0.75,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {[row.weightLine, row.packUnitLabel].filter(Boolean).join(" · ")}
+                  </span>
+                ) : null}
               </div>
 
               <div

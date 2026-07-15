@@ -1,13 +1,16 @@
 import * as sessionRepo from "@/lib/repositories/session.repository";
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as expenseRepo from "@/lib/repositories/expense.repository";
-import type { Expense } from "@/lib/types";
+import * as paymentRepo from "@/lib/repositories/supplier-payment.repository";
+import type { Expense, SupplierPayment } from "@/lib/types";
 
 export interface SessionReconciliation {
   openingCash: number;
   cashSales: number;
   cashRefunds: number;
   expenses: number;
+  /** Non-voided cash supplier payments linked to this session. */
+  supplierPayments: number;
   expectedCash: number;
   /** Completed order totals (all payment methods). */
   totalSales: number;
@@ -17,6 +20,7 @@ export interface SessionReconciliation {
 export interface SessionCashBundle {
   reconciliation: SessionReconciliation;
   expenses: Expense[];
+  supplierPayments: SupplierPayment[];
 }
 
 function emptyReconciliation(): SessionReconciliation {
@@ -25,6 +29,7 @@ function emptyReconciliation(): SessionReconciliation {
     cashSales: 0,
     cashRefunds: 0,
     expenses: 0,
+    supplierPayments: 0,
     expectedCash: 0,
     totalSales: 0,
     orderCount: 0,
@@ -48,19 +53,26 @@ function approvedSessionCashExpenses(expenses: Expense[]) {
     .reduce((s, e) => s + e.amount, 0);
 }
 
+function sessionCashSupplierPayments(payments: SupplierPayment[]) {
+  return payments
+    .filter((p) => !p.voided_at && p.payment_method === "cash")
+    .reduce((s, p) => s + p.amount, 0);
+}
+
 /** One session-scoped load for close-shift UI + expected cash. */
 export async function loadSessionCashBundle(sessionId: string): Promise<SessionCashBundle> {
   const session = await sessionRepo.getSession(sessionId);
   if (!session) {
-    return { reconciliation: emptyReconciliation(), expenses: [] };
+    return { reconciliation: emptyReconciliation(), expenses: [], supplierPayments: [] };
   }
 
-  const [orders, expenses] = await Promise.all([
+  const [orders, expenses, supplierPayments] = await Promise.all([
     orderRepo.listOrdersBySessionIds([sessionId]),
     expenseRepo.listExpenses({
       storeId: session.store_id,
       sessionId,
     }),
+    paymentRepo.listPaymentsForSessions([sessionId]),
   ]);
 
   const relevantIds = orders
@@ -94,7 +106,9 @@ export async function loadSessionCashBundle(sessionId: string): Promise<SessionC
   }
 
   const expenseTotal = approvedSessionCashExpenses(expenses);
-  const expectedCash = session.opening_cash + cashSales - cashRefunds - expenseTotal;
+  const supplierPaymentTotal = sessionCashSupplierPayments(supplierPayments);
+  const expectedCash =
+    session.opening_cash + cashSales - cashRefunds - expenseTotal - supplierPaymentTotal;
 
   return {
     reconciliation: {
@@ -102,11 +116,13 @@ export async function loadSessionCashBundle(sessionId: string): Promise<SessionC
       cashSales,
       cashRefunds,
       expenses: expenseTotal,
+      supplierPayments: supplierPaymentTotal,
       expectedCash,
       totalSales,
       orderCount,
     },
     expenses,
+    supplierPayments,
   };
 }
 

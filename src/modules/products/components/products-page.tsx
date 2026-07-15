@@ -321,34 +321,63 @@ export function ProductsPage({
             : "كتالوج المنيو والأسعار والتصنيفات — المكان اللي بتجهّز منه الكاشير."
         }
         action={
-          <>
-            <Button type="button" onClick={openCreate} className="shadow-[var(--mds-elevation-1)]">
+          <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
+            <Button
+              type="button"
+              onClick={openCreate}
+              className="min-w-0 flex-1 shadow-[var(--mds-elevation-1)] sm:flex-initial"
+            >
               <Plus className="size-4" />
               {isSupermarket ? "منتج جديد" : "صنف منيو جديد"}
             </Button>
-            {showIngredientsCatalog ? (
-              <Button type="button" variant="outline" onClick={openCreateIngredient}>
-                <Plus className="size-4" />
-                مكوّن جديد
+            <div className="hidden items-center gap-2 sm:flex">
+              {showIngredientsCatalog ? (
+                <Button type="button" variant="outline" onClick={openCreateIngredient}>
+                  <Plus className="size-4" />
+                  مكوّن جديد
+                </Button>
+              ) : null}
+              <Button type="button" variant="outline" onClick={() => setCategoryDialogOpen(true)}>
+                <Tags className="size-4" />
+                التصنيفات
               </Button>
-            ) : null}
-            <Button type="button" variant="outline" onClick={() => setCategoryDialogOpen(true)}>
-              <Tags className="size-4" />
-              التصنيفات
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
-              <FileSpreadsheet className="size-4" />
-              استيراد / تصدير
-            </Button>
+              <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
+                <FileSpreadsheet className="size-4" />
+                استيراد / تصدير
+              </Button>
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button type="button" variant="outline" size="icon" aria-label="المزيد" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="size-11 shrink-0 sm:size-9"
+                    aria-label="المزيد"
+                  />
                 }
               >
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-52">
+                {showIngredientsCatalog ? (
+                  <DropdownMenuItem onClick={openCreateIngredient} className="sm:hidden">
+                    <Plus className="size-4" />
+                    مكوّن جديد
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem
+                  onClick={() => setCategoryDialogOpen(true)}
+                  className="sm:hidden"
+                >
+                  <Tags className="size-4" />
+                  التصنيفات
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setImportOpen(true)} className="sm:hidden">
+                  <FileSpreadsheet className="size-4" />
+                  استيراد / تصدير
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
                   disabled={pending}
@@ -359,7 +388,7 @@ export function ProductsPage({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </>
+          </div>
         }
       />
 
@@ -463,7 +492,7 @@ export function ProductsPage({
                 />
               </div>
               <div
-                className="inline-flex shrink-0 rounded-[var(--mds-radius-md)] bg-muted/60 p-1"
+                className="hidden shrink-0 rounded-[var(--mds-radius-md)] bg-muted/60 p-1 md:inline-flex"
                 role="group"
                 aria-label="شكل العرض"
               >
@@ -503,35 +532,17 @@ export function ProductsPage({
             <span>
               عرض {filtered.length} من {visibleSource.length}
               {categoryId ? " · تصنيف محدد" : ""}
-              {layout === "table"
-                ? " · عدّل السعر والحالة وتتبع المخزون مباشرة من الجدول"
-                : ""}
+              <span className="hidden md:inline">
+                {layout === "table"
+                  ? " · عدّل السعر والحالة وتتبع المخزون مباشرة من الجدول"
+                  : ""}
+              </span>
             </span>
             {pending ? <span>جاري التحديث…</span> : null}
           </div>
 
-          {layout === "table" ? (
-            <ProductTable
-              items={filtered}
-              currency={currency}
-              supermarketColumns={isSupermarket}
-              priceMode={
-                showIngredientsCatalog && view === "ingredients" ? "cost" : "sale"
-              }
-              availableStockByProductId={availableStockByProductId}
-              availableStockByVariantId={availableStockByVariantId}
-              selectedIds={selectedIds}
-              onSelectedIdsChange={setSelectedIds}
-              toolbar={inventoryToolbar}
-              onEdit={
-                showIngredientsCatalog && view === "ingredients"
-                  ? openEditIngredient
-                  : openEdit
-              }
-              onDelete={handleDelete}
-              emptyAction={emptyAction}
-            />
-          ) : (
+          {/* Mobile: always cards. Desktop: honor layout toggle. */}
+          <div className="md:hidden">
             <ProductGrid
               items={filtered}
               currency={currency}
@@ -548,7 +559,48 @@ export function ProductsPage({
               onDelete={handleDelete}
               emptyAction={emptyAction}
             />
-          )}
+          </div>
+          <div className="hidden md:block">
+            {layout === "table" ? (
+              <ProductTable
+                items={filtered}
+                currency={currency}
+                supermarketColumns={isSupermarket}
+                priceMode={
+                  showIngredientsCatalog && view === "ingredients" ? "cost" : "sale"
+                }
+                availableStockByProductId={availableStockByProductId}
+                availableStockByVariantId={availableStockByVariantId}
+                selectedIds={selectedIds}
+                onSelectedIdsChange={setSelectedIds}
+                toolbar={inventoryToolbar}
+                onEdit={
+                  showIngredientsCatalog && view === "ingredients"
+                    ? openEditIngredient
+                    : openEdit
+                }
+                onDelete={handleDelete}
+                emptyAction={emptyAction}
+              />
+            ) : (
+              <ProductGrid
+                items={filtered}
+                currency={currency}
+                priceMode={
+                  showIngredientsCatalog && view === "ingredients" ? "cost" : "sale"
+                }
+                availableStockByProductId={availableStockByProductId}
+                availableStockByVariantId={availableStockByVariantId}
+                onEdit={
+                  showIngredientsCatalog && view === "ingredients"
+                    ? openEditIngredient
+                    : openEdit
+                }
+                onDelete={handleDelete}
+                emptyAction={emptyAction}
+              />
+            )}
+          </div>
         </div>
       </div>
 

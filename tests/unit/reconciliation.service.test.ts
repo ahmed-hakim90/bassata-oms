@@ -3,10 +3,12 @@ import { calcExpectedCash, calcVariance } from "@/modules/sessions/services/reco
 import * as sessionRepo from "@/lib/repositories/session.repository";
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as expenseRepo from "@/lib/repositories/expense.repository";
+import * as paymentRepo from "@/lib/repositories/supplier-payment.repository";
 
 vi.mock("@/lib/repositories/session.repository");
 vi.mock("@/lib/repositories/order.repository");
 vi.mock("@/lib/repositories/expense.repository");
+vi.mock("@/lib/repositories/supplier-payment.repository");
 
 describe("calcVariance", () => {
   it("returns positive variance when actual exceeds expected", () => {
@@ -23,7 +25,7 @@ describe("calcExpectedCash", () => {
     vi.resetAllMocks();
   });
 
-  it("computes expected cash from opening, sales, refunds, and approved session expenses", async () => {
+  it("computes expected cash from opening, sales, refunds, expenses, and supplier cash payments", async () => {
     vi.mocked(sessionRepo.getSession).mockResolvedValue({
       id: "s1",
       store_id: "store1",
@@ -101,6 +103,38 @@ describe("calcExpectedCash", () => {
         created_at: new Date().toISOString(),
       },
     ]);
+    vi.mocked(paymentRepo.listPaymentsForSessions).mockResolvedValue([
+      {
+        id: "sp1",
+        org_id: "org1",
+        store_id: "store1",
+        supplier_id: "sup1",
+        session_id: "s1",
+        amount: 10,
+        payment_method: "cash",
+        reference: "",
+        notes: "",
+        paid_at: new Date().toISOString(),
+        created_by: "c1",
+        created_at: new Date().toISOString(),
+        voided_at: null,
+      },
+      {
+        id: "sp2",
+        org_id: "org1",
+        store_id: "store1",
+        supplier_id: "sup1",
+        session_id: "s1",
+        amount: 5,
+        payment_method: "card",
+        reference: "",
+        notes: "",
+        paid_at: new Date().toISOString(),
+        created_by: "c1",
+        created_at: new Date().toISOString(),
+        voided_at: null,
+      },
+    ]);
 
     const result = await calcExpectedCash("s1");
 
@@ -112,7 +146,8 @@ describe("calcExpectedCash", () => {
     expect(result.cashSales).toBe(50);
     expect(result.cashRefunds).toBe(20);
     expect(result.expenses).toBe(15);
-    expect(result.expectedCash).toBe(115);
+    expect(result.supplierPayments).toBe(10);
+    expect(result.expectedCash).toBe(105);
     expect(result.totalSales).toBe(50);
     expect(result.orderCount).toBe(1);
   });

@@ -48,10 +48,10 @@ export async function SessionBar() {
   });
 
   return (
-    <div className="border-b border-[color-mix(in_srgb,var(--mds-color-feedback-success)_30%,transparent)] bg-[color-mix(in_srgb,var(--mds-color-feedback-success)_8%,var(--mds-color-bg-surface))] px-[var(--mds-space-4)] py-[var(--mds-space-1)] dark:bg-[color-mix(in_srgb,var(--mds-color-feedback-success)_10%,transparent)]">
+    <div className="shrink-0 border-b border-[color-mix(in_srgb,var(--mds-color-feedback-success)_30%,transparent)] bg-[color-mix(in_srgb,var(--mds-color-feedback-success)_8%,var(--mds-color-bg-surface))] px-3 py-1 md:px-[var(--mds-space-4)] dark:bg-[color-mix(in_srgb,var(--mds-color-feedback-success)_10%,transparent)]">
       <Link
         href="/sessions"
-        className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-[var(--mds-space-2)] gap-y-0.5 text-xs hover:underline"
+        className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-[11px] leading-tight hover:underline md:text-xs"
       >
         {/* pulsing active indicator */}
         <span className="relative flex size-2 shrink-0 items-center justify-center" aria-hidden>

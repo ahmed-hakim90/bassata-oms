@@ -119,7 +119,11 @@ export async function createSupplierPaymentAction(input: {
 }): Promise<SupplierActionResult<SupplierPayment>> {
   return runSupplierAction(async () => {
     await requireFeature("purchases");
-    const user = await requireRole(["owner", "manager"]);
+    // Owner/manager always; cashier only with supplier_payment_record grant.
+    const user = await requirePermissionOrRole("supplier_payment_record", [
+      "owner",
+      "manager",
+    ]);
     const storeId = await getValidatedActiveStoreId();
     const payment = await createSupplierPayment({
       storeId,
@@ -135,6 +139,18 @@ export async function createSupplierPaymentAction(input: {
     revalidatePath(`/inventory/suppliers/${input.supplierId}`);
     return payment;
   });
+}
+
+export async function listSuppliersForPosPaymentAction(): Promise<
+  Pick<SupplierListSummary, "id" | "name" | "balanceDue">[]
+> {
+  await requireFeature("purchases");
+  await requirePermissionOrRole("supplier_payment_record", ["owner", "manager"]);
+  const storeId = await getValidatedActiveStoreId();
+  const summaries = await listSupplierSummaries(storeId);
+  return summaries
+    .map((s) => ({ id: s.id, name: s.name, balanceDue: s.balanceDue }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ar"));
 }
 
 export async function voidSupplierPaymentAction(

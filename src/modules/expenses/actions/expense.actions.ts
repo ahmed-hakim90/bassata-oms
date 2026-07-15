@@ -23,11 +23,7 @@ export async function createExpenseAction(
   const user = await requireAuth();
   await requireFeature("session_expenses");
   if (options?.isSessionExpense || input.session_id) {
-    if (input.inventory_item_id) {
-      await requirePermission("purchase_from_session_create");
-    } else {
-      await requireAnyPermission(["session_expense_create", "expense_create"]);
-    }
+    await requireAnyPermission(["session_expense_create", "expense_create"]);
   } else {
     await requirePermission("expense_create");
   }

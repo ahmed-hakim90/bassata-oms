@@ -95,18 +95,6 @@ export function ExpenseSettingsTab({
             </div>
             <label className="flex items-center gap-2">
               <Checkbox
-                checked={expenseForm.allow_inventory_purchase_from_session}
-                onCheckedChange={(v) =>
-                  setExpenseForm({
-                    ...expenseForm,
-                    allow_inventory_purchase_from_session: v === true,
-                  })
-                }
-              />
-              <span className="text-sm">السماح بشراء مخزون من الجلسة</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <Checkbox
                 checked={expenseForm.prevent_expenses_in_closed_periods}
                 onCheckedChange={(v) =>
                   setExpenseForm({
@@ -147,7 +135,10 @@ export function ExpenseSettingsTab({
               onClick={() =>
                 startTransition(async () => {
                   try {
-                    await updateExpenseSettingsAction(expenseForm);
+                    await updateExpenseSettingsAction({
+                      ...expenseForm,
+                      allow_inventory_purchase_from_session: false,
+                    });
                     toast.success("تم حفظ إعدادات المصروفات");
                   } catch {
                     toast.error("فشل الحفظ");

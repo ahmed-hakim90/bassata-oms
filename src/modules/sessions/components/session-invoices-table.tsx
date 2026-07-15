@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { OrderDetailDialog } from "@/modules/orders/components/order-detail-dialog";
@@ -83,7 +85,7 @@ export function SessionInvoicesTable({ invoices }: SessionInvoicesTableProps) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="ابحث برقم الفاتورة أو اسم العميل…"
           aria-label="بحث في فواتير الجلسة"
-          className="h-10 rounded-[var(--mds-radius-md)] border-border/70 bg-background ps-10"
+          className="h-11 rounded-[var(--mds-radius-md)] border-border/70 bg-background ps-10 md:h-10"
         />
       </div>
 
@@ -93,53 +95,55 @@ export function SessionInvoicesTable({ invoices }: SessionInvoicesTableProps) {
           description="جرّب رقم فاتورة أو اسم عميل مختلف."
         />
       ) : (
-        <>
-          <div className="grid gap-[var(--mds-space-3)] md:hidden">
-            {filtered.map((invoice) => (
-              <button
-                key={invoice.id}
-                type="button"
-                onClick={() => setSelectedOrderId(invoice.id)}
-                className="rounded-[var(--mds-radius-md)] border border-border bg-card p-[var(--mds-space-4)] text-start shadow-[var(--mds-elevation-1)] transition-colors hover:bg-muted/40"
-              >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="font-medium text-primary">{invoice.order_number}</p>
-                  <Badge
-                    variant={
-                      invoice.status === "completed"
-                        ? "secondary"
-                        : invoice.status === "voided" || invoice.status === "refunded"
-                          ? "destructive"
-                          : "outline"
-                    }
-                  >
-                    {STATUS_LABELS[invoice.status] ?? invoice.status}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <p className="text-muted-foreground">الوقت</p>
-                  <p>{formatDateTime(invoice.created_at)}</p>
-                  <p className="text-muted-foreground">القيمة</p>
-                  <p className="font-medium tabular-nums">
-                    {formatCurrency(invoice.total)}
-                  </p>
-                  <p className="text-muted-foreground">العميل</p>
-                  <p className={cn(!invoice.hasCustomer && "text-muted-foreground")}>
-                    {invoice.hasCustomer
-                      ? (invoice.customerName ?? "عميل")
-                      : "بدون عميل"}
-                  </p>
-                  <p className="text-muted-foreground">الدفع</p>
-                  <p>
-                    {PAYMENT_STATUS_LABELS[invoice.payment_status] ??
-                      invoice.payment_status}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="hidden md:block">
+        <ResponsiveListLayout
+          mobile={filtered.map((invoice) => (
+            <MobileEntityCard
+              key={invoice.id}
+              onClick={() => setSelectedOrderId(invoice.id)}
+              title={invoice.order_number}
+              badge={
+                <Badge
+                  variant={
+                    invoice.status === "completed"
+                      ? "secondary"
+                      : invoice.status === "voided" || invoice.status === "refunded"
+                        ? "destructive"
+                        : "outline"
+                  }
+                >
+                  {STATUS_LABELS[invoice.status] ?? invoice.status}
+                </Badge>
+              }
+              fields={[
+                { label: "الوقت", value: formatDateTime(invoice.created_at) },
+                {
+                  label: "القيمة",
+                  value: (
+                    <span className="font-medium tabular-nums">
+                      {formatCurrency(invoice.total)}
+                    </span>
+                  ),
+                },
+                {
+                  label: "العميل",
+                  value: (
+                    <span className={cn(!invoice.hasCustomer && "text-muted-foreground")}>
+                      {invoice.hasCustomer
+                        ? (invoice.customerName ?? "عميل")
+                        : "بدون عميل"}
+                    </span>
+                  ),
+                },
+                {
+                  label: "الدفع",
+                  value:
+                    PAYMENT_STATUS_LABELS[invoice.payment_status] ??
+                    invoice.payment_status,
+                },
+              ]}
+            />
+          ))}
+          desktop={
             <DataTableShell title={`فواتير الجلسة (${filtered.length})`}>
               <Table className="min-w-[720px]">
                 <TableHeader>
@@ -260,8 +264,8 @@ export function SessionInvoicesTable({ invoices }: SessionInvoicesTableProps) {
                 </TableBody>
               </Table>
             </DataTableShell>
-          </div>
-        </>
+          }
+        />
       )}
 
       <OrderDetailDialog

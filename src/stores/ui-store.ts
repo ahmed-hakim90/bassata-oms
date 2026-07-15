@@ -13,6 +13,8 @@ interface UiState {
   activeStoreId: string | null;
   collapsedGroups: Record<string, boolean>;
   commandPaletteOpen: boolean;
+  /** Mobile drawer (hamburger / More). Not persisted. */
+  mobileNavSheetOpen: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   setTheme: (theme: ThemePreference) => void;
@@ -22,6 +24,8 @@ interface UiState {
   setGroupCollapsed: (groupLabel: string, collapsed: boolean) => void;
   setCommandPaletteOpen: (open: boolean) => void;
   toggleCommandPalette: () => void;
+  setMobileNavSheetOpen: (open: boolean) => void;
+  openMobileNavSheet: () => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -33,6 +37,7 @@ export const useUiStore = create<UiState>()(
       activeStoreId: null,
       collapsedGroups: {},
       commandPaletteOpen: false,
+      mobileNavSheetOpen: false,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -56,6 +61,8 @@ export const useUiStore = create<UiState>()(
       setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
       toggleCommandPalette: () =>
         set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
+      setMobileNavSheetOpen: (open) => set({ mobileNavSheetOpen: open }),
+      openMobileNavSheet: () => set({ mobileNavSheetOpen: true }),
     }),
     {
       name: "SweetFlow-ui",

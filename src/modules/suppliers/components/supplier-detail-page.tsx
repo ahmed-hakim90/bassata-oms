@@ -13,6 +13,8 @@ import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { KpiCard } from "@/components/SweetFlow/kpi-card";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
 import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
 import { exportSupplierStatementExcel } from "@/modules/reports/actions/statement-report.actions";
@@ -201,14 +203,14 @@ export function SupplierDetailPage({
         title="كشف الحساب"
         description={`الرصيد الختامي ${formatCurrency(statement.closingBalance, currency)}`}
       >
-        <div className="mb-[var(--mds-space-4)] flex flex-wrap items-end gap-[var(--mds-space-3)] rounded-[var(--mds-radius-md)] border border-border/60 bg-muted/30 p-[var(--mds-space-3)]">
+        <div className="mb-4 grid grid-cols-2 gap-2 rounded-[var(--mds-radius-md)] border border-border/60 bg-muted/30 p-3 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">من</Label>
             <Input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="h-9 w-[9.5rem] bg-background"
+              className="h-11 w-full bg-background sm:h-9 sm:w-[9.5rem]"
             />
           </div>
           <div className="space-y-1">
@@ -217,117 +219,210 @@ export function SupplierDetailPage({
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="h-9 w-[9.5rem] bg-background"
+              className="h-11 w-full bg-background sm:h-9 sm:w-[9.5rem]"
             />
           </div>
-          <Button size="sm" onClick={applyFilter} disabled={pending}>
+          <Button size="sm" className="col-span-2 min-h-11 sm:col-auto sm:min-h-9" onClick={applyFilter} disabled={pending}>
             تطبيق
           </Button>
           {hasDateFilter ? (
-            <Button size="sm" variant="outline" onClick={clearFilter} disabled={pending}>
+            <Button size="sm" variant="outline" className="col-span-2 min-h-11 sm:col-auto sm:min-h-9" onClick={clearFilter} disabled={pending}>
               مسح
             </Button>
           ) : null}
           {from && !to ? (
-            <p className="basis-full text-xs text-muted-foreground">
+            <p className="col-span-2 basis-full text-xs text-muted-foreground">
               تاريخ النهاية يكون اليوم تلقائيًا عند تحديد تاريخ البداية فقط.
             </p>
           ) : null}
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="border-b text-start text-muted-foreground">
-                <th className="py-2 ps-4 font-medium">التاريخ</th>
-                <th className="py-2 ps-4 font-medium">النوع</th>
-                <th className="py-2 ps-4 font-medium">المرجع</th>
-                <th className="py-2 ps-4 font-medium">الوصف</th>
-                <th className="py-2 ps-4 text-end font-medium">مدين</th>
-                <th className="py-2 ps-4 text-end font-medium">دائن</th>
-                <th className="py-2 text-end font-medium">الرصيد</th>
-                {canManagePayments ? <th className="py-2 pe-2" /> : null}
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b bg-muted/30">
-                <td className="py-2 ps-4 text-muted-foreground" colSpan={4}>
-                  رصيد افتتاحي
-                </td>
-                <td className="py-2 ps-4 text-end" />
-                <td className="py-2 ps-4 text-end" />
-                <td className="py-2 text-end font-medium tabular-nums">
-                  {formatCurrency(statement.openingBalance, currency)}
-                </td>
-                {canManagePayments ? <td /> : null}
-              </tr>
+        <ResponsiveListLayout
+          mobile={
+            <>
+              <MobileEntityCard
+                title="رصيد افتتاحي"
+                fields={[
+                  {
+                    label: "الرصيد",
+                    value: (
+                      <span className="font-medium tabular-nums">
+                        {formatCurrency(statement.openingBalance, currency)}
+                      </span>
+                    ),
+                  },
+                ]}
+              />
               {statement.transactions.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={canManagePayments ? 8 : 7}
-                    className="py-8 text-center text-muted-foreground"
-                  >
-                    مفيش حركات في الفترة دي
-                  </td>
-                </tr>
+                <p className="rounded-[var(--mds-radius-md)] border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                  مفيش حركات في الفترة دي
+                </p>
               ) : (
-                statement.transactions.map((t) => (
-                  <tr key={t.id} className="border-b border-border/40">
-                    <td className="whitespace-nowrap py-2 ps-4">{formatDateTime(t.at)}</td>
-                    <td className="py-2 ps-4">
-                      <StatusPill
-                        label={TYPE_LABELS[t.type]}
-                        variant={
-                          t.type === "purchase"
-                            ? "success"
-                            : t.type === "payment"
-                              ? "info"
-                              : "danger"
-                        }
-                      />
-                    </td>
-                    <td className="py-2 ps-4">
-                      {t.purchaseInvoiceId ? (
-                        <Link
-                          href={`/inventory/purchases?invoice=${t.purchaseInvoiceId}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {t.reference}
-                        </Link>
-                      ) : (
-                        t.reference
-                      )}
-                    </td>
-                    <td className="py-2 ps-4">{t.description}</td>
-                    <td className="py-2 ps-4 text-end tabular-nums">
-                      {t.debit > 0 ? formatCurrency(t.debit, currency) : "—"}
-                    </td>
-                    <td className="py-2 ps-4 text-end tabular-nums">
-                      {t.credit > 0 ? formatCurrency(t.credit, currency) : "—"}
-                    </td>
-                    <td className="py-2 text-end font-medium tabular-nums">
-                      {formatCurrency(t.balance, currency)}
-                    </td>
-                    {canManagePayments && t.type === "payment" ? (
-                      <td className="py-2 pe-2">
+                statement.transactions.map((tx) => (
+                  <MobileEntityCard
+                    key={tx.id}
+                    title={TYPE_LABELS[tx.type]}
+                    subtitle={formatDateTime(tx.at)}
+                    fields={[
+                      {
+                        label: "المرجع",
+                        value: tx.purchaseInvoiceId ? (
+                          <Link
+                            href={`/inventory/purchases?invoice=${tx.purchaseInvoiceId}`}
+                            className="font-medium text-primary"
+                          >
+                            {tx.reference}
+                          </Link>
+                        ) : (
+                          tx.reference
+                        ),
+                      },
+                      { label: "الوصف", value: tx.description || "—" },
+                      {
+                        label: "مدين",
+                        value:
+                          tx.debit > 0 ? (
+                            <span className="tabular-nums">
+                              {formatCurrency(tx.debit, currency)}
+                            </span>
+                          ) : (
+                            "—"
+                          ),
+                      },
+                      {
+                        label: "دائن",
+                        value:
+                          tx.credit > 0 ? (
+                            <span className="tabular-nums">
+                              {formatCurrency(tx.credit, currency)}
+                            </span>
+                          ) : (
+                            "—"
+                          ),
+                      },
+                      {
+                        label: "الرصيد",
+                        value: (
+                          <span className="font-semibold tabular-nums">
+                            {formatCurrency(tx.balance, currency)}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    footer={
+                      canManagePayments && tx.type === "payment" ? (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-destructive"
-                          onClick={() => setVoidPaymentId(t.id)}
+                          onClick={() => setVoidPaymentId(tx.id)}
                           disabled={pending}
                         >
-                          إلغاء
+                          إلغاء الدفعة
                         </Button>
-                      </td>
-                    ) : canManagePayments ? (
-                      <td />
-                    ) : null}
-                  </tr>
+                      ) : undefined
+                    }
+                  />
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
+            </>
+          }
+          desktop={
+            <div className="overflow-x-auto rounded-[var(--mds-radius-md)] border border-border">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b text-start text-muted-foreground">
+                    <th className="py-2 ps-4 font-medium">التاريخ</th>
+                    <th className="py-2 ps-4 font-medium">النوع</th>
+                    <th className="py-2 ps-4 font-medium">المرجع</th>
+                    <th className="py-2 ps-4 font-medium">الوصف</th>
+                    <th className="py-2 ps-4 text-end font-medium">مدين</th>
+                    <th className="py-2 ps-4 text-end font-medium">دائن</th>
+                    <th className="py-2 text-end font-medium">الرصيد</th>
+                    {canManagePayments ? <th className="py-2 pe-2" /> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b bg-muted/30">
+                    <td className="py-2 ps-4 text-muted-foreground" colSpan={4}>
+                      رصيد افتتاحي
+                    </td>
+                    <td className="py-2 ps-4 text-end" />
+                    <td className="py-2 ps-4 text-end" />
+                    <td className="py-2 text-end font-medium tabular-nums">
+                      {formatCurrency(statement.openingBalance, currency)}
+                    </td>
+                    {canManagePayments ? <td /> : null}
+                  </tr>
+                  {statement.transactions.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={canManagePayments ? 8 : 7}
+                        className="py-8 text-center text-muted-foreground"
+                      >
+                        مفيش حركات في الفترة دي
+                      </td>
+                    </tr>
+                  ) : (
+                    statement.transactions.map((t) => (
+                      <tr key={t.id} className="border-b border-border/40">
+                        <td className="whitespace-nowrap py-2 ps-4">{formatDateTime(t.at)}</td>
+                        <td className="py-2 ps-4">
+                          <StatusPill
+                            label={TYPE_LABELS[t.type]}
+                            variant={
+                              t.type === "purchase"
+                                ? "success"
+                                : t.type === "payment"
+                                  ? "info"
+                                  : "danger"
+                            }
+                          />
+                        </td>
+                        <td className="py-2 ps-4">
+                          {t.purchaseInvoiceId ? (
+                            <Link
+                              href={`/inventory/purchases?invoice=${t.purchaseInvoiceId}`}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {t.reference}
+                            </Link>
+                          ) : (
+                            t.reference
+                          )}
+                        </td>
+                        <td className="py-2 ps-4">{t.description}</td>
+                        <td className="py-2 ps-4 text-end tabular-nums">
+                          {t.debit > 0 ? formatCurrency(t.debit, currency) : "—"}
+                        </td>
+                        <td className="py-2 ps-4 text-end tabular-nums">
+                          {t.credit > 0 ? formatCurrency(t.credit, currency) : "—"}
+                        </td>
+                        <td className="py-2 text-end font-medium tabular-nums">
+                          {formatCurrency(t.balance, currency)}
+                        </td>
+                        {canManagePayments && t.type === "payment" ? (
+                          <td className="py-2 pe-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={() => setVoidPaymentId(t.id)}
+                              disabled={pending}
+                            >
+                              إلغاء
+                            </Button>
+                          </td>
+                        ) : canManagePayments ? (
+                          <td />
+                        ) : null}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          }
+        />
       </OperationalCard>
 
       {canManagePayments ? (

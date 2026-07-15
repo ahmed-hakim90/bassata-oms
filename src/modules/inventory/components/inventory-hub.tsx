@@ -107,13 +107,15 @@ export function InventoryHub({
         }
       />
 
-      <div className="flex flex-col gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card px-[var(--mds-space-4)] py-[var(--mds-space-3)]">
-        <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
-          <span className="min-w-[4.5rem] text-xs font-medium text-muted-foreground">المخزن</span>
-          <div className="flex flex-wrap gap-[var(--mds-space-2)]">
+      <div className="flex flex-col gap-3 rounded-[var(--mds-radius-lg)] border border-border bg-card px-3 py-3 sm:px-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <span className="shrink-0 text-xs font-medium text-muted-foreground sm:min-w-[4.5rem]">
+            المخزن
+          </span>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
             <Link
               href={inventoryHref(undefined, selectedProductType)}
-              className={`rounded-[var(--mds-radius-md)] border px-3 py-1.5 text-sm transition-colors ${
+              className={`shrink-0 rounded-[var(--mds-radius-md)] border px-3 py-2 text-sm transition-colors touch-manipulation ${
                 !selectedWarehouseId
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-muted/40 hover:bg-muted"
@@ -125,7 +127,7 @@ export function InventoryHub({
               <Link
                 key={warehouse.id}
                 href={inventoryHref(warehouse.id, selectedProductType)}
-                className={`rounded-[var(--mds-radius-md)] border px-3 py-1.5 text-sm transition-colors ${
+                className={`shrink-0 rounded-[var(--mds-radius-md)] border px-3 py-2 text-sm transition-colors touch-manipulation ${
                   selectedWarehouseId === warehouse.id
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-muted/40 hover:bg-muted"
@@ -136,14 +138,16 @@ export function InventoryHub({
             ))}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
-          <span className="min-w-[4.5rem] text-xs font-medium text-muted-foreground">النوع</span>
-          <div className="flex flex-wrap gap-[var(--mds-space-2)]">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <span className="shrink-0 text-xs font-medium text-muted-foreground sm:min-w-[4.5rem]">
+            النوع
+          </span>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
             {productTypeFilters.map(({ label, value }) => (
               <Link
                 key={label}
                 href={inventoryHref(selectedWarehouseId, value)}
-                className={`rounded-[var(--mds-radius-md)] border px-3 py-1.5 text-sm transition-colors ${
+                className={`shrink-0 rounded-[var(--mds-radius-md)] border px-3 py-2 text-sm transition-colors touch-manipulation ${
                   selectedProductType === value
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-muted/40 hover:bg-muted"

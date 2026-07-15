@@ -832,7 +832,7 @@ export function PurchaseForm({
   };
 
   return (
-    <div className="flex flex-col gap-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
+    <div className="flex flex-col gap-4 pb-[calc(12rem+env(safe-area-inset-bottom))] md:pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
       <OperationalCard
         title={`فاتورة ${invoice.invoice_number}`}
         description={
@@ -1226,7 +1226,7 @@ export function PurchaseForm({
         </OperationalCard>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-background/95 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:pl-64">
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 px-3 py-3 backdrop-blur-xl md:bottom-0 md:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pt-3 lg:ps-64">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-baseline justify-between gap-3 sm:block">
             <p className="text-sm text-muted-foreground">{invoice.lines.length} بند</p>

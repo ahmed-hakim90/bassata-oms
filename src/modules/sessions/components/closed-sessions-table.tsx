@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
 import {
   Table,
   TableBody,
@@ -53,68 +54,70 @@ export function ClosedSessionsTable({
   }
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-3)]">
-      <div className="grid gap-[var(--mds-space-3)] md:hidden">
-        {rows.map(({ session, storeName, cashierName, closedByName }) => (
-          <Link
-            key={session.id}
-            href={`/sessions/${session.id}`}
-            className="rounded-[var(--mds-radius-md)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)] outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="font-medium text-primary">{cashierName}</p>
-              <Badge variant={session.force_closed ? "destructive" : "secondary"}>
-                {session.force_closed ? "إغلاق إجباري" : "مقفولة"}
-              </Badge>
-            </div>
-            {showStoreColumn ? (
-              <p className="mb-2 text-xs text-muted-foreground">{storeName}</p>
-            ) : null}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <p className="text-muted-foreground">الفتح</p>
-              <p>{formatDateTime(session.opened_at)}</p>
-              <p className="text-muted-foreground">الإغلاق</p>
-              <p>{session.closed_at ? formatDateTime(session.closed_at) : "—"}</p>
-              <p className="text-muted-foreground">المتوقع</p>
-              <p>
-                {session.expected_cash != null
+    <ResponsiveListLayout
+      mobile={rows.map(({ session, storeName, cashierName, closedByName }) => (
+        <MobileEntityCard
+          key={session.id}
+          href={`/sessions/${session.id}`}
+          title={cashierName}
+          subtitle={showStoreColumn ? storeName : undefined}
+          badge={
+            <Badge variant={session.force_closed ? "destructive" : "secondary"}>
+              {session.force_closed ? "إغلاق إجباري" : "مقفولة"}
+            </Badge>
+          }
+          fields={[
+            { label: "الفتح", value: formatDateTime(session.opened_at) },
+            {
+              label: "الإغلاق",
+              value: session.closed_at ? formatDateTime(session.closed_at) : "—",
+            },
+            {
+              label: "المتوقع",
+              value:
+                session.expected_cash != null
                   ? formatCurrency(session.expected_cash)
-                  : "—"}
-              </p>
-              <p className="text-muted-foreground">الفعلي</p>
-              <p>
-                {session.actual_cash != null
+                  : "—",
+            },
+            {
+              label: "الفعلي",
+              value:
+                session.actual_cash != null
                   ? formatCurrency(session.actual_cash)
-                  : "—"}
-              </p>
-              <p className="text-muted-foreground">فرق الدرج</p>
-              <p
-                className={cn(
-                  "font-medium tabular-nums",
-                  session.variance != null &&
-                    session.variance !== 0 &&
-                    (session.variance > 0
-                      ? "text-amber-700 dark:text-amber-300"
-                      : "text-destructive")
-                )}
-              >
-                {session.variance != null
-                  ? `${session.variance > 0 ? "+" : ""}${formatCurrency(session.variance)}`
-                  : "—"}
-              </p>
-            </div>
-            {session.force_closed && session.close_reason ? (
-              <p className="mt-2 text-xs text-destructive">
+                  : "—",
+            },
+            {
+              label: "فرق الدرج",
+              value: (
+                <span
+                  className={cn(
+                    "font-medium tabular-nums",
+                    session.variance != null &&
+                      session.variance !== 0 &&
+                      (session.variance > 0
+                        ? "text-amber-700 dark:text-amber-300"
+                        : "text-destructive")
+                  )}
+                >
+                  {session.variance != null
+                    ? `${session.variance > 0 ? "+" : ""}${formatCurrency(session.variance)}`
+                    : "—"}
+                </span>
+              ),
+            },
+          ]}
+          footer={
+            session.force_closed && session.close_reason ? (
+              <p className="text-xs text-destructive">
                 السبب: {session.close_reason}
                 {closedByName ? ` · بواسطة ${closedByName}` : ""}
               </p>
-            ) : null}
-            <p className="mt-2 text-xs text-primary">عرض الفواتير ←</p>
-          </Link>
-        ))}
-      </div>
-
-      <div className="hidden md:block">
+            ) : undefined
+          }
+          trailingHint="عرض الفواتير ←"
+        />
+      ))}
+      desktop={
         <DataTableShell title={`الجلسات المقفولة (${rows.length})`}>
           <Table className="min-w-[960px]">
             <TableHeader>
@@ -219,7 +222,7 @@ export function ClosedSessionsTable({
             </TableBody>
           </Table>
         </DataTableShell>
-      </div>
-    </div>
+      }
+    />
   );
 }

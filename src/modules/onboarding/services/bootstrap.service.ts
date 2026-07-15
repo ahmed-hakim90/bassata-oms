@@ -215,8 +215,7 @@ export async function initializeOrganization(
       approval_required: input.defaultSettings.expenseRules.approvalRequired,
       cashier_can_add_session_expense:
         input.defaultSettings.expenseRules.cashierCanAddSessionExpense,
-      allow_inventory_purchase_from_session:
-        input.defaultSettings.expenseRules.allowInventoryPurchaseFromSession,
+      allow_inventory_purchase_from_session: false,
       prevent_expenses_in_closed_periods:
         input.defaultSettings.expenseRules.preventExpensesInClosedPeriods,
     },

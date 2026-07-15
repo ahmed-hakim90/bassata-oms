@@ -79,6 +79,8 @@ export type PriceListPrintPayload = {
   footerText: string;
   showLogo: boolean;
   showOldPrice: boolean;
+  /** Show weight/unit line under product name on the poster. */
+  showUnitLine: boolean;
   discountPercent: number;
   background: string;
   accent: string;

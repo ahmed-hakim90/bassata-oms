@@ -6,7 +6,6 @@ import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
@@ -20,6 +19,7 @@ import {
   toggleExpenseCategoryAction,
 } from "@/modules/accounting/actions/expense-category.actions";
 import { COST_CENTER_TYPES } from "@/lib/constants";
+import { labelCostCenterType } from "@/lib/labels/cost-centers";
 import type { CostCenter, ExpenseCategory, CostCenterType } from "@/lib/types";
 
 interface CostCentersPageProps {
@@ -66,7 +66,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
         await createExpenseCategoryAction({
           cost_center_id: centerId,
           name: newCategory.name,
-          requires_inventory_item: newCategory.requires_inventory_item,
+          requires_inventory_item: false,
         });
         toast.success("تم إنشاء التصنيف");
         setCategoryForm(null);
@@ -153,7 +153,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               >
                 {COST_CENTER_TYPES.map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {labelCostCenterType(t)}
                   </option>
                 ))}
               </select>
@@ -202,7 +202,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               >
                 {COST_CENTER_TYPES.map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {labelCostCenterType(t)}
                   </option>
                 ))}
               </select>
@@ -227,7 +227,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
             <OperationalCard
               key={center.id}
               title={center.name}
-              description={`${center.code} · ${center.type}`}
+              description={`${center.code} · ${labelCostCenterType(center.type)}`}
               action={
                 <div className="flex items-center gap-2">
                   <StatusPill label={center.is_active ? "نشط" : "غير نشط"} variant={center.is_active ? "success" : "default"} />
@@ -279,15 +279,6 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
                         onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                         className="rounded-xl"
                       />
-                      <label className="flex items-center gap-2 text-sm">
-                        <Checkbox
-                          checked={newCategory.requires_inventory_item}
-                          onCheckedChange={(v) =>
-                            setNewCategory({ ...newCategory, requires_inventory_item: Boolean(v) })
-                          }
-                        />
-                        يتطلب صنف مخزون
-                      </label>
                       <div className="flex gap-2">
                         <Button size="sm" className="rounded-xl" disabled={pending} onClick={() => saveCategory(center.id)}>
                           حفظ

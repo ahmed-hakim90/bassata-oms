@@ -92,6 +92,7 @@ export const PERMISSIONS = [
   // Inventory
   "inventory_view",
   "purchase_manage",
+  "supplier_payment_record",
   "transfer_manage",
   "waste_manage",
   "stock_count_manage",
@@ -343,7 +344,7 @@ export const NAV_GROUPS = [
       { label: "Sales Invoices", href: "/sales-invoices", icon: "Receipt" },
       { label: "Online Orders", href: "/online-orders", icon: "Receipt" },
       { label: "Promotions", href: "/promotions", icon: "Tag" },
-      { label: "Sessions", href: "/sessions", icon: "Clock" },
+      { label: "Cashier Sessions", href: "/sessions", icon: "Clock" },
     ],
   },
   {
@@ -356,7 +357,6 @@ export const NAV_GROUPS = [
       { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
       { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
       { label: "Stock Count", href: "/inventory/stock-count", icon: "ClipboardList" },
-      { label: "Product Card", href: "/reports/product-card", icon: "ClipboardList" },
     ],
   },
   {
@@ -369,20 +369,24 @@ export const NAV_GROUPS = [
   {
     label: "Accounting",
     items: [
-      { label: "Expenses", href: "/expenses", icon: "Wallet" },
+      { label: "Manage Expenses", href: "/expenses", icon: "Wallet" },
       { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
     ],
   },
   {
     label: "Reports",
     items: [
-      { label: "Overview", href: "/reports", icon: "BarChart3" },
-      { label: "Sales", href: "/reports/sales", icon: "TrendingUp" },
-      { label: "Sessions", href: "/reports/sessions", icon: "Clock" },
-      { label: "Profit", href: "/reports/profit", icon: "CircleDollarSign" },
-      { label: "Inventory", href: "/reports/inventory", icon: "Warehouse" },
+      { label: "Reports Overview", href: "/reports", icon: "BarChart3" },
+      { label: "Sales Report", href: "/reports/sales", icon: "TrendingUp" },
+      { label: "Sessions Report", href: "/reports/sessions", icon: "Clock" },
+      { label: "Daily Close Report", href: "/reports/daily-close", icon: "CalendarCheck" },
+      { label: "Profit Report", href: "/reports/profit", icon: "CircleDollarSign" },
+      { label: "Inventory Report", href: "/reports/inventory", icon: "Warehouse" },
       { label: "Product Card", href: "/reports/product-card", icon: "ClipboardList" },
-      { label: "Expenses", href: "/reports/expenses", icon: "Wallet" },
+      { label: "Expenses Report", href: "/reports/expenses", icon: "FileSpreadsheet" },
+      { label: "Aging Report", href: "/reports/aging", icon: "Calendar" },
+      { label: "Tax Report", href: "/reports/tax", icon: "FileSpreadsheet" },
+      { label: "Replenishment Report", href: "/reports/replenishment", icon: "Package" },
       { label: "Barcode Labels", href: "/labels", icon: "Barcode" },
     ],
   },

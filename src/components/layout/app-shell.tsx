@@ -34,7 +34,7 @@ export function AppShell({
   posReadinessState,
 }: AppShellProps) {
   return (
-    <div className="flex h-dvh max-h-dvh overflow-hidden bg-[var(--mds-color-bg-canvas)]">
+    <div className="flex h-dvh max-h-dvh overflow-hidden overscroll-none bg-[var(--mds-color-bg-canvas)]">
       <div className="hidden h-full min-h-0 shrink-0 overflow-hidden md:flex">
         <AppSidebar
           userRole={userRole}
@@ -58,7 +58,7 @@ export function AppShell({
           permissions={permissions}
         />
         <SessionBar />
-        <main className="min-h-0 flex-1 overflow-y-auto bg-[var(--mds-color-bg-canvas)] p-[var(--mds-space-4)] pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:p-[var(--mds-space-6)] md:pb-[var(--mds-space-8)]">
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-[var(--mds-color-bg-canvas)] p-[var(--mds-space-3)] pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:p-[var(--mds-space-4)] md:p-[var(--mds-space-6)] md:pb-[var(--mds-space-8)]">
           <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>

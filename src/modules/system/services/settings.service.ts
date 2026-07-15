@@ -314,7 +314,7 @@ const DEFAULT_EXPENSE_SETTINGS = {
   approval_required: false,
   cashier_can_add_session_expense: true,
   cashier_max_expense_amount: null as number | null,
-  allow_inventory_purchase_from_session: true,
+  allow_inventory_purchase_from_session: false,
   default_cost_center_packaging: null as string | null,
   default_cost_center_cleaning: null as string | null,
   default_cost_center_utilities: null as string | null,

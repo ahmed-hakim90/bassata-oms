@@ -21,50 +21,44 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 
 const REPORT_LINKS = [
   {
-    href: "/reports/daily-close",
-    label: "إقفال اليوم",
-    icon: CalendarCheck2,
-    description: "نقدية اليوم: المتوقع والفعلي والفرق",
-  },
-  {
     href: "/reports/sales",
-    label: "المبيعات",
+    label: "تقرير المبيعات",
     icon: TrendingUp,
     description: "الإيراد والطلبات والاتجاهات",
   },
   {
     href: "/reports/sessions",
-    label: "الجلسات",
+    label: "تقرير الجلسات",
     icon: Clock,
     description: "تسوية الدرج والفروقات",
   },
   {
     href: "/reports/aging",
-    label: "أعمار الذمم",
+    label: "تقرير أعمار الذمم",
     icon: Users,
     description: "أرصدة العملاء والموردين حسب العمر",
   },
   {
     href: "/reports/tax",
-    label: "الضريبة",
+    label: "تقرير الضريبة",
     icon: Percent,
     description: "ضريبة المبيعات وتصدير Excel",
   },
   {
     href: "/reports/profit",
-    label: "الأرباح",
+    label: "تقرير الأرباح",
     icon: CircleDollarSign,
     description: "الهوامش وتكلفة البضاعة وصافي الربح",
   },
   {
     href: "/reports/inventory",
-    label: "المخزون",
+    label: "تقرير المخزون",
     icon: Warehouse,
     description: "التقييم والتشغيلات والانتهاء",
   },
   {
     href: "/reports/replenishment",
-    label: "خطة الشراء",
+    label: "تقرير إعادة الطلب",
     icon: PackagePlus,
     description: "محتاج تشتري قد إيه حسب مبيعات الشهر",
   },
@@ -76,9 +70,15 @@ const REPORT_LINKS = [
   },
   {
     href: "/reports/expenses",
-    label: "المصروفات",
+    label: "تقرير المصروفات",
     icon: Wallet,
-    description: "مصروفات التشغيل حسب التصنيف",
+    description: "تجميع المصروفات حسب التصنيف والمركز — مش شاشة التسجيل",
+  },
+  {
+    href: "/reports/daily-close",
+    label: "تقرير الإقفال اليومي",
+    icon: CalendarCheck2,
+    description: "نقدية اليوم: المتوقع والفعلي والفرق",
   },
   {
     href: "/labels",

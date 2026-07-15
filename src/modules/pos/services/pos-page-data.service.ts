@@ -21,10 +21,8 @@ import { loadSessionCashBundle } from "@/modules/sessions/services/reconciliatio
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
 import * as deviceRepo from "@/lib/repositories/device.repository";
-import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { enabledPaymentMethodsFromFlags } from "@/lib/enabled-payment-methods";
-import type { Product } from "@/lib/types";
 
 /** Gate screens that must not pay for catalog / online-orders / session extras. */
 const GATE_ONLY_STATES = new Set<PosReadinessState>([
@@ -141,7 +139,7 @@ export async function getPosPageData() {
         approval_required: false,
         cashier_can_add_session_expense: false,
         cashier_max_expense_amount: null,
-        allow_inventory_purchase_from_session: true,
+        allow_inventory_purchase_from_session: false,
         default_cost_center_packaging: null,
         default_cost_center_cleaning: null,
         default_cost_center_utilities: null,
@@ -177,18 +175,13 @@ export async function getPosPageData() {
       : Promise.resolve([]),
   ]);
 
-  const needsInventoryProducts =
+  const canRequestSessionExpense =
     flags.session_expenses &&
     expenseSettings.cashier_can_add_session_expense &&
     Boolean(session);
 
-  const allProducts: Product[] = needsInventoryProducts
-    ? await settled(catalogRepo.listProducts(), [], "inventoryProducts")
-    : [];
-
   const enabledPaymentMethods = enabledPaymentMethodsFromFlags(flags);
 
-  const inventoryProducts = allProducts.filter((p) => p.track_inventory);
   const stores =
     user?.role === "owner" || user?.role === "manager"
       ? allStores
@@ -204,6 +197,7 @@ export async function getPosPageData() {
     promotionRules,
     canAddSessionExpensePerm,
     canCollectPaymentPerm,
+    canPaySupplierPerm,
     cashier,
     pendingOpeningFloat,
   ] = await Promise.all([
@@ -214,12 +208,17 @@ export async function getPosPageData() {
     flags.promotions
       ? settled(listActivePromotionRulesForEval(), [], "promotionRules")
       : Promise.resolve([]),
-    needsInventoryProducts
+    canRequestSessionExpense
       ? settled(permissionRepo.hasPermission("session_expense_create"), false, "expensePerm")
       : Promise.resolve(false),
     user?.role === "owner" || user?.role === "manager"
       ? Promise.resolve(true)
       : settled(permissionRepo.hasPermission("customer_payment_receive"), false, "collectPerm"),
+    flags.purchases
+      ? user?.role === "owner" || user?.role === "manager"
+        ? Promise.resolve(true)
+        : settled(permissionRepo.hasPermission("supplier_payment_record"), false, "supplierPayPerm")
+      : Promise.resolve(false),
     session ? settled(userRepo.getUser(session.cashier_id), null, "cashier") : Promise.resolve(null),
     !session && readiness.cashierId
       ? settled(getPendingOpeningFloat(storeId, readiness.cashierId), 0, "pendingFloat")
@@ -248,12 +247,11 @@ export async function getPosPageData() {
     storeId,
     costCenters,
     expenseCategories,
-    inventoryProducts,
-    expenseSettings,
     canAddSessionExpense: Boolean(canAddSessionExpensePerm),
     featureFlags: flags,
     canManagerOverride: user?.role === "owner" || user?.role === "manager",
     canCollectPayment: Boolean(canCollectPaymentPerm),
+    canPaySupplier: Boolean(canPaySupplierPerm),
     managerDiscountOverrideAmount: sessionSettings.manager_discount_override_amount,
     currentUserName: user?.name ?? null,
     loyaltyRedemptionRate,

@@ -1,5 +1,6 @@
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as expenseRepo from "@/lib/repositories/expense.repository";
+import * as paymentRepo from "@/lib/repositories/supplier-payment.repository";
 import { listOpenSessions } from "@/modules/sessions/services/session.service";
 import {
   computeSessionLifecycle,
@@ -24,6 +25,7 @@ export interface OpenSessionSummary {
   cardSales: number;
   otherSales: number;
   sessionExpenses: number;
+  supplierPayments: number;
   expectedCash: number;
   lastOrderAt: string | null;
 }
@@ -51,9 +53,10 @@ export async function getOpenSessionSummaries(input: {
   if (sessions.length === 0) return [];
 
   const sessionIds = sessions.map((s) => s.id);
-  const [orders, expenses] = await Promise.all([
+  const [orders, expenses, supplierPayments] = await Promise.all([
     orderRepo.listOrdersBySessionIds(sessionIds),
     expenseRepo.listExpensesBySessionIds(sessionIds),
+    paymentRepo.listPaymentsForSessions(sessionIds),
   ]);
 
   const orderIds = orders.map((o) => o.id);
@@ -74,6 +77,14 @@ export async function getOpenSessionSummaries(input: {
     const list = expensesBySession.get(expense.session_id) ?? [];
     list.push(expense);
     expensesBySession.set(expense.session_id, list);
+  }
+
+  const supplierPaymentsBySession = new Map<string, typeof supplierPayments>();
+  for (const payment of supplierPayments) {
+    if (!payment.session_id) continue;
+    const list = supplierPaymentsBySession.get(payment.session_id) ?? [];
+    list.push(payment);
+    supplierPaymentsBySession.set(payment.session_id, list);
   }
 
   return sessions.map((session) => {
@@ -102,8 +113,16 @@ export async function getOpenSessionSummaries(input: {
       )
       .reduce((s, e) => s + e.amount, 0);
 
+    const supplierPaymentTotal = (supplierPaymentsBySession.get(session.id) ?? [])
+      .filter((p) => !p.voided_at && p.payment_method === "cash")
+      .reduce((s, p) => s + p.amount, 0);
+
     const expectedCash =
-      session.opening_cash + cashSales - cashRefunds - sessionExpenseTotal;
+      session.opening_cash +
+      cashSales -
+      cashRefunds -
+      sessionExpenseTotal -
+      supplierPaymentTotal;
     const totalSales = completedOrders.reduce((s, o) => s + o.total, 0);
     const lastOrderAt =
       sessionOrders.length > 0
@@ -133,6 +152,7 @@ export async function getOpenSessionSummaries(input: {
       cardSales,
       otherSales,
       sessionExpenses: sessionExpenseTotal,
+      supplierPayments: supplierPaymentTotal,
       expectedCash,
       lastOrderAt,
     };

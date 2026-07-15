@@ -82,10 +82,10 @@ interface CartPanelProps {
   checkoutDisabled?: boolean;
   checkoutBlockedReason?: string | null;
   discountsEnabled?: boolean;
-  promotionsEnabled?: boolean;
   promoCartDiscount?: number;
   promoItemSavings?: number;
   promoAdjustedSubtotal?: number | null;
+  promoLabels?: string[];
   loyaltyEnabled?: boolean;
   enabledPaymentMethods?: PaymentMethod[];
   loyaltyRedemptionRate?: number | null;
@@ -101,10 +101,10 @@ export function CartPanel({
   checkoutDisabled,
   checkoutBlockedReason = null,
   discountsEnabled = false,
-  promotionsEnabled = false,
   promoCartDiscount = 0,
   promoItemSavings = 0,
   promoAdjustedSubtotal = null,
+  promoLabels = [],
   loyaltyEnabled = false,
   enabledPaymentMethods = ["cash", "card", "wallet", "other"],
   loyaltyRedemptionRate = null,
@@ -121,12 +121,10 @@ export function CartPanel({
   const loyaltyBalance = usePosStore((s) => s.customerLoyaltyBalance);
   const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
   const discountAmount = usePosStore((s) => s.discountAmount);
-  const couponCode = usePosStore((s) => s.couponCode);
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
   const clearCart = usePosStore((s) => s.clearCart);
   const setDiscountAmount = usePosStore((s) => s.setDiscountAmount);
-  const setCouponCode = usePosStore((s) => s.setCouponCode);
   const setLoyaltyRedemption = usePosStore((s) => s.setLoyaltyRedemption);
   const holdCartLocal = usePosStore((s) => s.holdCart);
   const reconcileHeldCartId = usePosStore((s) => s.reconcileHeldCartId);
@@ -211,6 +209,15 @@ export function CartPanel({
   const methods = METHOD_ORDER.filter((method) => enabledPaymentMethods.includes(method));
   const payDisabled = cart.length === 0 || checkoutDisabled;
   const hasCart = cart.length > 0;
+  const hasPriceReduction =
+    discountAmount > 0 ||
+    redemptionAmount > 0 ||
+    promoCartDiscount > 0 ||
+    promoItemSavings > 0;
+  const totalSavings = Math.round(
+    (promoItemSavings + promoCartDiscount + discountAmount + redemptionAmount) * 100
+  ) / 100;
+  const uniquePromoLabels = [...new Set(promoLabels.filter(Boolean))];
 
   function handlePay(method: PaymentMethod) {
     if (payDisabled) return;
@@ -478,66 +485,93 @@ export function CartPanel({
       </div>
 
       <div className="shrink-0 border-t border-border/60 bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="mb-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5">
-          {(discountAmount > 0 ||
-            redemptionAmount > 0 ||
-            promoCartDiscount > 0 ||
-            promoItemSavings > 0) && (
-            <div className="flex justify-between pb-1.5 text-sm text-muted-foreground">
-              <span>قبل الخصم</span>
-              <span className="tabular-nums">
-                {formatCurrency(getCartSubtotal(cart))}
-              </span>
-            </div>
+        <div
+          className={cn(
+            "mb-2 overflow-hidden rounded-2xl border px-3.5 py-3",
+            hasPriceReduction
+              ? "border-emerald-200/80 bg-gradient-to-b from-emerald-50/90 to-card dark:border-emerald-400/25 dark:from-emerald-500/10"
+              : "border-border/50 bg-muted/30"
           )}
-          {promoItemSavings > 0 ? (
-            <div className="flex justify-between pb-1 text-sm">
-              <span className="text-muted-foreground">توفير أصناف</span>
-              <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
-                -{formatCurrency(promoItemSavings)}
+        >
+          {hasPriceReduction ? (
+            <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-semibold text-white dark:bg-emerald-500">
+                وفّرت {formatCurrency(totalSavings)}
               </span>
+              {uniquePromoLabels.slice(0, 2).map((label) => (
+                <span
+                  key={label}
+                  className="inline-flex max-w-[9.5rem] truncate rounded-full border border-emerald-200/80 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200"
+                >
+                  {label}
+                </span>
+              ))}
             </div>
           ) : null}
-          {promoCartDiscount > 0 ? (
-            <div className="flex justify-between pb-1 text-sm">
-              <span className="text-muted-foreground">عرض فاتورة</span>
-              <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
-                -{formatCurrency(promoCartDiscount)}
-              </span>
+
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">
+                {hasPriceReduction ? "المبلغ المستحق" : "الإجمالي"}
+              </p>
+              {hasPriceReduction ? (
+                <p className="mt-0.5 text-sm tabular-nums text-muted-foreground line-through decoration-muted-foreground/60">
+                  {formatCurrency(cartSubtotal)}
+                </p>
+              ) : null}
             </div>
-          ) : null}
-          {discountAmount > 0 ? (
-            <div className="flex justify-between pb-1 text-sm">
-              <span className="text-muted-foreground">خصم</span>
-              <button
-                type="button"
-                className="font-medium tabular-nums text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
-                onClick={() => setDiscountOpen(true)}
-              >
-                -{formatCurrency(discountAmount)}
-              </button>
-            </div>
-          ) : null}
-          {redemptionAmount > 0 ? (
-            <div className="flex justify-between pb-1 text-sm">
-              <span className="text-muted-foreground">نقاط</span>
-              <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
-                -{formatCurrency(redemptionAmount)}
-              </span>
-            </div>
-          ) : null}
-          {(discountAmount > 0 ||
-            redemptionAmount > 0 ||
-            promoCartDiscount > 0 ||
-            promoItemSavings > 0) && (
-            <div className="mb-1.5 border-t border-border/50" />
-          )}
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-medium text-muted-foreground">الإجمالي</span>
-            <span className="text-2xl font-bold tabular-nums tracking-tight text-foreground">
+            <p
+              className={cn(
+                "shrink-0 text-2xl font-bold tabular-nums tracking-tight",
+                hasPriceReduction
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : "text-foreground"
+              )}
+            >
               {formatCurrency(total)}
-            </span>
+            </p>
           </div>
+
+          {hasPriceReduction ? (
+            <div className="mt-2.5 space-y-1 border-t border-emerald-200/60 pt-2 dark:border-emerald-400/20">
+              {promoItemSavings > 0 ? (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">توفير أصناف</span>
+                  <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+                    -{formatCurrency(promoItemSavings)}
+                  </span>
+                </div>
+              ) : null}
+              {promoCartDiscount > 0 ? (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">عرض فاتورة</span>
+                  <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+                    -{formatCurrency(promoCartDiscount)}
+                  </span>
+                </div>
+              ) : null}
+              {discountAmount > 0 ? (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">خصم يدوي</span>
+                  <button
+                    type="button"
+                    className="font-medium tabular-nums text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                    onClick={() => setDiscountOpen(true)}
+                  >
+                    -{formatCurrency(discountAmount)}
+                  </button>
+                </div>
+              ) : null}
+              {redemptionAmount > 0 ? (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">نقاط ولاء</span>
+                  <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
+                    -{formatCurrency(redemptionAmount)}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {loyaltyEnabled && customer && loyaltyBalance === null && hasCart ? (
@@ -606,10 +640,6 @@ export function CartPanel({
           <p className="mb-2 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
             النقاط موجودة لكن إعداد الاستبدال غير مفعّل. راجع الولاء من الإعدادات.
           </p>
-        ) : loyaltyEnabled && !customer && hasCart ? (
-          <p className="mb-2 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
-            لاختيار استبدال النقاط: اربط عميلاً بالسلة أولاً.
-          </p>
         ) : null}
 
         {discountsEnabled && discountOpen ? (
@@ -645,84 +675,54 @@ export function CartPanel({
               placeholder="0.00"
               inputMode="decimal"
             />
-            {promotionsEnabled ? (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium" htmlFor="cart-coupon">
-                  كود خصم
-                </label>
-                <Input
-                  id="cart-coupon"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  placeholder="SAVE10"
-                  className="h-11 rounded-xl bg-background uppercase"
-                  autoCapitalize="characters"
-                />
-              </div>
-            ) : null}
-          </div>
-        ) : promotionsEnabled ? (
-          <div className="mb-2 space-y-1.5 rounded-xl border border-border bg-muted/40 p-2.5">
-            <label className="text-sm font-medium" htmlFor="cart-coupon-standalone">
-              كود خصم
-            </label>
-            <Input
-              id="cart-coupon-standalone"
-              value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value)}
-              placeholder="SAVE10"
-              className="h-11 rounded-xl bg-background uppercase"
-              autoCapitalize="characters"
-            />
           </div>
         ) : null}
 
-        {/* Secondary tools — quiet, not competing with pay */}
-        <div className="mb-2 flex flex-wrap gap-1.5">
+        <div className="mb-2 flex gap-1.5">
           {!customer ? (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-9 rounded-lg px-2.5 text-xs"
+              className="h-11 min-w-0 flex-1 rounded-xl border-border/80 bg-background px-2 text-xs font-medium shadow-none"
               onClick={() => setAttachExpanded(true)}
             >
-              <UserRound className="size-3.5" />
+              <UserRound className="size-3.5 shrink-0" />
               عميل
             </Button>
           ) : null}
           {discountsEnabled && !discountOpen ? (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-9 rounded-lg px-2.5 text-xs"
+              className="h-11 min-w-0 flex-1 rounded-xl border-border/80 bg-background px-2 text-xs font-medium shadow-none"
               onClick={() => setDiscountOpen(true)}
             >
-              <Percent className="size-3.5" />
+              <Percent className="size-3.5 shrink-0" />
               خصم
             </Button>
           ) : null}
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="h-9 rounded-lg px-2.5 text-xs"
+            className="h-11 min-w-0 flex-1 rounded-xl border-border/80 bg-background px-2 text-xs font-medium shadow-none"
             disabled={!hasCart}
             onClick={() => handleHoldCart()}
           >
-            <Pause className="size-3.5" />
+            <Pause className="size-3.5 shrink-0" />
             تعليق
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="h-9 rounded-lg px-2.5 text-xs text-destructive hover:text-destructive"
+            className="h-11 min-w-0 flex-1 rounded-xl border-destructive/25 bg-destructive/5 px-2 text-xs font-medium text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
             disabled={!hasCart}
             onClick={() => setClearConfirmOpen(true)}
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-3.5 shrink-0" />
             مسح
           </Button>
         </div>

@@ -133,8 +133,8 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
   return (
     <div className="flex flex-col gap-[var(--mds-space-6)]">
       <PageHeader
-        breadcrumb={<span>المبيعات · الجلسات</span>}
-        title="جلسات الكاشير"
+        breadcrumb={<span>المبيعات · ورديات الكاشير</span>}
+        title="ورديات الكاشير"
         description={
           canViewAll
             ? "الجلسات المفتوحة على كل الفروع — راقب وافتح إغلاق إجباري عند الحاجة"

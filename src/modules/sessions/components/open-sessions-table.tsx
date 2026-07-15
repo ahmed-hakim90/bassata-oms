@@ -9,6 +9,8 @@ import { ForceCloseSessionDialog } from "@/modules/sessions/components/force-clo
 import type { OpenSessionSummary } from "@/modules/sessions/services/open-session-summary.service";
 import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
 import {
   Table,
   TableBody,
@@ -59,58 +61,41 @@ export function OpenSessionsTable({
   }
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-3)]">
-      <div className="grid gap-[var(--mds-space-3)] md:hidden">
-        {summaries.map((summary) => {
-          const isCurrentCashier = summary.session.cashier_id === currentCashierId;
-          const showForceClose =
-            canForceClose &&
-            allowManagerForceClose &&
-            !isCurrentCashier &&
-            (summary.lifecycle === "warning" || summary.lifecycle === "expired_locked");
-          return (
-            <div
-              key={summary.session.id}
-              className="rounded-[var(--mds-radius-md)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]"
-            >
-              <Link
-                href={`/sessions/${summary.session.id}`}
-                className="block rounded-[var(--mds-radius-sm)] outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="font-medium text-primary">{summary.cashierName}</p>
-                  <SessionLifecycleBadge lifecycle={summary.lifecycle} />
-                </div>
-                {showStoreColumn ? (
-                  <p className="mb-2 text-xs text-muted-foreground">{summary.storeName}</p>
-                ) : null}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <p className="text-muted-foreground">الفتح</p>
-                  <p>{formatOpened(summary.openedAt)}</p>
-                  <p className="text-muted-foreground">المدة</p>
-                  <p>{summary.durationLabel}</p>
-                  <p className="text-muted-foreground">المبيعات</p>
-                  <p>{formatCurrency(summary.totalSales)}</p>
-                  <p className="text-muted-foreground">النقدية المتوقعة</p>
-                  <p>{formatCurrency(summary.expectedCash)}</p>
-                </div>
-                <p className="mt-2 text-xs text-primary">عرض الفواتير ←</p>
-              </Link>
-              <div className="mt-3 text-xs">
-                {showForceClose ? (
-                  <ForceCloseSessionDialog summary={summary} />
-                ) : isCurrentCashier ? (
-                  <span className="text-muted-foreground">اقفل جلستك من الأسفل</span>
-                ) : (
-                  <span className="text-muted-foreground">مفيش إجراء</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="hidden md:block">
+    <ResponsiveListLayout
+      mobile={summaries.map((summary) => {
+        const isCurrentCashier = summary.session.cashier_id === currentCashierId;
+        const showForceClose =
+          canForceClose &&
+          allowManagerForceClose &&
+          !isCurrentCashier &&
+          (summary.lifecycle === "warning" || summary.lifecycle === "expired_locked");
+        return (
+          <MobileEntityCard
+            key={summary.session.id}
+            href={`/sessions/${summary.session.id}`}
+            title={summary.cashierName}
+            subtitle={showStoreColumn ? summary.storeName : undefined}
+            badge={<SessionLifecycleBadge lifecycle={summary.lifecycle} />}
+            fields={[
+              { label: "الفتح", value: formatOpened(summary.openedAt) },
+              { label: "المدة", value: summary.durationLabel },
+              { label: "المبيعات", value: formatCurrency(summary.totalSales) },
+              { label: "النقدية المتوقعة", value: formatCurrency(summary.expectedCash) },
+            ]}
+            trailingHint="عرض الفواتير ←"
+            footer={
+              showForceClose ? (
+                <ForceCloseSessionDialog summary={summary} />
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {isCurrentCashier ? "اقفل جلستك من الأسفل" : "مفيش إجراء"}
+                </span>
+              )
+            }
+          />
+        );
+      })}
+      desktop={
         <DataTableShell title="الجلسات المفتوحة">
           <Table className="min-w-[920px]">
             <TableHeader>
@@ -203,7 +188,7 @@ export function OpenSessionsTable({
             </TableBody>
           </Table>
         </DataTableShell>
-      </div>
-    </div>
+      }
+    />
   );
 }

@@ -80,6 +80,7 @@ describe("supplier opening balance", () => {
         org_id: "org-1",
         store_id: "store-1",
         supplier_id: "s1",
+        session_id: null,
         amount: 100,
         payment_method: "cash",
         reference: "",

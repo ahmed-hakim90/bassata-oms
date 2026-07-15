@@ -14,8 +14,6 @@ import { ExpenseListItem } from "@/modules/expenses/components/expense-list-item
 import * as expenseRepo from "@/lib/repositories/expense.repository";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
-import * as catalogRepo from "@/lib/repositories/catalog.repository";
-import * as purchaseRepo from "@/lib/repositories/purchase.repository";
 import { Button } from "@/components/ui/button";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import type { ExpenseSource, ExpenseStatus } from "@/lib/types";
@@ -52,12 +50,10 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
     to: filters.to,
   };
 
-  const [expenses, costCenters, categories, products, suppliers] = await Promise.all([
+  const [expenses, costCenters, categories] = await Promise.all([
     expenseRepo.listExpenses(listFilters),
     listCostCenters(storeId),
     listExpenseCategories(),
-    catalogRepo.listProducts(),
-    purchaseRepo.listSuppliers(),
   ]);
 
   let canApprove = false;
@@ -75,11 +71,11 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
   return (
     <div className="flex flex-col gap-[var(--mds-space-6)]">
       <PageHeader
-        title="المصروفات"
+        title="إدارة المصروفات"
         description={
           pendingCount > 0
-            ? `مصروفات حسب المركز والتصنيف · ${pendingCount} في انتظار الموافقة`
-            : "سجّل وراجع المصروفات حسب مركز التكلفة والتصنيف"
+            ? `${pendingCount} مصروف قيد الاعتماد — راجع القائمة ووافق أو ارفض.`
+            : "تسجيل واعتماد مصروفات الفرع — مش تقرير التجميع."
         }
         action={
           <ExpenseWizard
@@ -88,8 +84,6 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
             userId={readiness.cashierId ?? ""}
             costCenters={costCenters}
             categories={categories}
-            products={products}
-            suppliers={suppliers}
             sessionMode={Boolean(readiness.sessionId)}
             trigger={<Button className="shadow-[var(--mds-elevation-1)]">إضافة مصروف</Button>}
           />
@@ -122,8 +116,6 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
               userId={readiness.cashierId ?? ""}
               costCenters={costCenters}
               categories={categories}
-              products={products}
-              suppliers={suppliers}
               sessionMode={Boolean(readiness.sessionId)}
               trigger={<Button>إضافة مصروف</Button>}
             />

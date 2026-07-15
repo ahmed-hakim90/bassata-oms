@@ -146,24 +146,22 @@ describe("createExpense", () => {
     expect(expenseRepo.createExpense).not.toHaveBeenCalled();
   });
 
-  it("rejects inventory purchases without quantity and unit cost", async () => {
+  it("rejects inventory purchase expenses — purchases page only", async () => {
     await expect(
       createExpense(
         {
           ...baseInput,
           inventory_item_id: "product-1",
-          quantity: null,
-          unit_cost: null,
+          quantity: 2,
+          unit_cost: 10,
         },
         cashier,
         { isSessionExpense: true }
       )
-    ).rejects.toThrow("Quantity required for inventory purchase");
+    ).rejects.toThrow("شراء المخزون من المصروفات غير متاح");
 
     expect(expenseRepo.createExpense).not.toHaveBeenCalled();
     expect(adjustStock).not.toHaveBeenCalled();
-    expect(catalogRepo.getProduct).not.toHaveBeenCalled();
-    expect(warehouseRepo.getDefaultWarehouse).not.toHaveBeenCalled();
   });
 
   it("preserves closed-period rejection before creating expenses", async () => {

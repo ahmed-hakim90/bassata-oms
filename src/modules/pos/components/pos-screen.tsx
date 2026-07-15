@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Archive, Banknote, ClipboardList, Search, ShoppingCart, Wallet } from "lucide-react";
+import { Archive, Banknote, ClipboardList, Search, ShoppingCart, Truck, Wallet } from "lucide-react";
 import { CategoryRail } from "@/modules/pos/components/category-rail";
 import { CartPanel } from "@/modules/pos/components/cart-panel";
 import { ProductTile } from "@/modules/pos/components/product-tile";
@@ -21,7 +21,7 @@ import {
 import { printReceiptViaUsb } from "@/modules/pos/services/receipt-usb-printer.service";
 import { findPosProductByBarcode } from "@/modules/pos/utils/barcode-lookup";
 import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
-import type { Category, CostCenter, ExpenseCategory, ExpenseSettings, Product, PromotionRule } from "@/lib/types";
+import type { Category, CostCenter, ExpenseCategory, PromotionRule } from "@/lib/types";
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { FeatureFlag, SalesMode } from "@/lib/constants";
 import type { ReportBranding } from "@/modules/reports/core/report-context";
@@ -50,6 +50,7 @@ import { ManagerOverrideDialog } from "@/modules/pos/components/manager-override
 import { PosCreditCheckoutDialog } from "@/modules/pos/components/pos-credit-checkout-dialog";
 import type { CreditCheckoutConfirm } from "@/modules/pos/components/pos-credit-checkout-dialog";
 import { PosCollectFlowDialog } from "@/modules/pos/components/pos-collect-flow-dialog";
+import { PosSupplierPayDialog } from "@/modules/pos/components/pos-supplier-pay-dialog";
 import { PosReceiptSuccessDialog } from "@/modules/pos/components/pos-receipt-success-dialog";
 import { QuickOpenSessionButton } from "@/modules/sessions/components/quick-open-session-button";
 import type { Device } from "@/lib/repositories/device.repository";
@@ -152,12 +153,11 @@ interface PosScreenProps {
   storeId?: string;
   costCenters?: CostCenter[];
   expenseCategories?: ExpenseCategory[];
-  inventoryProducts?: Product[];
-  expenseSettings?: ExpenseSettings;
   canAddSessionExpense?: boolean;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   canManagerOverride?: boolean;
   canCollectPayment?: boolean;
+  canPaySupplier?: boolean;
   managerDiscountOverrideAmount?: number | null;
   currentUserName?: string | null;
   loyaltyRedemptionRate?: number | null;
@@ -195,12 +195,11 @@ export function PosScreen({
   storeId,
   costCenters = [],
   expenseCategories = [],
-  inventoryProducts = [],
-  expenseSettings,
   canAddSessionExpense = false,
   featureFlags = {},
   canManagerOverride = false,
   canCollectPayment = false,
+  canPaySupplier = false,
   managerDiscountOverrideAmount = null,
   currentUserName = null,
   loyaltyRedemptionRate = null,
@@ -229,6 +228,7 @@ export function PosScreen({
   const [cartOpen, setCartOpen] = useState(false);
   const [onlineOrdersOpen, setOnlineOrdersOpen] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [supplierPayOpen, setSupplierPayOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pickerProduct, setPickerProduct] = useState<POSProduct | null>(null);
   const [lastReceipt, setLastReceipt] = useState<ReceiptPayload | null>(null);
@@ -335,6 +335,8 @@ export function PosScreen({
   const cashDrawerEnabled = featureFlags.cash_drawer === true;
   const discountsEnabled = featureFlags.customer_discounts === true;
   const promotionsEnabled = featureFlags.promotions === true;
+  /** Off = allow selling when stock is zero/negative (matches checkout RPC). */
+  const allowNegativeStock = featureFlags.prevent_negative_stock !== true;
   const promoRuleInputs = useMemo<PromotionRuleInput[]>(
     () =>
       promotionRules.map((rule) => ({
@@ -385,6 +387,13 @@ export function PosScreen({
     payableBeforeLoyalty: cartTotal,
     payableTotal: cartPayableTotal,
   } = cartTotals;
+  const promoLabels = useMemo(
+    () =>
+      promoPreview?.applications
+        ?.map((app) => app.rule_name?.trim())
+        .filter((name): name is string => Boolean(name)) ?? [],
+    [promoPreview]
+  );
   const loyaltyEnabled = featureFlags.loyalty !== false;
   const cartItemCount = cart.reduce((total, line) => total + line.quantity, 0);
   const noPaymentMethods = enabledPaymentMethods.length === 0;
@@ -799,6 +808,17 @@ export function PosScreen({
                 <span className="truncate">تحصيل</span>
               </Button>
             ) : null}
+            {canPaySupplier ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 min-w-[5.5rem] flex-1 justify-center gap-1.5 rounded-xl border-amber-200 bg-amber-50 px-2 text-sm font-semibold text-amber-900 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/20"
+                onClick={() => setSupplierPayOpen(true)}
+              >
+                <Truck className="size-4 shrink-0" />
+                <span className="truncate">مورد</span>
+              </Button>
+            ) : null}
             {canAddSessionExpense && storeId && cashierId && sessionId ? (
               <div className="min-w-[5.5rem] flex-1 [&_button]:h-10 [&_button]:w-full">
                 <ExpenseWizard
@@ -807,8 +827,6 @@ export function PosScreen({
                   userId={cashierId}
                   costCenters={costCenters}
                   categories={expenseCategories}
-                  products={inventoryProducts}
-                  expenseSettings={expenseSettings}
                   sessionMode
                   trigger={
                     <Button
@@ -918,6 +936,7 @@ export function PosScreen({
                     key={product.id}
                     product={product}
                     showVariants={enableVariants}
+                    allowNegativeStock={allowNegativeStock}
                     onAdd={() => handleAdd(product)}
                   />
                 ))}
@@ -932,10 +951,10 @@ export function PosScreen({
             checkoutDisabled={payLocked || cart.length === 0}
             checkoutBlockedReason={checkoutBlockedReason}
             discountsEnabled={discountsEnabled}
-            promotionsEnabled={promotionsEnabled}
             promoCartDiscount={promoCartDiscount}
             promoItemSavings={promoItemSavings}
             promoAdjustedSubtotal={promoAdjustedSubtotal}
+            promoLabels={promoLabels}
             loyaltyEnabled={loyaltyEnabled}
             enabledPaymentMethods={enabledPaymentMethods}
             loyaltyRedemptionRate={loyaltyRedemptionRate}
@@ -978,10 +997,10 @@ export function PosScreen({
                 checkoutDisabled={payLocked || cart.length === 0}
                 checkoutBlockedReason={checkoutBlockedReason}
                 discountsEnabled={discountsEnabled}
-                promotionsEnabled={promotionsEnabled}
                 promoCartDiscount={promoCartDiscount}
                 promoItemSavings={promoItemSavings}
                 promoAdjustedSubtotal={promoAdjustedSubtotal}
+                promoLabels={promoLabels}
                 loyaltyEnabled={loyaltyEnabled}
                 enabledPaymentMethods={enabledPaymentMethods}
                 loyaltyRedemptionRate={loyaltyRedemptionRate}
@@ -1025,6 +1044,7 @@ export function PosScreen({
         <VariantPickerDialog
           open={Boolean(pickerProduct)}
           product={pickerProduct}
+          allowNegativeStock={allowNegativeStock}
           onClose={() => setPickerProduct(null)}
           onSelect={(product, variant) => addToCart(product, variant)}
         />
@@ -1049,6 +1069,9 @@ export function PosScreen({
         </Dialog>
         {canCollectPayment ? (
           <PosCollectFlowDialog open={collectOpen} onOpenChange={setCollectOpen} />
+        ) : null}
+        {canPaySupplier ? (
+          <PosSupplierPayDialog open={supplierPayOpen} onOpenChange={setSupplierPayOpen} />
         ) : null}
       <WeightAmountModal
         open={Boolean(weightProduct)}

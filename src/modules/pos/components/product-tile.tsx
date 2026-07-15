@@ -22,6 +22,11 @@ interface ProductTileProps {
   disabled?: boolean;
   /** When false (e.g. supermarket), treat orphan variants as a single sell price. */
   showVariants?: boolean;
+  /**
+   * When true, out-of-stock tiles stay clickable (feature flag prevent_negative_stock off).
+   * Badge still shows "نفد" so the cashier sees the shortage.
+   */
+  allowNegativeStock?: boolean;
 }
 
 export function ProductTile({
@@ -29,9 +34,11 @@ export function ProductTile({
   onAdd,
   disabled,
   showVariants = true,
+  allowNegativeStock = false,
 }: ProductTileProps) {
   const badgeLabel = BADGE_LABELS[product.stockBadge];
   const outOfStock = product.stockBadge === "out";
+  const blockOutOfStock = outOfStock && !allowNegativeStock;
   const variantPrices = product.variants
     .map((variant) => variant.price)
     .filter((price) => Number.isFinite(price));
@@ -47,7 +54,7 @@ export function ProductTile({
     <button
       type="button"
       onClick={onAdd}
-      disabled={disabled || outOfStock}
+      disabled={disabled || blockOutOfStock}
       className={cn(
         "group relative flex min-h-[148px] flex-col overflow-hidden rounded-2xl bg-card text-left text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/30 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[158px]"
       )}

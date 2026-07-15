@@ -17,6 +17,8 @@ interface VariantPickerDialogProps {
   product: POSProduct | null;
   onClose: () => void;
   onSelect: (product: POSProduct, variant: POSVariant) => void;
+  /** When true, out-of-stock variants stay selectable (prevent_negative_stock off). */
+  allowNegativeStock?: boolean;
 }
 
 export function VariantPickerDialog({
@@ -24,6 +26,7 @@ export function VariantPickerDialog({
   product,
   onClose,
   onSelect,
+  allowNegativeStock = false,
 }: VariantPickerDialogProps) {
   if (!product) return null;
 
@@ -37,12 +40,13 @@ export function VariantPickerDialog({
         <div className="grid gap-2.5">
           {product.variants.map((variant) => {
             const isOutOfStock = variant.stockBadge === "out";
+            const blockOutOfStock = isOutOfStock && !allowNegativeStock;
 
             return (
               <Button
                 key={variant.id}
                 variant="outline"
-                disabled={isOutOfStock}
+                disabled={blockOutOfStock}
                 className="h-auto justify-between rounded-2xl border-border/70 bg-card px-4 py-3 text-start hover:border-primary/35 hover:bg-primary/5 disabled:opacity-50"
                 onClick={() => {
                   onSelect(product, variant);
@@ -56,7 +60,9 @@ export function VariantPickerDialog({
                       <StatusPill
                         label={
                           variant.stockBadge === "out"
-                            ? "غير متاح"
+                            ? allowNegativeStock
+                              ? "نفد — يمكن البيع"
+                              : "غير متاح"
                             : variant.stockBadge === "low"
                               ? "كمية محدودة"
                               : "متاح"

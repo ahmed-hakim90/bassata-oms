@@ -40,7 +40,7 @@ export async function getExpensesByCostCenter(options?: {
   return totals
     .map((t) => ({
       costCenterId: t.costCenterId,
-      name: centerMap.get(t.costCenterId) ?? "Unknown",
+      name: centerMap.get(t.costCenterId) ?? "غير معروف",
       amount: t.amount,
       percentage: grandTotal > 0 ? (t.amount / grandTotal) * 100 : 0,
     }))

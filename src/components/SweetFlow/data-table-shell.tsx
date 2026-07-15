@@ -11,6 +11,8 @@ type DataTableShellProps = {
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** When false, skip horizontal scroll wrapper (card grids). Default true. */
+  scrollable?: boolean;
 };
 
 export function DataTableShell({
@@ -22,11 +24,12 @@ export function DataTableShell({
   actions,
   children,
   className,
+  scrollable = true,
 }: DataTableShellProps) {
   return (
     <section
       className={cn(
-        "space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-4 shadow-[var(--mds-elevation-1)]",
+        "space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-3 shadow-[var(--mds-elevation-1)] sm:p-4",
         className
       )}
     >
@@ -42,7 +45,7 @@ export function DataTableShell({
                   value={search}
                   onChange={(event) => onSearchChange(event.target.value)}
                   placeholder={searchPlaceholder}
-                  className="h-9 min-w-56"
+                  className="h-11 min-w-0 sm:h-9 sm:min-w-56"
                   aria-label={searchPlaceholder}
                 />
               ) : null}
@@ -52,7 +55,11 @@ export function DataTableShell({
           {filters ? <div className="flex flex-wrap items-center gap-2">{filters}</div> : null}
         </div>
       )}
-      <div className="overflow-x-auto rounded-[var(--mds-radius-md)] border border-border">
+      <div
+        className={cn(
+          scrollable && "overflow-x-auto rounded-[var(--mds-radius-md)] border border-border"
+        )}
+      >
         {children}
       </div>
     </section>

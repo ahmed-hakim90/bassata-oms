@@ -265,6 +265,8 @@ export interface SupplierPayment {
   org_id: string;
   store_id: string;
   supplier_id: string;
+  /** When set, cash payments reduce that session’s expected drawer cash. */
+  session_id: string | null;
   amount: number;
   payment_method: PaymentMethod;
   reference: string;

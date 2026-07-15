@@ -74,6 +74,7 @@ export function PriceListPrintView() {
               accent={payload.accent}
               rows={payload.rows}
               showOldPrice={payload.showOldPrice}
+              showUnitLine={payload.showUnitLine !== false}
             />
           </>
         ) : null}

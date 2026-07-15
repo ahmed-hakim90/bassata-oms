@@ -1,5 +1,6 @@
 import * as purchaseRepo from "@/lib/repositories/purchase.repository";
 import * as paymentRepo from "@/lib/repositories/supplier-payment.repository";
+import * as sessionRepo from "@/lib/repositories/session.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
@@ -250,6 +251,8 @@ export async function createSupplierPayment(input: {
   notes?: string;
   paidAt?: string;
   createdBy: string;
+  /** When set (POS), links payment to session; cash reduces expected drawer cash. */
+  sessionId?: string | null;
 }): Promise<SupplierPayment> {
   if (input.amount <= 0) throw new Error("Amount must be greater than zero");
   if (input.paymentMethod === "credit") {
@@ -261,6 +264,18 @@ export async function createSupplierPayment(input: {
 
   await assertPeriodOpen(input.storeId);
 
+  let sessionId: string | null = input.sessionId ?? null;
+  if (sessionId) {
+    const session = await sessionRepo.getSession(sessionId);
+    if (!session) throw new Error("الجلسة غير موجودة");
+    if (session.store_id !== input.storeId) {
+      throw new Error("الجلسة لا تتبع الفرع الحالي");
+    }
+    if (session.status !== "open") {
+      throw new Error("الجلسة مش مفتوحة");
+    }
+  }
+
   const payment = await paymentRepo.insertSupplierPayment({
     storeId: input.storeId,
     supplierId: input.supplierId,
@@ -270,6 +285,7 @@ export async function createSupplierPayment(input: {
     notes: input.notes,
     paidAt: input.paidAt ?? new Date().toISOString(),
     createdBy: input.createdBy,
+    sessionId,
   });
 
   const orgId = await getOrgId();
@@ -280,7 +296,12 @@ export async function createSupplierPayment(input: {
     action: "supplier_payment.created",
     entityType: "supplier_payment",
     entityId: payment.id,
-    metadata: { amount: payment.amount, supplierId: input.supplierId },
+    metadata: {
+      amount: payment.amount,
+      supplierId: input.supplierId,
+      sessionId,
+      paymentMethod: input.paymentMethod,
+    },
   });
 
   return payment;

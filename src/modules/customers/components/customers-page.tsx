@@ -59,7 +59,7 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
         description="العلاقات والسجل والولاء"
         action={
           <Button
-            className="shadow-[var(--mds-elevation-1)]"
+            className="w-full shadow-[var(--mds-elevation-1)] sm:w-auto"
             onClick={() => setShowCreate(true)}
           >
             <Plus className="size-4" /> إضافة عميل
@@ -85,13 +85,13 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
         />
       </div>
 
-      <div className="relative max-w-md">
+      <div className="relative w-full max-w-md">
         <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="ابحث بالاسم أو الهاتف..."
-          className="rounded-[var(--mds-radius-md)] ps-10"
+          className="h-11 rounded-[var(--mds-radius-md)] ps-10 md:h-10"
           aria-label="بحث العملاء"
         />
       </div>

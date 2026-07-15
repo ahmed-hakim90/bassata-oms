@@ -64,17 +64,29 @@ export function ExpenseFiltersBar({ costCenters, categories, values }: ExpenseFi
         <label className="text-xs text-muted-foreground">التصنيف</label>
         <select
           value={values.categoryId}
-          onChange={(e) => apply({ categoryId: e.target.value })}
+          onChange={(e) => {
+            const categoryId = e.target.value;
+            const category = categories.find((c) => c.id === categoryId);
+            apply({
+              categoryId,
+              ...(category && !values.costCenterId
+                ? { costCenterId: category.cost_center_id }
+                : {}),
+            });
+          }}
           className="flex h-9 min-w-[140px] rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">الكل</option>
           {categories
             .filter((c) => !values.costCenterId || c.cost_center_id === values.costCenterId)
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            .map((c) => {
+              const centerName = costCenters.find((center) => center.id === c.cost_center_id)?.name;
+              return (
+                <option key={c.id} value={c.id}>
+                  {values.costCenterId || !centerName ? c.name : `${c.name} — ${centerName}`}
+                </option>
+              );
+            })}
         </select>
       </div>
       <div className="space-y-1">

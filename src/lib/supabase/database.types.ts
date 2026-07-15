@@ -2947,6 +2947,7 @@ export type Database = {
           paid_at: string
           payment_method: string
           reference: string
+          session_id: string | null
           store_id: string
           supplier_id: string
           voided_at: string | null
@@ -2961,6 +2962,7 @@ export type Database = {
           paid_at?: string
           payment_method: string
           reference?: string
+          session_id?: string | null
           store_id: string
           supplier_id: string
           voided_at?: string | null
@@ -2975,6 +2977,7 @@ export type Database = {
           paid_at?: string
           payment_method?: string
           reference?: string
+          session_id?: string | null
           store_id?: string
           supplier_id?: string
           voided_at?: string | null
@@ -2992,6 +2995,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cashier_sessions"
             referencedColumns: ["id"]
           },
           {

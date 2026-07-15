@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { POSProduct } from "@/modules/pos/services/catalog.service";
+import {
+  formatWeightPresetValue,
+  KG_WEIGHT_PRESETS,
+} from "@/modules/pos/lib/weight-presets";
 import { amountFromQuantity, quantityFromAmount } from "@/lib/units";
 
 interface Props {
@@ -51,11 +56,23 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
       ? (product?.base_price ?? 0)
       : (product?.variants[0]?.price ?? 0);
   const unit = product?.sale_unit ?? "kg";
+  /** Presets are defined in kg; only show when the sale unit is kg. */
+  const showKgPresets = mode === "by_weight" && unit === "kg";
   const quantity = useMemo(() => {
     if (mode === "by_weight") return Number(weight || 0);
     return quantityFromAmount(Number(amount || 0), unitPrice);
   }, [mode, weight, amount, unitPrice]);
+  const selectedPresetKg = useMemo(() => {
+    if (!showKgPresets || quantity <= 0) return null;
+    const match = KG_WEIGHT_PRESETS.find((preset) => Math.abs(preset.kg - quantity) < 0.0005);
+    return match?.kg ?? null;
+  }, [showKgPresets, quantity]);
   const total = amountFromQuantity(quantity, unitPrice);
+
+  function applyWeightPreset(kg: number) {
+    setMode("by_weight");
+    setWeight(formatWeightPresetValue(kg));
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,19 +105,49 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
             سعر الوحدة: {formatCurrency(unitPrice)} / {unit}
           </p>
           {mode === "by_weight" ? (
-            <div className="space-y-2">
-              <Label htmlFor="pos-weight-input">الوزن ({unit})</Label>
-              <Input
-                id="pos-weight-input"
-                type="number"
-                step="0.001"
-                min="0"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                className="h-11 rounded-xl"
-                inputMode="decimal"
-                autoFocus
-              />
+            <div className="space-y-3">
+              {showKgPresets ? (
+                <div className="space-y-2">
+                  <Label>اختيار سريع</Label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {KG_WEIGHT_PRESETS.map((preset) => {
+                      const selected = selectedPresetKg === preset.kg;
+                      return (
+                        <Button
+                          key={preset.id}
+                          type="button"
+                          variant={selected ? "default" : "outline"}
+                          className={cn(
+                            "h-12 rounded-xl px-1 text-sm font-semibold tabular-nums",
+                            selected && "shadow-sm"
+                          )}
+                          onClick={() => applyWeightPreset(preset.kg)}
+                          aria-pressed={selected}
+                        >
+                          {preset.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <Label htmlFor="pos-weight-input">
+                  {showKgPresets ? "وزن تاني (كجم)" : `الوزن (${unit})`}
+                </Label>
+                <Input
+                  id="pos-weight-input"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  className="h-11 rounded-xl"
+                  inputMode="decimal"
+                  autoFocus={!showKgPresets}
+                  placeholder={showKgPresets ? "مثال: 0.350" : undefined}
+                />
+              </div>
             </div>
           ) : (
             <div className="space-y-2">

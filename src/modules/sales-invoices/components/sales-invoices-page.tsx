@@ -172,7 +172,7 @@ export function SalesInvoicesPage({
       return <EmptyStateBlock title="مفيش فواتير هنا" description="ابدأ بمسودة جديدة للجملة" />;
     }
     return (
-      <DataTableShell title={`الفواتير (${rows.length})`}>
+      <DataTableShell title={`الفواتير (${rows.length})`} scrollable={false}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((invoice) => (
             <OperationalCard key={invoice.id}>
@@ -226,11 +226,11 @@ export function SalesInvoicesPage({
         title="فواتير المبيعات"
         description="مسودة → إصدار → تسليم (خصم المخزون عند التسليم — مستقلة عن جلسة الكاشير)"
         action={
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-end">
             <div className="space-y-1">
               <Label className="text-xs">المخزن</Label>
               <Select value={warehouseId || undefined} onValueChange={(v) => setWarehouseId(v ?? "")}>
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="h-11 w-full sm:h-9 sm:w-44">
                   <SelectValue placeholder="المخزن">
                     {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                   </SelectValue>
@@ -247,7 +247,7 @@ export function SalesInvoicesPage({
             <div className="space-y-1">
               <Label className="text-xs">عميل</Label>
               <Select value={customerId || undefined} onValueChange={(v) => setCustomerId(v ?? "__none__")}>
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="h-11 w-full sm:h-9 sm:w-44">
                   <SelectValue placeholder="عميل">
                     {(value) =>
                       value === "__none__"
@@ -270,6 +270,7 @@ export function SalesInvoicesPage({
             </div>
             <Button
               type="button"
+              className="h-11 w-full sm:h-9 sm:w-auto"
               disabled={pending || !warehouseId}
               onClick={() =>
                 startTransition(async () => {

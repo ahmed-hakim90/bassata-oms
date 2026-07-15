@@ -244,6 +244,7 @@ export function mapSupplierPayment(row: SupplierPaymentRow): SupplierPayment {
     org_id: row.org_id,
     store_id: row.store_id,
     supplier_id: row.supplier_id,
+    session_id: row.session_id ?? null,
     amount: num(row.amount),
     payment_method: row.payment_method as SupplierPayment["payment_method"],
     reference: row.reference,

@@ -116,7 +116,7 @@ export function OnboardingWizard({
     expenseRules: {
       approvalRequired: false,
       cashierCanAddSessionExpense: true,
-      allowInventoryPurchaseFromSession: true,
+      allowInventoryPurchaseFromSession: false,
       preventExpensesInClosedPeriods: true,
     },
   });
@@ -632,7 +632,7 @@ export function OnboardingWizard({
                   setInitialSetup({ ...initialSetup, createDefaultCostCenters: checked === true })
                 }
               />
-              Create default cost centers
+              إنشاء مراكز تكلفة افتراضية
             </label>
             <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors">
               <Checkbox
@@ -644,7 +644,7 @@ export function OnboardingWizard({
                   })
                 }
               />
-              Create default expense categories
+              إنشاء تصنيفات مصروفات افتراضية
             </label>
             <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors">
               <Checkbox

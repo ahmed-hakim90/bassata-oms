@@ -111,6 +111,14 @@ export function CloseSessionStepper({
               <dt className="text-muted-foreground">المصروفات</dt>
               <dd className="tabular-nums">-{formatCurrency(reconciliation.expenses)}</dd>
             </div>
+            {reconciliation.supplierPayments > 0 ? (
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">دفعات موردين</dt>
+                <dd className="tabular-nums">
+                  -{formatCurrency(reconciliation.supplierPayments)}
+                </dd>
+              </div>
+            ) : null}
             <div className="flex justify-between border-t border-border/60 pt-2 font-semibold">
               <dt>المتوقع في الدرج</dt>
               <dd className="tabular-nums">{formatCurrency(reconciliation.expectedCash)}</dd>
