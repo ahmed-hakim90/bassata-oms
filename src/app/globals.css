@@ -92,7 +92,8 @@
   --mds-radius-pill: 999px;
   --mds-font-size-body: 14px;
   --mds-z-sticky: 100;
-  --mds-z-dropdown: 200;
+  /* Above sticky chrome; above modal so Selects inside dialogs remain visible/clickable */
+  --mds-z-dropdown: 450;
   --mds-z-modal: 400;
   --mds-z-toast: 500;
   --mds-z-command: 600;
