@@ -10,7 +10,7 @@ Last updated: 2026-08-08 (Top-5 gaps P0 ops pass)
 | Migrations | Apply **full** train under `supabase/migrations/` (incl. custom domains / bakery-pharmacy / modifiers-KDS) |
 | Platform console `/platform` | Restored (ADR-001); bootstrap via `PLATFORM_BOOTSTRAP_EMAILS` |
 | Online menu / orders | First-party QR menu (Souqna **not** live — ADR-009) |
-| Vercel production | https://bassata-oms.vercel.app |
+| Vercel production | https://velora-oms.vercel.app |
 | Cookie HMAC | `SweetFlow_COOKIE_SECRET` required in prod |
 | Transactional email code path | Resend templates wired |
 
@@ -24,16 +24,16 @@ Last updated: 2026-08-08 (Top-5 gaps P0 ops pass)
 | Core secrets on Production (`SweetFlow_COOKIE_SECRET`, Supabase URL/anon/service, `NEXT_PUBLIC_APP_URL`) | **Pass** | present on Production |
 | Core secrets slots on Preview | **Pass** | present (distinct values **not** re-verified by decrypt — ops must confirm Preview ≠ Production periodically) |
 | `PLATFORM_BOOTSTRAP_EMAILS` Production + Preview | **Pass (slots)** | present; keep lists tight per env |
-| Supabase Auth Site URL + Redirect URLs (platform host) | **Operator confirm** | Dashboard → Auth → URL config: `https://bassata-oms.vercel.app/auth/callback` (+ reset variant) |
+| Supabase Auth Site URL + Redirect URLs (platform host) | **Operator confirm** | Dashboard → Auth → URL config: `https://velora-oms.vercel.app/auth/callback` (+ reset variant) |
 | Email smoke (forgot / invite / session close) | **Operator confirm** | Prod redeployed 2026-08-08 with Resend; run forgot/invite/session-close once |
-| Redeploy after env push | **Pass** | `dpl_49GVy9K2gGQbgp2tS1vZRUk3GqTi` → https://bassata-oms.vercel.app (READY) |
+| Redeploy after env push | **Pass** | `dpl_49GVy9K2gGQbgp2tS1vZRUk3GqTi` → https://velora-oms.vercel.app (READY) |
 
 ### Supabase Auth → URL configuration (keep)
 
-- **Site URL:** `https://bassata-oms.vercel.app`
+- **Site URL:** `https://velora-oms.vercel.app`
 - **Redirect URLs:**
-  - `https://bassata-oms.vercel.app/auth/callback`
-  - `https://bassata-oms.vercel.app/auth/callback?next=/reset-password`
+  - `https://velora-oms.vercel.app/auth/callback`
+  - `https://velora-oms.vercel.app/auth/callback?next=/reset-password`
   - For each **active custom org domain:** `https://<custom-domain>/auth/callback` (+ reset)
 
 ### Staging / activity smoke
@@ -73,4 +73,4 @@ npx vercel deploy --prod
 
 ## Production URL
 
-https://bassata-oms.vercel.app
+https://velora-oms.vercel.app

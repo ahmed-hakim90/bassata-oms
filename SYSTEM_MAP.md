@@ -1,6 +1,6 @@
 # SYSTEM MAP / BAS-01
 
-> Velora (repo `bassata-oms`) — multi-location POS + light ERP for cafés, restaurants, and retail  
+> Velora (repo `bassata-oms` (local folder `velora`)) — multi-location POS + light ERP for cafés, restaurants, and retail  
 > Last updated: 2026-08-08
 
 ## Core / runtime

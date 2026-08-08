@@ -64,7 +64,7 @@ Quick login: any seeded email below with password **`demo1234`** (from `scripts/
 
 One-liner demo DB: `npm run db:reset-demo`
 
-> **Note:** npm package remains `cafeflow-erp-pos`; UI kit folder is `SweetFlow`; design tokens are Meridian (`--mds-*`). Operator-facing brand is **Velora**.
+> **Note:** npm package is `velora`; UI kit folder is `SweetFlow`; design tokens are Meridian (`--mds-*`). Operator-facing brand is **Velora**.
 
 ## Supabase Setup (Production)
 

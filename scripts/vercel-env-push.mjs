@@ -10,7 +10,7 @@ import { fileURLToPath } from "url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = resolve(root, ".env.local");
-const PRODUCTION_APP_URL = process.env.VERCEL_PRODUCTION_URL ?? "https://bassata-oms.vercel.app";
+const PRODUCTION_APP_URL = process.env.VERCEL_PRODUCTION_URL ?? "https://velora-oms.vercel.app";
 
 const KEYS = [
   "NEXT_PUBLIC_SUPABASE_URL",

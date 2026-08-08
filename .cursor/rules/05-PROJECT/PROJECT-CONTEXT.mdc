@@ -1,12 +1,12 @@
 ---
-description: SweetFlow / CafeFlow (bassata-oms) project context
+description: Velora (bassata-oms / velora) project context
 alwaysApply: true
 ---
 
-# Project Context — SweetFlow (bassata-oms)
+# Project Context — Velora
 
-**Product:** Velora — نظام كاشير وإدارة فروع (multi-location POS + light ERP).  
-**Repo:** `bassata-oms` · package still `cafeflow-erp-pos` · UI kit folder: `SweetFlow`.  
+**Product:** Velora — نظام كاشير وإدارة فروع (multi-location POS + light ERP). 
+**Repo:** GitHub `bassata-oms` · local folder `velora` · npm package `velora` · Vercel project `velora` · production `https://velora-oms.vercel.app` · UI kit folder: `SweetFlow`. 
 **System map:** Read and keep `SYSTEM_MAP.md` current when modules, primary path, roles, or integrations change.
 
 ## Stack
