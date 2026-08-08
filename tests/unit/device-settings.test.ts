@@ -21,6 +21,8 @@ const updatedDevice: Device = {
   device_key_hash: "hash",
   is_active: true,
   last_seen_at: null,
+  scale_enabled: false,
+  scale_settings: {},
 };
 
 describe("device settings updates", () => {

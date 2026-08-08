@@ -279,32 +279,44 @@ export function PriceListPoster({
                 style={{
                   background: accent,
                   color: "#fff",
-                  minWidth: Math.round(width * 0.16),
+                  minWidth: Math.round(
+                    width *
+                      (showOldPrice && row.oldPrice != null && row.oldPrice > row.displayPrice
+                        ? 0.2
+                        : 0.16)
+                  ),
                   alignSelf: "stretch",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
+                  gap: 2,
                   padding: "8px 10px",
                   borderRadius: `${Math.round(rowH * 0.28)}px 0 0 ${Math.round(rowH * 0.28)}px`,
                   fontWeight: 800,
                   fontSize: priceSize,
-                  lineHeight: 1.2,
+                  lineHeight: 1.15,
                 }}
               >
                 {showOldPrice && row.oldPrice != null && row.oldPrice > row.displayPrice ? (
-                  <span
-                    style={{
-                      fontSize: Math.round(priceSize * 0.72),
-                      textDecoration: "line-through",
-                      opacity: 0.75,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {formatPriceBadge(row.oldPrice)}
-                  </span>
-                ) : null}
-                <span>{formatPriceBadge(row.displayPrice)}</span>
+                  <>
+                    <span
+                      style={{
+                        fontSize: Math.round(priceSize * 0.58),
+                        textDecoration: "line-through",
+                        opacity: 0.72,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {formatPriceBadge(row.oldPrice)}
+                    </span>
+                    <span style={{ fontSize: Math.round(priceSize * 1.05) }}>
+                      {formatPriceBadge(row.displayPrice)}
+                    </span>
+                  </>
+                ) : (
+                  <span>{formatPriceBadge(row.displayPrice)}</span>
+                )}
               </div>
             </div>
           ))

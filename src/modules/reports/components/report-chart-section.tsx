@@ -2,6 +2,7 @@
 
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { cn } from "@/lib/utils";
 
 interface ReportChartSectionProps {
   title: string;
@@ -17,9 +18,13 @@ export function ReportChartSection({
   children,
 }: ReportChartSectionProps) {
   const { t } = useTranslation();
+  const useResponsiveDefault = height === 280;
   return (
     <OperationalCard title={t(title)} description={description ? t(description) : undefined}>
-      <div className="print:hidden" style={{ height }}>
+      <div
+        className={cn("print:hidden", useResponsiveDefault && "h-[200px] sm:h-[280px]")}
+        style={useResponsiveDefault ? undefined : { height }}
+      >
         {children}
       </div>
     </OperationalCard>

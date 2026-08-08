@@ -88,6 +88,27 @@ export async function voidOrder(
     const result = await orderRepo.voidOrderRpc({ orderId, actorId: userId });
     const updated = await orderRepo.getOrder(orderId);
     if (!updated) return null;
+
+    const [payments, items] = await Promise.all([
+      orderRepo.getOrderPayments(orderId),
+      orderRepo.getOrderItems(orderId),
+    ]);
+    const { safePostSaleReversalJournal } = await import(
+      "@/modules/accounting/services/gl-posting.service"
+    );
+    await safePostSaleReversalJournal({
+      orderId,
+      storeId: order.store_id,
+      kind: "void",
+      total: order.total,
+      tax: order.tax,
+      discount: order.discount,
+      payments: payments.map((p) => ({ method: p.method, amount: p.amount })),
+      cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
+      createdBy: userId,
+      memo: `إلغاء بيع ${order.order_number}`,
+    });
+
     return { order: updated, restock: mapRestock(result) };
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -118,6 +139,27 @@ export async function refundOrder(
     const result = await orderRepo.refundOrderRpc({ orderId, actorId: userId });
     const updated = await orderRepo.getOrder(orderId);
     if (!updated) return null;
+
+    const [payments, items] = await Promise.all([
+      orderRepo.getOrderPayments(orderId),
+      orderRepo.getOrderItems(orderId),
+    ]);
+    const { safePostSaleReversalJournal } = await import(
+      "@/modules/accounting/services/gl-posting.service"
+    );
+    await safePostSaleReversalJournal({
+      orderId,
+      storeId: order.store_id,
+      kind: "refund",
+      total: order.total,
+      tax: order.tax,
+      discount: order.discount,
+      payments: payments.map((p) => ({ method: p.method, amount: p.amount })),
+      cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
+      createdBy: userId,
+      memo: `مرتجع بيع ${order.order_number}`,
+    });
+
     return { order: updated, restock: mapRestock(result) };
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

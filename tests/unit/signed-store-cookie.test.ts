@@ -28,7 +28,7 @@ describe("signed store cookie (ADR-002)", () => {
   it("rejects a tampered storeId payload", () => {
     vi.stubEnv("SweetFlow_COOKIE_SECRET", "test-cookie-secret-for-unit");
     const value = createSignedCookieValue({ storeId: "store-abc" }, 3600);
-    const [version, payload, signature] = value.split(".");
+    const [version, _payload, signature] = value.split(".");
     const tamperedPayload = Buffer.from(
       JSON.stringify({ storeId: "store-evil", exp: Math.floor(Date.now() / 1000) + 3600 })
     ).toString("base64url");

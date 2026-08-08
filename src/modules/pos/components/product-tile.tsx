@@ -56,11 +56,13 @@ export function ProductTile({
       onClick={onAdd}
       disabled={disabled || blockOutOfStock}
       className={cn(
-        "group relative flex min-h-[148px] flex-col overflow-hidden rounded-2xl bg-card text-left text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/30 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[158px]"
+        "group relative flex min-h-[132px] flex-col overflow-hidden rounded-2xl bg-card text-left text-card-foreground shadow-sm ring-1 ring-border/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/30 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[158px]",
+        /* phones / ~5" handheld: dense tap tiles, less chrome */
+        "max-sm:min-h-[118px] max-sm:rounded-xl max-sm:shadow-none max-sm:hover:translate-y-0 max-sm:hover:shadow-none max-[390px]:min-h-[108px]"
       )}
     >
       <div
-        className="relative flex aspect-[5/3] min-h-[72px] w-full items-center justify-center overflow-hidden"
+        className="relative flex aspect-[5/3] min-h-[64px] w-full items-center justify-center overflow-hidden max-sm:aspect-[16/10] max-sm:min-h-[56px] max-[390px]:aspect-[16/9] max-[390px]:min-h-[52px]"
         style={{
           background: `linear-gradient(145deg, ${product.categoryColor}22, ${product.categoryColor}44)`,
         }}
@@ -72,7 +74,7 @@ export function ProductTile({
             fill
             sizes="(min-width: 1280px) 14vw, (min-width: 640px) 25vw, 45vw"
             unoptimized
-            className="object-cover transition duration-300 group-hover:scale-105"
+            className="object-cover transition duration-300 group-hover:scale-105 max-[390px]:group-hover:scale-100"
           />
         ) : null}
         {product.image_url ? (
@@ -80,7 +82,7 @@ export function ProductTile({
         ) : null}
         <span
           className={cn(
-            "text-3xl font-bold opacity-30 transition group-hover:scale-105",
+            "text-3xl font-bold opacity-30 transition group-hover:scale-105 max-[390px]:text-2xl",
             product.image_url && "opacity-0"
           )}
           style={{ color: product.categoryColor }}
@@ -97,7 +99,7 @@ export function ProductTile({
                   : "secondary"
             }
             className={cn(
-              "absolute end-1.5 top-1.5 max-w-[calc(100%-0.75rem)] truncate rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] shadow-sm backdrop-blur",
+              "absolute end-1.5 top-1.5 max-w-[calc(100%-0.75rem)] truncate rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] shadow-sm backdrop-blur max-[390px]:end-1 max-[390px]:top-1 max-[390px]:px-1 max-[390px]:text-[9px]",
               product.stockBadge === "low" &&
                 "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200"
             )}
@@ -107,29 +109,35 @@ export function ProductTile({
           </Badge>
         )}
         {showVariants && product.hasVariants ? (
-          <span className="absolute start-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm backdrop-blur">
-            <Layers3 className="size-3 text-primary" />
+          <span className="absolute start-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm backdrop-blur max-[390px]:start-1 max-[390px]:top-1 max-[390px]:px-1 max-[390px]:text-[9px]">
+            <Layers3 className="size-3 max-[390px]:size-2.5" />
             {product.variants.length}
           </span>
         ) : null}
-        <span className="absolute bottom-1.5 end-1.5 flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-110 group-disabled:opacity-0 sm:size-10">
-          <Plus className="size-4 sm:size-4.5" />
+        <span className="absolute bottom-1.5 end-1.5 flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-110 group-disabled:opacity-0 sm:size-10 max-[390px]:bottom-1 max-[390px]:end-1 max-[390px]:size-8 max-[390px]:shadow-sm">
+          <Plus className="size-4 sm:size-4.5 max-[390px]:size-3.5" />
           <span className="sr-only">إضافة</span>
         </span>
       </div>
-      <div className="flex flex-1 flex-col gap-1 p-2 sm:p-2.5">
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-card-foreground">
+      <div className="flex flex-1 flex-col gap-0.5 p-2 sm:gap-1 sm:p-2.5 max-[390px]:p-1.5">
+        <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-card-foreground max-[390px]:text-xs max-[390px]:leading-tight sm:text-sm">
           {product.name}
         </p>
-        <p className="min-w-0 truncate text-[11px] text-muted-foreground">{product.categoryName}</p>
-        <div className="mt-auto rounded-xl border border-border/50 bg-muted/40 px-2 py-1.5">
+        <p className="min-w-0 truncate text-[11px] text-muted-foreground max-sm:hidden">
+          {product.categoryName}
+        </p>
+        <div className="mt-auto rounded-xl border border-border/50 bg-muted/40 px-2 py-1.5 max-sm:rounded-lg max-sm:border-0 max-sm:bg-transparent max-sm:px-0 max-sm:py-0.5">
           {showVariantPrice ? (
-            <p className="text-[10px] text-muted-foreground">{priceRange ? "من" : "سعر"}</p>
+            <p className="text-[10px] text-muted-foreground max-sm:hidden">
+              {priceRange ? "من" : "سعر"}
+            </p>
           ) : null}
-          <p className="text-sm font-bold tabular-nums text-card-foreground sm:text-[15px]">
+          <p className="text-[13px] font-bold tabular-nums text-foreground sm:text-[15px]">
             {formatCurrency(displayPrice)}
             {priceRange ? (
-              <span className="ms-0.5 text-[10px] font-normal text-muted-foreground">{priceRange}</span>
+              <span className="ms-0.5 text-[10px] font-normal text-muted-foreground">
+                {priceRange}
+              </span>
             ) : null}
           </p>
         </div>

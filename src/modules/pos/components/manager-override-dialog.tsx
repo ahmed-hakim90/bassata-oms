@@ -42,7 +42,7 @@ function ManagerOverrideDialogForm({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl sm:max-w-md">
+      <DialogContent className="max-w-md rounded-2xl max-sm:max-w-[calc(100%-0.75rem)] sm:max-w-md">
         <DialogHeader className="space-y-3 text-start">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <ShieldCheck className="size-6" />
@@ -57,14 +57,24 @@ function ManagerOverrideDialogForm({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
-            className="resize-none rounded-xl"
+            className="min-h-24 resize-none rounded-xl text-base"
           />
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 rounded-xl"
+            onClick={() => onOpenChange(false)}
+          >
             إلغاء
           </Button>
-          <Button type="button" className="rounded-xl" onClick={handleConfirm} disabled={!reason.trim()}>
+          <Button
+            type="button"
+            className="h-12 rounded-xl font-semibold"
+            onClick={handleConfirm}
+            disabled={!reason.trim()}
+          >
             {confirmLabel}
           </Button>
         </DialogFooter>

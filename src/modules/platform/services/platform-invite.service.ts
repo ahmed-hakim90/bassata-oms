@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPlatformInviteEmail } from "@/lib/services/email.service";
 import type { PlatformAdmin } from "@/modules/platform/services/platform-admin.service";
 import { writePlatformAuditLog } from "@/modules/platform/services/platform-audit.service";
 
@@ -106,6 +107,18 @@ export async function createCompanyInvite(
       expires_at: expiresAt,
     },
   });
+
+  try {
+    await sendPlatformInviteEmail({
+      email: ownerEmail,
+      ownerName: ownerName || undefined,
+      orgName,
+      token,
+      expiresAt,
+    });
+  } catch (emailError) {
+    console.error("[platform] invite email failed", emailError);
+  }
 
   return { invite: data, token };
 }

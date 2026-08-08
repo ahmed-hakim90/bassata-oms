@@ -262,26 +262,34 @@ export function WholesalePriceTiersEditor({
           لسه مفيش شرائح. ضيف شريحة واحدة على الأقل (مثلاً من 1 قطعة) عشان فاتورة الجملة تاخد السعر صح.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-start">
-                <th className="px-3 py-2 font-medium">الشريحة</th>
-                <th className="px-3 py-2 font-medium">من كمية</th>
-                <th className="px-3 py-2 font-medium">سعر القطعة</th>
-                <th className="px-3 py-2 w-12" />
-              </tr>
-            </thead>
-            <tbody>
-              {tiers.map((tier) => (
-                <tr key={tier.id} className="border-b last:border-0">
-                  <td className="px-3 py-2">{tier.name}</td>
-                  <td className="px-3 py-2">
+        <>
+          <div className="space-y-2 md:hidden">
+            {tiers.map((tier) => (
+              <div
+                key={tier.id}
+                className="space-y-2 rounded-xl border border-border/70 bg-card p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 font-medium">{tier.name}</p>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-9 shrink-0"
+                    aria-label={`حذف شريحة ${tier.name}`}
+                    onClick={() => handleDelete(tier.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">من كمية</p>
                     <Input
-                      className="w-24"
+                      className="w-full"
                       inputMode="decimal"
                       defaultValue={String(tier.min_quantity)}
-                      key={`q-${tier.id}-${tier.min_quantity}`}
+                      key={`mq-${tier.id}-${tier.min_quantity}`}
                       disabled={tier.id.startsWith("temp-")}
                       onBlur={(e) => {
                         const next =
@@ -291,13 +299,14 @@ export function WholesalePriceTiersEditor({
                         }
                       }}
                     />
-                  </td>
-                  <td className="px-3 py-2">
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">سعر القطعة</p>
                     <Input
-                      className="w-28"
+                      className="w-full"
                       inputMode="decimal"
                       defaultValue={String(tier.price)}
-                      key={`p-${tier.id}-${tier.price}`}
+                      key={`mp-${tier.id}-${tier.price}`}
                       disabled={tier.id.startsWith("temp-")}
                       onBlur={(e) => {
                         const next = parseFloat(sanitizeDecimalInput(e.target.value)) || tier.price;
@@ -306,25 +315,79 @@ export function WholesalePriceTiersEditor({
                         }
                       }}
                     />
-                    <span className="ms-2 text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {formatCurrency(tier.price, currency)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDelete(tier.id)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </td>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-md border md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-start">
+                  <th className="px-3 py-2 font-medium">الشريحة</th>
+                  <th className="px-3 py-2 font-medium">من كمية</th>
+                  <th className="px-3 py-2 font-medium">سعر القطعة</th>
+                  <th className="px-3 py-2 w-12" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {tiers.map((tier) => (
+                  <tr key={tier.id} className="border-b last:border-0">
+                    <td className="px-3 py-2">{tier.name}</td>
+                    <td className="px-3 py-2">
+                      <Input
+                        className="w-24"
+                        inputMode="decimal"
+                        defaultValue={String(tier.min_quantity)}
+                        key={`q-${tier.id}-${tier.min_quantity}`}
+                        disabled={tier.id.startsWith("temp-")}
+                        onBlur={(e) => {
+                          const next =
+                            parseFloat(sanitizeDecimalInput(e.target.value)) || tier.min_quantity;
+                          if (next !== tier.min_quantity) {
+                            handleUpdate(tier, { min_quantity: next });
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <Input
+                        className="w-28"
+                        inputMode="decimal"
+                        defaultValue={String(tier.price)}
+                        key={`p-${tier.id}-${tier.price}`}
+                        disabled={tier.id.startsWith("temp-")}
+                        onBlur={(e) => {
+                          const next = parseFloat(sanitizeDecimalInput(e.target.value)) || tier.price;
+                          if (next !== tier.price) {
+                            handleUpdate(tier, { price: next });
+                          }
+                        }}
+                      />
+                      <span className="ms-2 text-xs text-muted-foreground">
+                        {formatCurrency(tier.price, currency)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(tier.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

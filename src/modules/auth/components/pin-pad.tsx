@@ -8,15 +8,25 @@ import { Button } from "@/components/ui/button";
 
 const PIN_LENGTH = 4;
 
+export type PinVerifyResult = {
+  success: boolean;
+  error?: string;
+  cashierId?: string;
+};
+
 interface PinPadProps {
   onSuccess?: (cashierId: string) => void;
+  /** Override default authenticated PIN switch (e.g. public PIN-as-login). */
+  verifyPin?: (pin: string) => Promise<PinVerifyResult>;
+  disabled?: boolean;
   className?: string;
 }
 
-export function PinPad({ onSuccess, className }: PinPadProps) {
+export function PinPad({ onSuccess, verifyPin, disabled = false, className }: PinPadProps) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const busy = pending || disabled;
 
   const appendDigit = useCallback((digit: string) => {
     setError(null);
@@ -37,21 +47,24 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
     (value: string) => {
       if (value.length !== PIN_LENGTH) return;
       startTransition(async () => {
-        const result = await verifyPinAction(value);
-        if (result.success && result.cashierId) {
+        const result = verifyPin
+          ? await verifyPin(value)
+          : await verifyPinAction(value);
+        if (result.success) {
           setPin("");
           setError(null);
-          onSuccess?.(result.cashierId);
+          onSuccess?.(result.cashierId ?? "");
         } else {
           setError(result.error ?? "رقم PIN غير صحيح.");
           setPin("");
         }
       });
     },
-    [onSuccess]
+    [onSuccess, verifyPin]
   );
 
   const handleDigit = (digit: string) => {
+    if (busy) return;
     const next = pin.length < PIN_LENGTH ? pin + digit : pin;
     appendDigit(digit);
     if (next.length === PIN_LENGTH) {
@@ -87,7 +100,7 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
         </p>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 max-[390px]:gap-1.5 sm:gap-3">
         {digits.map((key) => {
           if (key === "clear") {
             return (
@@ -95,9 +108,9 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
                 key={key}
                 type="button"
                 variant="ghost"
-                disabled={pending}
+                disabled={busy}
                 onClick={clearPin}
-                className="h-16 rounded-[var(--radius-button)] text-sm font-medium"
+                className="h-14 rounded-[var(--radius-button)] text-sm font-medium sm:h-16"
               >
                 مسح
               </Button>
@@ -109,9 +122,9 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
                 key={key}
                 type="button"
                 variant="ghost"
-                disabled={pending}
+                disabled={busy}
                 onClick={removeDigit}
-                className="h-16 rounded-[var(--radius-button)]"
+                className="h-14 rounded-[var(--radius-button)] sm:h-16"
                 aria-label="حذف"
               >
                 <Delete className="size-5" />
@@ -123,9 +136,9 @@ export function PinPad({ onSuccess, className }: PinPadProps) {
               key={key}
               type="button"
               variant="outline"
-              disabled={pending}
+              disabled={busy}
               onClick={() => handleDigit(key)}
-              className="h-16 rounded-[var(--radius-button)] text-2xl font-medium shadow-sm active:scale-95"
+              className="h-14 rounded-[var(--radius-button)] text-2xl font-medium shadow-sm transition active:scale-95 sm:h-16"
             >
               {key}
             </Button>

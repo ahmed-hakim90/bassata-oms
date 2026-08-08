@@ -4,7 +4,13 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, Ban, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  Ban,
+  CheckCircle2,
+  Gauge,
+  Users,
+} from "lucide-react";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { StatusPill } from "@/components/SweetFlow/status-pill";
@@ -16,14 +22,43 @@ import type {
   PlatformOrganizationHealth,
   PlatformOrganizationRow,
 } from "@/modules/platform/services/platform-org.service";
+import type { PlatformOrgConfig } from "@/modules/platform/services/platform-org-config.service";
 import {
+  usagePressure,
+  type PlatformPlan,
+  type PlatformUsage,
+} from "@/modules/platform/services/platform-plan.service";
+import type { PlatformWebhookConfig } from "@/modules/platform/services/platform-webhooks.service";
+import type { OrgCustomDomain } from "@/modules/platform/services/platform-custom-domain.service";
+import { PlatformOrgConfigPanel } from "@/modules/platform/components/platform-org-config-panel";
+import { PlatformOrgPlanWebhookPanel } from "@/modules/platform/components/platform-org-plan-webhook-panel";
+import { PlatformCustomDomainPanel } from "@/modules/platform/components/platform-custom-domain-panel";
+import {
+  exportOrganizationFullDataAction,
+  exportOrganizationLifecycleAction,
   reactivateOrganizationAction,
   suspendOrganizationAction,
 } from "@/modules/platform/actions/platform.actions";
+import { PlatformOrgMenuThemesPanel } from "@/modules/platform/components/platform-org-menu-themes-panel";
+import type {
+  MenuThemeAccessRow,
+  MenuThemeEntitlements,
+} from "@/modules/online-menu/lib/menu-theme-commerce";
+
+function limitLabel(value: number | null): string {
+  return value == null ? "∞" : String(value);
+}
 
 interface PlatformOrgDetailProps {
   organization: PlatformOrganizationRow;
   health: PlatformOrganizationHealth;
+  config: PlatformOrgConfig;
+  plan: PlatformPlan;
+  usage: PlatformUsage;
+  webhook: PlatformWebhookConfig;
+  customDomain: OrgCustomDomain;
+  menuThemeRows: MenuThemeAccessRow[];
+  menuThemeEntitlements: MenuThemeEntitlements;
 }
 
 function formatApproxBytes(bytes: number): string {
@@ -32,10 +67,22 @@ function formatApproxBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function PlatformOrgDetail({ organization, health }: PlatformOrgDetailProps) {
+export function PlatformOrgDetail({
+  organization,
+  health,
+  config,
+  plan,
+  usage,
+  webhook,
+  customDomain,
+  menuThemeRows,
+  menuThemeEntitlements,
+}: PlatformOrgDetailProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [confirmSuspend, setConfirmSuspend] = useState(false);
+  const [confirmSuspend, setConfirmSuspend] = useState<"ops" | "non_payment" | null>(
+    null
+  );
   const suspended = organization.status === "suspended";
 
   function refresh() {
@@ -55,7 +102,6 @@ export function PlatformOrgDetail({ organization, health }: PlatformOrgDetailPro
           </Link>
         }
         title={organization.name}
-        description="تقرير صحة الشركة من المنصة. مفيش دخول لحساب المستأجر من هنا."
         meta={
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <StatusPill
@@ -92,23 +138,53 @@ export function PlatformOrgDetail({ organization, health }: PlatformOrgDetailPro
               إعادة التفعيل
             </Button>
           ) : (
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={pending}
-              onClick={() => setConfirmSuspend(true)}
-            >
-              <Ban className="size-3.5" />
-              تعليق الشركة
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setConfirmSuspend("non_payment")}
+              >
+                <Ban className="size-3.5" />
+                تعليق لعدم السداد
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={pending}
+                onClick={() => setConfirmSuspend("ops")}
+              >
+                <Ban className="size-3.5" />
+                تعليق الشركة
+              </Button>
+            </div>
           )
         }
       />
 
       <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="فروع" value={String(health.storeCount)} trend="neutral" />
-        <KpiCard label="مستخدمين" value={String(health.userCount)} trend="neutral" />
-        <KpiCard label="أجهزة" value={String(health.deviceCount)} trend="neutral" />
+        <KpiCard
+          label="فروع (استهلاك)"
+          value={`${usage.stores}/${limitLabel(plan.max_stores)}`}
+          change={
+            usagePressure(usage.stores, plan.max_stores) === "over"
+              ? "تجاوز الحد"
+              : usagePressure(usage.stores, plan.max_stores) === "near"
+                ? "قرب الحد"
+                : plan.plan
+          }
+          trend={
+            usagePressure(usage.stores, plan.max_stores) === "over" ? "down" : "neutral"
+          }
+        />
+        <KpiCard
+          label="مستخدمين نشطين"
+          value={`${usage.users}/${limitLabel(plan.max_users)}`}
+          change={`إجمالي المسجّلين: ${health.userCount}`}
+          trend={
+            usagePressure(usage.users, plan.max_users) === "over" ? "down" : "neutral"
+          }
+        />
         <KpiCard
           label="طلبات"
           value={String(health.orderCount)}
@@ -121,7 +197,26 @@ export function PlatformOrgDetail({ organization, health }: PlatformOrgDetailPro
         />
       </div>
 
-      <OperationalCard title="حجم التشغيل" description="أعداد الكيانات عبر فروع الشركة.">
+      <OperationalCard title="اختصارات التحكم">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/platform/usage"
+            className="inline-flex h-9 items-center gap-1.5 rounded-[var(--mds-radius-md)] border border-border bg-background px-3.5 text-sm font-medium hover:bg-muted"
+          >
+            <Gauge className="size-3.5" />
+            مصفوفة الاستهلاك
+          </Link>
+          <Link
+            href="/platform/users"
+            className="inline-flex h-9 items-center gap-1.5 rounded-[var(--mds-radius-md)] border border-border bg-background px-3.5 text-sm font-medium hover:bg-muted"
+          >
+            <Users className="size-3.5" />
+            مستخدمو المنصة
+          </Link>
+        </div>
+      </OperationalCard>
+
+      <OperationalCard title="حجم التشغيل">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[480px] text-sm">
             <tbody className="divide-y divide-border">
@@ -148,20 +243,123 @@ export function PlatformOrgDetail({ organization, health }: PlatformOrgDetailPro
         </p>
       </OperationalCard>
 
+      <PlatformCustomDomainPanel
+        orgId={organization.id}
+        domain={customDomain}
+        allowCustomDomain={plan.allow_custom_domain}
+      />
+
+      <PlatformOrgMenuThemesPanel
+        orgId={organization.id}
+        initialRows={menuThemeRows}
+        initialEntitlements={menuThemeEntitlements}
+      />
+
+      <OperationalCard title="دورة حياة البيانات">
+        <p className="mb-3 text-sm text-muted-foreground">
+          ملخص سريع أو تصدير تشغيلي كامل (JSONB). الحذف الكامل مؤجّل. الاستعادة عبر Supabase PITR.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending}
+            onClick={() => {
+              startTransition(async () => {
+                const result = await exportOrganizationLifecycleAction(organization.id);
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
+                }
+                if (!result.data) {
+                  toast.error("فشل التصدير");
+                  return;
+                }
+                const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+                  type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `org-${organization.id}-lifecycle.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("تم تنزيل ملخص البيانات");
+              });
+            }}
+          >
+            تصدير ملخص JSON
+          </Button>
+          <Button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              startTransition(async () => {
+                const result = await exportOrganizationFullDataAction(organization.id);
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
+                }
+                if (!result.data) {
+                  toast.error("فشل التصدير");
+                  return;
+                }
+                const blob = new Blob([JSON.stringify(result.data)], {
+                  type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `org-${organization.id}-full-export.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("تم تنزيل التصدير الكامل");
+              });
+            }}
+          >
+            تصدير بيانات كاملة
+          </Button>
+        </div>
+      </OperationalCard>
+
+      <PlatformOrgPlanWebhookPanel
+        orgId={organization.id}
+        plan={plan}
+        usage={usage}
+        webhook={webhook}
+      />
+
+      <PlatformOrgConfigPanel config={config} />
+
       <ConfirmActionDialog
-        open={confirmSuspend}
-        onOpenChange={setConfirmSuspend}
-        title="تعليق الشركة؟"
-        description={`هيتمنع كل مستخدمي «${organization.name}» من تسجيل الدخول لحد ما تعيد التفعيل.`}
-        confirmLabel="تعليق"
+        open={Boolean(confirmSuspend)}
+        onOpenChange={(open) => {
+          if (!open) setConfirmSuspend(null);
+        }}
+        title={
+          confirmSuspend === "non_payment" ? "تعليق لعدم السداد؟" : "تعليق الشركة؟"
+        }
+        description={
+          confirmSuspend === "non_payment"
+            ? `هيتمنع دخول «${organization.name}» ويُسجَّل السبب في التدقيق وملاحظات الباقة. إعادة التفعيل يدوية بعد التحصيل.`
+            : `هيتمنع كل مستخدمي «${organization.name}» من تسجيل الدخول لحد ما تعيد التفعيل.`
+        }
+        confirmLabel={confirmSuspend === "non_payment" ? "تعليق لعدم السداد" : "تعليق"}
         destructive
         onConfirm={async () => {
-          const result = await suspendOrganizationAction(organization.id);
+          if (!confirmSuspend) return;
+          const result = await suspendOrganizationAction(organization.id, {
+            reason: confirmSuspend,
+          });
           if (!result.ok) {
             toast.error(result.error);
             throw new Error(result.error);
           }
-          toast.success("تم تعليق الشركة");
+          toast.success(
+            confirmSuspend === "non_payment"
+              ? "تم التعليق لعدم السداد"
+              : "تم تعليق الشركة"
+          );
           refresh();
         }}
       />

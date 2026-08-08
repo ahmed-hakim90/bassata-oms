@@ -158,7 +158,7 @@ Requires migration `017_product_variants_recipes.sql`.
 
 ## Auth & password — manual
 
-- [ ] **Forgot password** — `/forgot-password` sends reset email (Supabase mail configured)
+- [ ] **Forgot password** — `/forgot-password` sends Resend template (requires `RESEND_API_KEY` + `EMAIL_FROM`; Supabase generates recovery link)
 - [ ] **Reset password** — link opens `/reset-password`, new password works at login
 - [ ] **Account** — signed-in user can change password at `/account`
 - [ ] **Users → Password reset** — owner sets new password for a team member
@@ -176,9 +176,42 @@ Enable `credit_sales` in Settings → System Features for credit POS.
 - [ ] **Reports** — أعمار الذمم lists AR + AP balances
 - [ ] **Reports** — Tax report Excel export downloads
 
+## Activity matrix (per vertical)
+
+For each activity type in Settings → Activity (incl. bakery / pharmacy):
+
+- [ ] Onboarding or Settings applies that activity + preset summary looks correct
+- [ ] Products from activity template / import template open with expected fields
+- [ ] Open session → complete a sale in the expected sales mode (retail / wholesale / weight)
+- [ ] Close session → daily close / sessions report matches
+- [ ] Feature visibility: recipes / wholesale / weight / expiry match the activity
+
+Restaurant extras:
+
+- [ ] Product modifiers groups appear in product editor → POS picker adds priced extras
+- [ ] `/kitchen` advances queued → preparing → ready
+
+Supermarket extras:
+
+- [ ] Device «ميزان مرجعي» toggle → weight sale modal still works (manual entry)
+
+Wholesale / mixed:
+
+- [ ] Credit sale respects customer credit limit (server deny when over)
+
+## Custom domain (white-label)
+
+See [CUSTOM_DOMAINS.md](./CUSTOM_DOMAINS.md).
+
+- [ ] Platform org → set domain → DNS + Vercel + Supabase Auth redirects
+- [ ] Verify → status `active` → login on custom host shows only that org
+- [ ] Cross-tenant: user from org A on org B domain → domain-unavailable
+- [ ] Suspended org → domain-unavailable (suspended)
+- [ ] `/menu` on custom host shows org default online menu
+
 ## Notes
 
-- Apply migrations through the full train (not only `031`) on each environment — see [DEPLOYMENT.md](./DEPLOYMENT.md).
+- Apply migrations through the full train (not only `031`) on each environment — see [DEPLOYMENT.md](./DEPLOYMENT.md). Include `20260808010000_*` custom domains + bakery/pharmacy + modifiers/KDS.
 - Full rollout phases: [PRODUCTION_PLAN.md](./PRODUCTION_PLAN.md).
 - Demo viewer: `viewer@SweetFlow.local` / `demo1234` (read-only orders/reports).
 - Migration `010` was intentionally skipped — no functional gap.

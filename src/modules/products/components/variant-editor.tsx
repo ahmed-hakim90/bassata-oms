@@ -73,8 +73,6 @@ export function VariantEditor({
     return () => {
       cancelled = true;
     };
-    // Seed from page data; refresh from server once per product open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialVariants is mount seed only
   }, [product.id]);
 
   function handleCreate() {
@@ -213,7 +211,7 @@ export function VariantEditor({
         </div>
 
         {addOpen ? (
-        <div className="mt-3 grid gap-2 rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 sm:grid-cols-[1fr_1fr_120px_120px_150px_auto] sm:items-end">
+        <div className="mt-3 grid gap-2 rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 sm:grid-cols-2 sm:items-end lg:grid-cols-[1fr_1fr_minmax(0,7.5rem)_minmax(0,7.5rem)_minmax(0,9rem)_auto]">
           <div className="grid gap-1">
             <Label className="text-xs">الاسم</Label>
             <Input
@@ -333,7 +331,7 @@ export function VariantEditor({
           </TabsList>
           {variants.map((variant) => (
             <TabsContent key={variant.id} value={variant.id} className="grid gap-4 pt-3">
-              <div className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-[1fr_120px_1fr_1fr_auto_auto] sm:items-end">
+              <div className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-2 sm:items-end lg:grid-cols-[1fr_minmax(0,7.5rem)_1fr_1fr_auto_auto]">
                 <div className="grid gap-1">
                   <Label className="text-xs">الاسم</Label>
                   <Input

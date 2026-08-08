@@ -1,5 +1,6 @@
 import { slugifyBranchName } from "@/lib/slugify";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendWelcomeOnboardingEmail } from "@/lib/services/email.service";
 import {
   buildOnboardingFeatureFlags,
   mapBusinessTypeToActivity,
@@ -259,6 +260,13 @@ export async function initializeOrganization(
   let createdAppUserId: string | undefined;
 
   try {
+    const { error: chartSeedError } = await admin.rpc("seed_default_chart_of_accounts", {
+      p_org_id: orgId,
+    });
+    if (chartSeedError) {
+      console.error("[bootstrap] chart of accounts seed failed", chartSeedError.message);
+    }
+
     const { data: bootstrapStore, error: bootstrapStoreError } = await admin
       .from("stores")
       .select("settings")
@@ -401,6 +409,17 @@ export async function initializeOrganization(
       } catch {
         // Invite already consumed; audit is best-effort.
       }
+    }
+
+    try {
+      await sendWelcomeOnboardingEmail({
+        email: ownerEmail,
+        ownerName: input.owner.name,
+        orgName: input.organization.name,
+        orgId,
+      });
+    } catch (emailError) {
+      console.error("[onboarding] welcome email failed", emailError);
     }
 
     return {

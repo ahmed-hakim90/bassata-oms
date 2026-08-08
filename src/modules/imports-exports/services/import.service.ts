@@ -15,7 +15,10 @@ import {
   PRODUCT_TYPES,
   SHELF_LIFE_UNITS,
 } from "@/lib/constants";
-import { getBusinessActivitySettings } from "@/modules/system/services/settings.service";
+import {
+  getBusinessActivitySettings,
+  getFeatureFlags,
+} from "@/modules/system/services/settings.service";
 import type { MeasurementUnit, Product, ProductVariant } from "@/lib/types";
 
 export const PRODUCT_IMPORT_COLUMNS = [
@@ -962,15 +965,12 @@ export async function bulkImportProducts(
   const variants = Array.isArray(input) ? [] : input.variants;
   const recipes = Array.isArray(input) ? [] : input.recipes;
   const warnings = Array.isArray(input) ? [] : [...input.warnings];
-  const activity = await getBusinessActivitySettings();
+  const [activity, flags] = await Promise.all([
+    getBusinessActivitySettings(),
+    getFeatureFlags(),
+  ]);
   const importVariants = activity.enable_variants ? variants : [];
-  const importRecipes =
-    activity.activity_type === "supermarket" ||
-    activity.activity_type === "retail" ||
-    activity.activity_type === "wholesale" ||
-    activity.activity_type === "mixed"
-      ? []
-      : recipes;
+  const importRecipes = flags.recipes ? recipes : [];
 
   if (!activity.enable_variants && variants.length > 0) {
     warnings.push({
@@ -981,14 +981,7 @@ export async function bulkImportProducts(
     });
   }
 
-  if (
-    recipes.length > 0 &&
-    importRecipes.length === 0 &&
-    (activity.activity_type === "supermarket" ||
-      activity.activity_type === "retail" ||
-      activity.activity_type === "wholesale" ||
-      activity.activity_type === "mixed")
-  ) {
+  if (recipes.length > 0 && importRecipes.length === 0) {
     warnings.push({
       row: 0,
       field: "Recipes",

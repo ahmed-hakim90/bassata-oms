@@ -7,6 +7,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { SessionBar } from "@/components/layout/session-bar";
 import { CommandPalette } from "@/components/layout/command-palette";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness";
+import { ImplicitPosDeviceBinder } from "@/components/SweetFlow/implicit-pos-device-binder";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ interface AppShellProps {
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   enableWholesaleSales?: boolean;
   allowCashierWholesale?: boolean;
+  enableKitchenDisplay?: boolean;
   stores?: Store[];
   activeStoreId?: string | null;
   permissions?: PermissionKey[];
@@ -28,6 +30,7 @@ export function AppShell({
   featureFlags,
   enableWholesaleSales,
   allowCashierWholesale,
+  enableKitchenDisplay,
   stores = [],
   activeStoreId = null,
   permissions = [],
@@ -35,12 +38,14 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="flex h-dvh max-h-dvh overflow-hidden overscroll-none bg-[var(--mds-color-bg-canvas)]">
+      {posReadinessState ? <ImplicitPosDeviceBinder state={posReadinessState} /> : null}
       <div className="hidden h-full min-h-0 shrink-0 overflow-hidden md:flex">
         <AppSidebar
           userRole={userRole}
           featureFlags={featureFlags}
           enableWholesaleSales={enableWholesaleSales}
           allowCashierWholesale={allowCashierWholesale}
+          enableKitchenDisplay={enableKitchenDisplay}
           permissions={permissions}
         />
       </div>
@@ -54,6 +59,7 @@ export function AppShell({
           featureFlags={featureFlags}
           enableWholesaleSales={enableWholesaleSales}
           allowCashierWholesale={allowCashierWholesale}
+          enableKitchenDisplay={enableKitchenDisplay}
           posReadinessState={posReadinessState}
           permissions={permissions}
         />
@@ -68,6 +74,7 @@ export function AppShell({
         featureFlags={featureFlags}
         enableWholesaleSales={enableWholesaleSales}
         allowCashierWholesale={allowCashierWholesale}
+        enableKitchenDisplay={enableKitchenDisplay}
         permissions={permissions}
       />
       <CommandPalette
@@ -76,6 +83,7 @@ export function AppShell({
         featureFlags={featureFlags}
         enableWholesaleSales={enableWholesaleSales}
         allowCashierWholesale={allowCashierWholesale}
+        enableKitchenDisplay={enableKitchenDisplay}
       />
     </div>
   );

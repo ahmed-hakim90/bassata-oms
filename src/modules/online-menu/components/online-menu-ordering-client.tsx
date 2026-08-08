@@ -1,12 +1,27 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { Check, Gift, Minus, Phone, Plus, Search, ShoppingBag, Trash2, UserRound } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  Check,
+  ChevronDown,
+  Minus,
+  Plus,
+  Search,
+  ShoppingBag,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { firstGrapheme } from "@/lib/first-grapheme";
@@ -133,13 +148,65 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
     trackingPath: string;
   } | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [customerPrompt, setCustomerPrompt] = useState<string | null>(null);
+  const [phoneConfirmNeeded, setPhoneConfirmNeeded] = useState(false);
+  const [cartDetailsOpen, setCartDetailsOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<"review" | "details" | "success">("review");
   const [recentlyAddedLineId, setRecentlyAddedLineId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   const fulfillmentConfig = menu.store.fulfillment;
+
+  function openCart(step: "review" | "details" | "success" = "review") {
+    setCheckoutStep(step);
+    setIsCartOpen(true);
+  }
+
+  function openCartFromBar() {
+    if (lastOrder && cart.length === 0) {
+      openCart("success");
+      return;
+    }
+    openCart("review");
+  }
+
+  function closeCart() {
+    setIsCartOpen(false);
+    setCheckoutStep("review");
+    setCartDetailsOpen(false);
+    setCustomerPrompt(null);
+    setPhoneConfirmNeeded(false);
+  }
+
+  function goToCheckoutDetails() {
+    if (cart.length === 0) return;
+    if (!fulfillmentConfig.pickupEnabled && !fulfillmentConfig.deliveryEnabled) {
+      toast.error("طرق الاستلام غير مُعدّة لهذا الفرع");
+      return;
+    }
+    if (fulfillment.type === "pickup" && !fulfillmentConfig.pickupEnabled) {
+      toast.error("الاستلام من الفرع غير متاح");
+      return;
+    }
+    if (fulfillment.type === "delivery") {
+      if (!fulfillmentConfig.deliveryEnabled) {
+        toast.error("التوصيل غير متاح");
+        return;
+      }
+      if (!fulfillment.zoneId) {
+        toast.error("اختر منطقة التوصيل");
+        return;
+      }
+      if (fulfillment.address.trim().length < 5) {
+        toast.error("اكتب عنوان التوصيل (٥ أحرف على الأقل)");
+        return;
+      }
+    }
+    setCustomerPrompt(null);
+    setCheckoutStep("details");
+  }
 
   const groups = useMemo<Group[]>(() => {
     const uncategorized = menu.items.filter((item) => !item.categoryId);
@@ -200,6 +267,12 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
     return () => window.clearTimeout(timeoutId);
   }, [recentlyAddedLineId]);
 
+  useEffect(() => {
+    if (cart.length === 0 && checkoutStep === "details") {
+      setCheckoutStep("review");
+    }
+  }, [cart.length, checkoutStep]);
+
   function addToCart(item: OnlineMenuItem, variant: OnlineMenuVariant | null = null) {
     if (!menu.store.canOrder) return;
     const id = lineId(item.id, variant?.id ?? null);
@@ -244,17 +317,20 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
     const customerPhone = customer.phone.trim();
     if (customerPhone && customerPhone.length < 5) {
       setCustomerPrompt("رقم الهاتف قصير. اكتبه بشكل صحيح أو امسحه وكمل بالاسم فقط.");
-      setIsCustomerDialogOpen(true);
+      setCheckoutStep("details");
       return;
     }
     if (!customerName) {
       setCustomerPrompt("اكتب اسمك على الأقل علشان نجهز الطلب باسمك ونتجنب أي لخبطة.");
-      setIsCustomerDialogOpen(true);
+      setCheckoutStep("details");
       return;
     }
-    if (!customerPhone && !options.allowNameOnly) {
-      setCustomerPrompt("تقدر تكمل بالاسم فقط، ولو أضفت رقم الهاتف هنقدر نأكد الطلب ونسجلك كعميل.");
-      setIsCustomerDialogOpen(true);
+    if (!customerPhone && !options.allowNameOnly && !phoneConfirmNeeded) {
+      setCustomerPrompt(
+        "تقدر تكمل بالاسم فقط، ولو أضفت رقم الهاتف هنقدر نأكد الطلب ونسجلك كعميل."
+      );
+      setPhoneConfirmNeeded(true);
+      setCheckoutStep("details");
       return;
     }
 
@@ -304,8 +380,9 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
         setCustomer({ name: "", phone: "", notes: "" });
         setCouponCode("");
         setFulfillment((current) => ({ ...current, address: "" }));
+        setPhoneConfirmNeeded(false);
         setLastOrder({ id: result.id, trackingPath: result.trackingPath });
-        setIsCartOpen(false);
+        setCheckoutStep("success");
         toast.success("شكراً لك، تم إرسال طلبك بنجاح");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "تعذر إرسال الطلب");
@@ -324,7 +401,12 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
           : "h-10 shrink-0 rounded-full border bg-card/90 px-3";
 
   return (
-    <div id="online-menu-items" className="pb-28" data-menu-layout={theme.layout} data-menu-theme={theme.slug}>
+    <div
+      id="online-menu-items"
+      className="pb-[calc(7rem+env(safe-area-inset-bottom))]"
+      data-menu-layout={theme.layout}
+      data-menu-theme={theme.slug}
+    >
       <section
         className={[
           "sticky top-2 z-20 mb-5 border p-3 backdrop-blur",
@@ -418,7 +500,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
             لا توجد نتائج مطابقة لـ <span className="font-medium">{searchQuery}</span>.
           </section>
         ) : (
-          visibleGroups.map((group) => {
+          visibleGroups.map((group, groupIndex) => {
             const useThemedCategory =
               theme.slug === "antika" || theme.slug === "soul";
             const categoryBlockClass = useThemedCategory
@@ -494,11 +576,12 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
 
               {isListLayout ? (
                 <div className="space-y-0">
-                  {group.items.map((item) => {
+                  {group.items.map((item, itemIndex) => {
                     const displayPrice = getMenuItemDisplayPrice(
                       item,
                       menu.organization.currency
                     );
+                    const eagerImage = groupIndex === 0 && itemIndex < 2;
                     const isPremiumRow = theme.slug === "antika" || theme.slug === "soul";
                     const showThumb = theme.showImages;
                     const thumbBorder =
@@ -537,6 +620,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                                 fill
                                 sizes="64px"
                                 unoptimized
+                                loading={eagerImage ? "eager" : "lazy"}
                                 className="object-cover transition-transform duration-300 group-hover:scale-105"
                               />
                             ) : (
@@ -623,11 +707,12 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                 </div>
               ) : (
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
-                {group.items.map((item) => {
+                {group.items.map((item, itemIndex) => {
                   const displayPrice = getMenuItemDisplayPrice(
                     item,
                     menu.organization.currency
                   );
+                  const eagerImage = groupIndex === 0 && itemIndex < 2;
 
                   return (
                     <article
@@ -644,6 +729,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                             fill
                             sizes="(min-width: 1024px) 33vw, 50vw"
                             unoptimized
+                            loading={eagerImage ? "eager" : "lazy"}
                             className="object-cover transition duration-300 group-hover:scale-105"
                           />
                         ) : (
@@ -759,137 +845,193 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
         )}
       </div>
 
-      <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
-        <DialogContent className="bottom-0 top-auto left-1/2 flex max-h-[90vh] max-w-none translate-y-0 flex-col overflow-hidden rounded-b-none rounded-t-3xl p-0 sm:max-w-xl">
-          <DialogHeader className="border-b border-border/40 px-5 pb-4 pt-3">
+      <Dialog
+        open={isCartOpen}
+        onOpenChange={(open) => {
+          if (open) setIsCartOpen(true);
+          else closeCart();
+        }}
+      >
+        <DialogContent className="bottom-0 top-auto left-1/2 flex h-[92dvh] max-h-[92dvh] max-w-none translate-y-0 flex-col overflow-hidden rounded-b-none rounded-t-3xl p-0 sm:max-w-2xl lg:h-[min(90dvh,760px)]">
+          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-3 pt-3 sm:px-5">
             <div className="mx-auto mb-2 h-1 w-12 rounded-full bg-muted-foreground/25" />
             <DialogTitle className="flex items-center justify-between gap-3 pe-8">
               <span className="flex items-center gap-2">
-                <span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <ShoppingBag className="size-5" />
+                <span
+                  className={`flex size-10 items-center justify-center rounded-2xl ${
+                    checkoutStep === "success"
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+                      : "bg-primary/10 text-primary"
+                  }`}
+                >
+                  {checkoutStep === "success" ? (
+                    <Check className="size-5" />
+                  ) : checkoutStep === "review" ? (
+                    <ShoppingBag className="size-5" />
+                  ) : (
+                    <UserRound className="size-5" />
+                  )}
                 </span>
-                <span>
-                  <span className="block">طلبك</span>
-                  <span className="text-sm font-normal text-muted-foreground">
-                    راجع الأصناف قبل إرسال الطلب
-                  </span>
+                <span className="block">
+                  {checkoutStep === "review"
+                    ? "طلبك"
+                    : checkoutStep === "details"
+                      ? "بيانات الإرسال"
+                      : "تم إرسال الطلب"}
                 </span>
               </span>
-              <Badge variant="outline" className="rounded-full">
-                {cartItemCount} قطعة
-              </Badge>
+              {checkoutStep !== "success" ? (
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Badge variant="outline" className="rounded-full">
+                    {checkoutStep === "review" ? "١ من ٢" : "٢ من ٢"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">{cartItemCount} قطعة</span>
+                </div>
+              ) : null}
             </DialogTitle>
+            <DialogDescription className="text-start text-sm text-muted-foreground">
+              {checkoutStep === "review"
+                ? "راجع الأصناف وطريقة الاستلام"
+                : checkoutStep === "details"
+                  ? "كمّل بياناتك عشان نبعت الطلب"
+                  : "احتفظ برابط التتبع"}
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-            {cart.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-border/70 bg-muted/30 px-4 py-10 text-center">
-                <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-background text-primary">
-                  <ShoppingBag className="size-6" />
+          {checkoutStep === "success" && lastOrder ? (
+            <>
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-8 text-center sm:px-6">
+                <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                  <Check className="size-8" />
                 </div>
-                <p className="text-sm font-medium">السلة فارغة</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  اختر منتجات من الكروت لإضافتها للطلب.
+                <p className="text-lg font-semibold">شكراً لك، استلمنا طلبك</p>
+                <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                  رقم المتابعة:{" "}
+                  <span className="font-mono font-medium text-foreground">
+                    {lastOrder.id.slice(0, 8)}
+                  </span>
+                  . تقدر تتابع حالة الطلب من الرابط الآمن.
                 </p>
+                <Button
+                  type="button"
+                  className="mt-6 h-12 w-full max-w-sm rounded-2xl text-base font-semibold"
+                  nativeButton={false}
+                  render={<a href={lastOrder.trackingPath} />}
+                >
+                  تتبع الطلب
+                </Button>
               </div>
-            ) : (
-              <ul className="space-y-2">
-                {cart.map((line) => (
-                  <li key={line.id} className="rounded-3xl border border-border/40 bg-muted/25 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="line-clamp-2 text-sm font-semibold leading-snug">{line.name}</p>
-                        {line.variantName ? (
-                          <p className="mt-0.5 text-xs text-muted-foreground">{line.variantName}</p>
-                        ) : null}
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatCurrency(line.unitPrice, menu.organization.currency)}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-8 rounded-xl text-muted-foreground hover:text-destructive"
-                        onClick={() => updateQuantity(line.id, 0)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center rounded-2xl border border-border/40 bg-background p-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          className="size-8 rounded-xl"
-                          onClick={() => updateQuantity(line.id, line.quantity - 1)}
-                        >
-                          <Minus className="size-3.5" />
-                        </Button>
-                        <span className="w-9 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          className="size-8 rounded-xl"
-                          onClick={() => updateQuantity(line.id, line.quantity + 1)}
-                        >
-                          <Plus className="size-3.5" />
-                        </Button>
-                      </div>
-                      <p className="shrink-0 text-base font-bold tabular-nums text-primary">
-                        {formatCurrency(line.unitPrice * line.quantity, menu.organization.currency)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+              <div className="shrink-0 border-t border-border/40 bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 w-full rounded-2xl"
+                  onClick={closeCart}
+                >
+                  رجوع للمنيو
+                </Button>
+              </div>
+            </>
+          ) : null}
 
-          <div className="space-y-3 border-t border-border/40 bg-card p-4">
-            <div className="rounded-3xl bg-primary/10 px-4 py-3">
-              <div className="flex items-center justify-between text-sm text-primary/80">
-                <span>الإجمالي</span>
-                <span>{cartItemCount} قطعة</span>
-              </div>
-              <div className="mt-2 grid gap-1 text-sm">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>مجموع الأصناف</span>
-                  <span className="tabular-nums">
-                    {formatCurrency(subtotal, menu.organization.currency)}
-                  </span>
-                </div>
-                {deliveryFee > 0 ? (
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>رسوم التوصيل</span>
-                    <span className="tabular-nums">
-                      {formatCurrency(deliveryFee, menu.organization.currency)}
-                    </span>
+          {checkoutStep === "review" ? (
+            <>
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3 sm:px-4">
+                {cart.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-border/70 bg-muted/30 px-4 py-10 text-center">
+                    <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-background text-primary">
+                      <ShoppingBag className="size-6" />
+                    </div>
+                    <p className="text-sm font-medium">السلة فارغة</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      اختر منتجات من الكروت لإضافتها للطلب.
+                    </p>
                   </div>
-                ) : null}
-                <div className="mt-1 flex items-end justify-between gap-3 border-t border-primary/15 pt-2">
-                  <span className="text-sm text-muted-foreground">الإجمالي النهائي</span>
-                  <span className="text-xl font-bold tabular-nums text-primary">
-                    {formatCurrency(orderTotal, menu.organization.currency)}
-                  </span>
-                </div>
-              </div>
-            </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {cart.map((line) => (
+                      <li
+                        key={line.id}
+                        className="rounded-2xl border border-border/40 bg-muted/25 p-3"
+                      >
+                        <div className="grid grid-cols-[1fr_auto] items-start gap-3">
+                          <div className="min-w-0 pe-1">
+                            <p className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">
+                              {line.name}
+                            </p>
+                            {line.variantName ? (
+                              <p className="mt-0.5 text-xs text-muted-foreground">{line.variantName}</p>
+                            ) : null}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {formatCurrency(line.unitPrice, menu.organization.currency)}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="size-8 rounded-xl text-muted-foreground hover:text-destructive"
+                            aria-label={`حذف ${line.name}`}
+                            onClick={() => updateQuantity(line.id, 0)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <div className="flex items-center rounded-2xl border border-border/40 bg-background p-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              className="size-8 rounded-xl"
+                              aria-label={`تقليل كمية ${line.name}`}
+                              onClick={() => updateQuantity(line.id, line.quantity - 1)}
+                            >
+                              <Minus className="size-3.5" />
+                            </Button>
+                            <span
+                              className="w-9 text-center text-sm font-semibold tabular-nums"
+                              aria-label={`كمية ${line.name}`}
+                            >
+                              {line.quantity}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              className="size-8 rounded-xl"
+                              aria-label={`زيادة كمية ${line.name}`}
+                              onClick={() => updateQuantity(line.id, line.quantity + 1)}
+                            >
+                              <Plus className="size-3.5" />
+                            </Button>
+                          </div>
+                          <p className="shrink-0 text-base font-bold tabular-nums text-primary">
+                            {formatCurrency(
+                              line.unitPrice * line.quantity,
+                              menu.organization.currency
+                            )}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
-            {menu.store.canOrder ? (
-              <>
-                {(fulfillmentConfig.pickupEnabled || fulfillmentConfig.deliveryEnabled) && (
-                  <div className="grid gap-2 rounded-3xl border border-border/50 p-3">
+                {menu.store.canOrder &&
+                cart.length > 0 &&
+                (fulfillmentConfig.pickupEnabled || fulfillmentConfig.deliveryEnabled) ? (
+                  <div className="grid gap-2 rounded-2xl border border-border/50 p-3">
                     <p className="text-sm font-semibold">طريقة الاستلام</p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {fulfillmentConfig.pickupEnabled ? (
                         <Button
                           type="button"
                           variant={fulfillment.type === "pickup" ? "default" : "outline"}
-                          className="h-11 rounded-2xl"
-                          onClick={() => setFulfillment((current) => ({ ...current, type: "pickup" }))}
+                          className="h-10 rounded-xl"
+                          onClick={() =>
+                            setFulfillment((current) => ({ ...current, type: "pickup" }))
+                          }
                         >
                           استلام من الفرع
                         </Button>
@@ -898,7 +1040,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                         <Button
                           type="button"
                           variant={fulfillment.type === "delivery" ? "default" : "outline"}
-                          className="h-11 rounded-2xl"
+                          className="h-10 rounded-xl"
                           onClick={() =>
                             setFulfillment((current) => ({
                               ...current,
@@ -916,7 +1058,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                         <label className="grid gap-1 text-sm">
                           <span className="text-muted-foreground">منطقة التوصيل</span>
                           <select
-                            className="h-11 rounded-2xl border border-input bg-background px-3 text-sm"
+                            className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
                             value={fulfillment.zoneId}
                             onChange={(event) =>
                               setFulfillment((current) => ({
@@ -928,204 +1070,263 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                           >
                             {fulfillmentConfig.zones.map((zone) => (
                               <option key={zone.id} value={zone.id}>
-                                {zone.name} — {formatCurrency(zone.fee, menu.organization.currency)}
+                                {zone.name} —{" "}
+                                {formatCurrency(zone.fee, menu.organization.currency)}
                               </option>
                             ))}
                           </select>
                         </label>
-                        <Textarea
-                          value={fulfillment.address}
-                          onChange={(event) =>
-                            setFulfillment((current) => ({
-                              ...current,
-                              address: event.target.value,
-                            }))
-                          }
-                          placeholder="عنوان التوصيل بالتفصيل"
-                          className="min-h-20 rounded-2xl"
-                          aria-label="عنوان التوصيل"
-                        />
+                        <label className="grid gap-1 text-sm">
+                          <span className="text-muted-foreground">عنوان التوصيل</span>
+                          <Textarea
+                            value={fulfillment.address}
+                            onChange={(event) =>
+                              setFulfillment((current) => ({
+                                ...current,
+                                address: event.target.value,
+                              }))
+                            }
+                            placeholder="الشارع، المبنى، علامة مميزة"
+                            className="min-h-16 rounded-xl"
+                          />
+                        </label>
                       </div>
                     ) : null}
                   </div>
-                )}
-                <div className="rounded-3xl border border-primary/15 bg-primary/5 px-4 py-3">
-                  <p className="text-sm font-semibold">بيانات بسيطة لتأكيد الطلب</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    الاسم ورقم الهاتف يساعدونا نجهز الطلب باسمك ونتواصل معك بسرعة لو فيه أي تعديل.
-                  </p>
-                  {customerPrompt ? (
-                    <p className="mt-2 rounded-2xl bg-background/80 px-3 py-2 text-xs font-medium text-primary">
-                      {customerPrompt}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="grid gap-2">
-                  <Input
-                    value={customer.name}
-                    onChange={(event) => {
-                      setCustomer((current) => ({ ...current, name: event.target.value }));
-                      setCustomerPrompt(null);
-                    }}
-                    placeholder="الاسم"
-                    aria-invalid={customerPrompt !== null && !customer.name.trim()}
-                    className="h-11 rounded-2xl"
-                  />
-                  <Input
-                    value={customer.phone}
-                    onChange={(event) => {
-                      setCustomer((current) => ({ ...current, phone: event.target.value }));
-                      setCustomerPrompt(null);
-                    }}
-                    placeholder="رقم الهاتف"
-                    inputMode="tel"
-                    aria-invalid={customerPrompt !== null && Boolean(customer.phone.trim()) && customer.phone.trim().length < 5}
-                    className="h-11 rounded-2xl"
-                  />
-                  <Input
-                    value={couponCode}
-                    onChange={(event) => setCouponCode(event.target.value)}
-                    placeholder="كود خصم (اختياري)"
-                    className="h-11 rounded-2xl uppercase"
-                    autoCapitalize="characters"
-                  />
-                  <Textarea
-                    value={customer.notes}
-                    onChange={(event) => setCustomer((current) => ({ ...current, notes: event.target.value }))}
-                    placeholder="ملاحظات الطلب"
-                    className="min-h-20 rounded-2xl"
-                  />
-                </div>
-                <Button
+                ) : null}
+              </div>
+
+              <div className="shrink-0 space-y-3 border-t border-border/40 bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+                <button
                   type="button"
-                  className="h-12 w-full rounded-2xl text-base font-semibold"
-                  disabled={isPending || cart.length === 0}
-                  onClick={() => submitOrder()}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl bg-primary/10 px-4 py-3 text-start"
+                  onClick={() => setCartDetailsOpen((open) => !open)}
+                  aria-expanded={cartDetailsOpen}
+                  aria-label="تفاصيل الإجمالي"
                 >
-                  {isPending ? "جاري الإرسال..." : "إرسال الطلب"}
-                </Button>
-                {lastOrder ? (
-                  <p className="text-center text-sm text-emerald-700 dark:text-emerald-300">
-                    تم إرسال الطلب.{" "}
-                    <a href={lastOrder.trackingPath} className="underline underline-offset-2">
-                      تتبع الطلب
-                    </a>
+                  <span>
+                    <span className="block text-sm font-medium text-primary/80">
+                      الإجمالي النهائي
+                    </span>
+                    <span className="block text-2xl font-bold tabular-nums text-primary">
+                      {formatCurrency(orderTotal, menu.organization.currency)}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 text-sm text-primary/80">
+                    {cartItemCount} قطعة
+                    <ChevronDown
+                      className={`size-4 transition ${cartDetailsOpen ? "rotate-180" : ""}`}
+                    />
+                  </span>
+                </button>
+
+                {cartDetailsOpen ? (
+                  <div className="grid gap-1 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>مجموع الأصناف</span>
+                      <span className="tabular-nums">
+                        {formatCurrency(subtotal, menu.organization.currency)}
+                      </span>
+                    </div>
+                    {deliveryFee > 0 ? (
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>رسوم التوصيل</span>
+                        <span className="tabular-nums">
+                          {formatCurrency(deliveryFee, menu.organization.currency)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {menu.store.canOrder ? (
+                  <Button
+                    type="button"
+                    className="h-12 w-full rounded-2xl text-base font-semibold"
+                    disabled={cart.length === 0}
+                    onClick={goToCheckoutDetails}
+                  >
+                    تأكيد ومتابعة
+                  </Button>
+                ) : (
+                  <p className="rounded-2xl bg-amber-50 p-3 text-center text-sm text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+                    {menu.store.availability.messageAr}
+                  </p>
+                )}
+              </div>
+            </>
+          ) : null}
+
+          {checkoutStep === "details" ? (
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+                <div className="mb-3 rounded-2xl border border-border/40 bg-muted/25 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">ملخص سريع</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {cartItemCount} قطعة ·{" "}
+                        {fulfillment.type === "delivery" ? "توصيل" : "استلام من الفرع"}
+                      </p>
+                    </div>
+                    <p className="text-base font-bold tabular-nums text-primary">
+                      {formatCurrency(orderTotal, menu.organization.currency)}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 h-8 px-0 text-primary"
+                    onClick={() => {
+                      setPhoneConfirmNeeded(false);
+                      setCustomerPrompt(null);
+                      setCheckoutStep("review");
+                    }}
+                  >
+                    تعديل الأصناف أو الاستلام
+                  </Button>
+                </div>
+
+                {customerPrompt ? (
+                  <p
+                    role="alert"
+                    className="mb-3 rounded-2xl border border-primary/15 bg-primary/5 px-3 py-2 text-xs font-medium text-primary"
+                  >
+                    {customerPrompt}
                   </p>
                 ) : null}
-              </>
-            ) : (
-              <p className="rounded-2xl bg-amber-50 p-3 text-center text-sm text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
-                {menu.store.availability.messageAr}
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
-        <DialogContent className="rounded-3xl sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>كمّل بياناتك علشان نخدمك أسرع</DialogTitle>
-            <DialogDescription>
-              الاسم يكفي لإرسال الطلب، وإضافة رقم الهاتف تساعدنا نأكد الطلب ونسجل نقاطك عند إتمامه.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3">
-            <div className="grid gap-2 rounded-3xl bg-primary/5 p-3">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <Gift className="size-4 text-primary" />
-                مميزات إدخال البيانات
-              </p>
-              <div className="grid gap-2 text-sm text-muted-foreground">
-                <p className="flex gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                  نجهز الطلب باسمك ونقلل احتمالية تبديل الطلبات.
-                </p>
-                <p className="flex gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                  لو كتبت رقم الهاتف نقدر نأكد الطلب أو نبلغك بأي تعديل.
-                </p>
-                <p className="flex gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                  الاسم والرقم يسجلوك كعميل تلقائيًا لتسهيل الطلبات القادمة.
-                </p>
-                <p className="flex gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                  رقم الهاتف يساعدنا نضيف لك نقاط الولاء بعد إتمام الطلب.
-                </p>
+                <div className="grid gap-3">
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium">الاسم</span>
+                    <Input
+                      value={customer.name}
+                      onChange={(event) => {
+                        setCustomer((current) => ({ ...current, name: event.target.value }));
+                        setCustomerPrompt(null);
+                      }}
+                      placeholder="اسمك كما نناديك"
+                      aria-invalid={customerPrompt !== null && !customer.name.trim()}
+                      className="h-11 rounded-xl"
+                      autoComplete="name"
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium">
+                      رقم الهاتف{" "}
+                      <span className="font-normal text-muted-foreground">(اختياري)</span>
+                    </span>
+                    <Input
+                      ref={phoneInputRef}
+                      value={customer.phone}
+                      onChange={(event) => {
+                        setCustomer((current) => ({ ...current, phone: event.target.value }));
+                        setCustomerPrompt(null);
+                        if (event.target.value.trim()) setPhoneConfirmNeeded(false);
+                      }}
+                      placeholder="مثال: 01xxxxxxxxx"
+                      inputMode="tel"
+                      aria-invalid={
+                        customerPrompt !== null &&
+                        Boolean(customer.phone.trim()) &&
+                        customer.phone.trim().length < 5
+                      }
+                      className="h-11 rounded-xl"
+                      autoComplete="tel"
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium">
+                      كود خصم{" "}
+                      <span className="font-normal text-muted-foreground">(اختياري)</span>
+                    </span>
+                    <Input
+                      value={couponCode}
+                      onChange={(event) => setCouponCode(event.target.value)}
+                      placeholder="أدخل الكود إن وجد"
+                      className="h-11 rounded-xl uppercase"
+                      autoCapitalize="characters"
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium">
+                      ملاحظات الطلب{" "}
+                      <span className="font-normal text-muted-foreground">(اختياري)</span>
+                    </span>
+                    <Textarea
+                      value={customer.notes}
+                      onChange={(event) =>
+                        setCustomer((current) => ({ ...current, notes: event.target.value }))
+                      }
+                      placeholder="أي تفاصيل إضافية للطلب"
+                      className="min-h-24 rounded-xl"
+                    />
+                  </label>
+                </div>
               </div>
-            </div>
 
-            {customerPrompt ? (
-              <p className="rounded-2xl bg-muted/60 px-3 py-2 text-sm font-medium text-primary">
-                {customerPrompt}
-              </p>
-            ) : null}
-
-            <div className="grid gap-2">
-              <div className="relative">
-                <UserRound className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={customer.name}
-                  onChange={(event) => {
-                    setCustomer((current) => ({ ...current, name: event.target.value }));
-                    setCustomerPrompt(null);
-                  }}
-                  placeholder="اسمك"
-                  aria-invalid={customerPrompt !== null && !customer.name.trim()}
-                  className="h-11 rounded-2xl ps-10"
-                />
+              <div className="shrink-0 space-y-2 border-t border-border/40 bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+                {phoneConfirmNeeded && !customer.phone.trim() ? (
+                  <div className="grid gap-2">
+                    <Button
+                      type="button"
+                      className="h-12 rounded-2xl text-base font-semibold"
+                      disabled={isPending || !customer.name.trim() || cart.length === 0}
+                      onClick={() => submitOrder({ allowNameOnly: true })}
+                    >
+                      {isPending ? "جاري الإرسال..." : "إرسال بالاسم فقط"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 rounded-2xl"
+                      disabled={isPending}
+                      onClick={() => {
+                        setPhoneConfirmNeeded(false);
+                        setCustomerPrompt(
+                          "أضف رقم الهاتف لو حابب نأكد الطلب ونسجلك كعميل، وبعدين اضغط إرسال الطلب."
+                        );
+                        window.setTimeout(() => phoneInputRef.current?.focus(), 0);
+                      }}
+                    >
+                      هضيف رقم الهاتف
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[auto_1fr] gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 rounded-2xl px-4"
+                      disabled={isPending}
+                      onClick={() => {
+                        setPhoneConfirmNeeded(false);
+                        setCustomerPrompt(null);
+                        setCheckoutStep("review");
+                      }}
+                    >
+                      رجوع
+                    </Button>
+                    <Button
+                      type="button"
+                      className="h-12 rounded-2xl text-base font-semibold"
+                      disabled={isPending || cart.length === 0}
+                      onClick={() => submitOrder()}
+                    >
+                      {isPending ? "جاري الإرسال..." : "إرسال الطلب"}
+                    </Button>
+                  </div>
+                )}
               </div>
-              <div className="relative">
-                <Phone className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={customer.phone}
-                  onChange={(event) => {
-                    setCustomer((current) => ({ ...current, phone: event.target.value }));
-                    setCustomerPrompt(null);
-                  }}
-                  placeholder="رقم الهاتف اختياري"
-                  inputMode="tel"
-                  aria-invalid={customerPrompt !== null && Boolean(customer.phone.trim()) && customer.phone.trim().length < 5}
-                  className="h-11 rounded-2xl ps-10"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 rounded-2xl"
-                disabled={isPending || !customer.name.trim()}
-                onClick={() => {
-                  setCustomer((current) => ({ ...current, phone: "" }));
-                  setIsCustomerDialogOpen(false);
-                  window.setTimeout(() => submitOrder({ allowNameOnly: true }), 0);
-                }}
-              >
-                إرسال بالاسم فقط
-              </Button>
-              <Button
-                type="button"
-                className="h-11 rounded-2xl"
-                disabled={isPending || !customer.name.trim()}
-                onClick={() => {
-                  setIsCustomerDialogOpen(false);
-                  window.setTimeout(() => submitOrder({ allowNameOnly: true }), 0);
-                }}
-              >
-                تأكيد وإرسال
-              </Button>
-            </div>
-          </div>
+            </>
+          ) : null}
         </DialogContent>
       </Dialog>
 
       <div
         className={[
-          "fixed inset-x-0 bottom-0 z-40 border-t px-4 py-3 backdrop-blur",
+          "fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur",
           theme.slug === "antika"
             ? "border-[#b67b31]/40 bg-[#2a160f]/95 text-[#f5eee3]"
             : theme.slug === "soul"
@@ -1164,6 +1365,8 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                   {formatCurrency(orderTotal, menu.organization.currency)}
                 </span>
               </p>
+            ) : lastOrder ? (
+              <p className="truncate text-sm text-muted-foreground">طلبك اتبعت · افتح للتتبع</p>
             ) : (
               <p className="truncate text-sm text-muted-foreground">أضف منتجات للطلب</p>
             )}
@@ -1178,10 +1381,14 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                   ? "bg-[#b67b31] text-[#fffaf1] hover:bg-[#c48a3d]"
                   : "",
             ].join(" ")}
-            disabled={!menu.store.canOrder && cart.length === 0}
-            onClick={() => setIsCartOpen(true)}
+            disabled={!menu.store.canOrder && cart.length === 0 && !lastOrder}
+            onClick={openCartFromBar}
           >
-            {cart.length > 0 ? "مراجعة الطلب" : "فتح السلة"}
+            {cart.length > 0
+              ? "مراجعة الطلب"
+              : lastOrder
+                ? "تتبع آخر طلب"
+                : "فتح السلة"}
           </Button>
         </div>
       </div>

@@ -8,7 +8,13 @@ import { getSessionSettings } from "@/modules/system/services/settings.service";
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { FeatureFlag, SalesMode } from "@/lib/constants";
 import { writeAuditLog } from "@/lib/services/audit.service";
-import { getOrgId } from "@/lib/repositories/organization.repository";
+import { notifyOwnersDiscountOverride } from "@/lib/services/email.service";
+import {
+  getOrgId,
+  getOrganization,
+} from "@/lib/repositories/organization.repository";
+import { getStore } from "@/lib/repositories/store.repository";
+import { getUser } from "@/lib/repositories/user.repository";
 import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
 
 export type CheckoutOverride = {
@@ -69,6 +75,34 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
     if (usesCredit && !input.customer) {
       return { success: false, error: "اختر عميلًا للبيع الآجل" };
     }
+    if (usesCredit && input.customer) {
+      try {
+        const { getCustomer } = await import("@/modules/customers/services/customer.service");
+        const { assertCustomerCreditCapacity } = await import(
+          "@/modules/customers/lib/credit-limit"
+        );
+        const customer = await getCustomer(input.customer.id);
+        if (!customer) {
+          return { success: false, error: "العميل غير موجود" };
+        }
+        const creditAmount = payments
+          .filter((p) => p.method === "credit")
+          .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        assertCustomerCreditCapacity({
+          accountBalance: customer.account_balance,
+          creditLimit: customer.credit_limit,
+          additionalCharge: creditAmount,
+        });
+      } catch (creditError) {
+        return {
+          success: false,
+          error:
+            creditError instanceof Error
+              ? creditError.message
+              : "تعذر التحقق من حد الائتمان",
+        };
+      }
+    }
     if ((input.loyaltyPoints ?? 0) > 0 && !input.customer) {
       return { success: false, error: "اختر عميلاً لاستبدال نقاط الولاء" };
     }
@@ -85,6 +119,20 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
 
     const discount = input.discount ?? 0;
     const overrideThreshold = settings.manager_discount_override_amount;
+    let pendingDiscountNotify:
+      | {
+          orgId: string;
+          storeName: string;
+          cashierName: string;
+          approverName: string;
+          discount: number;
+          threshold: number | null;
+          reason: string | null;
+          sessionId: string;
+          currency: string;
+        }
+      | null = null;
+
     if (requiresManagerDiscountOverride(discount, overrideThreshold)) {
       if (!input.override?.discount) {
         return { success: false, error: "هذا الخصم يحتاج موافقة المدير" };
@@ -107,6 +155,27 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
           reason: input.override.reason ?? null,
         },
       });
+
+      try {
+        const [store, cashier, org] = await Promise.all([
+          getStore(ctx.storeId),
+          getUser(ctx.activeCashierId),
+          getOrganization(),
+        ]);
+        pendingDiscountNotify = {
+          orgId,
+          storeName: store?.name ?? ctx.storeId,
+          cashierName: cashier?.name ?? ctx.activeCashierId,
+          approverName: user.name,
+          discount,
+          threshold: overrideThreshold,
+          reason: input.override.reason ?? null,
+          sessionId: session.id,
+          currency: org.currency,
+        };
+      } catch (emailError) {
+        console.error("[pos] discount override email prepare failed", emailError);
+      }
     }
     const lifecycle = computeSessionLifecycle(session, settings);
     if (lifecycle.blocksSales) {
@@ -155,6 +224,28 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
 
     after(() => {
       revalidatePath("/orders");
+      revalidatePath("/kitchen");
+      if (pendingDiscountNotify) {
+        void notifyOwnersDiscountOverride(pendingDiscountNotify);
+      }
+      void (async () => {
+        try {
+          const { getBusinessActivitySettings } = await import(
+            "@/modules/system/services/settings.service"
+          );
+          const { isFoodServiceActivity } = await import("@/lib/business-activity-flags");
+          const { enqueueKitchenIfNeeded } = await import(
+            "@/modules/kitchen/services/kitchen.service"
+          );
+          const activity = await getBusinessActivitySettings();
+          await enqueueKitchenIfNeeded(
+            result.order.id,
+            isFoodServiceActivity(activity.activity_type)
+          );
+        } catch (kitchenError) {
+          console.warn("[pos] kitchen enqueue skipped", kitchenError);
+        }
+      })();
     });
 
     return { success: true, ...result };

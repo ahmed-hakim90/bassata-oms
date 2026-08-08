@@ -78,6 +78,7 @@ export type PriceListPrintPayload = {
   sectionTitle: string;
   footerText: string;
   showLogo: boolean;
+  /** Show offer prices as قبل (struck) + بعد on the poster. */
   showOldPrice: boolean;
   /** Show weight/unit line under product name on the poster. */
   showUnitLine: boolean;

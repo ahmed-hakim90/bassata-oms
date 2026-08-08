@@ -13,11 +13,18 @@ import {
   KG_WEIGHT_PRESETS,
 } from "@/modules/pos/lib/weight-presets";
 import { amountFromQuantity, quantityFromAmount } from "@/lib/units";
+import {
+  parseScaleSettings,
+  readWeightFromScale,
+} from "@/modules/pos/lib/scale-device-hook";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: POSProduct | null;
+  /** Paired terminal scale registry (supermarket). */
+  scaleEnabled?: boolean;
+  scaleSettings?: Record<string, unknown> | null;
   onConfirm: (input: {
     quantity: number;
     unitPrice: number;
@@ -34,11 +41,19 @@ function formatWeightPreview(quantityKg: number, unit: string): string {
   return `${quantityKg.toFixed(3)} ${unit}`;
 }
 
-export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Props) {
+export function WeightAmountModal({
+  open,
+  onOpenChange,
+  product,
+  scaleEnabled,
+  scaleSettings,
+  onConfirm,
+}: Props) {
   const allowAmount = product?.supports_amount_sale === true;
   const [mode, setMode] = useState<"by_weight" | "by_amount">("by_weight");
   const [weight, setWeight] = useState("");
   const [amount, setAmount] = useState("");
+  const scaleConfig = parseScaleSettings(scaleEnabled, scaleSettings);
 
   const resetKey = open && product ? `${product.id}:${product.supports_amount_sale === true}` : "";
   const [prevResetKey, setPrevResetKey] = useState(resetKey);
@@ -76,16 +91,16 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl sm:max-w-md">
+      <DialogContent className="max-h-[min(92dvh,100%)] overflow-y-auto rounded-2xl max-sm:max-w-[calc(100%-0.75rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{product?.name ?? "بيع بالوزن"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="inline-flex rounded-xl border p-1">
+          <div className="inline-flex w-full rounded-xl border p-1">
             <Button
               size="sm"
               variant={mode === "by_weight" ? "default" : "ghost"}
-              className="rounded-lg"
+              className="h-11 flex-1 rounded-lg"
               onClick={() => setMode("by_weight")}
             >
               بالوزن
@@ -94,7 +109,7 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
               <Button
                 size="sm"
                 variant={mode === "by_amount" ? "default" : "ghost"}
-                className="rounded-lg"
+                className="h-11 flex-1 rounded-lg"
                 onClick={() => setMode("by_amount")}
               >
                 بالمبلغ
@@ -104,12 +119,35 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
           <p className="text-sm text-muted-foreground">
             سعر الوحدة: {formatCurrency(unitPrice)} / {unit}
           </p>
+          {scaleConfig.enabled && mode === "by_weight" ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void readWeightFromScale(scaleConfig).then((kg) => {
+                    if (kg == null || !Number.isFinite(kg) || kg <= 0) {
+                      // Manual entry remains the supported path for protocol=manual.
+                      return;
+                    }
+                    setWeight(formatWeightPresetValue(kg));
+                  });
+                }}
+              >
+                قراءة من الميزان
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                البروتوكول الحالي: {scaleConfig.protocol === "manual" ? "إدخال يدوي" : "USB/serial stub"}
+              </span>
+            </div>
+          ) : null}
           {mode === "by_weight" ? (
             <div className="space-y-3">
               {showKgPresets ? (
                 <div className="space-y-2">
                   <Label>اختيار سريع</Label>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-3 gap-2 max-[390px]:grid-cols-3 sm:grid-cols-5">
                     {KG_WEIGHT_PRESETS.map((preset) => {
                       const selected = selectedPresetKg === preset.kg;
                       return (
@@ -118,7 +156,7 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
                           type="button"
                           variant={selected ? "default" : "outline"}
                           className={cn(
-                            "h-12 rounded-xl px-1 text-sm font-semibold tabular-nums",
+                            "h-12 rounded-xl px-1 text-sm font-semibold tabular-nums max-[390px]:h-11",
                             selected && "shadow-sm"
                           )}
                           onClick={() => applyWeightPreset(preset.kg)}
@@ -142,7 +180,7 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
                   min="0"
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
-                  className="h-11 rounded-xl"
+                  className="h-12 rounded-xl text-base"
                   inputMode="decimal"
                   autoFocus={!showKgPresets}
                   placeholder={showKgPresets ? "مثال: 0.350" : undefined}
@@ -159,7 +197,7 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="h-11 rounded-xl"
+                className="h-12 rounded-xl text-base"
                 inputMode="decimal"
                 autoFocus
               />
@@ -170,7 +208,7 @@ export function WeightAmountModal({ open, onOpenChange, product, onConfirm }: Pr
           </p>
           <div className="rounded-xl border border-border/60 bg-muted/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">الإجمالي</p>
-            <p className="text-xl font-bold tabular-nums tracking-tight text-foreground">
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-foreground">
               {formatCurrency(total)}
             </p>
           </div>

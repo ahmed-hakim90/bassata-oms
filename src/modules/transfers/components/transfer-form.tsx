@@ -484,7 +484,7 @@ export function TransferForm({
             </div>
             <div className="space-y-2">
               <Label>إلى فرع</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
                 <Select
                   value={toStoreId}
                   onValueChange={(v) => {
@@ -493,7 +493,7 @@ export function TransferForm({
                     setToWarehouseId(defaultWarehouseForStore(next));
                   }}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-11 w-full sm:h-9 sm:min-w-40">
                     <SelectValue>
                   {(value) => selectLabelById(stores, value, (s) => s.name)}
                 </SelectValue>
@@ -507,7 +507,7 @@ export function TransferForm({
                   </SelectContent>
                 </Select>
                 <Select value={toWarehouseId} onValueChange={(v) => setToWarehouseId(v ?? "")}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-11 w-full sm:h-9 sm:min-w-40">
                     <SelectValue>
                       {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                     </SelectValue>
@@ -523,6 +523,7 @@ export function TransferForm({
                 <Button
                   type="button"
                   variant="outline"
+                  className="h-11 w-full sm:h-9 sm:w-auto"
                   onClick={saveStores}
                   disabled={
                     lifecyclePending ||
@@ -539,9 +540,9 @@ export function TransferForm({
           </div>
         )}
         {isDraft && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Select value={productId} onValueChange={(v) => setProductId(v ?? "")}>
-              <SelectTrigger className="min-w-48">
+              <SelectTrigger className="h-11 w-full sm:h-9 sm:min-w-48 sm:w-auto">
                 <SelectValue placeholder="المنتج">
                   {(value) => selectLabelById(products, value, (p) => p.name)}
                 </SelectValue>
@@ -559,9 +560,13 @@ export function TransferForm({
               min={1}
               value={quantity}
               onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-              className="w-24"
+              className="h-11 w-full sm:h-9 sm:w-24"
             />
-            <Button onClick={addLine} disabled={!productId || !transfer}>
+            <Button
+              className="h-11 w-full sm:h-9 sm:w-auto"
+              onClick={addLine}
+              disabled={!productId || !transfer}
+            >
               <Plus className="size-4" /> إضافة
             </Button>
           </div>

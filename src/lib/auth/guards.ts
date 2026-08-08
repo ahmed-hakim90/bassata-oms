@@ -27,6 +27,8 @@ export async function requireAuth(): Promise<AppUser> {
   const appUser = await getCurrentUser();
   if (!appUser) throw new AuthError("Not authenticated", 401);
   if (!appUser.is_active) throw new AuthError("User not found or inactive", 401);
+  const { assertUserMatchesHostOrg } = await import("@/lib/tenancy/host-org-session");
+  await assertUserMatchesHostOrg(appUser.org_id);
   return appUser;
 }
 

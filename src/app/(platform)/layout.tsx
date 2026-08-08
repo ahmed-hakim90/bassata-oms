@@ -1,14 +1,11 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AccessDenied } from "@/components/SweetFlow/access-denied";
-import { APP_NAME } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { logoutAction } from "@/modules/auth/actions/logout.action";
 import { resolvePlatformAdmin } from "@/modules/platform/services/platform-admin.service";
-import { Button } from "@/components/ui/button";
+import { PlatformShell } from "@/modules/platform/components/platform-shell";
 
 export default async function PlatformLayout({
   children,
@@ -39,35 +36,11 @@ export default async function PlatformLayout({
   }
 
   return (
-    <div className="min-h-dvh bg-[var(--mds-color-bg-canvas)]" dir="rtl">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-[var(--mds-space-4)] px-[var(--mds-space-4)] py-[var(--mds-space-3)] md:px-[var(--mds-space-6)]">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">لوحة التحكم · المنصة</p>
-            <Link href="/platform" className="truncate text-base font-semibold text-foreground">
-              {APP_NAME} Platform
-            </Link>
-            <nav className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
-              <Link href="/platform" className="hover:text-foreground hover:underline">
-                الشركات
-              </Link>
-            </nav>
-          </div>
-          <div className="flex shrink-0 items-center gap-[var(--mds-space-2)]">
-            <span className="hidden max-w-[220px] truncate text-sm text-muted-foreground sm:inline">
-              {platformAdmin.email}
-            </span>
-            <form action={logoutAction}>
-              <Button type="submit" variant="outline" size="sm">
-                تسجيل الخروج
-              </Button>
-            </form>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-[1400px] px-[var(--mds-space-4)] py-[var(--mds-space-6)] md:px-[var(--mds-space-6)]">
-        {children}
-      </main>
-    </div>
+    <PlatformShell
+      adminEmail={platformAdmin.email}
+      adminName={platformAdmin.name || platformAdmin.email}
+    >
+      {children}
+    </PlatformShell>
   );
 }

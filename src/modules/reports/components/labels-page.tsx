@@ -310,7 +310,7 @@ export function LabelsPage({
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-muted-foreground">
                 {settings.labelWidthMm}×{settings.labelHeightMm} مم — خط تلقائي
               </p>
@@ -318,7 +318,7 @@ export function LabelsPage({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs"
+                className="h-9 w-full px-2 text-xs sm:h-7 sm:w-auto"
                 onClick={() => setSettings((prev) => applyPreset("custom", prev))}
               >
                 مقاس مخصص
@@ -612,7 +612,7 @@ export function LabelsPage({
           cart.length === 0 && "opacity-70"
         )}
       >
-        <div className="mb-[var(--mds-space-3)] flex items-center justify-between gap-3">
+        <div className="mb-[var(--mds-space-3)] flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <p className="text-sm font-medium">معاينة مباشرة</p>
           <p className="text-xs text-muted-foreground">
             أي تغيير في المحتوى أو المقاس أو الكميات يتظبط هنا فورًا

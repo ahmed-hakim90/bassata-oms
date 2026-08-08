@@ -321,10 +321,16 @@ export function SalesInvoicesPage({
       ) : null}
 
       <Tabs defaultValue="drafts">
-        <TabsList>
-          <TabsTrigger value="drafts">مسودات ({drafts.length})</TabsTrigger>
-          <TabsTrigger value="issued">صادرة ({issued.length})</TabsTrigger>
-          <TabsTrigger value="delivered">مُسلَّمة ({delivered.length})</TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1 sm:inline-flex sm:w-fit">
+          <TabsTrigger value="drafts" className="min-h-10 px-2 py-2 text-xs sm:text-sm">
+            مسودات ({drafts.length})
+          </TabsTrigger>
+          <TabsTrigger value="issued" className="min-h-10 px-2 py-2 text-xs sm:text-sm">
+            صادرة ({issued.length})
+          </TabsTrigger>
+          <TabsTrigger value="delivered" className="min-h-10 px-2 py-2 text-xs sm:text-sm">
+            مُسلَّمة ({delivered.length})
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="drafts" className="mt-4">
           <InvoiceCards rows={drafts} />

@@ -422,6 +422,8 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     });
   }
 
+  // Generated Supabase types lag behind the current remote schema for online-order promo fields.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: order, error: orderError } = await (admin as any)
     .from("online_orders")
     .insert({
@@ -451,6 +453,7 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     throw new Error(msg || "تعذر إرسال الطلب");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: itemsError } = await (admin as any)
     .from("online_order_items")
     .insert(
@@ -761,6 +764,27 @@ export async function invoiceOnlineOrder(input: {
     entityId: order.id,
     metadata: { orderId: result.order_id, orderNumber: result.order_number },
   });
+
+  try {
+    const items = await orderRepo.getOrderItems(result.order_id);
+    const { safePostSaleJournal } = await import(
+      "@/modules/accounting/services/gl-posting.service"
+    );
+    const postedOrder = await orderRepo.getOrder(result.order_id);
+    await safePostSaleJournal({
+      orderId: result.order_id,
+      storeId: input.storeId,
+      total: Number(postedOrder?.total ?? result.total ?? 0),
+      tax: Number(postedOrder?.tax ?? result.tax ?? 0),
+      discount: Number(postedOrder?.discount ?? 0),
+      payments,
+      cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
+      createdBy: input.cashierId,
+      memo: `فوترة أونلاين ${result.order_number}`,
+    });
+  } catch (error) {
+    console.error("[online-order] GL sale post failed", error);
+  }
 
   return result;
 }

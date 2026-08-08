@@ -50,6 +50,23 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** Edge-safe signed cookie writer for middleware (Web Crypto). */
+export async function createSignedCookieValueEdge(
+  data: Record<string, unknown>,
+  maxAgeSeconds: number
+): Promise<string> {
+  const payload = bytesToBase64Url(
+    new TextEncoder().encode(
+      JSON.stringify({
+        ...data,
+        exp: Math.floor(Date.now() / 1000) + maxAgeSeconds,
+      })
+    )
+  );
+  const signature = await hmacSha256Base64Url(`${VERSION}.${payload}`, cookieSecret());
+  return `${VERSION}.${payload}.${signature}`;
+}
+
 /** Edge-safe signed cookie reader for middleware (Web Crypto). */
 export async function readSignedCookieValueEdge<T extends Record<string, unknown>>(
   value: string | undefined

@@ -119,9 +119,9 @@ export function ProductSearchCombobox({
                 <button
                   type="button"
                   role="option"
-                  aria-selected={index === highlightIndex}
+                  aria-selected={p.id === selectedProductId || index === highlightIndex}
                   className={
-                    index === highlightIndex
+                    p.id === selectedProductId || index === highlightIndex
                       ? "flex w-full flex-col items-start gap-0.5 rounded-lg bg-accent px-3 py-2.5 text-right"
                       : "flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2.5 text-right hover:bg-muted/60"
                   }

@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth, requirePermission, requirePermissionOrRole } from "@/lib/auth/guards";
+import { requireAuth, requirePermissionOrRole } from "@/lib/auth/guards";
 import {
   canExportExcel,
   canExportPdf,

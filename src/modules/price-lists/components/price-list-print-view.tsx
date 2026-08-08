@@ -73,7 +73,7 @@ export function PriceListPrintView() {
               background={payload.background}
               accent={payload.accent}
               rows={payload.rows}
-              showOldPrice={payload.showOldPrice}
+              showOldPrice={Boolean(payload.showOldPrice)}
               showUnitLine={payload.showUnitLine !== false}
             />
           </>

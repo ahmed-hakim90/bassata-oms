@@ -22,6 +22,8 @@ interface CloseSessionStepperProps {
   cashierName: string;
   costCenterMap?: Record<string, string>;
   categoryMap?: Record<string, string>;
+  /** Lighter chrome when nested inside a dialog (POS). */
+  embedded?: boolean;
 }
 
 export function CloseSessionStepper({
@@ -31,6 +33,7 @@ export function CloseSessionStepper({
   cashierName,
   costCenterMap = {},
   categoryMap = {},
+  embedded = false,
 }: CloseSessionStepperProps) {
   const [step, setStep] = useState(0);
   const [actualCash, setActualCash] = useState("");
@@ -66,8 +69,15 @@ export function CloseSessionStepper({
   }
 
   return (
-    <div className="rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-6)] text-card-foreground shadow-[var(--mds-elevation-1)]">
-      <div className="mb-[var(--mds-space-6)] flex gap-1">
+    <div
+      className={cn(
+        "text-card-foreground",
+        embedded
+          ? "bg-transparent p-0"
+          : "rounded-[var(--mds-radius-lg)] border border-border bg-card p-4 shadow-[var(--mds-elevation-1)] sm:p-[var(--mds-space-6)]"
+      )}
+    >
+      <div className="mb-4 flex gap-1 sm:mb-[var(--mds-space-6)]">
         {STEPS.map((label, i) => (
           <div
             key={label}
@@ -205,22 +215,31 @@ export function CloseSessionStepper({
         </div>
       )}
 
-      <div className="mt-[var(--mds-space-8)] flex justify-between gap-[var(--mds-space-3)]">
+      <div
+        className={cn(
+          "mt-6 flex justify-between gap-3 sm:mt-[var(--mds-space-8)]",
+          embedded &&
+            "sticky bottom-0 z-10 -mx-1 border-t border-border/60 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+        )}
+      >
         <Button
           variant="outline"
-          className="rounded-[var(--mds-radius-md)]"
+          className="min-h-11 flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
           disabled={step === 0 || pending}
           onClick={() => setStep((s) => Math.max(0, s - 1))}
         >
           رجوع
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button className="rounded-[var(--mds-radius-md)]" onClick={() => setStep(1)}>
+          <Button
+            className="min-h-11 flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
+            onClick={() => setStep(1)}
+          >
             متابعة للعدّ
           </Button>
         ) : (
           <Button
-            className="rounded-[var(--mds-radius-md)]"
+            className="min-h-11 flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
             disabled={pending || actualCash.trim() === ""}
             onClick={handleClose}
           >

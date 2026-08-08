@@ -20,6 +20,7 @@ import {
   parseProductsFileAction,
 } from "../actions/import-export.actions";
 import type { ParsedImportResult } from "../services/import.service";
+import { productImportTemplateGroup } from "@/lib/business-activity-flags";
 import { toast } from "sonner";
 
 type ImportStage =
@@ -71,7 +72,8 @@ export function ImportProductsDialog({
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const isSupermarket = activityType === "supermarket";
+  const templateGroup = productImportTemplateGroup(activityType);
+  const isSupermarket = templateGroup === "supermarket";
   const progressLabel =
     stage === "reading"
       ? isSupermarket
@@ -252,9 +254,11 @@ export function ImportProductsDialog({
             </label>
             {fileName ? <p className="text-xs text-muted-foreground">{fileName}</p> : null}
             <p className="max-w-sm text-xs text-muted-foreground">
-              {activityType === "supermarket"
+              {templateGroup === "supermarket"
                 ? "ورقة المنتجات: قطعة بباركود، منتج وزني بسعر الكيلو، ووحدة شراء (كرتونة/كيس) مع عدد القطع أو الكيلو."
-                : "Use Products for items and ingredients, Variants for sizes and prices, and Recipes when you need inventory deduction."}
+                : templateGroup === "shelf"
+                  ? "ورقة المنتجات للرف/التجزئة. شيت Variants يظهر لو الأحجام مفعّلة في النشاط — بدون وصفات مطبخ."
+                  : "Use Products for items and ingredients, Variants for sizes and prices, and Recipes when you need inventory deduction."}
             </p>
           </GlassPanel>
 

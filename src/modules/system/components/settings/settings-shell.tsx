@@ -32,6 +32,7 @@ import {
   type SettingsGroup,
   type SettingsTabId,
 } from "@/modules/system/components/settings/settings-tabs";
+import type { ReportScheduleSettings } from "@/modules/reports/lib/report-schedule";
 
 export interface SettingsShellProps {
   activeTab: SettingsTabId;
@@ -67,6 +68,9 @@ export interface SettingsShellProps {
       is_active: boolean;
       last_seen_at: string | null;
     }[];
+    menuThemeAccess?: {
+      rows: import("@/modules/online-menu/lib/menu-theme-commerce").MenuThemeAccessRow[];
+    };
   } | null;
   sessionSettings: SessionSettings | null;
   featureFlags: Record<FeatureFlag, boolean> | null;
@@ -103,6 +107,7 @@ export interface SettingsShellProps {
       page?: string;
     };
   } | null;
+  reportSchedule?: ReportScheduleSettings | null;
 }
 
 export function SettingsShell({
@@ -120,6 +125,7 @@ export function SettingsShell({
   usersBundle,
   costCentersBundle,
   auditBundle,
+  reportSchedule = null,
 }: SettingsShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -162,9 +168,8 @@ export function SettingsShell({
       <PageHeader
         breadcrumb={<span>الإدارة · الإعدادات</span>}
         title="الإعدادات"
-        description="بيانات المتجر، نوع النشاط، الكاشير، المصروفات، المستخدمون، وإعدادات النظام"
       />
-      <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col space-y-6">
+      <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col gap-4">
         <div className="min-w-0 space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-3 shadow-[var(--mds-elevation-1)] sm:p-4">
           <Input
             aria-label="بحث في الإعدادات"
@@ -173,53 +178,55 @@ export function SettingsShell({
             value={settingsQuery}
             onChange={(event) => setSettingsQuery(event.target.value)}
           />
-          <div className="-mx-3 min-w-0 overflow-x-auto px-3 pb-1 [scrollbar-gutter:stable] sm:-mx-4 sm:px-4">
+          <div className="min-w-0 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {filteredTabs.length > 0 ? (
-              <TabsList className="inline-flex h-auto w-max min-w-max flex-nowrap justify-start gap-1 rounded-[var(--mds-radius-md)] bg-muted px-2 py-2">
+              <TabsList className="flex h-auto w-max min-w-full flex-nowrap justify-start gap-1 rounded-[var(--mds-radius-md)] bg-muted p-1">
                 {filteredTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="h-9 flex-none rounded-[var(--mds-radius-md)] px-3 text-sm font-medium data-active:bg-[var(--mds-color-action-primary)] data-active:text-[var(--mds-color-text-inverse)] data-active:shadow-[var(--mds-elevation-1)]"
+                    title={tab.label}
+                    className="h-9 shrink-0 rounded-[var(--mds-radius-md)] px-3 text-sm font-medium whitespace-nowrap data-active:bg-[var(--mds-color-action-primary)] data-active:text-[var(--mds-color-text-inverse)] data-active:shadow-[var(--mds-elevation-1)]"
                   >
                     {tab.label}
                   </TabsTrigger>
                 ))}
               </TabsList>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                لا توجد إعدادات مطابقة للبحث.
-              </p>
+              <p className="text-sm text-muted-foreground">لا توجد نتائج.</p>
             )}
           </div>
         </div>
 
         {canManageSettings && bundle ? (
           <>
-            <TabsContent value="business" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
+            <TabsContent value="business" className="min-w-0 data-hidden:hidden">
               <BusinessSettingsTab org={bundle.org} />
             </TabsContent>
-            <TabsContent value="activity" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
+            <TabsContent value="activity" className="min-w-0 data-hidden:hidden">
               <ActivitySettingsTab businessActivity={bundle.businessActivity} />
             </TabsContent>
-            <TabsContent value="branches" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
+            <TabsContent value="branches" className="min-w-0 data-hidden:hidden">
               <BranchSettingsTab
                 stores={bundle.stores}
                 warehouses={bundle.warehouses}
-                devices={bundle.devices}
+                activityType={bundle.businessActivity.activity_type}
+                menuThemeRows={bundle.menuThemeAccess?.rows ?? []}
               />
             </TabsContent>
-            <TabsContent value="features" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
+            <TabsContent value="features" className="min-w-0 data-hidden:hidden">
               <SystemFeaturesTab
                 featureFlags={bundle.featureFlags}
                 activityType={bundle.businessActivity.activity_type}
+                reportSchedule={reportSchedule}
+                canManageSchedule={canManageSettings}
               />
             </TabsContent>
           </>
         ) : null}
 
         {(canManageSettings || canManageSessions) && session && flags ? (
-          <TabsContent value="pos" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
+          <TabsContent value="pos" className="min-w-0 data-hidden:hidden">
             <PosSessionSettingsTab
               canManageSettings={canManageSettings}
               canManageSessions={canManageSessions}
@@ -233,7 +240,7 @@ export function SettingsShell({
         ) : null}
 
         {(canManageExpenseSettings || canManageCostCenters) && (
-          <TabsContent value="expenses" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)]">
+          <TabsContent value="expenses" className="min-w-0 data-hidden:hidden">
             <ExpenseSettingsTab
               canManageExpenseSettings={canManageExpenseSettings}
               canManageCostCenters={canManageCostCenters}
@@ -245,13 +252,13 @@ export function SettingsShell({
         )}
 
         {usersBundle ? (
-          <TabsContent value="users" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)] overflow-hidden">
+          <TabsContent value="users" className="min-w-0 overflow-hidden data-hidden:hidden">
             <UsersSettingsTab {...usersBundle} />
           </TabsContent>
         ) : null}
 
         {auditBundle ? (
-          <TabsContent value="audit" className="min-w-0 rounded-[var(--mds-radius-lg)] bg-card shadow-[var(--mds-elevation-1)] overflow-hidden">
+          <TabsContent value="audit" className="min-w-0 overflow-hidden data-hidden:hidden">
             <AuditSettingsTab {...auditBundle} />
           </TabsContent>
         ) : null}

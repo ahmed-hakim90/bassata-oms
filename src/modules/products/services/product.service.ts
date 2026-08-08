@@ -6,6 +6,22 @@ import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import type { Category, Product } from "@/lib/types";
 import { nextSequentialProductSku } from "@/modules/products/lib/generate-product-sku";
+import { getBusinessActivitySettings } from "@/modules/system/services/settings.service";
+
+async function assertWeightSalesAllowed(input: Pick<ProductInput, "sales_unit_type" | "allow_price_input">) {
+  const salesUnit = input.sales_unit_type ?? "piece";
+  const wantsWeight = salesUnit === "weight" || salesUnit === "mixed";
+  const wantsAmount = wantsWeight && input.allow_price_input === true;
+  if (!wantsWeight && !wantsAmount) return;
+
+  const activity = await getBusinessActivitySettings();
+  if (wantsWeight && !activity.enable_weight_sales) {
+    throw new Error("البيع بالوزن غير مفعّل لنوع النشاط الحالي — فعّله من إعدادات النشاط.");
+  }
+  if (wantsAmount && !activity.enable_price_by_amount) {
+    throw new Error("البيع بالمبلغ غير مفعّل لنوع النشاط الحالي — فعّله من إعدادات النشاط.");
+  }
+}
 
 export type ProductInput = Omit<Product, "id" | "org_id" | "updated_at">;
 export type CategoryInput = Omit<Category, "id" | "org_id">;
@@ -186,6 +202,7 @@ export async function createProduct(
   input: ProductInput,
   userId: string
 ): Promise<Product> {
+  await assertWeightSalesAllowed(input);
   const stores = await storeRepo.listStores();
   let resolved = input;
   if (!input.sku?.trim()) {
@@ -222,9 +239,11 @@ export async function updateProduct(
 ): Promise<Product | null> {
   const existing = await catalogRepo.getProduct(id);
   if (!existing) return null;
+  const merged = { ...productToInput(existing), ...input };
+  await assertWeightSalesAllowed(merged);
   const product = await catalogRepo.updateProduct(
     id,
-    normalizeProductInput({ ...productToInput(existing), ...input })
+    normalizeProductInput(merged)
   );
   if (product) {
     const orgId = await getOrgId();

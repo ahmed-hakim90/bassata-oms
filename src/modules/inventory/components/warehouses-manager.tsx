@@ -183,7 +183,7 @@ export function WarehousesManager({ stores, warehouses }: WarehousesManagerProps
                 </div>
 
                 <form
-                  className="flex max-w-md gap-2"
+                  className="flex w-full max-w-md flex-col gap-2 sm:flex-row"
                   onSubmit={(e) => {
                     e.preventDefault();
                     addWarehouse(store.id);
@@ -195,8 +195,13 @@ export function WarehousesManager({ stores, warehouses }: WarehousesManagerProps
                     onChange={(e) =>
                       setAddNames((current) => ({ ...current, [store.id]: e.target.value }))
                     }
+                    className="min-h-11"
                   />
-                  <Button type="submit" disabled={pending || !(addNames[store.id]?.trim())}>
+                  <Button
+                    type="submit"
+                    className="min-h-11 w-full shrink-0 sm:w-auto"
+                    disabled={pending || !(addNames[store.id]?.trim())}
+                  >
                     <Plus className="size-4" />
                     {t("Add warehouse")}
                   </Button>

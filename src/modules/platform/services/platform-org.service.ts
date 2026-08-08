@@ -278,10 +278,14 @@ export function getPlatformRollup(
   };
 }
 
+/** Why a tenant was suspended — stored in audit/webhook metadata only (no schema fork). */
+export type OrganizationSuspendReason = "non_payment" | "ops" | "other";
+
 export async function setOrganizationStatus(
   platformAdmin: PlatformAdmin,
   orgId: string,
-  status: "active" | "suspended"
+  status: "active" | "suspended",
+  options?: { reason?: OrganizationSuspendReason; note?: string }
 ): Promise<PlatformOrganizationRow> {
   const admin = createAdminClient();
   const { data: before, error: beforeError } = await admin
@@ -302,6 +306,10 @@ export async function setOrganizationStatus(
     .single();
   if (error) throw new Error(`organizations status update failed: ${error.message}`);
 
+  const reason =
+    status === "suspended" ? (options?.reason ?? "ops") : undefined;
+  const note = options?.note?.trim() || undefined;
+
   await writePlatformAuditLog({
     platformAdminId: platformAdmin.id,
     action: status === "suspended" ? "organization.suspend" : "organization.reactivate",
@@ -311,8 +319,36 @@ export async function setOrganizationStatus(
       org_name: data.name,
       previous_status: before.status,
       new_status: status,
+      ...(reason ? { reason } : {}),
+      ...(note ? { note } : {}),
     },
   });
+
+  if (status === "suspended" && reason === "non_payment") {
+    const { getPlatformPlan, setPlatformPlan } = await import(
+      "@/modules/platform/services/platform-plan.service"
+    );
+    const plan = await getPlatformPlan(orgId);
+    const stamp = new Date().toISOString().slice(0, 10);
+    const line = `[${stamp}] معلّقة لعدم السداد${note ? ` — ${note}` : ""}`;
+    const nextNotes = plan.notes.trim() ? `${plan.notes.trim()}\n${line}` : line;
+    await setPlatformPlan(platformAdmin, orgId, { ...plan, notes: nextNotes });
+  }
+
+  const { dispatchPlatformWebhook } = await import(
+    "@/modules/platform/services/platform-webhooks.service"
+  );
+  void dispatchPlatformWebhook(
+    orgId,
+    status === "suspended" ? "org.suspended" : "org.reactivated",
+    {
+      org_name: data.name,
+      previous_status: before.status,
+      new_status: status,
+      ...(reason ? { reason } : {}),
+      ...(note ? { note } : {}),
+    }
+  );
 
   return data;
 }

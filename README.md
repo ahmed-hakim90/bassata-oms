@@ -1,6 +1,6 @@
-# SweetFlow POS
+# Velora
 
-A premium multi-location retail operations system for ice cream shops, cafés, and dessert stores. Built with Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Supabase, and Zustand.
+نظام كاشير وإدارة فروع (multi-location POS + light ERP) للمقاهي والمطاعم والمتاجر. Built with Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Supabase, and Zustand.
 
 ## Features
 
@@ -12,7 +12,7 @@ A premium multi-location retail operations system for ice cream shops, cafés, a
 - **Online** — Public QR menu and first-party online orders
 - **System** — Settings, users/roles, audit logs, XLSX import/export
 
-> **Not live yet:** `/platform` UI (S02). Platform tables restored in S01 (`20260713133943`). Monthly closing was removed by cleanup. Souqna integrations (`030`/`031`) were dropped (ADR-009). See [docs/MASTER_ARCHITECTURE.md](docs/MASTER_ARCHITECTURE.md) and [docs/MIGRATION_AUDIT.md](docs/MIGRATION_AUDIT.md).
+> Platform console at `/platform`. Monthly closing restored at `/monthly-closing` (period lock). Souqna integrations (`030`/`031`) remain dropped (ADR-009). See [docs/MASTER_ARCHITECTURE.md](docs/MASTER_ARCHITECTURE.md) and [docs/MIGRATION_AUDIT.md](docs/MIGRATION_AUDIT.md).
 
 ## Tech Stack
 
@@ -64,7 +64,7 @@ Quick login: any seeded email below with password **`demo1234`** (from `scripts/
 
 One-liner demo DB: `npm run db:reset-demo`
 
-> **Note:** Product name is **Velora** (package: `cafeflow-erp-pos`). Tagline: نظام كاشير وإدارة فروع.
+> **Note:** npm package remains `cafeflow-erp-pos`; UI kit folder is `SweetFlow`; design tokens are Meridian (`--mds-*`). Operator-facing brand is **Velora**.
 
 ## Supabase Setup (Production)
 
@@ -175,4 +175,4 @@ Completion roadmap: [docs/COMPLETION_PLAN.md](docs/COMPLETION_PLAN.md)
 
 ## License
 
-Private — SweetFlow POS
+Private — Velora

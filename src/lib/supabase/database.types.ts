@@ -722,6 +722,8 @@ export type Database = {
           is_active: boolean
           last_seen_at: string | null
           name: string
+          scale_enabled: boolean
+          scale_settings: Json
           store_id: string
         }
         Insert: {
@@ -730,6 +732,8 @@ export type Database = {
           is_active?: boolean
           last_seen_at?: string | null
           name: string
+          scale_enabled?: boolean
+          scale_settings?: Json
           store_id: string
         }
         Update: {
@@ -738,6 +742,8 @@ export type Database = {
           is_active?: boolean
           last_seen_at?: string | null
           name?: string
+          scale_enabled?: boolean
+          scale_settings?: Json
           store_id?: string
         }
         Relationships: [
@@ -920,6 +926,214 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gl_accounts: {
+        Row: {
+          account_type: Database["public"]["Enums"]["gl_account_type"]
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_postable: boolean
+          is_system: boolean
+          name: string
+          org_id: string
+          parent_id: string | null
+          sort_order: number
+          system_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_type: Database["public"]["Enums"]["gl_account_type"]
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_postable?: boolean
+          is_system?: boolean
+          name: string
+          org_id: string
+          parent_id?: string | null
+          sort_order?: number
+          system_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_type?: Database["public"]["Enums"]["gl_account_type"]
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_postable?: boolean
+          is_system?: boolean
+          name?: string
+          org_id?: string
+          parent_id?: string | null
+          sort_order?: number
+          system_key?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gl_accounts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gl_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "gl_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          created_by: string
+          entry_date: string
+          entry_number: string
+          id: string
+          memo: string
+          org_id: string
+          posted_at: string | null
+          posted_by: string | null
+          source: Database["public"]["Enums"]["journal_source"]
+          source_id: string | null
+          status: Database["public"]["Enums"]["journal_entry_status"]
+          store_id: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          entry_date: string
+          entry_number: string
+          id?: string
+          memo?: string
+          org_id: string
+          posted_at?: string | null
+          posted_by?: string | null
+          source?: Database["public"]["Enums"]["journal_source"]
+          source_id?: string | null
+          status?: Database["public"]["Enums"]["journal_entry_status"]
+          store_id?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          entry_date?: string
+          entry_number?: string
+          id?: string
+          memo?: string
+          org_id?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          source?: Database["public"]["Enums"]["journal_source"]
+          source_id?: string | null
+          status?: Database["public"]["Enums"]["journal_entry_status"]
+          store_id?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_posted_by_fkey"
+            columns: ["posted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          credit: number
+          debit: number
+          entry_id: string
+          id: string
+          line_no: number
+          memo: string
+          org_id: string
+        }
+        Insert: {
+          account_id: string
+          credit?: number
+          debit?: number
+          entry_id: string
+          id?: string
+          line_no?: number
+          memo?: string
+          org_id: string
+        }
+        Update: {
+          account_id?: string
+          credit?: number
+          debit?: number
+          entry_id?: string
+          id?: string
+          line_no?: number
+          memo?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "gl_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1380,6 +1594,64 @@ export type Database = {
           },
         ]
       }
+      monthly_closes: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          id: string
+          org_id: string
+          period_end: string
+          period_start: string
+          status: Database["public"]["Enums"]["monthly_close_status"]
+          store_id: string | null
+          summary: Json
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          id?: string
+          org_id: string
+          period_end: string
+          period_start: string
+          status?: Database["public"]["Enums"]["monthly_close_status"]
+          store_id?: string | null
+          summary?: Json
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          id?: string
+          org_id?: string
+          period_end?: string
+          period_start?: string
+          status?: Database["public"]["Enums"]["monthly_close_status"]
+          store_id?: string | null
+          summary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_closes_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_closes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_closes_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       online_order_items: {
         Row: {
           created_at: string
@@ -1690,6 +1962,7 @@ export type Database = {
           document_status: Database["public"]["Enums"]["sales_document_status"] | null
           id: string
           issued_at: string | null
+          kitchen_status: string | null
           order_number: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           sales_mode: Database["public"]["Enums"]["sales_mode"]
@@ -1712,6 +1985,7 @@ export type Database = {
           document_status?: Database["public"]["Enums"]["sales_document_status"] | null
           id?: string
           issued_at?: string | null
+          kitchen_status?: string | null
           order_number: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           sales_mode?: Database["public"]["Enums"]["sales_mode"]
@@ -1734,6 +2008,7 @@ export type Database = {
           document_status?: Database["public"]["Enums"]["sales_document_status"] | null
           id?: string
           issued_at?: string | null
+          kitchen_status?: string | null
           order_number?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           sales_mode?: Database["public"]["Enums"]["sales_mode"]
@@ -1781,6 +2056,9 @@ export type Database = {
           country: string
           created_at: string
           currency: string
+          custom_domain: string | null
+          custom_domain_status: string
+          custom_domain_verified_at: string | null
           id: string
           logo_url: string | null
           name: string
@@ -1792,6 +2070,9 @@ export type Database = {
           country?: string
           created_at?: string
           currency?: string
+          custom_domain?: string | null
+          custom_domain_status?: string
+          custom_domain_verified_at?: string | null
           id?: string
           logo_url?: string | null
           name: string
@@ -1803,6 +2084,9 @@ export type Database = {
           country?: string
           created_at?: string
           currency?: string
+          custom_domain?: string | null
+          custom_domain_status?: string
+          custom_domain_verified_at?: string | null
           id?: string
           logo_url?: string | null
           name?: string
@@ -1938,6 +2222,24 @@ export type Database = {
           is_active?: boolean
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
         }
         Relationships: []
       }
@@ -2180,6 +2482,105 @@ export type Database = {
             columns: ["variant_id"]
             isOneToOne: false
             referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_modifier_groups: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          max_select: number
+          min_select: number
+          name: string
+          org_id: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_select?: number
+          min_select?: number
+          name: string
+          org_id: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_select?: number
+          min_select?: number
+          name?: string
+          org_id?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_modifier_groups_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_modifier_groups_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_modifiers: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          is_active: boolean
+          name: string
+          org_id: string
+          price_delta: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          is_active?: boolean
+          name: string
+          org_id: string
+          price_delta?: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          org_id?: string
+          price_delta?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_modifiers_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "product_modifier_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_modifiers_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -3533,6 +3934,19 @@ export type Database = {
         Args: { p_device_id: string; p_store_id: string; p_user_id: string }
         Returns: boolean
       }
+      login_cashier_by_pin: {
+        Args: {
+          p_device_id: string
+          p_org_id: string
+          p_pin: string
+          p_store_id: string
+        }
+        Returns: {
+          auth_user_id: string
+          email: string
+          user_id: string
+        }[]
+      }
       cashier_vault_admin_withdraw: {
         Args: {
           p_cashier_id: string
@@ -3885,6 +4299,10 @@ export type Database = {
           wholesale_applied: boolean
         }[]
       }
+      seed_default_chart_of_accounts: {
+        Args: { p_org_id: string }
+        Returns: undefined
+      }
       seed_org_defaults: {
         Args: { p_org_id: string; p_store_id: string }
         Returns: undefined
@@ -3927,6 +4345,8 @@ export type Database = {
         | "wholesale"
         | "mixed"
         | "juice_bar"
+        | "bakery"
+        | "pharmacy"
       cashier_vault_entry_type:
         | "session_close_deposit"
         | "session_open_float"
@@ -3948,6 +4368,17 @@ export type Database = {
       expense_payment_method: "cash" | "card" | "wallet" | "other"
       expense_source: "session_cash" | "external" | "purchase"
       expense_status: "pending" | "approved"
+      gl_account_type: "asset" | "liability" | "equity" | "revenue" | "expense"
+      journal_entry_status: "draft" | "posted" | "void"
+      journal_source:
+        | "manual"
+        | "sale"
+        | "expense"
+        | "purchase"
+        | "customer_payment"
+        | "supplier_payment"
+        | "refund"
+        | "adjustment"
       expiry_policy_type: "block_sale" | "warn_only" | "manager_override"
       import_job_status: "pending" | "completed" | "failed"
       inventory_product_type:
@@ -4149,6 +4580,9 @@ export type CustomerRow = Tables<"customers">
 export type DeviceRow = Tables<"devices">
 export type ExpenseRow = Tables<"expenses">
 export type ExpenseCategoryRow = Tables<"expense_categories">
+export type GlAccountRow = Tables<"gl_accounts">
+export type JournalEntryRow = Tables<"journal_entries">
+export type JournalLineRow = Tables<"journal_lines">
 export type CostCenterRow = Tables<"cost_centers">
 export type PermissionRow = Tables<"permissions">
 export type ImportJobRow = Tables<"import_jobs">
@@ -4158,6 +4592,7 @@ export type MovementRow = Tables<"inventory_movements">
 export type OrderItemDeductionRow = Tables<"order_item_deductions">
 export type OrderItemRow = Tables<"order_items">
 export type OrderPaymentRow = Tables<"order_payments">
+export type MonthlyCloseRow = Tables<"monthly_closes">
 export type OnlineOrderItemRow = Tables<"online_order_items">
 export type OnlineOrderRow = Tables<"online_orders">
 export type OrderRow = Tables<"orders">
@@ -4202,6 +4637,8 @@ export const Constants = {
         "wholesale",
         "mixed",
         "juice_bar",
+        "bakery",
+        "pharmacy",
       ],
       cashier_vault_entry_type: [
         "session_close_deposit",
@@ -4227,6 +4664,18 @@ export const Constants = {
       expense_payment_method: ["cash", "card", "wallet", "other"],
       expense_source: ["session_cash", "external", "purchase"],
       expense_status: ["pending", "approved"],
+      gl_account_type: ["asset", "liability", "equity", "revenue", "expense"],
+      journal_entry_status: ["draft", "posted", "void"],
+      journal_source: [
+        "manual",
+        "sale",
+        "expense",
+        "purchase",
+        "customer_payment",
+        "supplier_payment",
+        "refund",
+        "adjustment",
+      ],
       expiry_policy_type: ["block_sale", "warn_only", "manager_override"],
       import_job_status: ["pending", "completed", "failed"],
       inventory_product_type: [

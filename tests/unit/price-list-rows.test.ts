@@ -5,6 +5,7 @@ import {
   buildPriceListRowFromCost,
   computePackCost,
   reapplyMargin,
+  resolveOfferDisplayPrices,
   suggestSaleFromCost,
 } from "@/modules/price-lists/lib/build-price-list-rows";
 
@@ -95,5 +96,29 @@ describe("wholesale price list rows", () => {
 
   it("applies display discount on sale price", () => {
     expect(applyDisplayDiscount(100, 10)).toBe(90);
+  });
+
+  it("shows before/after prices for discounted offers", () => {
+    expect(
+      resolveOfferDisplayPrices({
+        salePrice: 100,
+        catalogSalePrice: 100,
+        compareAtPrice: null,
+        discountPercent: 10,
+        showBeforeAfter: true,
+      })
+    ).toEqual({ displayPrice: 90, oldPrice: 100 });
+  });
+
+  it("uses manual compare-at price as قبل when no discount", () => {
+    expect(
+      resolveOfferDisplayPrices({
+        salePrice: 80,
+        catalogSalePrice: 100,
+        compareAtPrice: 120,
+        discountPercent: 0,
+        showBeforeAfter: true,
+      })
+    ).toEqual({ displayPrice: 80, oldPrice: 120 });
   });
 });

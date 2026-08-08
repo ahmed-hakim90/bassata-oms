@@ -34,7 +34,7 @@ export function SessionDetailPage({ detail, lifecycle }: SessionDetailPageProps)
           </Link>
         }
         title={`جلسة ${detail.cashierName}`}
-        description={`${detail.storeName}${detail.deviceName ? ` · ${detail.deviceName}` : ""} · فُتحت ${formatDateTime(session.opened_at)}${
+        description={`${detail.storeName} · فُتحت ${formatDateTime(session.opened_at)}${
           session.closed_at ? ` · قُفلت ${formatDateTime(session.closed_at)}` : ""
         }`}
         meta={

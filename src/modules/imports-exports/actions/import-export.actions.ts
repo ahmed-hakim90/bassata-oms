@@ -16,7 +16,10 @@ import {
   templateFilenameForActivity,
   workbookToBase64,
 } from "../services/export.service";
-import { getBusinessActivitySettings } from "@/modules/system/services/settings.service";
+import {
+  getBusinessActivitySettings,
+  getFeatureFlags,
+} from "@/modules/system/services/settings.service";
 
 export type ImportProductsSummary = {
   imported: number;
@@ -76,8 +79,14 @@ export async function importProductsAction(
 export async function exportProductsTemplateAction() {
   await requireFeature("imports_exports");
   await requirePermissionOrRole("imports_exports", ["owner", "manager"]);
-  const activity = await getBusinessActivitySettings();
-  const buffer = buildProductsTemplateWorkbook(activity);
+  const [activity, flags] = await Promise.all([
+    getBusinessActivitySettings(),
+    getFeatureFlags(),
+  ]);
+  const buffer = buildProductsTemplateWorkbook({
+    ...activity,
+    include_recipes: flags.recipes === true,
+  });
   return {
     filename: templateFilenameForActivity(activity.activity_type),
     base64: workbookToBase64(buffer),

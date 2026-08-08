@@ -124,7 +124,6 @@ export function ClosedSessionsTable({
               <TableRow className="hover:bg-transparent">
                 {showStoreColumn ? <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الفرع</TableHead> : null}
                 <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الكاشير</TableHead>
-                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الجهاز</TableHead>
                 <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الفتح</TableHead>
                 <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الإغلاق</TableHead>
                 <TableHead className="h-10 text-xs font-semibold text-muted-foreground">بداية الدرج</TableHead>
@@ -136,7 +135,7 @@ export function ClosedSessionsTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map(({ session, storeName, cashierName, closedByName, deviceName }) => {
+              {rows.map(({ session, storeName, cashierName, closedByName }) => {
                 const href = `/sessions/${session.id}`;
                 return (
                   <TableRow
@@ -160,9 +159,6 @@ export function ClosedSessionsTable({
                     ) : null}
                     <TableCell className="font-medium text-primary">
                       {cashierName}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {deviceName ?? "—"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {formatDateTime(session.opened_at)}

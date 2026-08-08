@@ -150,7 +150,7 @@ export function PosCreditCheckoutDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl sm:max-w-md">
+      <DialogContent className="max-h-[min(92dvh,100%)] max-w-md overflow-y-auto rounded-2xl max-sm:max-w-[calc(100%-0.75rem)] sm:max-w-md">
         <DialogHeader className="space-y-3 text-start">
           <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-200">
             <UserCircle className="size-5" />
@@ -170,8 +170,17 @@ export function PosCreditCheckoutDialog({
                 مستحق حاليًا على الحساب: {formatCurrency(owed)}
               </p>
             ) : null}
+            {typeof customer.credit_limit === "number" && customer.credit_limit > 0 ? (
+              <p className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                حد الائتمان {formatCurrency(customer.credit_limit)} · المتاح تقريبًا{" "}
+                {formatCurrency(Math.max(0, customer.credit_limit - owed))}
+                {total > Math.max(0, customer.credit_limit - owed) + 0.001
+                  ? " — هذه الفاتورة قد تتجاوز الحد (السيرفر يمنع التجاوز)"
+                  : null}
+              </p>
+            ) : null}
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => {
@@ -179,7 +188,7 @@ export function PosCreditCheckoutDialog({
                   setAmountPaid("");
                 }}
                 className={cn(
-                  "rounded-xl border-2 px-3 py-3 text-start transition",
+                  "min-h-16 rounded-xl border-2 px-3 py-3 text-start transition active:scale-[0.99]",
                   !payNow
                     ? "border-amber-500 bg-amber-50 dark:bg-amber-500/15"
                     : "border-border hover:border-muted-foreground/30"
@@ -194,7 +203,7 @@ export function PosCreditCheckoutDialog({
                 type="button"
                 onClick={() => setPayNow(true)}
                 className={cn(
-                  "rounded-xl border-2 px-3 py-3 text-start transition",
+                  "min-h-16 rounded-xl border-2 px-3 py-3 text-start transition active:scale-[0.99]",
                   payNow
                     ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/15"
                     : "border-border hover:border-muted-foreground/30"
@@ -241,7 +250,7 @@ export function PosCreditCheckoutDialog({
                 {availablePayMethods.length > 0 ? (
                   <div className="space-y-2">
                     <Label>طريقة الدفع الحالية</Label>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2">
                       {availablePayMethods.map(({ id, label, icon: Icon, className }) => (
                         <button
                           key={id}
@@ -249,7 +258,7 @@ export function PosCreditCheckoutDialog({
                           data-selected={payMethod === id}
                           onClick={() => setPayMethod(id)}
                           className={cn(
-                            "flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border text-xs font-semibold",
+                            "flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border text-xs font-semibold transition active:scale-[0.98]",
                             className
                           )}
                         >
@@ -302,11 +311,21 @@ export function PosCreditCheckoutDialog({
           </div>
         )}
 
-        <DialogFooter className="gap-2 sm:justify-start">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 rounded-xl"
+            onClick={() => onOpenChange(false)}
+          >
             إلغاء
           </Button>
-          <Button type="button" disabled={!canSubmit} onClick={handleConfirm}>
+          <Button
+            type="button"
+            className="h-12 rounded-xl font-semibold"
+            disabled={!canSubmit}
+            onClick={handleConfirm}
+          >
             {loading ? "جاري الحفظ…" : "تأكيد البيع الآجل"}
           </Button>
         </DialogFooter>

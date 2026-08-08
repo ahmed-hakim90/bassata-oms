@@ -42,6 +42,8 @@ import {
   resetUserPasswordAction,
   updateUserAction,
 } from "@/modules/system/actions/system.actions";
+/** Device ACL UI retired — cashiers use store slug + PIN only. */
+const SHOW_DEVICE_ACL_UI = false;
 
 function roleLabel(role: UserRole): string {
   return ROLE_LABELS[role];
@@ -169,17 +171,65 @@ export function UsersPage({
   const saveUser = (id: string) => {
     const current = edits[id];
     if (!current) return;
+
+    const pinEntered = pinValue.length > 0;
+    const passwordEntered = passwordValue.length > 0;
+
+    if (pinEntered) {
+      if (current.role !== "cashier") {
+        toast.error("PIN متاح لدور الكاشير فقط.");
+        return;
+      }
+      if (!/^[0-9]{4,8}$/.test(pinValue)) {
+        toast.error("رقم PIN يجب أن يكون من 4 إلى 8 أرقام.");
+        return;
+      }
+    }
+    if (passwordEntered && passwordValue.length < 8) {
+      toast.error("كلمة المرور يجب أن تكون 8 أحرف أو أكثر.");
+      return;
+    }
+
     startTransition(async () => {
       const result = await updateUserAction(id, {
         ...current,
-        deviceIds: current.restrictDevices ? current.deviceIds : [],
+        deviceIds: SHOW_DEVICE_ACL_UI
+          ? current.restrictDevices
+            ? current.deviceIds
+            : []
+          : [],
       });
-      if (result.success) {
-        toast.success("تم تحديث المستخدم");
-        setEditingUserId(null);
+      if (!result.success) {
+        toast.error(result.error ?? "تعذر تحديث المستخدم");
         return;
       }
-      toast.error(result.error ?? "تعذر تحديث المستخدم");
+
+      if (pinEntered) {
+        const pinResult = await resetUserPinAction(id, pinValue);
+        if (!pinResult.success) {
+          toast.error(pinResult.error ?? "تم حفظ البيانات لكن تعذرت إعادة ضبط PIN");
+          return;
+        }
+        setPinValue("");
+      }
+
+      if (passwordEntered) {
+        const passwordResult = await resetUserPasswordAction(id, passwordValue);
+        if (!passwordResult.success) {
+          toast.error(
+            passwordResult.error ?? "تم حفظ البيانات لكن تعذرت إعادة ضبط كلمة المرور"
+          );
+          return;
+        }
+        setPasswordValue("");
+      }
+
+      toast.success(
+        pinEntered || passwordEntered
+          ? "تم تحديث المستخدم وبيانات الدخول"
+          : "تم تحديث المستخدم"
+      );
+      setEditingUserId(null);
     });
   };
 
@@ -192,7 +242,11 @@ export function UsersPage({
     startTransition(async () => {
       const result = await createUserAction({
         ...form,
-        deviceIds: form.restrictDevices ? form.deviceIds : undefined,
+        deviceIds: SHOW_DEVICE_ACL_UI
+          ? form.restrictDevices
+            ? form.deviceIds
+            : undefined
+          : undefined,
       });
       if (result.success) {
         toast.success("تم إنشاء المستخدم");
@@ -222,8 +276,8 @@ export function UsersPage({
       )}
 
       <Tabs defaultValue="team" className="min-w-0 space-y-6">
-        <div className="-mx-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex h-auto min-w-max flex-nowrap justify-start gap-1 sm:min-w-0 sm:flex-wrap">
+        <div className="min-w-0">
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
             <TabsTrigger value="team">الفريق</TabsTrigger>
             <TabsTrigger value="create">إنشاء مستخدم</TabsTrigger>
             {permissionsData ? <TabsTrigger value="permissions">الصلاحيات</TabsTrigger> : null}
@@ -362,7 +416,7 @@ export function UsersPage({
                   ))}
                 </div>
               </div>
-              {form.role === "cashier" && (
+              {SHOW_DEVICE_ACL_UI && form.role === "cashier" && (
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium">
                     <Checkbox
@@ -503,7 +557,7 @@ export function UsersPage({
                   </div>
                 </div>
 
-                {editing.role === "cashier" ? (
+                {SHOW_DEVICE_ACL_UI && editing.role === "cashier" ? (
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium">
                       <Checkbox
@@ -543,74 +597,37 @@ export function UsersPage({
 
                 {editing.role === "cashier" ? (
                   <div className="space-y-2 rounded-xl border border-border/60 p-3">
-                    <Label htmlFor="edit-pin">إعادة ضبط PIN</Label>
-                    <div className="flex flex-wrap gap-2">
-                      <Input
-                        id="edit-pin"
-                        placeholder="4-8 أرقام"
-                        maxLength={8}
-                        inputMode="numeric"
-                        autoComplete="off"
-                        className="max-w-[10rem]"
-                        value={pinValue}
-                        onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ""))}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={pending || !/^[0-9]{4,8}$/.test(pinValue)}
-                        onClick={() => {
-                          startTransition(async () => {
-                            const result = await resetUserPinAction(editingUser.id, pinValue);
-                            if (result.success) {
-                              setPinValue("");
-                              toast.success("تمت إعادة ضبط PIN");
-                              return;
-                            }
-                            toast.error(result.error ?? "تعذرت إعادة ضبط PIN");
-                          });
-                        }}
-                      >
-                        ضبط PIN
-                      </Button>
-                    </div>
+                    <Label htmlFor="edit-pin">PIN جديد (اختياري)</Label>
+                    <Input
+                      id="edit-pin"
+                      placeholder="اتركه فاضي لو مش هتغيّره — 4 إلى 8 أرقام"
+                      maxLength={8}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      className="max-w-[18rem]"
+                      value={pinValue}
+                      onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ""))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      لو كتبت PIN، هيتطبّق مع «حفظ التغييرات».
+                    </p>
                   </div>
                 ) : null}
 
                 {editingUser.auth_user_id ? (
                   <div className="space-y-2 rounded-xl border border-border/60 p-3">
-                    <Label htmlFor="edit-password">إعادة ضبط كلمة المرور</Label>
-                    <div className="flex flex-wrap gap-2">
-                      <div className="w-full max-w-[14rem]">
-                        <PasswordInput
-                          id="edit-password"
-                          placeholder="8 أحرف أو أكثر"
-                          value={passwordValue}
-                          onChange={(e) => setPasswordValue(e.target.value)}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={pending || passwordValue.length < 8}
-                        onClick={() => {
-                          startTransition(async () => {
-                            const result = await resetUserPasswordAction(
-                              editingUser.id,
-                              passwordValue
-                            );
-                            if (result.success) {
-                              setPasswordValue("");
-                              toast.success("تمت إعادة ضبط كلمة المرور");
-                              return;
-                            }
-                            toast.error(result.error ?? "تعذرت إعادة ضبط كلمة المرور");
-                          });
-                        }}
-                      >
-                        ضبط كلمة المرور
-                      </Button>
+                    <Label htmlFor="edit-password">كلمة مرور جديدة (اختياري)</Label>
+                    <div className="w-full max-w-[18rem]">
+                      <PasswordInput
+                        id="edit-password"
+                        placeholder="اتركها فاضية لو مش هتغيّرها — 8 أحرف أو أكثر"
+                        value={passwordValue}
+                        onChange={(e) => setPasswordValue(e.target.value)}
+                      />
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      لو كتبت كلمة مرور، هتتطبّق مع «حفظ التغييرات».
+                    </p>
                   </div>
                 ) : null}
               </div>

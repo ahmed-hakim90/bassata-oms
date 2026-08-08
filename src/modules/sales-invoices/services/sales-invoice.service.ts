@@ -557,6 +557,37 @@ export async function deliverSalesInvoice(input: {
     paymentMethod: input.paymentMethod,
     payments: payments && payments.length > 0 ? payments : undefined,
   });
+
+  const delivered = await orderRepo.getOrder(input.orderId);
+  if (delivered) {
+    const [orderPayments, items] = await Promise.all([
+      orderRepo.getOrderPayments(input.orderId),
+      orderRepo.getOrderItems(input.orderId),
+    ]);
+    const glPayments =
+      orderPayments.length > 0
+        ? orderPayments.map((p) => ({ method: p.method, amount: p.amount }))
+        : payments && payments.length > 0
+          ? payments
+          : input.paymentMethod
+            ? [{ method: input.paymentMethod, amount: delivered.total }]
+            : [{ method: "cash" as const, amount: delivered.total }];
+    const { safePostSaleJournal } = await import(
+      "@/modules/accounting/services/gl-posting.service"
+    );
+    await safePostSaleJournal({
+      orderId: delivered.id,
+      storeId: delivered.store_id,
+      total: delivered.total,
+      tax: delivered.tax,
+      discount: delivered.discount,
+      payments: glPayments,
+      cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
+      entryDate: documentDate,
+      createdBy: delivered.created_by,
+      memo: `تسليم فاتورة ${delivered.order_number}`,
+    });
+  }
 }
 
 export interface CorrectDeliveredCostsResult {

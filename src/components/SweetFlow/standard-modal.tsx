@@ -33,7 +33,7 @@ export function StandardModalContent({
         {description ? <DialogDescription>{description}</DialogDescription> : null}
       </DialogHeader>
       <div className="space-y-4">{children}</div>
-      {footer ? <DialogFooter className="px-0 pb-0">{footer}</DialogFooter> : null}
+      {footer ? <DialogFooter>{footer}</DialogFooter> : null}
     </DialogContent>
   );
 }

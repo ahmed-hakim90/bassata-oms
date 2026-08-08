@@ -146,7 +146,7 @@ export function RecordPaymentDialog({
                   value={selectedSupplierId || undefined}
                   onValueChange={(v) => setSelectedSupplierId(v ?? "")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-11">
                     <SelectValue placeholder="اختار المورد">
                       {(value) =>
                         value
@@ -185,6 +185,7 @@ export function RecordPaymentDialog({
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              className="min-h-11"
             />
           </div>
           <div className="space-y-2">
@@ -193,7 +194,7 @@ export function RecordPaymentDialog({
               value={paymentMethod}
               onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="min-h-11">
                 <SelectValue>{(value) => (value ? t(String(value)) : null)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -211,11 +212,16 @@ export function RecordPaymentDialog({
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               placeholder="رقم شيك، تحويل…"
+              className="min-h-11"
             />
           </div>
           <div className="space-y-2">
             <Label>ملاحظات</Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-11"
+            />
           </div>
           <div className="space-y-2">
             <Label>تاريخ الدفع</Label>
@@ -223,9 +229,10 @@ export function RecordPaymentDialog({
               type="datetime-local"
               value={paidAt}
               onChange={(e) => setPaidAt(e.target.value)}
+              className="min-h-11"
             />
           </div>
-          <Button onClick={submit} disabled={pending || loading}>
+          <Button className="min-h-11 w-full" onClick={submit} disabled={pending || loading}>
             حفظ الدفعة
           </Button>
         </div>

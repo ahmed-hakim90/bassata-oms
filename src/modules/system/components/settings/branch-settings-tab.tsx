@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,21 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
 import {
-  createDeviceAction,
   createStoreAction,
   createWarehouseAction,
-  deleteDeviceAction,
-  generateDevicePairingCodeAction,
   setDefaultWarehouseAction,
   uploadStoreLogoAction,
   updateStoreAction,
   updateWarehouseAction,
-  updateDeviceAction,
 } from "@/modules/system/actions/system.actions";
-import { registerBrowserDeviceAction } from "@/modules/auth/actions/device.actions";
 import type { Store, Warehouse } from "@/lib/types";
+import type { BusinessActivityType } from "@/lib/constants";
 import { PosSetupGuide } from "@/modules/system/components/settings/pos-setup-guide";
 import { BranchQrDownloadCard } from "@/modules/system/components/settings/branch-qr-download-card";
 import {
@@ -41,16 +36,19 @@ import {
   type OnlineFulfillmentConfig,
 } from "@/modules/online-menu/lib/online-fulfillment";
 import {
-  MENU_THEME_SLUGS,
   MENU_THEMES,
   parseOnlineMenuTheme,
   type MenuThemeSlug,
 } from "@/modules/online-menu/lib/menu-themes";
+import {
+  formatMenuThemePriceEgp,
+  type MenuThemeAccessRow,
+} from "@/modules/online-menu/lib/menu-theme-commerce";
 import { firstGrapheme } from "@/lib/first-grapheme";
 
 const ADD_STORE_TAB = "__new__";
 
-type StoreSection = "details" | "online" | "warehouses" | "devices";
+type StoreSection = "details" | "online" | "warehouses";
 
 function storeEditDefaults(store: Store) {
   const hours = parseOnlineOrderingHours(store.settings);
@@ -102,20 +100,18 @@ function buildOnlineMenuHref(slug: string, unlisted: boolean, token: string): st
 interface BranchSettingsTabProps {
   stores: Store[];
   warehouses: Warehouse[];
-  devices: {
-    id: string;
-    store_id: string;
-    name: string;
-    is_active: boolean;
-    last_seen_at: string | null;
-  }[];
+  activityType?: BusinessActivityType;
+  menuThemeRows: MenuThemeAccessRow[];
 }
 
-export function BranchSettingsTab({ stores, warehouses, devices }: BranchSettingsTabProps) {
+export function BranchSettingsTab({
+  stores,
+  warehouses,
+  activityType,
+  menuThemeRows,
+}: BranchSettingsTabProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [localDevices, setLocalDevices] = useState(devices);
-  const deviceSnapshotRef = useRef(devices);
   const [storeForm, setStoreForm] = useState({
     name: "",
     code: "",
@@ -134,25 +130,10 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
     )
   );
   const [warehouseAdds, setWarehouseAdds] = useState<Record<string, string>>({});
-  const [deviceAdds, setDeviceAdds] = useState<Record<string, string>>({});
-  const [deviceEdits, setDeviceEdits] = useState(
-    Object.fromEntries(
-      devices.map((d) => [d.id, { name: d.name, storeId: d.store_id }])
-    )
-  );
-  const [deviceToDelete, setDeviceToDelete] = useState<string | null>(null);
-  const [pairingCodes, setPairingCodes] = useState<Record<string, string>>({});
   const [selectedStoreId, setSelectedStoreId] = useState(
     () => stores[0]?.id ?? ADD_STORE_TAB
   );
   const [storeSection, setStoreSection] = useState<StoreSection>("details");
-
-  useEffect(() => {
-    setLocalDevices(devices);
-    setDeviceEdits(
-      Object.fromEntries(devices.map((d) => [d.id, { name: d.name, storeId: d.store_id }]))
-    );
-  }, [devices]);
 
   useEffect(() => {
     if (selectedStoreId === ADD_STORE_TAB) return;
@@ -161,13 +142,6 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
       setStoreSection("details");
     }
   }, [stores, selectedStoreId]);
-
-  function syncDeviceEdit(device: { id: string; name: string; store_id: string }) {
-    setDeviceEdits((current) => ({
-      ...current,
-      [device.id]: { name: device.name, storeId: device.store_id },
-    }));
-  }
 
   function refreshSettings() {
     router.refresh();
@@ -206,9 +180,9 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
 
   return (
     <div className="space-y-6">
-      <PosSetupGuide />
+      <PosSetupGuide activityType={activityType} />
 
-      <OperationalCard title="الفروع" description="اختر فرعًا ثم عدّل بياناته أو المنيو أو المخازن أو أجهزة الكاشير.">
+      <OperationalCard title="الفروع">
         <Tabs
           value={selectedStoreId}
           onValueChange={(value) => {
@@ -217,17 +191,22 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
           }}
           className="gap-4"
         >
-          <div className="overflow-x-auto">
+          <div className="min-w-0 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabsList
               variant="line"
-              className="inline-flex h-auto w-max min-w-max flex-nowrap justify-start gap-1 px-0"
+              className="flex h-auto w-max min-w-full flex-nowrap justify-start gap-1 px-0"
             >
               {stores.map((store) => (
-                <TabsTrigger key={store.id} value={store.id} className="px-3 py-2">
-                  {store.name}
+                <TabsTrigger
+                  key={store.id}
+                  value={store.id}
+                  title={store.name}
+                  className="h-9 max-w-[12rem] shrink-0 px-3"
+                >
+                  <span className="truncate">{store.name}</span>
                 </TabsTrigger>
               ))}
-              <TabsTrigger value={ADD_STORE_TAB} className="px-3 py-2">
+              <TabsTrigger value={ADD_STORE_TAB} className="h-9 shrink-0 px-3">
                 إضافة فرع
               </TabsTrigger>
             </TabsList>
@@ -235,7 +214,6 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
 
           {stores.map((store) => {
             const storeWarehouses = warehouses.filter((w) => w.store_id === store.id);
-            const storeDevices = localDevices.filter((d) => d.store_id === store.id);
             const edit = storeEdits[store.id] ?? storeEditDefaults(store);
             const onlineMenuSlug = edit.onlineMenuSlug;
             const onlineMenuToken = getOnlineMenuToken(store);
@@ -266,7 +244,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                       <div className="min-w-0">
                         <p className="truncate text-base font-semibold">{store.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {storeWarehouses.length} مخزن · {storeDevices.length} جهاز
+                          {storeWarehouses.length} مخزن
                         </p>
                       </div>
                     </div>
@@ -286,56 +264,79 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
 
                   <Tabs
                     value={storeSection}
-                    onValueChange={(value) =>
-                      setStoreSection((value as StoreSection) ?? "details")
-                    }
+                    onValueChange={(value) => {
+                      setStoreSection((value as StoreSection) ?? "details");
+                    }}
                     className="gap-4"
                   >
-                    <div className="overflow-x-auto">
-                      <TabsList className="inline-flex h-auto w-max min-w-max flex-nowrap justify-start gap-1">
-                        <TabsTrigger value="details" className="px-3 py-1.5">
-                          بيانات الفرع
-                        </TabsTrigger>
-                        <TabsTrigger value="online" className="px-3 py-1.5">
-                          منيو الأونلاين
-                        </TabsTrigger>
-                        <TabsTrigger value="warehouses" className="px-3 py-1.5">
-                          المخازن
-                        </TabsTrigger>
-                        <TabsTrigger value="devices" className="px-3 py-1.5">
-                          أجهزة الكاشير
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
+                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 group-data-horizontal/tabs:h-auto sm:grid-cols-3">
+                      <TabsTrigger value="details" className="h-9 px-2 text-xs sm:px-3 sm:text-sm">
+                        بيانات الفرع
+                      </TabsTrigger>
+                      <TabsTrigger value="online" className="h-9 px-2 text-xs sm:px-3 sm:text-sm">
+                        منيو الأونلاين
+                      </TabsTrigger>
+                      <TabsTrigger value="warehouses" className="h-9 px-2 text-xs sm:px-3 sm:text-sm">
+                        المخازن
+                      </TabsTrigger>
+                    </TabsList>
 
                     <TabsContent value="details" className="mt-0 grid gap-4">
                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="space-y-1 md:col-span-2">
-                          <Label className="text-xs text-muted-foreground">لوجو الفرع للمنيو</Label>
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            disabled={pending}
-                            onChange={(event) => {
-                              const file = event.target.files?.[0];
-                              if (!file) return;
-                              startTransition(async () => {
-                                try {
-                                  const formData = new FormData();
-                                  formData.set("logo", file);
-                                  const url = await uploadStoreLogoAction(store.id, formData);
-                                  setStoreLogoUrls((current) => ({ ...current, [store.id]: url }));
-                                  toast.success("تم رفع لوجو الفرع");
-                                } catch (error) {
-                                  toast.error(
-                                    error instanceof Error ? error.message : "فشل رفع لوجو الفرع"
-                                  );
-                                } finally {
-                                  event.target.value = "";
-                                }
-                              });
-                            }}
-                          />
+                          <Label
+                            htmlFor={`store-logo-${store.id}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            لوجو الفرع للمنيو
+                          </Label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                              id={`store-logo-${store.id}`}
+                              type="file"
+                              accept="image/*"
+                              disabled={pending}
+                              className="sr-only"
+                              onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                if (!file) return;
+                                startTransition(async () => {
+                                  try {
+                                    const formData = new FormData();
+                                    formData.set("logo", file);
+                                    const url = await uploadStoreLogoAction(store.id, formData);
+                                    setStoreLogoUrls((current) => ({
+                                      ...current,
+                                      [store.id]: url,
+                                    }));
+                                    toast.success("تم رفع لوجو الفرع");
+                                  } catch (error) {
+                                    toast.error(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "فشل رفع لوجو الفرع"
+                                    );
+                                  } finally {
+                                    event.target.value = "";
+                                  }
+                                });
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={pending}
+                              onClick={() =>
+                                document.getElementById(`store-logo-${store.id}`)?.click()
+                              }
+                            >
+                              {pending ? "جاري الرفع..." : logoUrl ? "تغيير اللوجو" : "اختر صورة"}
+                            </Button>
+                            <span className="text-xs text-muted-foreground">
+                              {logoUrl ? "لوجو مرفوع" : "لم يتم اختيار ملف"}
+                            </span>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             سيظهر هذا اللوجو في رأس منيو الأونلاين لهذا الفرع بدل لوجو المتجر العام.
                           </p>
@@ -491,7 +492,9 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                           غير مُدرج (يحتاج توكن في الرابط)
                         </label>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">رابط المنيو (slug)</Label>
+                          <Label className="text-xs text-muted-foreground">
+                            رابط الفرع (slug) — للمنيو والكاشير
+                          </Label>
                           <Input
                             value={edit.onlineMenuSlug}
                             dir="ltr"
@@ -503,6 +506,14 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               })
                             }
                           />
+                          {edit.onlineMenuSlug.trim() ? (
+                            <p className="break-words rounded-lg bg-muted/70 px-3 py-2 text-xs text-muted-foreground">
+                              رابط الكاشير:{" "}
+                              <span className="font-mono text-foreground break-all" dir="ltr">
+                                /{edit.onlineMenuSlug.trim().toLowerCase()}/pos
+                              </span>
+                            </p>
+                          ) : null}
                           <p className="text-xs text-muted-foreground">
                             يجب أن يكون فريدًا على مستوى النظام بالكامل.
                           </p>
@@ -511,36 +522,52 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                         <div className="space-y-2">
                           <div>
                             <Label className="text-xs text-muted-foreground">مظهر المنيو</Label>
-                            <p className="text-xs text-muted-foreground">
-                              اختر ثيم العرض العام للضيوف. المعاينة: أضف{" "}
-                              <span className="font-mono">?theme=slug</span> لرابط المنيو.
+                            <p className="text-[11px] text-muted-foreground">
+                              الثيمات المتاحة حسب تفعيل المنصة. غير المفعّل يظهر للمعاينة فقط.
                             </p>
                           </div>
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            {MENU_THEME_SLUGS.map((themeSlug) => {
-                              const theme = MENU_THEMES[themeSlug];
-                              const selected = edit.onlineMenuTheme === themeSlug;
+                            {(menuThemeRows.length
+                              ? menuThemeRows
+                              : Object.values(MENU_THEMES).map((theme) => ({
+                                  slug: theme.slug,
+                                  nameAr: theme.nameAr,
+                                  descriptionAr: theme.descriptionAr,
+                                  priceEgp: 0,
+                                  globallyAvailable: true,
+                                  enabledForOrg: true,
+                                  notes: "",
+                                }))
+                            ).map((row) => {
+                              const theme = MENU_THEMES[row.slug];
+                              const selected = edit.onlineMenuTheme === row.slug;
+                              const canSelect = row.enabledForOrg;
                               const previewHref = onlineMenuHref
-                                ? `${onlineMenuHref}${onlineMenuHref.includes("?") ? "&" : "?"}theme=${themeSlug}`
+                                ? `${onlineMenuHref}${onlineMenuHref.includes("?") ? "&" : "?"}theme=${row.slug}`
                                 : "";
                               return (
                                 <button
-                                  key={themeSlug}
+                                  key={row.slug}
                                   type="button"
-                                  onClick={() =>
+                                  disabled={!canSelect}
+                                  onClick={() => {
+                                    if (!canSelect) return;
                                     setStoreEdits({
                                       ...storeEdits,
                                       [store.id]: {
                                         ...edit,
-                                        onlineMenuTheme: themeSlug as MenuThemeSlug,
+                                        onlineMenuTheme: row.slug as MenuThemeSlug,
                                       },
-                                    })
-                                  }
+                                    });
+                                  }}
                                   className={[
                                     "rounded-xl border p-3 text-start transition",
                                     selected
                                       ? "border-primary bg-primary/5 ring-2 ring-primary/30"
-                                      : "border-border/60 bg-background hover:border-primary/40",
+                                      : "border-border/60 bg-background",
+                                    canSelect
+                                      ? "hover:border-primary/40"
+                                      : "cursor-not-allowed opacity-60",
                                   ].join(" ")}
                                 >
                                   <div
@@ -563,6 +590,11 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                   <p className="text-sm font-medium">{theme.nameAr}</p>
                                   <p className="mt-0.5 text-xs text-muted-foreground">
                                     {theme.descriptionAr}
+                                  </p>
+                                  <p className="mt-1 text-xs font-medium text-foreground/80">
+                                    {canSelect
+                                      ? formatMenuThemePriceEgp(row.priceEgp)
+                                      : `غير مفعّل · ${formatMenuThemePriceEgp(row.priceEgp)}`}
                                   </p>
                                   {previewHref ? (
                                     <a
@@ -665,7 +697,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                               return (
                                 <div
                                   key={dayKey}
-                                  className="grid gap-2 rounded-md border border-border/40 bg-background/80 p-2 sm:grid-cols-[110px_auto_1fr_1fr]"
+                                  className="grid gap-2 rounded-md border border-border/40 bg-background/80 p-2 md:grid-cols-[7rem_auto_minmax(0,1fr)_minmax(0,1fr)]"
                                 >
                                   <label className="flex items-center gap-2 text-sm">
                                     <Checkbox
@@ -851,7 +883,7 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                                 edit.fulfillment.zones.map((zone, index) => (
                                   <div
                                     key={zone.id}
-                                    className="grid gap-2 rounded-md border border-border/40 bg-background/80 p-2 sm:grid-cols-[1fr_120px_auto]"
+                                    className="grid gap-2 rounded-md border border-border/40 bg-background/80 p-2 md:grid-cols-[minmax(0,1fr)_minmax(5.5rem,7.5rem)_auto]"
                                   >
                                     <Input
                                       value={zone.name}
@@ -1062,219 +1094,6 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
                         </Button>
                       </div>
                     </TabsContent>
-
-                    <TabsContent value="devices" className="mt-0 grid gap-4">
-                      <div className="grid gap-3 md:grid-cols-2">
-                        {storeDevices.length === 0 ? (
-                          <p className="rounded-lg border border-dashed border-border/60 p-3 text-sm text-muted-foreground md:col-span-2">
-                            لا توجد أجهزة مسجلة لهذا الفرع بعد. أضف جهازًا بالأسفل لإنشاء كود
-                            اقتران.
-                          </p>
-                        ) : (
-                          storeDevices.map((device) => (
-                            <div
-                              key={device.id}
-                              className="grid gap-2 rounded-lg border border-border/60 p-3"
-                            >
-                              <Input
-                                placeholder="اسم الجهاز"
-                                value={deviceEdits[device.id]?.name ?? device.name}
-                                onChange={(e) =>
-                                  setDeviceEdits({
-                                    ...deviceEdits,
-                                    [device.id]: {
-                                      ...(deviceEdits[device.id] ?? {
-                                        name: device.name,
-                                        storeId: device.store_id,
-                                      }),
-                                      name: e.target.value,
-                                    },
-                                  })
-                                }
-                              />
-                              <label className="flex items-center gap-2 text-xs">
-                                <Checkbox
-                                  checked={device.is_active}
-                                  onCheckedChange={(v) => {
-                                    const isActive = v === true;
-                                    if (device.is_active === isActive) return;
-                                    deviceSnapshotRef.current = localDevices;
-                                    setLocalDevices((prev) =>
-                                      prev.map((row) =>
-                                        row.id === device.id ? { ...row, is_active: isActive } : row
-                                      )
-                                    );
-                                    void (async () => {
-                                      try {
-                                        const updated = await updateDeviceAction(device.id, {
-                                          isActive,
-                                        });
-                                        syncDeviceEdit(updated);
-                                        setLocalDevices((prev) =>
-                                          prev.map((row) =>
-                                            row.id === device.id
-                                              ? { ...row, is_active: updated.is_active }
-                                              : row
-                                          )
-                                        );
-                                      } catch (error) {
-                                        setLocalDevices(deviceSnapshotRef.current);
-                                        toast.error(
-                                          error instanceof Error
-                                            ? error.message
-                                            : "فشل تحديث الجهاز"
-                                        );
-                                      }
-                                    })();
-                                  }}
-                                />
-                                نشط
-                              </label>
-                              {device.last_seen_at ? (
-                                <p className="text-xs text-muted-foreground">
-                                  آخر ظهور: {new Date(device.last_seen_at).toLocaleString()}
-                                </p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">
-                                  لم يتم الاقتران بعد
-                                </p>
-                              )}
-                              {pairingCodes[device.id] ? (
-                                <p className="break-words rounded-md bg-muted px-2 py-1 font-mono text-sm tracking-widest">
-                                  الكود: {pairingCodes[device.id]} (15 دقيقة)
-                                </p>
-                              ) : null}
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={pending}
-                                  onClick={() => {
-                                    startTransition(async () => {
-                                      try {
-                                        const updated = await updateDeviceAction(device.id, {
-                                          name: deviceEdits[device.id]?.name,
-                                          storeId: store.id,
-                                        });
-                                        syncDeviceEdit(updated);
-                                        refreshSettings();
-                                        toast.success("تم تحديث الجهاز");
-                                      } catch (error) {
-                                        toast.error(
-                                          error instanceof Error
-                                            ? error.message
-                                            : "فشل تحديث الجهاز"
-                                        );
-                                      }
-                                    });
-                                  }}
-                                >
-                                  حفظ
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={pending}
-                                  onClick={() => {
-                                    startTransition(async () => {
-                                      try {
-                                        const { code } = await generateDevicePairingCodeAction(
-                                          device.id
-                                        );
-                                        setPairingCodes({
-                                          ...pairingCodes,
-                                          [device.id]: code,
-                                        });
-                                        await navigator.clipboard.writeText(code);
-                                        toast.success("تم نسخ كود الاقتران");
-                                      } catch {
-                                        toast.error("فشل إنشاء الكود");
-                                      }
-                                    });
-                                  }}
-                                >
-                                  كود الاقتران
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={pending}
-                                  onClick={() => {
-                                    startTransition(async () => {
-                                      const result = await registerBrowserDeviceAction(
-                                        device.id
-                                      );
-                                      if (result.success) {
-                                        refreshSettings();
-                                        toast.success("تم تسجيل هذا المتصفح");
-                                      } else {
-                                        toast.error(result.error ?? "فشل التسجيل");
-                                      }
-                                    });
-                                  }}
-                                >
-                                  تسجيل هذا المتصفح
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={pending}
-                                  onClick={() => setDeviceToDelete(device.id)}
-                                >
-                                  حذف
-                                </Button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                      <div className="flex max-w-md flex-col gap-2 sm:flex-row">
-                        <Input
-                          placeholder="اسم جهاز الكاشير"
-                          value={deviceAdds[store.id] ?? ""}
-                          onChange={(e) =>
-                            setDeviceAdds({ ...deviceAdds, [store.id]: e.target.value })
-                          }
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full sm:w-auto"
-                          disabled={pending || !deviceAdds[store.id]?.trim()}
-                          onClick={() => {
-                            const name = deviceAdds[store.id]?.trim();
-                            if (!name) return;
-                            startTransition(async () => {
-                              try {
-                                const created = await createDeviceAction({
-                                  storeId: store.id,
-                                  name,
-                                });
-                                setDeviceAdds({ ...deviceAdds, [store.id]: "" });
-                                syncDeviceEdit(created);
-                                const { code } = await generateDevicePairingCodeAction(
-                                  created.id
-                                );
-                                setPairingCodes({ ...pairingCodes, [created.id]: code });
-                                await navigator.clipboard.writeText(code);
-                                refreshSettings();
-                                toast.success("تم إنشاء الجهاز ونسخ كود الاقتران");
-                              } catch (error) {
-                                toast.error(
-                                  error instanceof Error ? error.message : "فشل إنشاء الجهاز"
-                                );
-                              }
-                            });
-                          }}
-                        >
-                          إضافة جهاز
-                        </Button>
-                      </div>
-                    </TabsContent>
                   </Tabs>
                 </div>
               </TabsContent>
@@ -1345,33 +1164,6 @@ export function BranchSettingsTab({ stores, warehouses, devices }: BranchSetting
           </TabsContent>
         </Tabs>
       </OperationalCard>
-
-      <ConfirmActionDialog
-        open={deviceToDelete !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeviceToDelete(null);
-        }}
-        title="حذف هذا الجهاز؟"
-        description="لا يمكن التراجع عن هذا الإجراء."
-        confirmLabel="حذف الجهاز"
-        destructive
-        onConfirm={async () => {
-          if (!deviceToDelete) return;
-          try {
-            await deleteDeviceAction(deviceToDelete);
-            setDeviceToDelete(null);
-            setDeviceEdits((current) => {
-              const next = { ...current };
-              delete next[deviceToDelete];
-              return next;
-            });
-            refreshSettings();
-            toast.success("تم حذف الجهاز");
-          } catch (error) {
-            toast.error(error instanceof Error ? error.message : "فشل حذف الجهاز");
-          }
-        }}
-      />
     </div>
   );
 }

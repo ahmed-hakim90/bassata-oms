@@ -39,17 +39,17 @@ export function PosReadinessBanner({ state, action }: PosReadinessBannerProps) {
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-1 items-center justify-between gap-3 rounded-2xl border px-4 py-3",
+        "flex shrink-0 flex-1 items-center justify-between gap-3 rounded-2xl border px-4 py-3 max-[390px]:gap-2 max-[390px]:rounded-xl max-[390px]:px-2.5 max-[390px]:py-2",
         isExpired
           ? "border-destructive/40 bg-destructive/10"
           : "border-amber-500/30 bg-amber-500/10"
       )}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3 max-[390px]:gap-2">
         {Icon ? (
           <Icon
             className={cn(
-              "size-5 shrink-0",
+              "size-5 shrink-0 max-[390px]:size-4",
               isExpired ? "text-destructive" : "text-amber-700 dark:text-amber-300"
             )}
           />
@@ -57,7 +57,7 @@ export function PosReadinessBanner({ state, action }: PosReadinessBannerProps) {
         <div className="min-w-0">
           <p
             className={cn(
-              "text-sm font-semibold",
+              "text-sm font-semibold max-[390px]:text-xs",
               isExpired ? "text-destructive" : "text-amber-900 dark:text-amber-200"
             )}
           >
@@ -65,7 +65,7 @@ export function PosReadinessBanner({ state, action }: PosReadinessBannerProps) {
           </p>
           <p
             className={cn(
-              "text-xs",
+              "text-xs max-[390px]:line-clamp-2 max-[390px]:text-[11px]",
               isExpired ? "text-destructive/90" : "text-amber-800/90 dark:text-amber-200/90"
             )}
           >

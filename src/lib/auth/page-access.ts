@@ -24,6 +24,7 @@ const PATH_LABELS: Record<string, string> = {
   "/reports/replenishment": "تقرير إعادة الطلب",
   "/reports/product-card": "كارت صنف",
   "/orders": "الطلبات",
+  "/kitchen": "شاشة المطبخ",
   "/sales-invoices": "فواتير المبيعات",
   "/sessions": "ورديات الكاشير",
   "/inventory": "المخزون",
@@ -35,6 +36,10 @@ const PATH_LABELS: Record<string, string> = {
 
 function isSalesInvoicesPath(pathname: string): boolean {
   return pathname === "/sales-invoices" || pathname.startsWith("/sales-invoices/");
+}
+
+function isKitchenPath(pathname: string): boolean {
+  return pathname === "/kitchen" || pathname.startsWith("/kitchen/");
 }
 
 function navAllowsPath(
@@ -76,6 +81,25 @@ export function getPageAccessDenial(
         description: "الكاشير غير مسموح له ببيع الجملة — فعّل الصلاحية من إعدادات النشاط.",
       };
     }
+  }
+
+  if (isKitchenPath(pathname) && options?.enableKitchenDisplay === false) {
+    return {
+      title: "شاشة المطبخ",
+      description:
+        "شاشة المطبخ للمطاعم والكافيهات والأنشطة اللي فيها تحضير — مش متاحة لنوع النشاط الحالي.",
+    };
+  }
+
+  if (
+    (pathname === "/reports/aging" || pathname.startsWith("/reports/aging/")) &&
+    flags?.credit_sales === false
+  ) {
+    return {
+      title: "تقرير أعمار الذمم",
+      description:
+        "تقرير أعمار الذمم للبيع الآجل — فعّل البيع الآجل من الخصائص عشان تفتح الصفحة دي.",
+    };
   }
 
   if (navAllowsPath(role, pathname, permissions, flags, options)) return null;

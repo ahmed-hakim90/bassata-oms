@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth/guards";
 import { writeAuditLog } from "@/lib/services/audit.service";
+import { sendPasswordResetEmail } from "@/lib/services/email.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 
 export interface PasswordActionResult {
@@ -29,14 +30,12 @@ export async function forgotPasswordAction(
     return { success: false, error: "Email is required." };
   }
 
-  const origin = await siteOrigin();
-  const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/reset-password`,
-  });
-
-  if (error) {
-    return { success: false, error: "Could not send reset email. Try again later." };
+  // Non-enumerating: same success whether the account exists or mail is skipped.
+  try {
+    const origin = await siteOrigin();
+    await sendPasswordResetEmail({ email, origin });
+  } catch (error) {
+    console.error("[auth] forgotPassword email failed", error);
   }
 
   return {

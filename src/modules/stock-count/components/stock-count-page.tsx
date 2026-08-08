@@ -81,9 +81,9 @@ export function StockCountPage({
         description="جرد دوري مع اعتماد قبل ترحيل الفروقات"
         action={
           !activeCount && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
               <Select value={warehouseId} onValueChange={(v) => setWarehouseId(v ?? "")}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="h-11 w-full sm:h-9 sm:w-48">
                   <SelectValue placeholder="المخزن">
                     {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                   </SelectValue>
@@ -96,7 +96,11 @@ export function StockCountPage({
                   ))}
                 </SelectContent>
               </Select>
-              <Button onClick={startCount} disabled={pending || !warehouseId}>
+              <Button
+                className="h-11 w-full sm:h-9 sm:w-auto"
+                onClick={startCount}
+                disabled={pending || !warehouseId}
+              >
                 <Play className="size-4" /> بدء الجرد
               </Button>
             </div>

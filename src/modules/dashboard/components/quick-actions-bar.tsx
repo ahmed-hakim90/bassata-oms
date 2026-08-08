@@ -46,7 +46,7 @@ const linkActions = [
 ];
 
 const chipClassName =
-  "inline-flex items-center gap-2 rounded-[var(--mds-radius-lg)] bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-[var(--mds-elevation-1)] ring-1 ring-border transition hover:bg-muted hover:shadow-[var(--mds-elevation-2)]";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--mds-radius-lg)] bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-[var(--mds-elevation-1)] ring-1 ring-border transition hover:bg-muted hover:shadow-[var(--mds-elevation-2)]";
 
 export function QuickActionsBar({
   enableWholesaleSales = false,
@@ -102,7 +102,7 @@ export function QuickActionsBar({
 
   return (
     <>
-      <div className="flex flex-wrap gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
         {linkActions.map(({ href, label, icon: Icon, className }) => (
           <Link key={href} href={href} className={chipClassName}>
             <Icon className={cn("size-4", className)} />

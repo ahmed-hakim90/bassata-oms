@@ -124,14 +124,36 @@ describe("activity-aware product import template", () => {
     expect(rows.some((r) => Number(r.units_per_purchase_unit) === 24)).toBe(true);
   });
 
-  it("keeps variants and recipes for cafe template", () => {
+  it("keeps variants but omits recipes for cafe when recipes are off", () => {
     const buffer = buildProductsTemplateWorkbook({
       activity_type: "cafe",
       enable_variants: true,
+      include_recipes: false,
+    });
+    const workbook = XLSX.read(buffer, { type: "array" });
+    expect(workbook.SheetNames).toContain("Variants");
+    expect(workbook.SheetNames).not.toContain("Recipes");
+  });
+
+  it("includes recipes for restaurant kitchen template when recipes are on", () => {
+    const buffer = buildProductsTemplateWorkbook({
+      activity_type: "restaurant",
+      enable_variants: true,
+      include_recipes: true,
     });
     const workbook = XLSX.read(buffer, { type: "array" });
     expect(workbook.SheetNames).toContain("Variants");
     expect(workbook.SheetNames).toContain("Recipes");
+  });
+
+  it("builds shelf template without recipes for pharmacy", () => {
+    const buffer = buildProductsTemplateWorkbook({
+      activity_type: "pharmacy",
+      enable_variants: false,
+      include_recipes: false,
+    });
+    const workbook = XLSX.read(buffer, { type: "array" });
+    expect(workbook.SheetNames).toEqual(["Products", "README", "Options"]);
   });
 
   it("parses Arabic weight definition and packing aliases", () => {

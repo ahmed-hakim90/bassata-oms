@@ -35,6 +35,8 @@ describe("resolvePosAccess pos_access permission", () => {
       is_active: true,
       device_key_hash: "x",
       last_seen_at: null,
+      scale_enabled: false,
+      scale_settings: {},
     });
     vi.mocked(deviceRepo.touchDeviceSeen).mockResolvedValue(undefined);
     vi.mocked(session.getActiveCashierId).mockResolvedValue("mgr-1");
@@ -63,5 +65,35 @@ describe("resolvePosAccess pos_access permission", () => {
       "manager",
       "cashier",
     ]);
+  });
+
+  it("requires PIN switch when manager has no active cashier cookie", async () => {
+    vi.mocked(guards.requireAuth).mockResolvedValue(managerUser);
+    vi.mocked(guards.requirePermissionOrRole).mockResolvedValue(managerUser);
+    vi.mocked(session.getActiveCashierId).mockResolvedValue(null);
+
+    await expect(resolvePosAccess()).rejects.toMatchObject({
+      code: "cashier_required",
+    } satisfies Partial<PosAccessError>);
+  });
+
+  it("auto-unlocks logged-in cashier without a second PIN", async () => {
+    const cashierUser = {
+      ...managerUser,
+      id: "cashier-1",
+      role: "cashier" as const,
+    };
+    vi.mocked(guards.requireAuth).mockResolvedValue(cashierUser);
+    vi.mocked(guards.requirePermissionOrRole).mockResolvedValue(cashierUser);
+    vi.mocked(session.getActiveCashierId).mockResolvedValue(null);
+    vi.mocked(deviceRepo.cashierCanUseDevice).mockResolvedValue(true);
+    vi.mocked(session.setActiveCashierId).mockResolvedValue(undefined);
+
+    const ctx = await resolvePosAccess({ persistCookies: true });
+    expect(ctx.activeCashierId).toBe("cashier-1");
+    expect(session.setActiveCashierId).toHaveBeenCalledWith("cashier-1", {
+      storeId: "store-1",
+      deviceId: "dev-1",
+    });
   });
 });

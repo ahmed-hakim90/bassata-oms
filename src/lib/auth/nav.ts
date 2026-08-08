@@ -7,6 +7,8 @@ export type NavAccessOptions = {
   enableWholesaleSales?: boolean;
   /** When false, hide /sales-invoices for cashiers. */
   allowCashierWholesale?: boolean;
+  /** When false, hide /kitchen (food-service activities only). */
+  enableKitchenDisplay?: boolean;
 };
 
 /**
@@ -23,10 +25,17 @@ const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/reports/aging": "reports",
   "/reports/tax": "reports",
   "/reports/replenishment": "reports",
+  "/reports/cashiers": "reports",
+  "/reports/branches": "reports",
+  "/reports/periods": "reports",
+  "/reports/heatmap": "reports",
   "/reports/profit": "reports",
+  "/reports/margins": "reports",
+  "/reports/pnl": "reports",
   "/reports/inventory": "reports",
   "/reports/product-card": "reports",
   "/reports/expenses": "reports",
+  "/monthly-closing": "monthly_closing",
   "/inventory/purchases": "purchases",
   "/inventory/suppliers": "purchases",
   "/inventory/transfers": "transfers",
@@ -35,6 +44,12 @@ const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/customers/loyalty": "loyalty",
   "/promotions": "promotions",
   "/expenses": "session_expenses",
+  "/accounting": "general_ledger",
+  "/accounting/journals": "general_ledger",
+  "/accounting/trial-balance": "general_ledger",
+  "/accounting/ledger": "general_ledger",
+  "/accounting/income-statement": "general_ledger",
+  "/accounting/balance-sheet": "general_ledger",
 };
 
 function pathAllowedByPermission(href: string, permissions: Set<PermissionKey>): boolean {
@@ -52,11 +67,13 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/audit",
     "/devices",
     "/inventory/warehouses",
+    "/monthly-closing",
   ]);
   const CASHIER_HIDDEN = new Set([
     "/users",
     "/settings",
     "/audit",
+    "/monthly-closing",
     "/reports",
     "/reports/sales",
     "/reports/sessions",
@@ -64,7 +81,13 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/reports/aging",
     "/reports/tax",
     "/reports/replenishment",
+    "/reports/cashiers",
+    "/reports/branches",
+    "/reports/periods",
+    "/reports/heatmap",
     "/reports/profit",
+    "/reports/margins",
+    "/reports/pnl",
     "/reports/inventory",
     "/reports/product-card",
     "/reports/expenses",
@@ -82,6 +105,12 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/customers/loyalty",
     "/promotions",
     "/expenses",
+    "/accounting",
+    "/accounting/journals",
+    "/accounting/trial-balance",
+    "/accounting/ledger",
+    "/accounting/income-statement",
+    "/accounting/balance-sheet",
   ]);
   return (href: string) => {
     if (role === "owner" || role === "manager") return true;
@@ -119,6 +148,12 @@ export function filterNavByAccess(
         if (role === "cashier" && options?.allowCashierWholesale === false) {
           return false;
         }
+      }
+      if (item.href === "/kitchen" && options?.enableKitchenDisplay === false) {
+        return false;
+      }
+      if (item.href === "/reports/aging" && flags?.credit_sales === false) {
+        return false;
       }
       if (role === "owner") return true;
       if (useLegacy && legacyAllow) return legacyAllow(item.href);

@@ -44,13 +44,13 @@ export function ExpenseFiltersBar({ costCenters, categories, values }: ExpenseFi
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
-      <div className="space-y-1">
+    <div className="grid grid-cols-1 items-end gap-[var(--mds-space-3)] rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="min-w-0 space-y-1">
         <label className="text-xs text-muted-foreground">مركز التكلفة</label>
         <select
           value={values.costCenterId}
           onChange={(e) => apply({ costCenterId: e.target.value, categoryId: "" })}
-          className="flex h-9 min-w-[140px] rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="flex h-9 w-full min-w-0 rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">الكل</option>
           {costCenters.map((c) => (
@@ -60,7 +60,7 @@ export function ExpenseFiltersBar({ costCenters, categories, values }: ExpenseFi
           ))}
         </select>
       </div>
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         <label className="text-xs text-muted-foreground">التصنيف</label>
         <select
           value={values.categoryId}
@@ -74,7 +74,7 @@ export function ExpenseFiltersBar({ costCenters, categories, values }: ExpenseFi
                 : {}),
             });
           }}
-          className="flex h-9 min-w-[140px] rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="flex h-9 w-full min-w-0 rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">الكل</option>
           {categories
@@ -89,12 +89,12 @@ export function ExpenseFiltersBar({ costCenters, categories, values }: ExpenseFi
             })}
         </select>
       </div>
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         <label className="text-xs text-muted-foreground">المصدر</label>
         <select
           value={values.source}
           onChange={(e) => apply({ source: e.target.value })}
-          className="flex h-9 rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="flex h-9 w-full min-w-0 rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">الكل</option>
           {EXPENSE_SOURCES.map((s) => (
@@ -104,12 +104,12 @@ export function ExpenseFiltersBar({ costCenters, categories, values }: ExpenseFi
           ))}
         </select>
       </div>
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         <label className="text-xs text-muted-foreground">الحالة</label>
         <select
           value={values.status}
           onChange={(e) => apply({ status: e.target.value })}
-          className="flex h-9 rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="flex h-9 w-full min-w-0 rounded-[var(--mds-radius-md)] border border-input bg-background px-[var(--mds-space-3)] text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">الكل</option>
           {EXPENSE_STATUSES.map((s) => (
@@ -119,27 +119,28 @@ export function ExpenseFiltersBar({ costCenters, categories, values }: ExpenseFi
           ))}
         </select>
       </div>
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         <label className="text-xs text-muted-foreground">من</label>
         <Input
           type="date"
           value={values.from}
           onChange={(e) => apply({ from: e.target.value })}
-          className="h-9 rounded-[var(--mds-radius-md)]"
+          className="h-9 w-full rounded-[var(--mds-radius-md)]"
         />
       </div>
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         <label className="text-xs text-muted-foreground">إلى</label>
         <Input
           type="date"
           value={values.to}
           onChange={(e) => apply({ to: e.target.value })}
-          className="h-9 rounded-[var(--mds-radius-md)]"
+          className="h-9 w-full rounded-[var(--mds-radius-md)]"
         />
       </div>
       <Button
         variant="outline"
         size="sm"
+        className="h-9 w-full sm:col-span-2 lg:col-span-1 xl:col-span-2"
         onClick={() => router.push("/expenses")}
       >
         مسح الفلاتر

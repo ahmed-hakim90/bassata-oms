@@ -107,5 +107,26 @@ export async function recordWaste(input: {
     entityId: record.id,
   });
 
+  try {
+    const { getProduct } = await import("@/lib/repositories/catalog.repository");
+    const product = await getProduct(input.productId);
+    const unitCost = Number(product?.last_unit_cost ?? 0);
+    const cost = unitCost * Number(input.quantity);
+    if (cost > 0) {
+      const { safePostWasteJournal } = await import(
+        "@/modules/accounting/services/gl-posting.service"
+      );
+      await safePostWasteJournal({
+        wasteId: record.id,
+        storeId: input.storeId,
+        cost,
+        createdBy: input.createdBy,
+        memo: `هالك ${input.reasonCode}`,
+      });
+    }
+  } catch (error) {
+    console.error("[waste] GL post failed", error);
+  }
+
   return record;
 }

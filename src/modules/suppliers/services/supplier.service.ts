@@ -253,6 +253,8 @@ export async function createSupplierPayment(input: {
   createdBy: string;
   /** When set (POS), links payment to session; cash reduces expected drawer cash. */
   sessionId?: string | null;
+  /** Skip GL when purchase receive already posts paid portion. */
+  skipGlPost?: boolean;
 }): Promise<SupplierPayment> {
   if (input.amount <= 0) throw new Error("Amount must be greater than zero");
   if (input.paymentMethod === "credit") {
@@ -264,7 +266,7 @@ export async function createSupplierPayment(input: {
 
   await assertPeriodOpen(input.storeId);
 
-  let sessionId: string | null = input.sessionId ?? null;
+  const sessionId: string | null = input.sessionId ?? null;
   if (sessionId) {
     const session = await sessionRepo.getSession(sessionId);
     if (!session) throw new Error("الجلسة غير موجودة");
@@ -304,6 +306,20 @@ export async function createSupplierPayment(input: {
     },
   });
 
+  if (!input.skipGlPost) {
+    const { safePostSupplierPaymentJournal } = await import(
+      "@/modules/accounting/services/gl-posting.service"
+    );
+    await safePostSupplierPaymentJournal({
+      paymentId: payment.id,
+      storeId: input.storeId,
+      amount: payment.amount,
+      paymentMethod: input.paymentMethod,
+      entryDate: payment.paid_at,
+      createdBy: input.createdBy,
+    });
+  }
+
   return payment;
 }
 
@@ -319,6 +335,19 @@ export async function voidSupplierPayment(
 
   const payment = await paymentRepo.voidSupplierPayment(paymentId);
   if (!payment) throw new Error("Failed to void payment");
+
+  const { safeReversePostedBySource } = await import(
+    "@/modules/accounting/services/gl-posting.service"
+  );
+  await safeReversePostedBySource({
+    originalSource: "supplier_payment",
+    originalSourceId: paymentId,
+    reverseSource: "adjustment",
+    reverseSourceId: `supplier-payment-void:${paymentId}`,
+    storeId: existing.store_id,
+    createdBy: userId,
+    memo: "عكس دفعة مورد ملغاة",
+  });
 
   const orgId = await getOrgId();
   await writeAuditLog({

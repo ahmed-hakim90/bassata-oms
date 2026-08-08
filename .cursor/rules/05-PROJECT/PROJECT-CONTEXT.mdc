@@ -6,7 +6,8 @@ alwaysApply: true
 # Project Context — SweetFlow (bassata-oms)
 
 **Product:** Velora — نظام كاشير وإدارة فروع (multi-location POS + light ERP).  
-**Repo:** `bassata-oms` · package still `cafeflow-erp-pos` · UI kit folder: `SweetFlow`.
+**Repo:** `bassata-oms` · package still `cafeflow-erp-pos` · UI kit folder: `SweetFlow`.  
+**System map:** Read and keep `SYSTEM_MAP.md` current when modules, primary path, roles, or integrations change.
 
 ## Stack
 

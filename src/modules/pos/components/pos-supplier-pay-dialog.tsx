@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/constants";
+import { roundMoney } from "@/lib/money";
 import type { PaymentMethod } from "@/lib/types";
 import { listSuppliersForPosPaymentAction } from "@/modules/suppliers/actions/supplier.actions";
 import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
@@ -101,7 +102,9 @@ export function PosSupplierPayDialog({ open, onOpenChange }: PosSupplierPayDialo
   function resetForm(supplier: PaySupplier | null = null) {
     setSelected(supplier);
     setAmount(
-      supplier && supplier.balanceDue > 0 ? String(supplier.balanceDue) : ""
+      supplier && supplier.balanceDue > 0
+        ? String(roundMoney(supplier.balanceDue))
+        : ""
     );
     setMethod("cash");
     setReference("");
@@ -162,9 +165,10 @@ export function PosSupplierPayDialog({ open, onOpenChange }: PosSupplierPayDialo
     if (!selected || !canSubmit) return;
     startTransition(async () => {
       try {
+        const paidAmount = roundMoney(value);
         const result = await postPosSupplierPayment({
           supplierId: selected.id,
-          amount: value,
+          amount: paidAmount,
           paymentMethod: method,
           reference: reference.trim() || undefined,
         });
@@ -173,7 +177,7 @@ export function PosSupplierPayDialog({ open, onOpenChange }: PosSupplierPayDialo
           toast.error(result.error);
           return;
         }
-        toast.success(`تم تسجيل دفعة ${formatCurrency(value)} لـ ${selected.name}`);
+        toast.success(`تم تسجيل دفعة ${formatCurrency(paidAmount)} لـ ${selected.name}`);
         playPosSuccessSound();
         handleOpenChange(false);
       } catch (error) {
@@ -338,11 +342,21 @@ export function PosSupplierPayDialog({ open, onOpenChange }: PosSupplierPayDialo
         </div>
 
         {selected ? (
-          <DialogFooter className="gap-2 border-t border-border/70 px-4 py-3 sm:justify-start">
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+          <DialogFooter className="mx-0 mb-0 border-t border-border/70 px-4 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 rounded-xl"
+              onClick={() => handleOpenChange(false)}
+            >
               إلغاء
             </Button>
-            <Button type="button" disabled={!canSubmit} onClick={handlePay}>
+            <Button
+              type="button"
+              className="h-12 rounded-xl font-semibold"
+              disabled={!canSubmit}
+              onClick={handlePay}
+            >
               {pending ? "جاري التسجيل…" : "تأكيد الدفعة"}
             </Button>
           </DialogFooter>

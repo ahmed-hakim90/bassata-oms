@@ -14,6 +14,7 @@ import { computeSessionLifecycle } from "@/modules/sessions/services/session-lif
 import type { CartLine, CashierSession, Customer, Order, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { SalesMode } from "@/lib/constants";
 import { after } from "next/server";
+import { safePostSaleJournal } from "@/modules/accounting/services/gl-posting.service";
 
 export interface CheckoutInput {
   storeId: string;
@@ -197,7 +198,14 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
       throw new Error("سطر آجل واحد فقط في الفاتورة");
     }
     if (message.includes("Credit limit exceeded")) {
-      throw new Error("تم تجاوز حد الائتمان للعميل");
+      throw new Error(
+        "تم إيقاف البيع الآجل: تجاوز حد الائتمان للعميل. سجّل تحصيلًا من شاشة التحصيل أو بطاقة العميل، أو ارفع الحد."
+      );
+    }
+    if (message.includes("Expired batch stock")) {
+      throw new Error(
+        "مفيش بيع: فيه تشغيلة منتهية الصلاحية لهذا المنتج. راجع الدفعات أو غيّر سياسة الصلاحية من إعدادات النشاط (الصيدلية تمنع البيع المنتهي)."
+      );
     }
     if (message.includes("Customer required for credit sale")) {
       throw new Error("اختر عميلًا للبيع الآجل");
@@ -279,6 +287,29 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
       })();
     });
   }
+
+  // Soft-fail GL posting — never break POS checkout.
+  after(() => {
+    void (async () => {
+      try {
+        const items = await orderRepo.getOrderItems(order.id);
+        const cogs = items.reduce((sum, item) => sum + Number(item.line_cost ?? 0), 0);
+        await safePostSaleJournal({
+          orderId: order.id,
+          storeId: input.storeId,
+          total: order.total,
+          tax: order.tax,
+          discount: order.discount,
+          payments,
+          cogs,
+          createdBy: input.cashierId,
+          memo: `بيع ${order.order_number}`,
+        });
+      } catch (error) {
+        console.error("[checkout] deferred GL sale post failed", error);
+      }
+    })();
+  });
 
   return { order, orderNumber: result.order_number };
 }

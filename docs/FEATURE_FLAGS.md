@@ -23,7 +23,7 @@ SweetFlow feature flags live in `app_settings.key = 'feature_flags'` (JSONB).
 - `stock_count` — `stock_counts`
 - Checkout RPC: `inventory_deduction`, `payment_*`, `customer_discounts`, `tax`, `prevent_negative_stock`, `promotions`
 
-`monthly_closing` triggers were removed with the monthly closes table (cleanup). Do not re-enable in app Settings until period lock returns (Future).
+`monthly_closing` is restored: Settings toggle + `/monthly-closing` + DB period lock via `is_period_closed`.
 
 ## App-wired flags (Settings)
 

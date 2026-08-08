@@ -603,6 +603,8 @@ export async function receivePurchase(
       notes: `دفعة مع استلام فاتورة ${invoice.invoice_number}`,
       createdBy: userId,
       paidAt: occurredAt,
+      // Paid portion is included in the purchase journal below.
+      skipGlPost: true,
     });
   }
 
@@ -618,6 +620,20 @@ export async function receivePurchase(
       lineCount: lines.length,
       amountPaid,
     },
+  });
+
+  const { safePostPurchaseJournal } = await import(
+    "@/modules/accounting/services/gl-posting.service"
+  );
+  await safePostPurchaseJournal({
+    purchaseId: invoiceId,
+    storeId: invoice.store_id,
+    total: updated.total,
+    amountPaid,
+    paymentMethod: options?.paymentMethod ?? "cash",
+    entryDate: documentDate,
+    createdBy: userId,
+    memo: `استلام شراء ${updated.invoice_number}`,
   });
 
   return enrichPurchase(updated);

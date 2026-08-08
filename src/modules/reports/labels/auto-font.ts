@@ -43,8 +43,8 @@ export function computeLabelFontMetrics(
   let nameMm = clamp(Math.min(w, h) * 0.09, 1.7, 3.4);
   let metaMm = clamp(Math.min(w, h) * 0.065, 1.3, 2.5);
   let barcodeHeightPx = clamp(h * 1.35, 18, 52);
-  let barcodeModuleWidth = w < 45 ? 1.05 : w < 55 ? 1.25 : 1.45;
-  let padMm = clamp(Math.min(w, h) * 0.04, 0.6, 1.4);
+  const barcodeModuleWidth = w < 45 ? 1.05 : w < 55 ? 1.25 : 1.45;
+  const padMm = clamp(Math.min(w, h) * 0.04, 0.6, 1.4);
 
   if (nameLen > 22) nameMm *= 0.92;
   if (nameLen > 32) nameMm *= 0.88;

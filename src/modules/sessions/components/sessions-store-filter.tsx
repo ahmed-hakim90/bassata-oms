@@ -13,13 +13,13 @@ export function SessionsStoreFilter({ stores, value }: SessionsStoreFilterProps)
   const router = useRouter();
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
       <Label htmlFor="sessions-store-filter" className="sr-only">
         الفرع
       </Label>
       <select
         id="sessions-store-filter"
-        className="flex h-9 rounded-xl border border-input bg-transparent px-3 text-sm"
+        className="flex h-11 w-full min-w-0 rounded-xl border border-input bg-transparent px-3 text-sm sm:h-9 sm:w-auto"
         value={value}
         onChange={(e) => {
           const params = new URLSearchParams(window.location.search);

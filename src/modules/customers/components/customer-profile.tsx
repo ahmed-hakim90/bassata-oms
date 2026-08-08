@@ -74,14 +74,14 @@ export function CustomerProfileView({ profile, ledger }: CustomerProfileViewProp
             {ledger.map((e) => (
               <li
                 key={e.id}
-                className="flex justify-between gap-[var(--mds-space-3)] py-[var(--mds-space-2)]"
+                className="flex flex-col gap-1 py-[var(--mds-space-2)] sm:flex-row sm:items-center sm:justify-between sm:gap-[var(--mds-space-3)]"
               >
-                <span className="text-sm">{e.reason}</span>
+                <span className="min-w-0 break-words text-sm">{e.reason}</span>
                 <span
                   className={
                     e.points_delta >= 0
-                      ? "tabular-nums text-[var(--mds-color-feedback-success)]"
-                      : "tabular-nums text-[var(--mds-color-feedback-danger)]"
+                      ? "shrink-0 tabular-nums text-[var(--mds-color-feedback-success)]"
+                      : "shrink-0 tabular-nums text-[var(--mds-color-feedback-danger)]"
                   }
                 >
                   {e.points_delta >= 0 ? "+" : ""}

@@ -9,7 +9,7 @@ import { netReservedByLine } from "@/modules/online-orders/services/online-order
 import { levelsToAlerts } from "@/modules/inventory/services/alert.service";
 import { summarizeExpiryBatches } from "@/modules/inventory/services/expiry.service";
 import { buildReorderSuggestions } from "@/modules/inventory/services/reorder.service";
-import type { InventoryBatch, Product, StockLevel } from "@/lib/types";
+import type { InventoryBatch, Product } from "@/lib/types";
 
 describe("S12 stock count approval", () => {
   it("extends stock_count_status with pending_approval and approved", () => {

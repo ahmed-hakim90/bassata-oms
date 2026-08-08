@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/constants";
+import { roundMoney } from "@/lib/money";
 import type { PaymentMethod } from "@/lib/types";
 import {
   listOutstandingCustomersAction,
@@ -119,7 +120,11 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
 
   function resetForm(customer: CollectCustomer | null = null) {
     setSelected(customer);
-    setAmount(customer && customer.account_balance > 0 ? String(customer.account_balance) : "");
+    setAmount(
+      customer && customer.account_balance > 0
+        ? String(roundMoney(customer.account_balance))
+        : ""
+    );
     setMethod("cash");
     setReference("");
   }
@@ -194,9 +199,10 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
     if (!selected || !canSubmit) return;
     startTransition(async () => {
       try {
+        const paidAmount = roundMoney(value);
         const result = await postPosCustomerPayment({
           customerId: selected.id,
-          amount: value,
+          amount: paidAmount,
           paymentMethod: method,
           reference: reference.trim() || undefined,
         });
@@ -205,8 +211,8 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
           toast.error(result.error);
           return;
         }
-        const nextBalance = Math.max(0, Math.round((owed - value) * 100) / 100);
-        toast.success(`تم تحصيل ${formatCurrency(value)} من ${selected.name}`);
+        const nextBalance = Math.max(0, roundMoney(owed - paidAmount));
+        toast.success(`تم تحصيل ${formatCurrency(paidAmount)} من ${selected.name}`);
         playPosSuccessSound();
         if (cartCustomer?.id === selected.id) {
           setCartCustomer({ ...cartCustomer, account_balance: nextBalance });
@@ -363,11 +369,21 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
         </div>
 
         {selected ? (
-          <DialogFooter className="gap-2 border-t border-border/70 px-4 py-3 sm:justify-start">
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+          <DialogFooter className="mx-0 mb-0 border-t border-border/70 px-4 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 rounded-xl"
+              onClick={() => handleOpenChange(false)}
+            >
               إلغاء
             </Button>
-            <Button type="button" disabled={!canSubmit} onClick={handleCollect}>
+            <Button
+              type="button"
+              className="h-12 rounded-xl font-semibold"
+              disabled={!canSubmit}
+              onClick={handleCollect}
+            >
               {pending ? "جاري التحصيل…" : "تأكيد التحصيل"}
             </Button>
           </DialogFooter>

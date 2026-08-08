@@ -102,7 +102,9 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        // Equal-width action row: primary + secondary fill the footer (RTL-safe).
+        // Mobile stacks primary on top via flex-col-reverse.
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-stretch sm:gap-3 [&>*]:min-w-0 [&>*]:flex-1",
         className
       )}
       {...props}

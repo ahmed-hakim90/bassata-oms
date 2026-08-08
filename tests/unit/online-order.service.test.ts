@@ -90,6 +90,14 @@ const mocks = vi.hoisted(() => {
       };
     }
 
+    if (table === "app_settings") {
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      };
+    }
+
     if (table === "online_orders") {
       return {
         insert: vi.fn((payload) => {
@@ -188,6 +196,9 @@ describe("submitPublicOnlineOrder", () => {
         quantity: 2,
         unit_price: 45,
         line_total: 90,
+        list_unit_price: 45,
+        discount_amount: 0,
+        promotion_rule_id: null,
       },
     ]);
   });

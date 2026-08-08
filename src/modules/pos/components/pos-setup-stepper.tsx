@@ -4,22 +4,23 @@ import { cn } from "@/lib/utils";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness-copy";
 
 const SETUP_STEPS = [
-  { id: "device", label: "الجهاز" },
   { id: "store", label: "الفرع" },
   { id: "session", label: "الجلسة" },
 ] as const;
 
 function activeStepIndex(state: PosReadinessState): number {
-  if (state === "no_device" || state === "device_inactive") return 0;
   if (
     state === "store_required" ||
     state === "store_mismatch" ||
     state === "access_denied" ||
-    state === "role_denied"
+    state === "role_denied" ||
+    state === "no_device" ||
+    state === "device_inactive" ||
+    state === "login_required"
   ) {
-    return 1;
+    return 0;
   }
-  return 2;
+  return 1;
 }
 
 interface PosSetupStepperProps {

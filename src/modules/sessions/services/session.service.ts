@@ -1,6 +1,13 @@
+import { after } from "next/server";
 import * as sessionRepo from "@/lib/repositories/session.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
-import { getOrgId } from "@/lib/repositories/organization.repository";
+import { notifyOwnersSessionClosed } from "@/lib/services/email.service";
+import {
+  getOrgId,
+  getOrganization,
+} from "@/lib/repositories/organization.repository";
+import { getStore } from "@/lib/repositories/store.repository";
+import { getUser } from "@/lib/repositories/user.repository";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import * as vaultRepo from "@/lib/repositories/cashier-vault.repository";
 import { takeOpeningFloatFromVault } from "@/modules/sessions/services/cashier-vault.service";
@@ -136,6 +143,30 @@ export async function closeSession(input: {
         vault_deposit: input.actualCash,
       },
     });
+
+    try {
+      const [store, cashier, org] = await Promise.all([
+        getStore(session.store_id),
+        getUser(session.cashier_id),
+        getOrganization(),
+      ]);
+      const payload = {
+        orgId,
+        session,
+        storeName: store?.name ?? session.store_id,
+        cashierName: cashier?.name ?? session.cashier_id,
+        currency: org.currency,
+      };
+      try {
+        after(() => {
+          void notifyOwnersSessionClosed(payload);
+        });
+      } catch {
+        void notifyOwnersSessionClosed(payload);
+      }
+    } catch (emailError) {
+      console.error("[sessions] close email prepare failed", emailError);
+    }
   }
   return session;
 }

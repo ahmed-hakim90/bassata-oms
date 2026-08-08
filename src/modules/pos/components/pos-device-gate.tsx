@@ -1,85 +1,65 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Smartphone } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { registerBrowserDeviceAction } from "@/modules/auth/actions/device.actions";
-import { DevicePairForm } from "@/modules/auth/components/device-pair-form";
+import { preparePosPinLoginAction } from "@/modules/auth/actions/pos-pin-login.actions";
 import { Button } from "@/components/ui/button";
-import { PosPinSwitch } from "@/modules/pos/components/pos-pin-switch";
-import { PosSetupStepper } from "@/modules/pos/components/pos-setup-stepper";
-import type { Device } from "@/lib/repositories/device.repository";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-interface PosDeviceGateProps {
-  devices?: Device[];
-}
-
-export function PosDeviceGate({ devices = [] }: PosDeviceGateProps) {
-  const [showPairingCode, setShowPairingCode] = useState(false);
+/**
+ * Fallback when register cookie is missing.
+ * No device admin UI — bind silently or send operator to the slug POS hub.
+ */
+export function PosDeviceGate() {
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const started = useRef(false);
 
-  function handleUseDevice(deviceId: string) {
+  function bind() {
     startTransition(async () => {
-      const result = await registerBrowserDeviceAction(deviceId);
-      if (result.success) {
-        toast.success("تم ربط هذا المتصفح بالكاشير");
-        // Full navigation so new device/store cookies are applied before /pos renders.
-        window.location.assign("/pos");
+      const result = await preparePosPinLoginAction();
+      if (result.ok) {
+        window.location.assign(result.posPath);
         return;
       }
-      toast.error(result.error ?? "تعذر ربط الجهاز");
+      const message = result.message;
+      setError(message);
+      toast.error(message);
     });
   }
 
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    bind();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      <header className="flex shrink-0 items-center justify-end gap-3 border-b px-4 py-3">
-        <PosPinSwitch />
-      </header>
-
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-8">
-        <PosSetupStepper state="no_device" className="mb-2" />
-        <div className="w-full max-w-md space-y-6 rounded-2xl border bg-card p-6 shadow-lg">
-          <div className="space-y-2 text-center">
-            <Smartphone className="mx-auto size-10 text-primary" />
-            <h1 className="text-xl font-semibold">ربط نقطة البيع</h1>
-            <p className="text-sm text-muted-foreground">
-              اضغط زر واحد لاستخدام كاشير هذا الفرع من هذا المتصفح.
-            </p>
-          </div>
-
-          {devices.length > 0 ? (
-            <div className="space-y-2">
-              {devices.map((device) => (
-                <Button
-                  key={device.id}
-                  type="button"
-                  className="h-12 w-full rounded-xl text-base"
-                  disabled={pending}
-                  onClick={() => handleUseDevice(device.id)}
-                >
-                  استخدم {device.name}
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl bg-muted/60 px-4 py-3 text-center text-sm text-muted-foreground">
-              لا يوجد جهاز كاشير على هذا الفرع. اطلب من المدير إضافة جهاز من الإعدادات.
-            </p>
-          )}
-
-          <div className="space-y-3 border-t pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => setShowPairingCode((value) => !value)}
-            >
-              {showPairingCode ? "إخفاء كود الاقتران" : "عندي كود اقتران"}
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background px-4">
+      <div className="w-full max-w-sm space-y-4 text-center">
+        {pending || !error ? (
+          <>
+            <Loader2 className="mx-auto size-8 animate-spin text-primary" aria-hidden />
+            <p className="text-sm font-medium text-foreground">جاري تجهيز نقطة البيع…</p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium text-destructive">{error}</p>
+            <Button type="button" className="h-11 w-full rounded-xl" onClick={bind} disabled={pending}>
+              إعادة المحاولة
             </Button>
-            {showPairingCode ? <DevicePairForm returnTo="/pos" /> : null}
-          </div>
-        </div>
+            <Link
+              href="/pos"
+              className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full rounded-xl")}
+            >
+              اختيار رابط الفرع
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );

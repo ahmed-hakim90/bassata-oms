@@ -50,6 +50,7 @@ type Props = {
   currency: string;
   activityType: BusinessActivityType;
   enablePriceByAmount?: boolean;
+  enableWeightSales?: boolean;
   enableWholesaleSales?: boolean;
   onSubmit: (values: ProductFormValues) => void | Promise<void>;
   onCancel: () => void;
@@ -133,6 +134,7 @@ export function GuidedProductDetailsForm({
   currency,
   activityType,
   enablePriceByAmount = false,
+  enableWeightSales = false,
   enableWholesaleSales = false,
   onSubmit,
   onCancel,
@@ -161,7 +163,16 @@ export function GuidedProductDetailsForm({
   const showPriceByAmount = enablePriceByAmount;
   const isSupermarket = activityType === "supermarket";
   const stepTitles = isSupermarket ? SUPERMARKET_STEP_TITLES : STEP_TITLES;
-  const productTypeChoices = isSupermarket ? SUPERMARKET_PRODUCT_TYPE_CHOICES : PRODUCT_TYPE_CHOICES;
+  const productTypeChoices = isSupermarket
+    ? SUPERMARKET_PRODUCT_TYPE_CHOICES.filter(
+        (choice) => enableWeightSales || choice.salesUnitType !== "weight"
+      )
+    : PRODUCT_TYPE_CHOICES.filter((choice) => {
+        if (enableWeightSales) return true;
+        if (choice.salesUnitType === "weight") return false;
+        // Non-supermarket "منتج وزني" uses product_type finished without salesUnitType.
+        return !(choice.id === "finished" && choice.label === "منتج وزني");
+      });
   const showWholesale = enableWholesaleSales;
   const showSerialNumber = false;
   const baseUnit = values.base_unit ?? values.unit;
@@ -181,7 +192,9 @@ export function GuidedProductDetailsForm({
     : SUPERMARKET_PIECE_PURCHASE_UNITS;
   const salesUnitChoices = [
     { id: "piece" as const, label: "منتج بيع مباشر" },
-    { id: "weight" as const, label: "منتج وزني" },
+    ...(enableWeightSales
+      ? [{ id: "weight" as const, label: "منتج وزني" }]
+      : []),
     { id: "volume" as const, label: "مكوّن" },
     { id: "pack" as const, label: "مواد تعبئة" },
   ];

@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import {
   Banknote,
-  Clock3,
   CreditCard,
   Minus,
   Pause,
@@ -12,7 +11,6 @@ import {
   Star,
   Trash2,
   UserCircle,
-  UserRound,
   Wallet,
   X,
 } from "lucide-react";
@@ -29,11 +27,7 @@ import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { playPosErrorSound } from "@/modules/pos/lib/pos-sounds";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
-import {
-  discardHeldCartAction,
-  holdCartAction,
-  resumeHeldCartAction,
-} from "@/modules/pos/actions/held-cart.actions";
+import { holdCartAction } from "@/modules/pos/actions/held-cart.actions";
 
 const METHOD_META: Record<
   PaymentMethod,
@@ -116,7 +110,6 @@ export function CartPanel({
 }: CartPanelProps) {
   const { t } = useTranslation();
   const cart = usePosStore((s) => s.cart);
-  const heldCarts = usePosStore((s) => s.heldCarts);
   const customer = usePosStore((s) => s.customer);
   const loyaltyBalance = usePosStore((s) => s.customerLoyaltyBalance);
   const loyaltyRedemption = usePosStore((s) => s.loyaltyRedemption);
@@ -128,14 +121,9 @@ export function CartPanel({
   const setLoyaltyRedemption = usePosStore((s) => s.setLoyaltyRedemption);
   const holdCartLocal = usePosStore((s) => s.holdCart);
   const reconcileHeldCartId = usePosStore((s) => s.reconcileHeldCartId);
-  const resumeHeldCart = usePosStore((s) => s.resumeHeldCart);
-  const removeHeldCart = usePosStore((s) => s.removeHeldCart);
-  const salesMode = usePosStore((s) => s.salesMode);
   const [attachExpandedInternal, setAttachExpandedInternal] = useState(false);
   const [discountOpenInternal, setDiscountOpenInternal] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
-  const [heldDeleteId, setHeldDeleteId] = useState<string | null>(null);
-  const [discardPending, startDiscardTransition] = useTransition();
 
   const attachControlled = attachExpandedProp !== undefined;
   const discountControlled = discountOpenProp !== undefined;
@@ -268,95 +256,6 @@ export function CartPanel({
     });
   }
 
-  function handleResumeHeldCart(id: string) {
-    const state = usePosStore.getState();
-    const target = state.heldCarts.find((held) => held.id === id);
-    if (!target) return;
-    if (target.id.startsWith("temp-hold-")) {
-      toast.error("لسه بنحفظ الفاتورة المعلّقة… حاول تاني لحظات");
-      return;
-    }
-
-    const snapshot = {
-      cart: [...state.cart],
-      customer: state.customer,
-      customerLoyaltyBalance: state.customerLoyaltyBalance,
-      loyaltyRedemption: state.loyaltyRedemption,
-      discountAmount: state.discountAmount,
-      couponCode: state.couponCode,
-      salesMode: state.salesMode,
-      paymentMethod: state.paymentMethod,
-      paymentSplits: [...state.paymentSplits],
-      heldCarts: [...state.heldCarts],
-    };
-
-    const parkCurrent =
-      state.cart.length > 0
-        ? {
-            name: state.customer?.name,
-            cart: [...state.cart],
-            customer: state.customer,
-            discountAmount: state.discountAmount,
-            couponCode: state.couponCode,
-            salesMode: state.salesMode,
-          }
-        : null;
-
-    const parkedLocal =
-      parkCurrent && parkCurrent.cart.length > 0
-        ? {
-            id: `temp-hold-${crypto.randomUUID()}`,
-            name:
-              parkCurrent.name?.trim() ||
-              parkCurrent.customer?.name ||
-              `معلّقة ${state.heldCarts.length + 1}`,
-            cart: parkCurrent.cart,
-            customer: parkCurrent.customer,
-            discountAmount: parkCurrent.discountAmount,
-            couponCode: parkCurrent.couponCode,
-            salesMode: parkCurrent.salesMode,
-            createdAt: new Date().toISOString(),
-          }
-        : null;
-
-    const ok = resumeHeldCart(id, parkedLocal);
-    if (!ok) {
-      toast.error("الفاتورة المعلّقة غير موجودة");
-      return;
-    }
-
-    void resumeHeldCartAction({
-      resumeId: id,
-      parkCurrent,
-    }).then((result) => {
-      if (!result.success) {
-        usePosStore.setState(snapshot);
-        playPosErrorSound();
-        toast.error(result.error);
-        return;
-      }
-      if (parkedLocal && result.parked) {
-        reconcileHeldCartId(parkedLocal.id, result.parked);
-      }
-    });
-  }
-
-  function handleDiscardHeldCart(id: string) {
-    if (id.startsWith("temp-hold-")) {
-      removeHeldCart(id);
-      return;
-    }
-    startDiscardTransition(async () => {
-      const result = await discardHeldCartAction(id);
-      if (!result.success) {
-        playPosErrorSound();
-        toast.error(result.error);
-        return;
-      }
-      removeHeldCart(id);
-    });
-  }
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none bg-card text-card-foreground shadow-none ring-0 sm:rounded-2xl sm:shadow-sm sm:ring-1 sm:ring-border">
       <CustomerAttach
@@ -365,62 +264,26 @@ export function CartPanel({
         onExpandedChange={setAttachExpanded}
       />
 
-      {heldCarts.length > 0 ? (
-        <div className="border-b px-3 py-2">
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            <Clock3 className="size-3.5" />
-            فواتير معلّقة
-          </p>
-          <div className="flex gap-2 overflow-x-auto pb-0.5">
-            {heldCarts.map((held) => (
-              <div
-                key={held.id}
-                className="flex shrink-0 items-center gap-1 rounded-xl border bg-muted/30 p-1"
-              >
-                <button
-                  type="button"
-                  className="max-w-28 truncate px-2 text-sm font-medium"
-                  onClick={() => handleResumeHeldCart(held.id)}
-                  disabled={held.id.startsWith("temp-hold-") || discardPending}
-                >
-                  {held.name}
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="size-7 rounded-lg"
-                  aria-label="حذف الفاتورة المعلقة"
-                  disabled={discardPending}
-                  onClick={() => setHeldDeleteId(held.id)}
-                >
-                  <Trash2 className="size-3.5 text-muted-foreground" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 [-webkit-overflow-scrolling:touch]">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 max-[390px]:px-1.5 [-webkit-overflow-scrolling:touch]">
         {!hasCart ? (
           <EmptyStateBlock
             title="السلة فاضية"
             description="اضغط على المنتجات لإضافة أصناف"
-            className="mx-2 my-6 border-border/60 bg-transparent p-4 py-8"
+            className="mx-2 my-6 border-border/60 bg-transparent p-4 py-8 max-[390px]:my-3 max-[390px]:py-6"
           />
         ) : (
-          <ul className="space-y-1.5 py-2">
+          <ul className="space-y-1.5 py-2 max-[390px]:space-y-1 max-[390px]:py-1.5">
             {cart.map((line) => (
               <li
                 key={line.id}
-                className="rounded-xl bg-muted/40 px-3 py-2.5 ring-1 ring-border/40 xl:flex xl:items-start xl:gap-3"
+                className="rounded-xl bg-muted/40 px-3 py-2.5 ring-1 ring-border/40 max-[390px]:rounded-lg max-[390px]:px-2.5 max-[390px]:py-2 lg:flex lg:items-start lg:gap-3"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2 xl:block">
-                    <p className="text-sm font-medium leading-snug xl:truncate xl:text-base">
+                  <div className="flex items-start justify-between gap-2 lg:block">
+                    <p className="text-sm font-medium leading-snug lg:truncate lg:text-base">
                       {line.name}
                     </p>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums xl:hidden">
+                    <p className="shrink-0 text-sm font-semibold tabular-nums lg:hidden">
                       {formatCurrency(line.lineTotal)}
                     </p>
                   </div>
@@ -431,8 +294,8 @@ export function CartPanel({
                       : null}
                   </p>
                 </div>
-                <div className="mt-2.5 flex items-center justify-between gap-2 xl:mt-0 xl:flex-col xl:items-end xl:gap-1">
-                  <div className="flex items-center gap-1 xl:gap-1.5">
+                <div className="mt-2.5 flex items-center justify-between gap-2 lg:mt-0 lg:flex-col lg:items-end lg:gap-1">
+                  <div className="flex items-center gap-1 lg:gap-1.5">
                     {line.saleInputMode ? (
                       <span className="px-2 text-sm font-medium tabular-nums">
                         {line.saleUnit === "kg"
@@ -444,37 +307,37 @@ export function CartPanel({
                     <Button
                       variant="outline"
                       size="icon-xs"
-                      className="size-9 rounded-xl xl:size-11"
+                      className="size-11 rounded-xl lg:size-11"
                       aria-label="تقليل الكمية"
                       onClick={() => updateQuantity(line.id, line.quantity - 1)}
                     >
-                      <Minus className="size-3.5 xl:size-4" />
+                      <Minus className="size-4" />
                     </Button>
-                    <span className="w-7 text-center text-sm font-medium tabular-nums xl:w-8 xl:text-base">
+                    <span className="w-8 text-center text-base font-semibold tabular-nums">
                       {line.quantity}
                     </span>
                     <Button
                       variant="outline"
                       size="icon-xs"
-                      className="size-9 rounded-xl xl:size-11"
+                      className="size-11 rounded-xl lg:size-11"
                       aria-label="زيادة الكمية"
                       onClick={() => updateQuantity(line.id, line.quantity + 1)}
                     >
-                      <Plus className="size-3.5 xl:size-4" />
+                      <Plus className="size-4" />
                     </Button>
                       </>
                     )}
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-9 rounded-xl xl:size-11"
+                      className="size-11 rounded-xl lg:size-11"
                       aria-label="حذف الصنف"
                       onClick={() => removeItem(line.id)}
                     >
-                      <Trash2 className="size-3.5 text-muted-foreground xl:size-4" />
+                      <Trash2 className="size-4 text-muted-foreground" />
                     </Button>
                   </div>
-                  <p className="hidden text-base font-semibold tabular-nums xl:block">
+                  <p className="hidden text-base font-semibold tabular-nums lg:block">
                     {formatCurrency(line.lineTotal)}
                   </p>
                 </div>
@@ -484,10 +347,10 @@ export function CartPanel({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-border/60 bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-border/60 bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] max-[390px]:p-2 max-[390px]:pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         <div
           className={cn(
-            "mb-2 overflow-hidden rounded-2xl border px-3.5 py-3",
+            "mb-2 overflow-hidden rounded-2xl border px-3.5 py-2.5 max-[390px]:mb-1.5 max-[390px]:rounded-xl max-[390px]:px-3 max-[390px]:py-2",
             hasPriceReduction
               ? "border-emerald-200/80 bg-gradient-to-b from-emerald-50/90 to-card dark:border-emerald-400/25 dark:from-emerald-500/10"
               : "border-border/50 bg-muted/30"
@@ -522,7 +385,7 @@ export function CartPanel({
             </div>
             <p
               className={cn(
-                "shrink-0 text-2xl font-bold tabular-nums tracking-tight",
+                "shrink-0 text-2xl font-bold tabular-nums tracking-tight max-[390px]:text-[1.65rem]",
                 hasPriceReduction
                   ? "text-emerald-700 dark:text-emerald-300"
                   : "text-foreground"
@@ -574,123 +437,122 @@ export function CartPanel({
           ) : null}
         </div>
 
-        {loyaltyEnabled && customer && loyaltyBalance === null && hasCart ? (
-          <p className="mb-2 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
-            جاري جلب نقاط الولاء…
-          </p>
-        ) : null}
-
-        {loyaltyAvailable ? (
-          <div className="mb-2 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-400/30 dark:bg-amber-400/10">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-200">
-              <Star className="size-3.5" />
-              رصيد النقاط: {loyaltyBalance}
-              {canRedeemLoyalty
-                ? ` · توفّر خصم حتى ${formatCurrency(maxRedeemableAmount)}`
-                : ` · الحد الأدنى ${minimumLoyaltyRedeemPoints} نقطة`}
-            </p>
-            {canRedeemLoyalty ? (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-11 rounded-xl"
-                    variant={loyaltyRedemption ? "default" : "outline"}
-                    onClick={() => applyRedemption(maxRedeemablePoints)}
-                  >
-                    استخدم النقاط
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={!loyaltyRedemption ? "default" : "outline"}
-                    className="h-11 rounded-xl"
-                    onClick={() => setLoyaltyRedemption(null)}
-                  >
-                    بدون نقاط
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={minimumLoyaltyRedeemPoints}
-                    max={maxRedeemablePoints}
-                    value={loyaltyRedemption?.points ?? ""}
-                    placeholder="أو اكتب عدد النقاط"
-                    aria-label="نقاط للاستبدال"
-                    onChange={(e) => applyRedemption(Number(e.target.value))}
-                    className="h-10 rounded-xl bg-background"
-                    inputMode="numeric"
-                  />
-                  {loyaltyRedemption ? (
-                    <span className="shrink-0 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                      -{formatCurrency(loyaltyRedemption.amount)}
-                    </span>
-                  ) : null}
-                </div>
-              </>
-            ) : (
-              <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80">
-                العميل محتاج على الأقل {minimumLoyaltyRedeemPoints} نقطة للاستبدال.
+        {(loyaltyEnabled && customer && loyaltyBalance === null && hasCart) ||
+        loyaltyAvailable ||
+        (loyaltyEnabled && customer && (loyaltyBalance ?? 0) > 0 && !loyaltyRedemptionRate && hasCart) ||
+        (discountsEnabled && discountOpen) ? (
+          <div className="mb-2 max-h-[min(28dvh,12rem)] space-y-2 overflow-y-auto overscroll-y-contain">
+            {loyaltyEnabled && customer && loyaltyBalance === null && hasCart ? (
+              <p className="rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
+                جاري جلب نقاط الولاء…
               </p>
-            )}
+            ) : null}
+
+            {loyaltyAvailable ? (
+              <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-400/30 dark:bg-amber-400/10">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-200">
+                  <Star className="size-3.5" />
+                  رصيد النقاط: {loyaltyBalance}
+                  {canRedeemLoyalty
+                    ? ` · توفّر خصم حتى ${formatCurrency(maxRedeemableAmount)}`
+                    : ` · الحد الأدنى ${minimumLoyaltyRedeemPoints} نقطة`}
+                </p>
+                {canRedeemLoyalty ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-10 rounded-xl"
+                        variant={loyaltyRedemption ? "default" : "outline"}
+                        onClick={() => applyRedemption(maxRedeemablePoints)}
+                      >
+                        استخدم النقاط
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={!loyaltyRedemption ? "default" : "outline"}
+                        className="h-10 rounded-xl"
+                        onClick={() => setLoyaltyRedemption(null)}
+                      >
+                        بدون نقاط
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={minimumLoyaltyRedeemPoints}
+                        max={maxRedeemablePoints}
+                        value={loyaltyRedemption?.points ?? ""}
+                        placeholder="أو اكتب عدد النقاط"
+                        aria-label="نقاط للاستبدال"
+                        onChange={(e) => applyRedemption(Number(e.target.value))}
+                        className="h-10 rounded-xl bg-background"
+                        inputMode="numeric"
+                      />
+                      {loyaltyRedemption ? (
+                        <span className="shrink-0 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                          -{formatCurrency(loyaltyRedemption.amount)}
+                        </span>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80">
+                    العميل محتاج على الأقل {minimumLoyaltyRedeemPoints} نقطة للاستبدال.
+                  </p>
+                )}
+              </div>
+            ) : loyaltyEnabled &&
+              customer &&
+              (loyaltyBalance ?? 0) > 0 &&
+              !loyaltyRedemptionRate &&
+              hasCart ? (
+              <p className="rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
+                النقاط موجودة لكن إعداد الاستبدال غير مفعّل. راجع الولاء من الإعدادات.
+              </p>
+            ) : null}
+
+            {discountsEnabled && discountOpen ? (
+              <div className="space-y-2 rounded-xl border border-border bg-muted/40 p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-sm font-medium" htmlFor="cart-discount">
+                    مبلغ الخصم
+                  </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    className="size-8 rounded-lg"
+                    aria-label="إلغاء الخصم"
+                    onClick={() => {
+                      setDiscountAmount(0);
+                      setDiscountOpen(false);
+                    }}
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+                <Input
+                  id="cart-discount"
+                  type="number"
+                  min="0"
+                  max={subtotal}
+                  step="0.01"
+                  value={discountAmount || ""}
+                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                  className="h-11 rounded-xl bg-background"
+                  autoFocus
+                  placeholder="0.00"
+                  inputMode="decimal"
+                />
+              </div>
+            ) : null}
           </div>
-        ) : loyaltyEnabled && customer && (loyaltyBalance ?? 0) > 0 && !loyaltyRedemptionRate && hasCart ? (
-          <p className="mb-2 rounded-xl border border-dashed border-amber-200/80 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
-            النقاط موجودة لكن إعداد الاستبدال غير مفعّل. راجع الولاء من الإعدادات.
-          </p>
         ) : null}
 
-        {discountsEnabled && discountOpen ? (
-          <div className="mb-2 space-y-2 rounded-xl border border-border bg-muted/40 p-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-sm font-medium" htmlFor="cart-discount">
-                مبلغ الخصم
-              </label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                className="size-8 rounded-lg"
-                aria-label="إلغاء الخصم"
-                onClick={() => {
-                  setDiscountAmount(0);
-                  setDiscountOpen(false);
-                }}
-              >
-                <X className="size-3.5" />
-              </Button>
-            </div>
-            <Input
-              id="cart-discount"
-              type="number"
-              min="0"
-              max={subtotal}
-              step="0.01"
-              value={discountAmount || ""}
-              onChange={(e) => setDiscountAmount(Number(e.target.value))}
-              className="h-11 rounded-xl bg-background"
-              autoFocus
-              placeholder="0.00"
-              inputMode="decimal"
-            />
-          </div>
-        ) : null}
-
-        <div className="mb-2 flex gap-1.5">
-          {!customer ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-11 min-w-0 flex-1 rounded-xl border-border/80 bg-background px-2 text-xs font-medium shadow-none"
-              onClick={() => setAttachExpanded(true)}
-            >
-              <UserRound className="size-3.5 shrink-0" />
-              عميل
-            </Button>
-          ) : null}
+        <div className="mb-2 flex gap-1.5 max-[390px]:mb-1.5">
           {discountsEnabled && !discountOpen ? (
             <Button
               type="button"
@@ -730,7 +592,7 @@ export function CartPanel({
         {/* Primary — payment methods */}
         <div
           className={cn(
-            "grid gap-2",
+            "grid gap-1.5",
             methods.length <= 2
               ? "grid-cols-2"
               : methods.length === 3
@@ -749,7 +611,7 @@ export function CartPanel({
                 type="button"
                 disabled={payDisabled}
                 className={cn(
-                  "h-16 min-h-16 flex-col gap-1 rounded-2xl border font-bold shadow-none",
+                  "h-16 min-h-16 flex-col gap-0.5 rounded-2xl border font-bold shadow-none transition active:scale-[0.98] max-[390px]:rounded-xl sm:gap-1",
                   meta.className
                 )}
                 onClick={() => handlePay(method)}
@@ -778,20 +640,6 @@ export function CartPanel({
           clearCart();
           setDiscountOpen(false);
           setLoyaltyRedemption(null);
-        }}
-      />
-      <ConfirmActionDialog
-        open={Boolean(heldDeleteId)}
-        onOpenChange={(open) => {
-          if (!open) setHeldDeleteId(null);
-        }}
-        title="حذف الفاتورة المعلّقة؟"
-        description="هتتمسح الفاتورة المعلّقة ومش هتقدر ترجعها."
-        confirmLabel="حذف"
-        destructive
-        onConfirm={() => {
-          if (heldDeleteId) handleDiscardHeldCart(heldDeleteId);
-          setHeldDeleteId(null);
         }}
       />
     </div>

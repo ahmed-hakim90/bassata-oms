@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,14 +17,20 @@ import { PageHeader } from "@/components/SweetFlow/page-header";
 import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
 import { formatCurrency } from "@/lib/format";
+import { firstGrapheme } from "@/lib/first-grapheme";
 import type { Customer } from "@/lib/types";
 import { createCustomerAction } from "@/modules/customers/actions/customer.actions";
 
 interface CustomersPageProps {
   customers: Customer[];
+  /** Soft-hide AR credit KPI when org credit_sales is off. */
+  creditSalesEnabled?: boolean;
 }
 
-export function CustomersPage({ customers: initial }: CustomersPageProps) {
+export function CustomersPage({
+  customers: initial,
+  creditSalesEnabled = false,
+}: CustomersPageProps) {
   const [customers, setCustomers] = useState(initial);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -67,7 +73,13 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
         }
       />
 
-      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">
+      <div
+        className={
+          creditSalesEnabled
+            ? "grid gap-[var(--mds-space-4)] sm:grid-cols-3"
+            : "grid gap-[var(--mds-space-4)] sm:grid-cols-2"
+        }
+      >
         <OperationalCard title="إجمالي العملاء" value={String(customers.length)} />
         <OperationalCard
           title="نتائج البحث"
@@ -75,14 +87,16 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
           subtitle={search.trim() ? "مطابقة للفلتر الحالي" : "كل العملاء"}
           accent="var(--mds-color-feedback-info)"
         />
-        <OperationalCard
-          title="رصيد آجل"
-          value={formatCurrency(
-            customers.reduce((sum, c) => sum + (c.account_balance ?? 0), 0)
-          )}
-          subtitle="مجموع أرصدة العملاء"
-          accent="var(--mds-color-feedback-warning)"
-        />
+        {creditSalesEnabled ? (
+          <OperationalCard
+            title="رصيد آجل"
+            value={formatCurrency(
+              customers.reduce((sum, c) => sum + (c.account_balance ?? 0), 0)
+            )}
+            subtitle="مجموع أرصدة العملاء"
+            accent="var(--mds-color-feedback-warning)"
+          />
+        ) : null}
       </div>
 
       <div className="relative w-full max-w-md">
@@ -103,7 +117,9 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
             description={
               search.trim()
                 ? "جرّب اسمًا أو رقم هاتف مختلف."
-                : "أضف عميلًا للبدء في الولاء والبيع الآجل."
+                : creditSalesEnabled
+                  ? "أضف عميلًا للبدء في الولاء والبيع الآجل."
+                  : "أضف عميلًا للبدء في الولاء وسجل المبيعات."
             }
           />
           {!search.trim() ? (
@@ -120,25 +136,32 @@ export function CustomersPage({ customers: initial }: CustomersPageProps) {
       ) : (
         <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c) => (
-            <Link key={c.id} href={`/customers/${c.id}`}>
-              <OperationalCard className="transition-shadow hover:shadow-[var(--mds-elevation-2)]">
-                <div className="flex items-start justify-between gap-[var(--mds-space-3)]">
-                  <div className="min-w-0">
-                    <h3 className="truncate font-semibold">{c.name}</h3>
-                    <p className="text-sm text-muted-foreground" dir="ltr">
+            <Link key={c.id} href={`/customers/${c.id}`} className="min-w-0">
+              <OperationalCard className="h-full transition-shadow hover:shadow-[var(--mds-elevation-2)]">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {c.name.trim() ? firstGrapheme(c.name) : <UserRound className="size-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="truncate font-semibold">{c.name}</h3>
+                      <p className="shrink-0 text-sm font-semibold tabular-nums">
+                        {formatCurrency(c.total_spent)}
+                      </p>
+                    </div>
+                    <p className="truncate text-sm text-muted-foreground" dir="ltr">
                       {c.phone}
                     </p>
-                  </div>
-                  <div className="shrink-0 text-end">
-                    <p className="font-semibold tabular-nums">
-                      {formatCurrency(c.total_spent)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {c.visit_count} زيارة
-                      {c.account_balance > 0
-                        ? ` · ${formatCurrency(c.account_balance)} مستحق`
-                        : ""}
-                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {c.visit_count} زيارة
+                      </span>
+                      {c.account_balance > 0 ? (
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-200">
+                          مستحق {formatCurrency(c.account_balance)}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </OperationalCard>

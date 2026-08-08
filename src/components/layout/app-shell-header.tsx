@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useTransition } from "react";
-import { LogOut, Menu, Search, ShoppingCart, Store } from "lucide-react";
-import { logoutAction } from "@/modules/auth/actions/logout.action";
+import { Menu, Search, ShoppingCart, Store } from "lucide-react";
 import { setActiveStoreAction } from "@/modules/auth/actions/set-store.action";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -42,6 +41,7 @@ interface AppShellHeaderProps {
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   enableWholesaleSales?: boolean;
   allowCashierWholesale?: boolean;
+  enableKitchenDisplay?: boolean;
   permissions?: PermissionKey[];
   posReadinessState?: PosReadinessState;
 }
@@ -87,6 +87,7 @@ export function AppShellHeader({
   featureFlags,
   enableWholesaleSales,
   allowCashierWholesale,
+  enableKitchenDisplay,
   permissions = [],
   posReadinessState,
 }: AppShellHeaderProps) {
@@ -155,6 +156,7 @@ export function AppShellHeader({
                   featureFlags={featureFlags}
                   enableWholesaleSales={enableWholesaleSales}
                   allowCashierWholesale={allowCashierWholesale}
+                  enableKitchenDisplay={enableKitchenDisplay}
                   permissions={permissions}
                   forceExpanded
                   className="h-full w-full border-e-0 shadow-none"
@@ -289,25 +291,6 @@ export function AppShellHeader({
               <span className="hidden sm:inline">{cta.label}</span>
               <span className="sm:hidden">{cta.short}</span>
             </Link>
-
-            <Tooltip>
-              <form action={logoutAction}>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="hidden rounded-[var(--mds-radius-md)] text-muted-foreground hover:text-destructive sm:inline-flex"
-                      aria-label={t("Sign out")}
-                    />
-                  }
-                >
-                  <LogOut className="size-4" />
-                </TooltipTrigger>
-              </form>
-              <TooltipContent side="bottom">{t("Sign out")}</TooltipContent>
-            </Tooltip>
           </div>
         </div>
       </header>

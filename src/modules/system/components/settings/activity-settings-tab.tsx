@@ -31,6 +31,9 @@ import {
   INVENTORY_ROTATION_METHOD_LABELS,
   INVENTORY_TRACKING_MODE_LABELS,
 } from "@/lib/labels/inventory";
+import { describeActivityPresetChanges } from "@/lib/business-activity-settings-summary";
+import { variantsLockedByActivity } from "@/lib/business-activity-flags";
+import { PosSetupGuide } from "@/modules/system/components/settings/pos-setup-guide";
 
 const SALES_MODE_LABELS: Record<SalesMode, string> = {
   retail: "تجزئة",
@@ -111,11 +114,8 @@ export function ActivitySettingsTab({ businessActivity }: ActivitySettingsTabPro
 
   return (
     <div className="space-y-6">
+      <PosSetupGuide activityType={form.activity_type} />
       <OperationalCard title="نوع النشاط">
-        <p className="mb-4 text-sm text-muted-foreground">
-          نوع النشاط يحدد سلوك الكاشير والمنتجات والمخزون. تغيير النوع أو تطبيق الإعدادات
-          الافتراضية يؤثر على سياسات البيع والمخزون — راجع قبل التأكيد.
-        </p>
         <div className="grid max-w-lg gap-4">
           <div className="space-y-2">
             <Label htmlFor="activity-type">نوع النشاط</Label>
@@ -127,6 +127,9 @@ export function ActivitySettingsTab({ businessActivity }: ActivitySettingsTabPro
                 setForm({
                   ...form,
                   activity_type: e.target.value as BusinessActivityType,
+                  ...(variantsLockedByActivity(e.target.value as BusinessActivityType)
+                    ? { enable_variants: false }
+                    : {}),
                 })
               }
             >
@@ -147,10 +150,14 @@ export function ActivitySettingsTab({ businessActivity }: ActivitySettingsTabPro
               تطبيق الإعدادات الافتراضية
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            تطبيق الإعدادات الافتراضية يعيد أوضاع البيع والوزن والجملة وقوالب المنتجات حسب نوع
-            النشاط المختار.
-          </p>
+          <div className="rounded-[var(--mds-radius-md)] border border-border bg-muted/30 p-3 text-sm">
+            <p className="mb-2 font-medium">ما الذي يتغيّر مع هذا النشاط؟</p>
+            <ul className="list-disc space-y-1 ps-5 text-muted-foreground">
+              {describeActivityPresetChanges(form.activity_type).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       </OperationalCard>
 
@@ -214,14 +221,16 @@ export function ActivitySettingsTab({ businessActivity }: ActivitySettingsTabPro
           <label className="flex items-center gap-2">
             <Checkbox
               checked={form.enable_variants}
-              disabled={form.activity_type === "supermarket"}
+              disabled={variantsLockedByActivity(form.activity_type)}
               onCheckedChange={(v) => setForm({ ...form, enable_variants: v === true })}
             />
             <span className="text-sm">
               خيارات المنتج (Variants)
-              {form.activity_type === "supermarket" ? (
+              {variantsLockedByActivity(form.activity_type) ? (
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  مقفول لسوبر ماركت
+                  {form.activity_type === "pharmacy"
+                    ? "مقفول للصيدلية"
+                    : "مقفول لسوبر ماركت"}
                 </span>
               ) : null}
             </span>

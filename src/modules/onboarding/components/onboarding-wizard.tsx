@@ -168,9 +168,6 @@ export function OnboardingWizard({
         }
         return null;
       case 6:
-        if (initialSetup.createFirstPosDevice && !initialSetup.firstPosDeviceName.trim()) {
-          return "اسم جهاز الكاشير مطلوب عند تفعيل إنشاء الجهاز.";
-        }
         return null;
       default:
         return null;
@@ -670,26 +667,6 @@ export function OnboardingWizard({
               />
               Create default inventory units
             </label>
-            <label className="flex cursor-pointer items-center gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-transparent px-[var(--mds-space-2)] py-[var(--mds-space-2)] text-sm select-none hover:bg-muted/50 transition-colors">
-              <Checkbox
-                checked={initialSetup.createFirstPosDevice}
-                onCheckedChange={(checked) =>
-                  setInitialSetup({ ...initialSetup, createFirstPosDevice: checked === true })
-                }
-              />
-              Create first POS device placeholder
-            </label>
-            {initialSetup.createFirstPosDevice && (
-              <div className="space-y-[var(--mds-space-2)] ps-[var(--mds-space-6)]">
-                <Label>اسم جهاز الكاشير</Label>
-                <Input
-                  value={initialSetup.firstPosDeviceName}
-                  onChange={(e) =>
-                    setInitialSetup({ ...initialSetup, firstPosDeviceName: e.target.value })
-                  }
-                />
-              </div>
-            )}
           </div>
         </OperationalCard>
       )}

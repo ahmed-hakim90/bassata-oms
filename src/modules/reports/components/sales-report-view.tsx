@@ -53,7 +53,7 @@ export function SalesReportView({
   filters,
   stores,
   currency,
-  context,
+  context: _context,
   summary,
   revenueByDay,
   orders,

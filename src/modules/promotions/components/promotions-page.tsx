@@ -338,7 +338,7 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
             </>
           }
         >
-        <div className="grid max-h-[70vh] gap-4 overflow-y-auto pe-1">
+        <div className="grid max-h-[min(70vh,calc(100dvh-12rem))] gap-4 overflow-y-auto pe-1">
           <div className="grid gap-2">
             <Label htmlFor="promo-name">الاسم</Label>
             <Input
@@ -412,7 +412,7 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
           )}
 
           {form.ruleType === "bogo" && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="grid gap-2">
                 <Label>اشتري</Label>
                 <Input
@@ -506,7 +506,7 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
             </>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>من</Label>
               <Input
@@ -535,7 +535,7 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>أولوية</Label>
               <Input

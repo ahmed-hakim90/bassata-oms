@@ -30,9 +30,9 @@ import { cn } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 import type { PriceListStudioData } from "@/modules/price-lists/actions/price-list.actions";
 import {
-  applyDisplayDiscount,
   buildRowsFromProducts,
   reapplyMargin,
+  resolveOfferDisplayPrices,
   suggestSaleFromCost,
   type PriceListRow,
 } from "@/modules/price-lists/lib/build-price-list-rows";
@@ -66,16 +66,16 @@ type PriceListStudioProps = {
 function buildPosterRows(
   rows: PriceListRow[],
   discountPercent: number,
-  showOldPrice: boolean
+  showBeforeAfter: boolean
 ): PriceListPrintPayload["rows"] {
   return rows.map((row) => {
-    const displayPrice = applyDisplayDiscount(row.salePrice, discountPercent);
-    const oldPrice =
-      showOldPrice && discountPercent > 0
-        ? row.salePrice
-        : showOldPrice && row.catalogSalePrice > displayPrice
-          ? row.catalogSalePrice
-          : null;
+    const { displayPrice, oldPrice } = resolveOfferDisplayPrices({
+      salePrice: row.salePrice,
+      catalogSalePrice: row.catalogSalePrice,
+      compareAtPrice: row.compareAtPrice,
+      discountPercent,
+      showBeforeAfter,
+    });
     return {
       id: row.id,
       name: row.name,
@@ -100,7 +100,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
   const [sectionTitle, setSectionTitle] = useState("أسعار البيع");
   const [footerText, setFooterText] = useState("الأسعار سارية حتى نفاد الكمية");
   const [showLogo, setShowLogo] = useState(true);
-  const [showOldPrice, setShowOldPrice] = useState(false);
+  const [showBeforeAfter, setShowBeforeAfter] = useState(false);
   const [showUnitLine, setShowUnitLine] = useState(true);
   const [background, setBackground] = useState<string>(DEFAULT_PRICE_LIST_THEME.background);
   const [accent, setAccent] = useState<string>(DEFAULT_PRICE_LIST_THEME.accent);
@@ -113,8 +113,8 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
   const format = getPriceListFormat(formatId);
   const discount = parseFloat(discountPercent) || 0;
   const posterRows = useMemo(
-    () => buildPosterRows(rows, discount, showOldPrice),
-    [rows, discount, showOldPrice]
+    () => buildPosterRows(rows, discount, showBeforeAfter),
+    [rows, discount, showBeforeAfter]
   );
 
   const applyMargin = useCallback(
@@ -190,12 +190,30 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
     );
   };
 
+  const updateCompareAtPrice = (rowId: string, raw: string) => {
+    const cleaned = sanitizeDecimalInput(raw);
+    if (!cleaned) {
+      setRows((prev) =>
+        prev.map((row) => (row.id === rowId ? { ...row, compareAtPrice: null } : row))
+      );
+      return;
+    }
+    const value = parseFloat(cleaned);
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === rowId
+          ? { ...row, compareAtPrice: Number.isFinite(value) ? value : row.compareAtPrice }
+          : row
+      )
+    );
+  };
+
   const buildPrintPayload = (): PriceListPrintPayload => ({
     listTitle,
     sectionTitle,
     footerText,
     showLogo,
-    showOldPrice,
+    showOldPrice: showBeforeAfter,
     showUnitLine,
     discountPercent: discount,
     background,
@@ -272,7 +290,20 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
 
   const shareLinks = shareTextUrls(
     `${listTitle} — ${sectionTitle}\n${rows
-      .map((r) => `${r.name}: ${applyDisplayDiscount(r.salePrice, discount)} ج / ${r.packUnitLabel}`)
+      .map((r) => {
+        const offer = resolveOfferDisplayPrices({
+          salePrice: r.salePrice,
+          catalogSalePrice: r.catalogSalePrice,
+          compareAtPrice: r.compareAtPrice,
+          discountPercent: discount,
+          showBeforeAfter,
+        });
+        const priceText =
+          showBeforeAfter && offer.oldPrice != null
+            ? `كان ${offer.oldPrice} ج ← بقى ${offer.displayPrice} ج`
+            : `${offer.displayPrice} ج`;
+        return `${r.name}: ${priceText}${r.packUnitLabel ? ` / ${r.packUnitLabel}` : ""}`;
+      })
       .join("\n")}\n${footerText}`
   );
 
@@ -342,7 +373,11 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
                   id="discount"
                   inputMode="decimal"
                   value={discountPercent}
-                  onChange={(e) => setDiscountPercent(sanitizeDecimalInput(e.target.value))}
+                  onChange={(e) => {
+                    const next = sanitizeDecimalInput(e.target.value);
+                    setDiscountPercent(next);
+                    if ((parseFloat(next) || 0) > 0) setShowBeforeAfter(true);
+                  }}
                 />
               </div>
               <div className="space-y-1.5">
@@ -377,12 +412,29 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
                 <Checkbox checked={showLogo} onCheckedChange={(v) => setShowLogo(v === true)} />
                 إظهار الشعار
               </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={showOldPrice}
-                  onCheckedChange={(v) => setShowOldPrice(v === true)}
-                />
-                إظهار السعر القديم
+              <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                <span className="flex items-center gap-2">
+                  <Checkbox
+                    checked={showBeforeAfter}
+                    onCheckedChange={(v) => {
+                      const on = v === true;
+                      setShowBeforeAfter(on);
+                      if (on) {
+                        setRows((prev) =>
+                          prev.map((row) =>
+                            row.compareAtPrice == null && row.salePrice > 0
+                              ? { ...row, compareAtPrice: row.salePrice }
+                              : row
+                          )
+                        );
+                      }
+                    }}
+                  />
+                  عرض سعر قبل وبعد (عروض)
+                </span>
+                <span className="ps-7 text-xs text-muted-foreground">
+                  السعر المشطوب = قبل · السعر الواضح = بعد. تقدّر تستخدم خصم % أو تعدّل السعر يدوي.
+                </span>
               </label>
               <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <Checkbox
@@ -449,49 +501,98 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
               <p className="text-sm text-muted-foreground">اختَر أصناف من الكتالوج أعلاه.</p>
             ) : (
               <div className="grid gap-2">
-                {rows.map((row) => (
-                  <div
-                    key={row.id}
-                    className="grid gap-2 rounded-2xl border border-border/60 p-3 sm:grid-cols-[1fr_auto_auto] sm:items-center"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{row.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        تكلفة {row.packUnitLabel}:{" "}
-                        {formatCurrency(row.packCost, initial.branding.currency)}
-                        {row.weightLine ? ` · ${row.weightLine}` : ""}
-                        {!row.hasPacking ? " · بدون تعبئة شراء" : ""}
+                {rows.map((row) => {
+                  const offer = resolveOfferDisplayPrices({
+                    salePrice: row.salePrice,
+                    catalogSalePrice: row.catalogSalePrice,
+                    compareAtPrice: row.compareAtPrice,
+                    discountPercent: discount,
+                    showBeforeAfter,
+                  });
+                  return (
+                    <div
+                      key={row.id}
+                      className="grid grid-cols-1 gap-2 rounded-2xl border border-border/60 p-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{row.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          تكلفة {row.packUnitLabel}:{" "}
+                          {formatCurrency(row.packCost, initial.branding.currency)}
+                          {row.weightLine ? ` · ${row.weightLine}` : ""}
+                          {!row.hasPacking ? " · بدون تعبئة شراء" : ""}
+                        </p>
+                      </div>
+                      {showBeforeAfter ? (
+                        <div className="min-w-0 space-y-1">
+                          <Label className="text-xs text-muted-foreground">سعر قبل</Label>
+                          <Input
+                            className="min-h-11 w-full tabular-nums sm:min-h-10 sm:w-28"
+                            inputMode="decimal"
+                            placeholder={
+                              discount > 0
+                                ? String(row.salePrice)
+                                : row.catalogSalePrice > 0
+                                  ? String(row.catalogSalePrice)
+                                  : ""
+                            }
+                            value={
+                              row.compareAtPrice != null ? String(row.compareAtPrice) : ""
+                            }
+                            onChange={(e) =>
+                              updateCompareAtPrice(
+                                row.id,
+                                sanitizeDecimalInput(e.target.value)
+                              )
+                            }
+                          />
+                        </div>
+                      ) : null}
+                      <div className="min-w-0 space-y-1">
+                        <Label className="text-xs text-muted-foreground">
+                          {showBeforeAfter
+                            ? discount > 0
+                              ? "السعر قبل الخصم"
+                              : "سعر بعد"
+                            : "سعر البيع"}
+                        </Label>
+                        <Input
+                          className="min-h-11 w-full tabular-nums sm:min-h-10 sm:w-28"
+                          inputMode="decimal"
+                          value={String(row.salePrice)}
+                          onChange={(e) =>
+                            updateSalePrice(row.id, sanitizeDecimalInput(e.target.value))
+                          }
+                        />
+                      </div>
+                      <p className="text-sm font-semibold tabular-nums text-muted-foreground sm:pb-2 sm:text-end">
+                        {showBeforeAfter && offer.oldPrice != null ? (
+                          <>
+                            <span className="line-through opacity-70">
+                              {formatCurrency(offer.oldPrice, initial.branding.currency)}
+                            </span>
+                            {" → "}
+                            {formatCurrency(offer.displayPrice, initial.branding.currency)}
+                          </>
+                        ) : (
+                          <>
+                            في القائمة:{" "}
+                            {formatCurrency(offer.displayPrice, initial.branding.currency)}
+                          </>
+                        )}
                       </p>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">سعر البيع</Label>
-                      <Input
-                        className="min-h-10 w-28 tabular-nums"
-                        inputMode="decimal"
-                        value={String(row.salePrice)}
-                        onChange={(e) =>
-                          updateSalePrice(row.id, sanitizeDecimalInput(e.target.value))
-                        }
-                      />
-                    </div>
-                    <p className="text-sm font-semibold tabular-nums text-muted-foreground sm:text-end">
-                      في القائمة:{" "}
-                      {formatCurrency(
-                        applyDisplayDiscount(row.salePrice, discount),
-                        initial.branding.currency
-                      )}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </OperationalCard>
 
           <OperationalCard>
             <h3 className="mb-3 font-semibold">تصدير ومشاركة</h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               <Button
-                className="min-h-11"
+                className="min-h-11 w-full sm:w-auto"
                 onClick={() => runExport("png")}
                 disabled={exporting || rows.length === 0}
               >
@@ -500,7 +601,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
               </Button>
               <Button
                 variant="outline"
-                className="min-h-11"
+                className="min-h-11 w-full sm:w-auto"
                 onClick={() => runExport("jpg")}
                 disabled={exporting || rows.length === 0}
               >
@@ -508,7 +609,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
               </Button>
               <Button
                 variant="outline"
-                className="min-h-11"
+                className="min-h-11 w-full sm:w-auto"
                 onClick={openPrintPdf}
                 disabled={rows.length === 0}
               >
@@ -517,7 +618,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
               </Button>
               <Button
                 variant="outline"
-                className="min-h-11"
+                className="min-h-11 w-full sm:w-auto"
                 onClick={shareNative}
                 disabled={exporting || rows.length === 0}
               >
@@ -528,7 +629,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
                 href={shareLinks.whatsapp}
                 target="_blank"
                 rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}
+                className={cn(buttonVariants({ variant: "outline" }), "min-h-11 w-full sm:w-auto")}
               >
                 <MessageCircle className="size-4" />
                 واتساب
@@ -537,7 +638,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
                 href={shareLinks.telegram}
                 target="_blank"
                 rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}
+                className={cn(buttonVariants({ variant: "outline" }), "min-h-11 w-full sm:w-auto")}
               >
                 <Send className="size-4" />
                 تيليجرام
@@ -546,7 +647,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
                 href={shareLinks.facebook}
                 target="_blank"
                 rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline" }), "min-h-11")}
+                className={cn(buttonVariants({ variant: "outline" }), "min-h-11 w-full sm:w-auto")}
               >
                 <Share2 className="size-4" />
                 فيسبوك
@@ -596,7 +697,7 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
                       background={background}
                       accent={accent}
                       rows={posterRows}
-                      showOldPrice={showOldPrice}
+                      showOldPrice={showBeforeAfter}
                       showUnitLine={showUnitLine}
                     />
                   </div>

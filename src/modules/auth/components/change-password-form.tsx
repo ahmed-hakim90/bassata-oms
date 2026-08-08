@@ -21,7 +21,7 @@ export function ChangePasswordForm() {
             required
             minLength={8}
             autoComplete="new-password"
-            className="h-10 rounded-[var(--mds-radius-md)]"
+            className="min-h-11 rounded-[var(--mds-radius-md)]"
           />
         </div>
         <div className="space-y-2">
@@ -32,7 +32,7 @@ export function ChangePasswordForm() {
             required
             minLength={8}
             autoComplete="new-password"
-            className="h-10 rounded-[var(--mds-radius-md)]"
+            className="min-h-11 rounded-[var(--mds-radius-md)]"
           />
         </div>
         {state?.error ? (
@@ -43,7 +43,7 @@ export function ChangePasswordForm() {
         {state?.success && state.message ? (
           <p className="text-sm text-[var(--mds-color-feedback-success)]">{state.message}</p>
         ) : null}
-        <Button type="submit" className="h-10" disabled={pending}>
+        <Button type="submit" className="min-h-11 w-full sm:w-auto" disabled={pending}>
           {pending ? "جاري الحفظ…" : "تحديث كلمة المرور"}
         </Button>
       </form>

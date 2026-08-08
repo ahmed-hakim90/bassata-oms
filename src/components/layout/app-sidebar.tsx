@@ -7,6 +7,7 @@ import {
   BarChart3,
   Barcode,
   BookOpen,
+  Calculator,
   Calendar,
   CircleDollarSign,
   Building2,
@@ -19,6 +20,7 @@ import {
   LayoutDashboard,
   Landmark,
   Package,
+  PieChart,
   Receipt,
   ScrollText,
   Settings,
@@ -31,11 +33,12 @@ import {
   Users,
   Wallet,
   Warehouse,
+  ChevronDown,
   ChevronLeft,
-  IceCream,
+  LogOut,
   Menu,
 } from "lucide-react";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, APP_TAGLINE_AR } from "@/lib/constants";
 import type { UserRole, PermissionKey } from "@/lib/constants";
 import type { FeatureFlag } from "@/lib/constants";
 import { filterNavByAccess, isNavHrefActive, ROLE_LABELS_AR } from "@/lib/auth/nav";
@@ -50,16 +53,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { AppBrandMark } from "@/components/layout/app-brand-mark";
 import { PoweredByHakimo } from "@/components/layout/powered-by-hakimo";
+import { logoutAction } from "@/modules/auth/actions/logout.action";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
   BookOpen,
   Building2,
+  Calculator,
   MonitorSmartphone,
   ShoppingCart,
   Receipt,
   Package,
+  PieChart,
   Warehouse,
   Truck,
   ArrowLeftRight,
@@ -95,6 +102,7 @@ export function AppSidebar({
   featureFlags,
   enableWholesaleSales,
   allowCashierWholesale,
+  enableKitchenDisplay,
   permissions = [],
   className,
   forceExpanded = false,
@@ -103,6 +111,7 @@ export function AppSidebar({
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   enableWholesaleSales?: boolean;
   allowCashierWholesale?: boolean;
+  enableKitchenDisplay?: boolean;
   permissions?: PermissionKey[];
   className?: string;
   forceExpanded?: boolean;
@@ -116,7 +125,7 @@ export function AppSidebar({
     userRole,
     new Set(permissions),
     featureFlags,
-    { enableWholesaleSales, allowCashierWholesale }
+    { enableWholesaleSales, allowCashierWholesale, enableKitchenDisplay }
   );
   const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
 
@@ -145,7 +154,7 @@ export function AppSidebar({
         ) : (
           <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border bg-[linear-gradient(135deg,rgb(103_232_249/0.16),transparent_55%)] px-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--mds-radius-md)] bg-sidebar-primary text-sidebar-primary-foreground shadow-[var(--mds-elevation-1)]">
-              <IceCream className="size-5" />
+              <AppBrandMark />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
@@ -173,7 +182,15 @@ export function AppSidebar({
         <ScrollArea className="min-h-0 flex-1 overflow-hidden px-2.5 py-4">
           <nav className="space-y-5">
             {navGroups.map((group) => {
-              const groupCollapsed = collapsedGroups[group.label];
+              const groupHrefs = group.items.map((i) => i.href);
+              const hasActiveItem = group.items.some((item) =>
+                isNavHrefActive(pathname, item.href, allHrefs)
+              );
+              // Keep the section open when it contains the current page.
+              const groupCollapsed = hasActiveItem
+                ? false
+                : Boolean(collapsedGroups[group.label]);
+              const GroupIcon = iconMap[group.icon] ?? LayoutDashboard;
               return (
                 <div key={group.label}>
                   {!collapsed && (
@@ -181,17 +198,43 @@ export function AppSidebar({
                       type="button"
                       onClick={() => toggleGroup(group.label)}
                       aria-expanded={!groupCollapsed}
-                      className="mb-1.5 flex w-full items-center px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors"
-                      style={{ color: "var(--mds-sidebar-muted)" }}
+                      className={cn(
+                        "mb-1.5 flex w-full items-center justify-between gap-2 rounded-[var(--mds-radius-sm)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors hover:bg-[var(--mds-sidebar-hover)]",
+                        hasActiveItem && "text-sidebar-primary"
+                      )}
+                      style={
+                        hasActiveItem
+                          ? undefined
+                          : { color: "var(--mds-sidebar-muted)" }
+                      }
                     >
-                      {t(group.label)}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <GroupIcon className="size-3.5 shrink-0 opacity-85" aria-hidden />
+                        <span className="truncate">{t(group.label)}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="tabular-nums opacity-70">
+                          {group.items.length}
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            "size-3.5 shrink-0 transition-transform duration-200",
+                            groupCollapsed && "-rotate-90"
+                          )}
+                          aria-hidden
+                        />
+                      </span>
                     </button>
                   )}
                   {(!groupCollapsed || collapsed) && (
                     <ul className="space-y-1">
                       {group.items.map((item, index) => {
                         const Icon = iconMap[item.icon] ?? LayoutDashboard;
-                        const active = isNavHrefActive(pathname, item.href, allHrefs);
+                        const active = isNavHrefActive(
+                          pathname,
+                          item.href,
+                          groupHrefs.length > 1 ? allHrefs : groupHrefs
+                        );
                         return (
                           <li key={`${group.label}-${item.href}-${index}`}>
                             {collapsed ? (
@@ -254,13 +297,15 @@ export function AppSidebar({
                   {ROLE_LABELS_AR[userRole]}
                 </p>
                 <p className="mt-0.5 text-[11px]" style={{ color: "var(--mds-sidebar-muted)" }}>
-                  SweetFlow · Meridian
+                  {APP_TAGLINE_AR}
                 </p>
               </div>
+              <SidebarSignOut collapsed={false} label={t("Sign out")} />
               <PoweredByHakimo tone="sidebar" className="justify-start px-0.5 py-0.5" />
             </div>
           ) : (
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <SidebarSignOut collapsed label={t("Sign out")} />
               <PoweredByHakimo
                 compact
                 tone="sidebar"
@@ -271,5 +316,43 @@ export function AppSidebar({
         </div>
       </aside>
     </TooltipProvider>
+  );
+}
+
+function SidebarSignOut({ collapsed, label }: { collapsed: boolean; label: string }) {
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <form action={logoutAction}>
+          <TooltipTrigger
+            render={
+              <Button
+                type="submit"
+                variant="ghost"
+                size="icon-sm"
+                className="text-sidebar-foreground/80 hover:bg-[var(--mds-sidebar-hover)] hover:text-destructive"
+                aria-label={label}
+              />
+            }
+          >
+            <LogOut className="size-4" />
+          </TooltipTrigger>
+        </form>
+        <TooltipContent side="left">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <form action={logoutAction}>
+      <Button
+        type="submit"
+        variant="ghost"
+        className="h-9 w-full justify-start gap-2 rounded-[var(--mds-radius-md)] px-3 text-sm font-medium text-sidebar-foreground/80 hover:bg-[var(--mds-sidebar-hover)] hover:text-destructive"
+      >
+        <LogOut className="size-4 shrink-0" />
+        {label}
+      </Button>
+    </form>
   );
 }

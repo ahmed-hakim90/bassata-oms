@@ -5,12 +5,14 @@ import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import { getExpenseSettings } from "@/modules/system/services/settings.service";
+import { safePostExpenseJournal } from "@/modules/accounting/services/gl-posting.service";
 import type {
   Expense,
   ExpenseSource,
   ExpensePaymentMethod,
   AppUser,
   ExpenseCategory,
+  PaymentMethod,
 } from "@/lib/types";
 
 export type CreateExpenseInput = Omit<
@@ -130,6 +132,17 @@ export async function createExpense(
     });
   }
 
+  if (expense.status === "approved") {
+    await safePostExpenseJournal({
+      expenseId: expense.id,
+      storeId: expense.store_id,
+      amount: expense.amount,
+      paymentMethod: expense.payment_method as PaymentMethod,
+      createdBy: user.id,
+      memo: expense.title || `مصروف ${expense.id.slice(0, 8)}`,
+    });
+  }
+
   return expense;
 }
 
@@ -189,6 +202,21 @@ export async function deleteExpense(id: string, user: AppUser): Promise<boolean>
   await assertSessionEditable(existing.session_id);
   await assertPeriodOpen(existing.store_id);
 
+  if (existing.status === "approved") {
+    const { safeReversePostedBySource } = await import(
+      "@/modules/accounting/services/gl-posting.service"
+    );
+    await safeReversePostedBySource({
+      originalSource: "expense",
+      originalSourceId: id,
+      reverseSource: "adjustment",
+      reverseSourceId: `expense-delete:${id}`,
+      storeId: existing.store_id,
+      createdBy: user.id,
+      memo: `عكس مصروف محذوف`,
+    });
+  }
+
   const ok = await expenseRepo.deleteExpense(id);
   if (ok) {
     const orgId = await getOrgId();
@@ -224,6 +252,14 @@ export async function approveExpense(id: string, user: AppUser): Promise<Expense
       action: "expense.approved",
       entityType: "expense",
       entityId: id,
+    });
+    await safePostExpenseJournal({
+      expenseId: expense.id,
+      storeId: expense.store_id,
+      amount: expense.amount,
+      paymentMethod: expense.payment_method as PaymentMethod,
+      createdBy: user.id,
+      memo: expense.title || `مصروف ${expense.id.slice(0, 8)}`,
     });
   }
   return expense;

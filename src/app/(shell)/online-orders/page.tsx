@@ -27,8 +27,8 @@ export default async function OnlineOrdersRoute() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="طلبات المنيو الأونلاين"
-        description="راجع الطلبات القادمة من الرابط العام، عدّلها أو ألغها أو حوّلها إلى فاتورة."
+        title="طلبات الأونلاين"
+        description="قبول · تحضير · جاهز · ريسيت — من رابط المنيو العام."
       />
       <OnlineOrdersPageClient
         orders={orders}

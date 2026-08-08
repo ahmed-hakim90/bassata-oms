@@ -52,11 +52,17 @@ export function ConfirmActionDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+          <Button
+            variant="outline"
+            className="h-11 rounded-xl"
+            onClick={() => onOpenChange(false)}
+            disabled={pending}
+          >
             إلغاء
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
+            className="h-11 rounded-xl font-semibold"
             onClick={handleConfirm}
             disabled={pending}
           >

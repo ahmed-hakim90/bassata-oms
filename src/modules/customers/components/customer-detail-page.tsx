@@ -27,6 +27,10 @@ interface CustomerDetailPageProps {
   canCollect: boolean;
   canEdit: boolean;
   currency?: string;
+  /** Soft-hide credit limit controls when org credit_sales is off. */
+  creditSalesEnabled?: boolean;
+  /** Open collect dialog from aging deep-link `?collect=1`. */
+  initialCollectOpen?: boolean;
 }
 
 export function CustomerDetailPage({
@@ -36,9 +40,13 @@ export function CustomerDetailPage({
   canCollect,
   canEdit,
   currency = "EGP",
+  creditSalesEnabled = false,
+  initialCollectOpen = false,
 }: CustomerDetailPageProps) {
   const router = useRouter();
-  const [showCollect, setShowCollect] = useState(false);
+  const [showCollect, setShowCollect] = useState(
+    Boolean(initialCollectOpen && canCollect && profile.account_balance > 0)
+  );
   const [showCredit, setShowCredit] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -56,14 +64,10 @@ export function CustomerDetailPage({
         title={profile.name}
         description={descriptionParts.join(" · ") || undefined}
         action={
-          <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
-            {canEdit ? (
-              <Button variant="outline" onClick={() => setShowCredit(true)}>
-                <Wallet className="size-4" /> حد الائتمان
-              </Button>
-            ) : null}
-            {canCollect ? (
+          <div className="flex w-full flex-col gap-[var(--mds-space-2)] sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            {canCollect && (creditSalesEnabled || hasBalance) ? (
               <Button
+                className="w-full sm:w-auto"
                 onClick={() => setShowCollect(true)}
                 disabled={!hasBalance}
                 title={hasBalance ? undefined : "مفيش مستحقات على العميل"}
@@ -71,43 +75,64 @@ export function CustomerDetailPage({
                 <Plus className="size-4" /> تحصيل دفعة
               </Button>
             ) : null}
-            {statement ? (
-              <ExportButtonGroup
-                printHref={`/print/statements/customers/${profile.id}`}
-                onExportExcel={() => {
-                  startTransition(async () => {
-                    try {
-                      const result = await exportCustomerStatementExcel(profile.id);
-                      downloadBase64Excel(result.base64, result.filename);
-                      toast.success("تم تصدير Excel");
-                    } catch {
-                      toast.error("فشل التصدير");
-                    }
-                  });
-                }}
-              />
-            ) : null}
+            <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
+              {canEdit && creditSalesEnabled ? (
+                <Button
+                  variant="outline"
+                  className="min-w-0 flex-1 sm:flex-none"
+                  onClick={() => setShowCredit(true)}
+                >
+                  <Wallet className="size-4" /> حد الائتمان
+                </Button>
+              ) : null}
+              {statement ? (
+                <ExportButtonGroup
+                  printHref={`/print/statements/customers/${profile.id}`}
+                  onExportExcel={() => {
+                    startTransition(async () => {
+                      try {
+                        const result = await exportCustomerStatementExcel(profile.id);
+                        downloadBase64Excel(result.base64, result.filename);
+                        toast.success("تم تصدير Excel");
+                      } catch {
+                        toast.error("فشل التصدير");
+                      }
+                    });
+                  }}
+                />
+              ) : null}
+            </div>
           </div>
         }
       />
 
-      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="المستحق"
-          value={formatCurrency(profile.account_balance, currency)}
-          icon={<Landmark className="size-5" />}
-        />
-        <KpiCard
-          label="حد الائتمان"
-          value={
-            profile.credit_limit > 0
-              ? formatCurrency(profile.credit_limit, currency)
-              : "بدون حد"
-          }
-          change={profile.payment_terms || undefined}
-          trend="neutral"
-          icon={<Wallet className="size-5" />}
-        />
+      <div
+        className={
+          creditSalesEnabled
+            ? "grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4"
+            : "grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-3"
+        }
+      >
+        {creditSalesEnabled || hasBalance ? (
+          <KpiCard
+            label="المستحق"
+            value={formatCurrency(profile.account_balance, currency)}
+            icon={<Landmark className="size-5" />}
+          />
+        ) : null}
+        {creditSalesEnabled ? (
+          <KpiCard
+            label="حد الائتمان"
+            value={
+              profile.credit_limit > 0
+                ? formatCurrency(profile.credit_limit, currency)
+                : "بدون حد"
+            }
+            change={profile.payment_terms || undefined}
+            trend="neutral"
+            icon={<Wallet className="size-5" />}
+          />
+        ) : null}
         <KpiCard
           label="إجمالي المشتريات"
           value={formatCurrency(profile.total_spent, currency)}
@@ -148,7 +173,7 @@ export function CustomerDetailPage({
 
       <CustomerProfileView profile={profile} ledger={ledger} />
 
-      {canEdit ? (
+      {canEdit && creditSalesEnabled ? (
         <CustomerCreditSettingsDialog
           customerId={profile.id}
           creditLimit={profile.credit_limit}

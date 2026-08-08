@@ -48,6 +48,8 @@ export const DEFAULT_PRODUCT_TEMPLATE_ID_BY_ACTIVITY: Record<
   retail: "retail_product",
   wholesale: "retail_product",
   mixed: "retail_product",
+  bakery: "retail_product",
+  pharmacy: "retail_product",
 };
 
 export function resolveProductTemplateId(
@@ -63,7 +65,9 @@ export function resolveProductTemplateId(
   }
 
   if (salesUnitType === "weight") {
-    return activityType === "supermarket" ? "supermarket_weight_product" : "retail_product";
+    return activityType === "supermarket" || activityType === "bakery"
+      ? "supermarket_weight_product"
+      : "retail_product";
   }
 
   return DEFAULT_PRODUCT_TEMPLATE_ID_BY_ACTIVITY[activityType];

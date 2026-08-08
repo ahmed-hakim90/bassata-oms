@@ -41,7 +41,7 @@ export function MovementTimeline({ movements, compact }: MovementTimelineProps) 
             <li key={movement.id} className="relative flex gap-4 pb-6 last:pb-0">
               {index < movements.length - 1 ? (
                 <span
-                  className="absolute left-[15px] top-8 bottom-0 w-px bg-border"
+                  className="absolute start-[15px] top-8 bottom-0 w-px bg-border"
                   aria-hidden
                 />
               ) : null}
@@ -63,7 +63,7 @@ export function MovementTimeline({ movements, compact }: MovementTimelineProps) 
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium">{movement.productName}</p>
+                  <p className="min-w-0 truncate font-medium">{movement.productName}</p>
                   <StatusPill
                     label={typeLabels[movement.movement_type] ?? movement.movement_type}
                     variant="default"

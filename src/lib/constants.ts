@@ -79,6 +79,8 @@ export const PERMISSIONS = [
   "expense_category_manage",
   "session_expense_create",
   "purchase_from_session_create",
+  "gl_view",
+  "gl_manage",
   // POS
   "pos_access",
   "checkout_create",
@@ -126,6 +128,8 @@ export const PERMISSIONS = [
   "user_manage",
   "audit_view",
   "imports_exports",
+  "monthly_closing_manage",
+  "monthly_closing_reopen",
 ] as const;
 export type PermissionKey = (typeof PERMISSIONS)[number];
 
@@ -139,6 +143,8 @@ export const BUSINESS_ACTIVITY_TYPES = [
   "retail",
   "wholesale",
   "mixed",
+  "bakery",
+  "pharmacy",
 ] as const;
 export type BusinessActivityType = (typeof BUSINESS_ACTIVITY_TYPES)[number];
 
@@ -152,6 +158,8 @@ export const BUSINESS_ACTIVITY_TYPE_LABELS: Record<BusinessActivityType, string>
   retail: "تجزئة",
   wholesale: "جملة",
   mixed: "تجزئة وجملة",
+  bakery: "مخبز",
+  pharmacy: "صيدلية",
 };
 
 export const SALES_MODES = ["retail", "wholesale"] as const;
@@ -179,6 +187,7 @@ export type WeightSaleInputMode = (typeof WEIGHT_SALE_INPUT_MODES)[number];
 export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | PermissionKey[]>> = {
   "/": "order_view",
   "/pos": "pos_access",
+  "/kitchen": "order_view",
   "/orders": "order_view",
   "/sales-invoices": "checkout_create",
   "/online-orders": "order_view",
@@ -194,6 +203,12 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/inventory/movements": "inventory_view",
   "/sessions": "session_view",
   "/expenses": "expense_view_all",
+  "/accounting": "gl_view",
+  "/accounting/journals": "gl_view",
+  "/accounting/trial-balance": "gl_view",
+  "/accounting/ledger": "gl_view",
+  "/accounting/income-statement": "gl_view",
+  "/accounting/balance-sheet": "gl_view",
   "/customers": "customer_manage",
   "/customers/loyalty": "loyalty_manage",
   "/promotions": "manage_promotions",
@@ -204,11 +219,18 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/reports/aging": "reports_view",
   "/reports/tax": "reports_view",
   "/reports/replenishment": "reports_view",
+  "/reports/cashiers": "reports_view",
+  "/reports/branches": "reports_view",
+  "/reports/periods": "reports_view",
+  "/reports/heatmap": "reports_view",
   "/reports/profit": "profit_reports_view",
+  "/reports/margins": "profit_reports_view",
+  "/reports/pnl": "profit_reports_view",
   "/reports/inventory": "inventory_view",
   "/reports/product-card": "inventory_view",
   "/reports/expenses": "financial_reports_view",
   "/labels": "barcode_label_print",
+  "/monthly-closing": "monthly_closing_manage",
   "/settings": [
     "settings_manage",
     "session_settings_manage",
@@ -330,6 +352,7 @@ export function canExportPdf(
 export const NAV_GROUPS = [
   {
     label: "Dashboard",
+    icon: "LayoutDashboard",
     items: [
       { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
       { label: "User Guide", href: "/guide", icon: "BookOpen" },
@@ -337,23 +360,26 @@ export const NAV_GROUPS = [
   },
   {
     label: "Sales",
+    icon: "ShoppingCart",
     items: [
       { label: "POS", href: "/pos", icon: "ShoppingCart" },
-      { label: "POS Devices", href: "/devices", icon: "MonitorSmartphone" },
+      { label: "Kitchen Display", href: "/kitchen", icon: "ClipboardList" },
       { label: "Orders", href: "/orders", icon: "Receipt" },
       { label: "Sales Invoices", href: "/sales-invoices", icon: "Receipt" },
       { label: "Online Orders", href: "/online-orders", icon: "Receipt" },
-      { label: "Promotions", href: "/promotions", icon: "Tag" },
       { label: "Cashier Sessions", href: "/sessions", icon: "Clock" },
+      { label: "Promotions", href: "/promotions", icon: "Tag" },
     ],
   },
   {
     label: "Inventory",
+    icon: "Package",
     items: [
       { label: "Products", href: "/products", icon: "Package" },
       { label: "Stock", href: "/inventory", icon: "Warehouse" },
       { label: "Warehouses", href: "/inventory/warehouses", icon: "Warehouse" },
       { label: "Purchases", href: "/inventory/purchases", icon: "Truck" },
+      { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
       { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
       { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
       { label: "Stock Count", href: "/inventory/stock-count", icon: "ClipboardList" },
@@ -361,6 +387,7 @@ export const NAV_GROUPS = [
   },
   {
     label: "Customers",
+    icon: "Users",
     items: [
       { label: "Customers", href: "/customers", icon: "Users" },
       { label: "Loyalty", href: "/customers/loyalty", icon: "Heart" },
@@ -368,13 +395,21 @@ export const NAV_GROUPS = [
   },
   {
     label: "Accounting",
+    icon: "Calculator",
     items: [
+      { label: "Chart of Accounts", href: "/accounting", icon: "Landmark" },
+      { label: "Journal Entries", href: "/accounting/journals", icon: "ScrollText" },
+      { label: "Trial Balance", href: "/accounting/trial-balance", icon: "BarChart3" },
+      { label: "Account Ledger", href: "/accounting/ledger", icon: "BookOpen" },
+      { label: "Income Statement", href: "/accounting/income-statement", icon: "FileSpreadsheet" },
+      { label: "Balance Sheet", href: "/accounting/balance-sheet", icon: "CircleDollarSign" },
       { label: "Manage Expenses", href: "/expenses", icon: "Wallet" },
-      { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
+      { label: "Monthly Closing", href: "/monthly-closing", icon: "CalendarCheck" },
     ],
   },
   {
     label: "Reports",
+    icon: "PieChart",
     items: [
       { label: "Reports Overview", href: "/reports", icon: "BarChart3" },
       { label: "Sales Report", href: "/reports/sales", icon: "TrendingUp" },
@@ -382,16 +417,14 @@ export const NAV_GROUPS = [
       { label: "Daily Close Report", href: "/reports/daily-close", icon: "CalendarCheck" },
       { label: "Profit Report", href: "/reports/profit", icon: "CircleDollarSign" },
       { label: "Inventory Report", href: "/reports/inventory", icon: "Warehouse" },
-      { label: "Product Card", href: "/reports/product-card", icon: "ClipboardList" },
-      { label: "Expenses Report", href: "/reports/expenses", icon: "FileSpreadsheet" },
       { label: "Aging Report", href: "/reports/aging", icon: "Calendar" },
       { label: "Tax Report", href: "/reports/tax", icon: "FileSpreadsheet" },
-      { label: "Replenishment Report", href: "/reports/replenishment", icon: "Package" },
       { label: "Barcode Labels", href: "/labels", icon: "Barcode" },
     ],
   },
   {
     label: "Administration",
+    icon: "Settings",
     items: [
       { label: "Users", href: "/users", icon: "Shield" },
       { label: "Settings", href: "/settings", icon: "Settings" },
@@ -428,12 +461,13 @@ export const FEATURE_FLAGS = [
   "waste",
   "recipes",
   "credit_sales",
+  "monthly_closing",
+  "general_ledger",
 ] as const;
 /**
  * Canonical editable/enforced flags (Settings + requireFeature).
  * Not included (intentional):
  * - online_menu / online_orders — stripped in cleanup; use store settings
- * - monthly_closing — Future (period lock); orphan rows may linger in JSON
  * - supermarket_mode / weight_sales / price_by_amount / wholesale_sales /
  *   product_price_tiers / fixed_weight_variants — legacy; use business_activity
  */
@@ -482,6 +516,8 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   waste: true,
   recipes: true,
   credit_sales: false,
+  monthly_closing: true,
+  general_ledger: true,
 };
 
 export const DEFAULT_BUSINESS_ACTIVITY_SETTINGS = {
@@ -775,6 +811,38 @@ export const ACTIVITY_PRESETS: Record<BusinessActivityType, Partial<BusinessActi
     enable_expiry_tracking: true,
     enable_serial_tracking: false,
   },
+  bakery: {
+    activity_type: "bakery",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: true,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: true,
+    enable_price_by_amount: false,
+    default_inventory_tracking_mode: "batch_and_expiry",
+    default_inventory_rotation_method: "FEFO",
+    default_expiry_policy: "warn_only",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
+  },
+  pharmacy: {
+    activity_type: "pharmacy",
+    enabled_sales_modes: ["retail"],
+    default_sales_mode: "retail",
+    enable_weight_sales: false,
+    enable_piece_sales: true,
+    enable_wholesale_sales: false,
+    enable_variants: false,
+    enable_price_by_amount: false,
+    default_inventory_tracking_mode: "batch_and_expiry",
+    default_inventory_rotation_method: "FEFO",
+    default_expiry_policy: "block_sale",
+    enable_batch_tracking: true,
+    enable_expiry_tracking: true,
+    enable_serial_tracking: false,
+  },
 };
 
 export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
@@ -897,6 +965,37 @@ export const DEFAULT_PRODUCT_TEMPLATES_BY_ACTIVITY: Record<
       expiry_policy: "warn_only",
       expiry_tracking_enabled: true,
       shelf_life_value: 30,
+    },
+    packaging_material: {
+      inventory_tracking_mode: "standard",
+    },
+  }),
+  bakery: productTemplateSet({
+    retail_product: {
+      inventory_tracking_mode: "batch_and_expiry",
+      inventory_rotation_method: "FEFO",
+      expiry_policy: "warn_only",
+      expiry_tracking_enabled: true,
+      shelf_life_value: 2,
+    },
+    supermarket_weight_product: {
+      shelf_life_value: 2,
+      allow_price_input: false,
+    },
+    restaurant_ingredient: {
+      shelf_life_value: 14,
+    },
+    packaging_material: {
+      inventory_tracking_mode: "standard",
+    },
+  }),
+  pharmacy: productTemplateSet({
+    retail_product: {
+      inventory_tracking_mode: "batch_and_expiry",
+      inventory_rotation_method: "FEFO",
+      expiry_policy: "block_sale",
+      expiry_tracking_enabled: true,
+      shelf_life_value: 365,
     },
     packaging_material: {
       inventory_tracking_mode: "standard",

@@ -18,6 +18,9 @@ const KEYS = [
   "SUPABASE_SERVICE_ROLE_KEY",
   "SweetFlow_COOKIE_SECRET",
   "NEXT_PUBLIC_APP_URL",
+  "RESEND_API_KEY",
+  "EMAIL_FROM",
+  // Prefer setting PLATFORM_BOOTSTRAP_EMAILS per-env manually when Preview ≠ Production.
 ];
 
 if (!existsSync(envPath)) {

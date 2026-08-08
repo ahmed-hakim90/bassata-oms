@@ -121,12 +121,14 @@ export function CommandPalette({
   featureFlags,
   enableWholesaleSales,
   allowCashierWholesale,
+  enableKitchenDisplay,
 }: {
   userRole: UserRole;
   permissions?: PermissionKey[];
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   enableWholesaleSales?: boolean;
   allowCashierWholesale?: boolean;
+  enableKitchenDisplay?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -140,8 +142,16 @@ export function CommandPalette({
       filterNavByAccess(userRole, permissionSet, featureFlags, {
         enableWholesaleSales,
         allowCashierWholesale,
+        enableKitchenDisplay,
       }),
-    [userRole, permissionSet, featureFlags, enableWholesaleSales, allowCashierWholesale]
+    [
+      userRole,
+      permissionSet,
+      featureFlags,
+      enableWholesaleSales,
+      allowCashierWholesale,
+      enableKitchenDisplay,
+    ]
   );
 
   const allItems = useMemo(

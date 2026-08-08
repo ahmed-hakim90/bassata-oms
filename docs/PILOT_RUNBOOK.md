@@ -23,6 +23,14 @@ npm run smoke:check
 
 Full ops list: [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md).
 
+## Commercial track (priority)
+
+1. **Hardware pilot** — [DEVICE_MATRIX.md](./DEVICE_MATRIX.md) Day-0 + [results/hardware-pilot-results.md](./results/hardware-pilot-results.md)
+2. **Manual SaaS** — plans/limits + suspend (incl. non-payment) without Stripe
+3. **Billing** — after first revenue / successful pilot week
+4. **Brand unify** — after stability (Velora public; SweetFlow/CafeFlow internals frozen)
+5. **Offline** — Phase 10 only after online path rock-solid
+
 ## Phase 4 — Pilot rollout
 
 ### Scope
@@ -35,9 +43,9 @@ Full ops list: [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md).
 
 1. Complete Phase 2 smoke on staging with pilot org data shape
 2. Onboard owner + cashiers; strong passwords (no demo defaults)
-3. Pair registers; test cash sale + close session
-4. Validate [DEVICE_MATRIX.md](./DEVICE_MATRIX.md) on pilot hardware
-5. Confirm print path (USB or browser)
+3. **Day-0 hardware** — run [DEVICE_MATRIX.md](./DEVICE_MATRIX.md) script; file [results/hardware-pilot-results.md](./results/hardware-pilot-results.md)
+4. Pair registers; test cash sale + close session on **store** devices (not only laptop)
+5. Confirm print path (USB or browser) with Fail→retry documented
 6. Document owner contact + rollback (redeploy previous Vercel deployment)
 
 ### During pilot

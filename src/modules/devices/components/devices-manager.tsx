@@ -21,7 +21,8 @@ import {
 import { registerBrowserDeviceAction } from "@/modules/auth/actions/device.actions";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { formatRelativeTime } from "@/lib/format";
-import type { Device, Store } from "@/lib/types";
+import type { Store } from "@/lib/types";
+import type { Device } from "@/lib/repositories/device.repository";
 
 interface DevicesManagerProps {
   stores: Store[];
@@ -172,6 +173,37 @@ export function DevicesManager({ stores, devices }: DevicesManagerProps) {
                             ? `${t("Last seen")}: ${formatRelativeTime(device.last_seen_at)}`
                             : t("Waiting for first pairing")}
                         </p>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            className="size-4 accent-[var(--mds-color-action-primary)]"
+                            checked={Boolean(device.scale_enabled)}
+                            disabled={pending}
+                            onChange={() => {
+                              startTransition(async () => {
+                                try {
+                                  await updateDeviceAction(device.id, {
+                                    scaleEnabled: !device.scale_enabled,
+                                    scaleSettings: {
+                                      protocol: "manual",
+                                      unit: "kg",
+                                      ...(device.scale_settings ?? {}),
+                                    },
+                                  });
+                                  router.refresh();
+                                  toast.success(
+                                    device.scale_enabled
+                                      ? "تم إيقاف الميزان لهذا الجهاز"
+                                      : "تم تفعيل إدخال الميزان (يدوي + hook)"
+                                  );
+                                } catch {
+                                  toast.error(t("Failed to update device"));
+                                }
+                              });
+                            }}
+                          />
+                          ميزان مرجعي (سوبر ماركت)
+                        </label>
                         <div className="mt-auto flex flex-wrap gap-[var(--mds-space-2)]">
                           <Button
                             size="sm"
@@ -216,7 +248,7 @@ export function DevicesManager({ stores, devices }: DevicesManagerProps) {
                 )}
 
                 <form
-                  className="flex max-w-md gap-[var(--mds-space-2)]"
+                  className="flex w-full max-w-md flex-col gap-2 sm:flex-row"
                   onSubmit={(e) => {
                     e.preventDefault();
                     addDevice(store.id);
@@ -228,11 +260,11 @@ export function DevicesManager({ stores, devices }: DevicesManagerProps) {
                     onChange={(e) =>
                       setAddNames((current) => ({ ...current, [store.id]: e.target.value }))
                     }
-                    className="rounded-[var(--mds-radius-md)]"
+                    className="min-h-11 rounded-[var(--mds-radius-md)]"
                   />
                   <Button
                     type="submit"
-                    className="shadow-[var(--mds-elevation-1)]"
+                    className="min-h-11 w-full shrink-0 shadow-[var(--mds-elevation-1)] sm:w-auto"
                     disabled={pending || !(addNames[store.id]?.trim())}
                   >
                     <Plus className="size-4" />

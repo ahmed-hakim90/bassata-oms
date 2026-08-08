@@ -7,6 +7,7 @@ import { OperationalCard } from "@/components/SweetFlow/operational-card";
 import { buttonVariants } from "@/components/ui/button";
 import { OrdersTable } from "@/modules/orders/components/orders-table";
 import { listOrders } from "@/modules/orders/services/order.service";
+import { getBusinessActivitySettings } from "@/modules/system/services/settings.service";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,10 @@ export async function OrdersPage() {
     );
   }
   const storeId = storeResult.storeId;
-  const store = await storeRepo.getStore(storeId);
+  const [store, activity] = await Promise.all([
+    storeRepo.getStore(storeId),
+    getBusinessActivitySettings(),
+  ]);
   const orders = (await listOrders(storeId)).map((o) => ({
     ...o,
     storeName: store?.name ?? "الفرع",
@@ -35,12 +39,14 @@ export async function OrdersPage() {
         title="الطلبات"
         description="فواتير مكتملة وملغاة — راجع وأعد الطباعة عند الحاجة"
         action={
-          <Link
-            href="/sales-invoices"
-            className={cn(buttonVariants({ size: "sm", variant: "outline" }), "rounded-full")}
-          >
-            فاتورة جملة جديدة
-          </Link>
+          activity.enable_wholesale_sales ? (
+            <Link
+              href="/sales-invoices"
+              className={cn(buttonVariants({ size: "sm", variant: "outline" }), "rounded-full")}
+            >
+              فاتورة جملة جديدة
+            </Link>
+          ) : undefined
         }
       />
 

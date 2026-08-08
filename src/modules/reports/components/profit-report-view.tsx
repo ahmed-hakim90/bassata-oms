@@ -313,8 +313,10 @@ export function ProfitReportView({
           <ul className="space-y-2 text-sm">
             {rankings.highestProfit.map((p) => (
               <li key={p.productId} className="flex justify-between gap-2">
-                <span>{p.name}</span>
-                <span className="tabular-nums font-medium">
+                <span className="min-w-0 truncate" title={p.name}>
+                  {p.name}
+                </span>
+                <span className="shrink-0 tabular-nums font-medium">
                   {formatCurrency(p.profit, currency)}
                   <span className="text-muted-foreground"> ({p.margin.toFixed(0)}%)</span>
                 </span>
@@ -329,8 +331,10 @@ export function ProfitReportView({
           <ul className="space-y-2 text-sm">
             {rankings.highestSelling.map((p) => (
               <li key={p.productId} className="flex justify-between gap-2">
-                <span>{p.name}</span>
-                <span className="text-end tabular-nums">
+                <span className="min-w-0 truncate" title={p.name}>
+                  {p.name}
+                </span>
+                <span className="shrink-0 text-end tabular-nums">
                   <span className="font-medium">{formatCurrency(p.revenue, currency)}</span>
                   <span className="block text-xs text-muted-foreground">
                     ربح {formatCurrency(p.profit, currency)}
@@ -377,9 +381,11 @@ export function ProfitReportView({
         <OperationalCard title="أرصدة العملاء الآجلة">
           <ul className="space-y-2 text-sm">
             {outstanding.slice(0, 8).map((c) => (
-              <li key={c.id} className="flex justify-between">
-                <span>{c.name}</span>
-                <span className="tabular-nums">
+              <li key={c.id} className="flex justify-between gap-2">
+                <span className="min-w-0 truncate" title={c.name}>
+                  {c.name}
+                </span>
+                <span className="shrink-0 tabular-nums">
                   {formatCurrency(c.account_balance, currency)}
                 </span>
               </li>
@@ -392,9 +398,13 @@ export function ProfitReportView({
         <OperationalCard title="أرصدة الموردين">
           <ul className="space-y-2 text-sm">
             {supplierBalances.slice(0, 8).map((s) => (
-              <li key={s.id} className="flex justify-between">
-                <span>{s.name}</span>
-                <span className="tabular-nums">{formatCurrency(s.balanceDue, currency)}</span>
+              <li key={s.id} className="flex justify-between gap-2">
+                <span className="min-w-0 truncate" title={s.name}>
+                  {s.name}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {formatCurrency(s.balanceDue, currency)}
+                </span>
               </li>
             ))}
             {supplierBalances.length === 0 ? (
@@ -405,9 +415,13 @@ export function ProfitReportView({
         <OperationalCard title="المصروفات حسب مركز التكلفة">
           <ul className="space-y-2 text-sm">
             {profit.expensesByCostCenter.slice(0, 8).map((c) => (
-              <li key={c.name} className="flex justify-between">
-                <span>{c.name}</span>
-                <span className="tabular-nums">{formatCurrency(c.amount, currency)}</span>
+              <li key={c.name} className="flex justify-between gap-2">
+                <span className="min-w-0 truncate" title={c.name}>
+                  {c.name}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {formatCurrency(c.amount, currency)}
+                </span>
               </li>
             ))}
             {profit.expensesByCostCenter.length === 0 ? (

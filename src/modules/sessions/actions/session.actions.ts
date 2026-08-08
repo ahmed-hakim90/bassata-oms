@@ -22,13 +22,13 @@ import { roundMoney } from "@/lib/money";
 
 function mapPosAccessError(error: PosAccessError): string {
   const messages: Record<PosAccessError["code"], string> = {
-    login_required: "سجّل الدخول أولاً",
-    no_device: "اربط جهاز نقطة البيع من شاشة POS ثم أعد المحاولة",
-    device_inactive: "الجهاز غير نشط — فعّله من الإعدادات",
-    store_mismatch: "الجهاز لا يتبع الفرع الحالي — غيّر الفرع أو الجهاز",
+    login_required: "افتح رابط الفرع واكتب PIN الكاشير أولاً",
+    no_device: "افتح رابط الفرع زي /nutalla/pos ثم أعد المحاولة",
+    device_inactive: "افتح رابط الفرع من جديد لتجهيز نقطة البيع",
+    store_mismatch: "افتح رابط الفرع الصحيح قبل فتح الجلسة",
     store_required: "اختر الفرع أولاً قبل فتح الجلسة",
     access_denied: "ليس لديك صلاحية على هذا الفرع",
-    cashier_required: "حدد الكاشير النشط على الجهاز",
+    cashier_required: "أدخل رقم PIN للكاشير أولاً",
     role_denied: "دورك لا يسمح بفتح جلسة كاشير",
   };
   return messages[error.code] ?? error.message;

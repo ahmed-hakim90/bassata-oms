@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   getRegisteredDeviceContext,
@@ -7,6 +8,7 @@ import {
   getCurrentUser,
   getActiveStoreId,
 } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guards";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 
@@ -14,6 +16,22 @@ export interface VerifyPinResult {
   success: boolean;
   error?: string;
   cashierId?: string;
+}
+
+/** Lock POS screen — keeps login + register cookie; PIN required again. */
+export async function lockPosCashierAction(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAuth();
+    await setActiveCashierId(null);
+    revalidatePath("/pos");
+    revalidatePath("/sessions");
+    return { success: true };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "تعذر قفل الشاشة",
+    };
+  }
 }
 
 export async function verifyPinAction(pin: string): Promise<VerifyPinResult> {
@@ -33,7 +51,7 @@ export async function verifyPinAction(pin: string): Promise<VerifyPinResult> {
 
   const deviceCtx = await getRegisteredDeviceContext();
   if (!deviceCtx || deviceCtx.storeId !== storeId) {
-    return { success: false, error: "Register this device before switching cashier." };
+    return { success: false, error: "جهّز نقطة البيع على الفرع ده قبل إدخال PIN." };
   }
 
   const supabase = await createClient();
@@ -78,5 +96,7 @@ export async function verifyPinAction(pin: string): Promise<VerifyPinResult> {
     metadata: { verifiedBy: user.id, deviceId: deviceCtx.deviceId },
   });
 
+  revalidatePath("/pos");
+  revalidatePath("/sessions");
   return { success: true, cashierId };
 }

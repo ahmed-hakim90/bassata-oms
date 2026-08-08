@@ -11,12 +11,16 @@ import type {
   Expense,
   ExpenseCategory,
   CostCenter,
+  GlAccount,
+  JournalEntry,
+  JournalLine,
   Permission,
   ImportJob,
   InventoryMovement,
   LoyaltyLedgerEntry,
   LoyaltyRule,
   MeasurementUnit,
+  MonthlyClose,
   Order,
   OrderItem,
   OrderItemDeduction,
@@ -52,10 +56,14 @@ import type {
   ExpenseRow,
   ExpenseCategoryRow,
   CostCenterRow,
+  GlAccountRow,
+  JournalEntryRow,
+  JournalLineRow,
   PermissionRow,
   ImportJobRow,
   LoyaltyLedgerRow,
   LoyaltyRuleRow,
+  MonthlyCloseRow,
   MovementRow,
   OrderItemDeductionRow,
   OrderItemRow,
@@ -136,7 +144,22 @@ export function mapUser(row: UserRow, storeIds: string[]): AppUser {
 }
 
 export function mapDevice(row: DeviceRow): Device {
-  return row;
+  const settings =
+    row.scale_settings &&
+    typeof row.scale_settings === "object" &&
+    !Array.isArray(row.scale_settings)
+      ? (row.scale_settings as Record<string, unknown>)
+      : {};
+  return {
+    id: row.id,
+    store_id: row.store_id,
+    name: row.name,
+    device_key_hash: row.device_key_hash,
+    is_active: row.is_active,
+    last_seen_at: row.last_seen_at,
+    scale_enabled: row.scale_enabled,
+    scale_settings: settings,
+  };
 }
 
 export function mapCategory(row: CategoryRow): Category {
@@ -561,6 +584,57 @@ export function mapExpenseCategory(row: ExpenseCategoryRow): ExpenseCategory {
   return row;
 }
 
+export function mapGlAccount(row: GlAccountRow): GlAccount {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    parent_id: row.parent_id,
+    code: row.code,
+    name: row.name,
+    account_type: row.account_type as GlAccount["account_type"],
+    is_postable: row.is_postable,
+    is_system: row.is_system,
+    system_key: row.system_key,
+    is_active: row.is_active,
+    sort_order: row.sort_order,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export function mapJournalEntry(row: JournalEntryRow): JournalEntry {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    store_id: row.store_id,
+    entry_number: row.entry_number,
+    entry_date: row.entry_date,
+    status: row.status as JournalEntry["status"],
+    source: row.source as JournalEntry["source"],
+    source_id: row.source_id,
+    memo: row.memo,
+    posted_by: row.posted_by,
+    posted_at: row.posted_at,
+    voided_by: row.voided_by,
+    voided_at: row.voided_at,
+    created_by: row.created_by,
+    created_at: row.created_at,
+  };
+}
+
+export function mapJournalLine(row: JournalLineRow): JournalLine {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    entry_id: row.entry_id,
+    account_id: row.account_id,
+    debit: num(row.debit),
+    credit: num(row.credit),
+    memo: row.memo,
+    line_no: row.line_no,
+  };
+}
+
 export function mapPermission(row: PermissionRow): Permission {
   return row;
 }
@@ -590,6 +664,20 @@ export function mapImportJob(row: ImportJobRow): ImportJob {
     result: (row.result ?? {}) as Record<string, unknown>,
     created_by: row.created_by,
     created_at: row.created_at,
+  };
+}
+
+export function mapMonthlyClose(row: MonthlyCloseRow): MonthlyClose {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    store_id: row.store_id,
+    period_start: row.period_start,
+    period_end: row.period_end,
+    status: row.status,
+    summary: (row.summary ?? {}) as Record<string, unknown>,
+    closed_by: row.closed_by,
+    closed_at: row.closed_at,
   };
 }
 

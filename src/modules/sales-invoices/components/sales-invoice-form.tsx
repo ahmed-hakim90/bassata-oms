@@ -809,7 +809,7 @@ export function SalesInvoiceForm({
         {isDraft ? (
           <form
             onSubmit={handleProductSubmit}
-            className="grid gap-2 sm:grid-cols-[1fr_6rem_7rem_auto]"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_6rem_7rem_auto] sm:items-end"
           >
             <div>
               <ProductSearchCombobox
@@ -912,7 +912,7 @@ export function SalesInvoiceForm({
               />
             </div>
             <div className="flex items-end">
-              <Button type="submit" disabled={lifecyclePending}>
+              <Button type="submit" className="h-11 w-full sm:h-9 sm:w-auto" disabled={lifecyclePending}>
                 <Plus className="size-4" />
                 إضافة
               </Button>
@@ -945,7 +945,7 @@ export function SalesInvoiceForm({
                     <TableCell>
                       {isDraft ? (
                         <Input
-                          className="w-20"
+                          className="w-full min-w-0 sm:w-20"
                           value={String(line.quantity)}
                           disabled={lifecyclePending || line.id.startsWith("temp-")}
                           onChange={(e) => {
@@ -1057,12 +1057,13 @@ export function SalesInvoiceForm({
           <span className="font-semibold">الإجمالي: {formatCurrency(invoice.total, currency)}</span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 [&_button]:min-h-11 sm:[&_button]:min-h-9">
           {isDraft ? (
             <>
               <Button
                 type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 disabled={lifecyclePending}
                 onClick={() => {
                   toast.success("تم الحفظ المؤقت — تابع لاحقًا من القائمة");
@@ -1122,7 +1123,7 @@ export function SalesInvoiceForm({
                   }
                 }}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="h-11 w-full sm:h-9 sm:w-40">
                   <SelectValue placeholder="الدفع">
                     {(value) =>
                       value === "unpaid"

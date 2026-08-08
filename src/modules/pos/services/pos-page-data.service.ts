@@ -9,7 +9,10 @@ import {
   getSessionSettings,
   getBusinessActivitySettings,
 } from "@/modules/system/services/settings.service";
-import { DEFAULT_BUSINESS_ACTIVITY_SETTINGS } from "@/lib/constants";
+import {
+  DEFAULT_BUSINESS_ACTIVITY_SETTINGS,
+  DEFAULT_FEATURE_FLAGS,
+} from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getLoyaltyRule } from "@/modules/loyalty/services/loyalty.service";
 import { listActivePromotionRulesForEval } from "@/lib/repositories/promotion.repository";
@@ -20,9 +23,9 @@ import { listExpenseCategories } from "@/modules/accounting/services/expense-cat
 import { loadSessionCashBundle } from "@/modules/sessions/services/reconciliation.service";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
-import * as deviceRepo from "@/lib/repositories/device.repository";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { enabledPaymentMethodsFromFlags } from "@/lib/enabled-payment-methods";
+import { supportsProductModifiers } from "@/lib/business-activity-flags";
 
 /** Gate screens that must not pay for catalog / online-orders / session extras. */
 const GATE_ONLY_STATES = new Set<PosReadinessState>([
@@ -68,14 +71,14 @@ export async function getPosPageData() {
           ? readiness.state
           : "store_required";
 
-    const [storeDevices, allStores, flags, receiptBranding] = await Promise.all([
-      effectiveGate === "no_device" && storeId
-        ? deviceRepo.listDevices(storeId).then((devices) => devices.filter((d) => d.is_active))
-        : Promise.resolve([] as Awaited<ReturnType<typeof deviceRepo.listDevices>>),
+    const [allStores, flags, receiptBranding] = await Promise.all([
       effectiveGate === "store_required" || effectiveGate === "store_mismatch"
         ? storeRepo.listStores()
         : Promise.resolve([] as Awaited<ReturnType<typeof storeRepo.listStores>>),
-      getFeatureFlags(),
+      // Public POS entry may render login_required without a session — never hit org settings.
+      user
+        ? settled(getFeatureFlags(), DEFAULT_FEATURE_FLAGS, "feature_flags")
+        : Promise.resolve({ ...DEFAULT_FEATURE_FLAGS }),
       storeId
         ? getReportBranding(storeId)
         : Promise.resolve({
@@ -108,7 +111,6 @@ export async function getPosPageData() {
       storeId: storeId ?? "",
       receiptBranding,
       stores,
-      storeDevices,
       featureFlags: flags,
       canManagerOverride: user?.role === "owner" || user?.role === "manager",
       currentUserName: user?.name ?? null,
@@ -267,10 +269,12 @@ export async function getPosPageData() {
     cashierName: cashier?.name ?? null,
     costCenterMap,
     expenseCategoryMap,
-    storeDevices: [],
     pendingOpeningFloat,
     loadCatalogClient: true,
     enableVariants: businessActivity.enable_variants !== false,
+    enableModifiers: supportsProductModifiers(businessActivity.activity_type),
+    enableWeightSales: businessActivity.enable_weight_sales,
+    enablePriceByAmount: businessActivity.enable_price_by_amount,
     initialHeldCarts,
   };
 }

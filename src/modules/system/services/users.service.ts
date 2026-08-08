@@ -4,7 +4,11 @@ import * as deviceRepo from "@/lib/repositories/device.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
-import { getOrgId } from "@/lib/repositories/organization.repository";
+import { sendUserInviteEmail } from "@/lib/services/email.service";
+import {
+  getOrgId,
+  getOrganization,
+} from "@/lib/repositories/organization.repository";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AppUser, Store } from "@/lib/types";
 import type { UserRole } from "@/lib/constants";
@@ -30,6 +34,12 @@ export async function createUser(input: {
   if (input.password.length < 8) {
     throw new Error("Password must be at least 8 characters");
   }
+  const orgIdForLimit = await getOrgId();
+  const { assertPlatformCapacity } = await import(
+    "@/modules/platform/services/platform-plan.service"
+  );
+  await assertPlatformCapacity(orgIdForLimit, "users");
+
   const admin = createAdminClient();
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: input.email,
@@ -87,6 +97,20 @@ export async function createUser(input: {
       entityType: "user",
       entityId: user.id,
     });
+
+    try {
+      const org = await getOrganization();
+      await sendUserInviteEmail({
+        email: user.email,
+        recipientName: user.name,
+        orgName: org.name,
+        role: user.role,
+        orgId,
+      });
+    } catch (emailError) {
+      console.error("[users] invite email failed", emailError);
+    }
+
     return user;
   } catch (error) {
     try {
@@ -455,6 +479,12 @@ export async function createDevice(
   input: { storeId: string; name: string },
   userId: string
 ) {
+  const orgIdForLimit = await getOrgId();
+  const { assertPlatformCapacity } = await import(
+    "@/modules/platform/services/platform-plan.service"
+  );
+  await assertPlatformCapacity(orgIdForLimit, "devices");
+
   const { device } = await deviceRepo.createDevice(input);
   const orgId = await getOrgId();
   await writeAuditLog({
@@ -470,7 +500,13 @@ export async function createDevice(
 
 export async function updateDevice(
   id: string,
-  input: { storeId?: string; name?: string; isActive?: boolean },
+  input: {
+    storeId?: string;
+    name?: string;
+    isActive?: boolean;
+    scaleEnabled?: boolean;
+    scaleSettings?: Record<string, unknown>;
+  },
   userId: string
 ) {
   const device = await deviceRepo.updateDevice({ id, ...input });
@@ -516,6 +552,11 @@ export async function createStore(
   userId: string
 ) {
   const orgId = await getOrgId();
+  const { assertPlatformCapacity } = await import(
+    "@/modules/platform/services/platform-plan.service"
+  );
+  await assertPlatformCapacity(orgId, "stores");
+
   const slug = slugifyBranchName(input.name);
   const store = await storeRepo.createStore({
     name: input.name,

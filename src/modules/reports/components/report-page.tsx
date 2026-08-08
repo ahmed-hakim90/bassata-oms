@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PageHeader } from "@/components/SweetFlow/page-header";
 import { cn } from "@/lib/utils";
 
@@ -23,16 +24,16 @@ export function ReportPage({
   return (
     <div className={cn("flex flex-col gap-[var(--mds-space-6)]", className)} dir="rtl">
       <PageHeader
-        breadcrumb={<span>التقارير</span>}
+        breadcrumb={
+          <Link href="/reports" className="text-primary hover:underline">
+            التقارير
+          </Link>
+        }
         title={title}
         description={description}
         action={actions}
       />
-      {filters ? (
-        <div className="print:hidden rounded-[var(--mds-radius-lg)] border border-border bg-card p-[var(--mds-space-4)] shadow-[var(--mds-elevation-1)]">
-          {filters}
-        </div>
-      ) : null}
+      {filters ? <div className="print:hidden min-w-0">{filters}</div> : null}
       {children}
     </div>
   );

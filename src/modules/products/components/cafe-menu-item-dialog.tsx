@@ -434,7 +434,7 @@ function CafeMenuItemDialogContent({
                 </Button>
               </div>
 
-              <div className="grid gap-3 rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 sm:grid-cols-[1fr_180px_130px_120px_auto]">
+              <div className="grid gap-3 rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 sm:grid-cols-2 xl:grid-cols-[1fr_minmax(0,11rem)_minmax(0,8rem)_minmax(0,7.5rem)_auto]">
                 <div className="grid gap-1">
                   <Label className="text-xs">مكون جديد</Label>
                   <Input
@@ -531,7 +531,7 @@ function CafeMenuItemDialogContent({
               <div className="space-y-3">
                 {variantDrafts.map((variant, variantIndex) => (
                   <div key={variant.key} className="space-y-3 rounded-xl border border-border/70 p-3">
-                    <div className="grid gap-3 sm:grid-cols-[1fr_140px_auto]">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_minmax(0,9rem)_auto]">
                       <div className="grid gap-1">
                         <Label className="text-xs">الحجم</Label>
                         <Input
@@ -610,7 +610,7 @@ function CafeMenuItemDialogContent({
                       {expandedVariantKey === variant.key ? variant.ingredients.map((line, lineIndex) => (
                         <div
                           key={`${variant.key}-${lineIndex}`}
-                          className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-[1fr_120px_140px_auto]"
+                          className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-2 lg:grid-cols-[1fr_minmax(0,7.5rem)_minmax(0,9rem)_auto]"
                         >
                           <div className="grid gap-1">
                             <Label className="text-xs">المكون</Label>

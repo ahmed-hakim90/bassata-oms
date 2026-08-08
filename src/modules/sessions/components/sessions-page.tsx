@@ -157,7 +157,7 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
           accent="var(--mds-color-feedback-success)"
         />
         <OperationalCard
-          title="جلسة الجهاز"
+          title="جلسة الكاشير"
           value={active ? "نشطة" : "لا توجد"}
           subtitle={
             active

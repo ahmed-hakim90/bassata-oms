@@ -227,17 +227,18 @@ export function PaymentPanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-[2px] sm:items-center">
-      <div className="w-full max-w-md rounded-2xl bg-card p-5 text-card-foreground shadow-2xl ring-1 ring-border/60 sm:p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-heading text-xl font-semibold">{t("Payment")}</h2>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-[2px] max-[390px]:p-0 sm:items-center sm:p-4">
+      <div className="flex max-h-[min(92dvh,100%)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-card text-card-foreground shadow-2xl ring-1 ring-border/60 max-[390px]:max-h-[min(96dvh,100%)] max-[390px]:rounded-t-2xl max-[390px]:rounded-b-none">
+        <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-5 py-4 max-[390px]:px-3 max-[390px]:py-3 sm:px-6">
+          <h2 className="font-heading text-xl font-semibold max-[390px]:text-lg">{t("Payment")}</h2>
           <Button variant="ghost" size="icon" className="size-11 rounded-xl" aria-label="إغلاق" onClick={onClose}>
             <X className="size-5" aria-hidden />
           </Button>
         </div>
 
-        <div className="mb-4 rounded-xl border border-border/50 bg-muted/30 py-3 text-center">
-          <p className="text-4xl font-bold tabular-nums tracking-tight">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 py-4 max-[390px]:px-3 max-[390px]:py-3 sm:px-6">
+        <div className="mb-4 rounded-xl border border-border/50 bg-muted/30 py-3 text-center max-[390px]:mb-3 max-[390px]:py-2.5">
+          <p className="text-4xl font-bold tabular-nums tracking-tight max-[390px]:text-3xl">
             {formatCurrency(total)}
           </p>
           {discountAmount > 0 || redemptionAmount > 0 ? (
@@ -362,7 +363,7 @@ export function PaymentPanel({
           </p>
         ) : null}
         {!splitMode ? (
-        <div className="mb-5 grid grid-cols-2 gap-3">
+        <div className="mb-5 grid grid-cols-2 gap-2 max-[390px]:gap-1.5 sm:gap-3">
           {methods.map(({ id, label, icon: Icon }) => {
             const selected = paymentMethod === id;
             const tone =
@@ -381,12 +382,12 @@ export function PaymentPanel({
                 type="button"
                 onClick={() => setPaymentMethod(id)}
                 className={cn(
-                  "flex min-h-[6.5rem] flex-col items-center justify-center gap-2 rounded-2xl border-2 py-5 font-semibold transition active:scale-[0.98] sm:min-h-28",
+                  "flex min-h-[5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-sm font-semibold transition active:scale-[0.98] max-[390px]:min-h-[4.5rem] max-[390px]:rounded-xl sm:min-h-28 sm:gap-2 sm:py-5 sm:text-base",
                   tone,
                   selected && "ring-2 ring-offset-2 ring-foreground/30"
                 )}
               >
-                <Icon className="size-8" />
+                <Icon className="size-7 sm:size-8" />
                 <span>{t(label)}</span>
               </button>
             );
@@ -395,7 +396,7 @@ export function PaymentPanel({
         ) : (
           <div className="mb-5 grid gap-2.5">
             {syncedSplits.map((payment, index) => (
-              <div key={index} className="grid grid-cols-[1fr_120px_auto] gap-2">
+              <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_7.5rem_auto]">
                 <select
                   value={payment.method}
                   onChange={(e) => updateSplit(index, { method: e.target.value as PaymentMethod })}
@@ -467,29 +468,33 @@ export function PaymentPanel({
           </div>
         )}
 
-        <Button
-          className="h-14 w-full rounded-2xl text-base font-semibold"
-          disabled={!canComplete}
-          onClick={complete}
-        >
-          {loading
-            ? t("Processing…")
-            : creditSelected && creditAmount > 0 && creditAmount + 0.001 < total
-              ? `${t("Complete")} · ${formatCurrency(total)} · ${t("Credit sale")} ${formatCurrency(creditAmount)}`
-              : creditSelected
-                ? `${t("Credit sale")} · ${formatCurrency(total)}`
-                : `${t("Complete")} · ${formatCurrency(total)}`}
-        </Button>
-        {creditNeedsCustomer ? (
-          <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
-            {t("Select a customer for credit sale")}
-          </p>
-        ) : null}
-        {splitMode && !canComplete && !loading && !disabled && overpaid === 0 && remaining > 0 ? (
-          <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
-            {t("Split amounts must equal total")}
-          </p>
-        ) : null}
+        </div>
+
+        <div className="shrink-0 border-t border-border/50 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+          <Button
+            className="h-14 w-full rounded-2xl text-base font-semibold"
+            disabled={!canComplete}
+            onClick={complete}
+          >
+            {loading
+              ? t("Processing…")
+              : creditSelected && creditAmount > 0 && creditAmount + 0.001 < total
+                ? `${t("Complete")} · ${formatCurrency(total)} · ${t("Credit sale")} ${formatCurrency(creditAmount)}`
+                : creditSelected
+                  ? `${t("Credit sale")} · ${formatCurrency(total)}`
+                  : `${t("Complete")} · ${formatCurrency(total)}`}
+          </Button>
+          {creditNeedsCustomer ? (
+            <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
+              {t("Select a customer for credit sale")}
+            </p>
+          ) : null}
+          {splitMode && !canComplete && !loading && !disabled && overpaid === 0 && remaining > 0 ? (
+            <p className="mt-2 text-center text-xs text-amber-700 dark:text-amber-300">
+              {t("Split amounts must equal total")}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );

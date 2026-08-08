@@ -17,7 +17,6 @@ import { reportFiltersToSearchParams, type ReportFilters } from "@/modules/repor
 import type { ReportContext } from "@/modules/reports/core/report-context";
 import type { SessionKpi } from "@/modules/reports/services/session-report.service";
 import type { Store } from "@/lib/types";
-import { Button } from "@/components/ui/button";
 
 interface SessionsReportViewProps {
   filters: ReportFilters;
@@ -34,7 +33,7 @@ export function SessionsReportView({
   filters,
   stores,
   currency,
-  context,
+  context: _context,
   kpi,
   canPrint,
   canExcel,

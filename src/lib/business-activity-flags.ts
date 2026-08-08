@@ -14,11 +14,6 @@ import {
  * Storage shape stays flat `Partial<Record<FeatureFlag, boolean>>`
  * (Settings / DB / onboarding). Groups below are for readability only —
  * not a capability engine or schema change.
- *
- * Expansion (same enum, later phases):
- * - restaurant → KDS / tables / modifier catalog (when product commits)
- * - supermarket → scale device hooks
- * - wholesale / mixed → deeper AR / invoice policies via flags already owned here
  */
 
 /** Café + food prep verticals that share a kitchen-style catalog path. */
@@ -27,21 +22,23 @@ const FOOD_SERVICE_ACTIVITIES = [
   "ice_cream",
   "juice_bar",
   "restaurant",
+  "bakery",
 ] as const satisfies readonly BusinessActivityType[];
 
 /**
  * Activities that deduct finished goods via recipes by default.
  * Cafe is food-service adjacent but recipes stay off (simple takeaway catalog).
- * Turn cafe on later via this set — do not re-add per-activity ifs in callers.
  */
 const RECIPE_DEFAULT_ON_ACTIVITIES = [
   "ice_cream",
   "juice_bar",
   "restaurant",
+  "bakery",
 ] as const satisfies readonly BusinessActivityType[];
 
 const WHOLESALE_CREDIT_ACTIVITIES = [
   "wholesale",
+  "mixed",
 ] as const satisfies readonly BusinessActivityType[];
 
 function isActivityIn<T extends BusinessActivityType>(
@@ -61,7 +58,7 @@ function inventoryFeatures(_activity: BusinessActivityType): ActivityFlagSlice {
 /** Sales / AR defaults driven by activity. */
 function salesFeatures(activity: BusinessActivityType): ActivityFlagSlice {
   return {
-    // B2B wholesale orgs typically sell on account from day one.
+    // B2B wholesale + mixed orgs typically sell on account from day one.
     ...(isActivityIn(activity, WHOLESALE_CREDIT_ACTIVITIES)
       ? { credit_sales: true }
       : {}),
@@ -71,8 +68,6 @@ function salesFeatures(activity: BusinessActivityType): ActivityFlagSlice {
 /** Recipe / prep module defaults. */
 function recipeFeatures(activity: BusinessActivityType): ActivityFlagSlice {
   return {
-    // Prep-before-sell businesses: ice cream, juice, restaurant.
-    // Cafe deliberately false — enable by adding "cafe" to RECIPE_DEFAULT_ON_ACTIVITIES.
     recipes: isActivityIn(activity, RECIPE_DEFAULT_ON_ACTIVITIES),
   };
 }
@@ -80,7 +75,6 @@ function recipeFeatures(activity: BusinessActivityType): ActivityFlagSlice {
 /** POS hardware / scan defaults shared across activities. */
 function posFeatures(_activity: BusinessActivityType): ActivityFlagSlice {
   return {
-    // All activities get barcode entry in POS; operators may still disable in Settings.
     barcode_scanner: true,
   };
 }
@@ -110,7 +104,38 @@ export function buildBusinessActivityFeatureFlags(
   };
 }
 
-/** @internal test / docs helper — which activities share food-service lineage. */
+/** Café / restaurant / bakery lineage — kitchen display + prep enqueue. */
 export function isFoodServiceActivity(activity: BusinessActivityType): boolean {
   return isActivityIn(activity, FOOD_SERVICE_ACTIVITIES);
+}
+
+/** Modifiers / KDS-style extras — same food-service set (includes ice_cream). */
+export function supportsProductModifiers(activity: BusinessActivityType): boolean {
+  return isFoodServiceActivity(activity);
+}
+
+/**
+ * Cafe menu create/edit dialog (variants-first, piece catalog).
+ * Weight-first food activities (e.g. bakery with weight on) use the retail product dialog.
+ */
+export function usesCafeMenuCatalog(
+  settings: Pick<BusinessActivitySettings, "activity_type" | "enable_weight_sales">
+): boolean {
+  return (
+    isFoodServiceActivity(settings.activity_type) && !settings.enable_weight_sales
+  );
+}
+
+/** Variants stay locked for barcode/shelf retail verticals. */
+export function variantsLockedByActivity(activity: BusinessActivityType): boolean {
+  return activity === "supermarket" || activity === "pharmacy";
+}
+
+/** Import/export workbook family. */
+export function productImportTemplateGroup(
+  activity: BusinessActivityType
+): "kitchen" | "supermarket" | "shelf" {
+  if (activity === "supermarket") return "supermarket";
+  if (isFoodServiceActivity(activity)) return "kitchen";
+  return "shelf";
 }

@@ -54,6 +54,31 @@ export async function pairDeviceWithCodeAction(code: string): Promise<DeviceActi
   }
 }
 
+export async function ensureImplicitPosDeviceBindingAction(): Promise<DeviceActionResult> {
+  try {
+    const user = await requirePermissionOrRole("pos_access", ["owner", "manager", "cashier"]);
+    const { ensureImplicitPosDeviceBinding } = await import("@/lib/auth/implicit-pos-device");
+    const bound = await ensureImplicitPosDeviceBinding(user);
+    if (!bound.ok) {
+      if (bound.reason === "store_required") {
+        return { success: false, error: "Select a store to continue" };
+      }
+      if (bound.reason === "access_denied") {
+        return { success: false, error: "You are not allowed on this register" };
+      }
+      return { success: false, error: "Could not prepare POS for this browser" };
+    }
+    revalidatePath("/pos");
+    revalidatePath("/sessions");
+    return { success: true };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "Could not prepare POS for this browser",
+    };
+  }
+}
+
 export async function registerBrowserDeviceAction(deviceId: string): Promise<DeviceActionResult> {
   try {
     const user = await requirePermissionOrRole("pos_access", ["owner", "manager", "cashier"]);
@@ -117,15 +142,13 @@ export async function switchCashierStoreAction(storeId: string): Promise<DeviceA
     if (user.role === "cashier" && !user.store_ids.includes(storeId)) {
       return { success: false, error: "Store access denied" };
     }
-    const deviceCtx = await import("@/lib/auth/session").then((m) => m.getRegisteredDeviceContext());
-    if (deviceCtx && deviceCtx.storeId !== storeId) {
-      return {
-        success: false,
-        error: "This device is registered to another store. Pair again for that branch.",
-      };
-    }
     await setActiveStoreCookie(storeId);
     await setActiveCashierId(null);
+    const { ensureImplicitPosDeviceBinding } = await import("@/lib/auth/implicit-pos-device");
+    const bound = await ensureImplicitPosDeviceBinding(user, { storeId });
+    if (!bound.ok && bound.reason === "access_denied") {
+      return { success: false, error: "Store access denied for this register" };
+    }
     revalidatePath("/pos");
     revalidatePath("/sessions");
     return { success: true };

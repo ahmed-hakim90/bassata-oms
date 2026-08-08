@@ -16,6 +16,11 @@ import {
   parseOnlineMenuTheme,
   type MenuThemeSlug,
 } from "@/modules/online-menu/lib/menu-themes";
+import { resolveEntitledMenuTheme } from "@/modules/online-menu/lib/menu-theme-commerce";
+import {
+  getMenuThemeCatalog,
+  getOrgMenuThemeEntitlements,
+} from "@/modules/platform/services/platform-menu-themes.service";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -58,6 +63,8 @@ export type OnlineMenuData = {
     address: string;
     phone: string;
     description: string;
+    /** Platform-wide public slug (also used for order submit). */
+    menuSlug: string | null;
     /** Public menu visual theme slug. */
     theme: MenuThemeSlug;
     /** Feature flag: store allows online ordering at all. */
@@ -128,6 +135,37 @@ function publicFulfillmentConfig(settings: JsonRecord): OnlineFulfillmentConfig 
   };
 }
 
+/** Custom-domain menu: first active online-enabled store for the host org. */
+export async function getOnlineMenuForOrg(
+  orgId: string,
+  options?: GetOnlineMenuBySlugOptions
+): Promise<OnlineMenuData | null> {
+  if (!options?.skipRateLimit) {
+    await assertOnlinePublicRateLimit({ action: "menu", slug: `org:${orgId}` });
+  }
+
+  const admin = createAdminClient();
+  const { data: stores, error: storeError } = await admin
+    .from("stores")
+    .select("id, org_id, name, address, phone, timezone, is_active, settings")
+    .eq("org_id", orgId)
+    .eq("is_active", true)
+    .order("name", { ascending: true })
+    .limit(25);
+  if (storeError) throw new Error(storeError.message);
+
+  const enabled = (stores ?? []).filter(
+    (row) => asRecord(row.settings).online_menu_enabled === true
+  );
+  const store =
+    enabled.find((row) => Boolean(asRecord(row.settings).online_menu_slug)) ??
+    enabled[0] ??
+    null;
+  if (!store) return null;
+
+  return buildOnlineMenuForStore(store, options);
+}
+
 export async function getOnlineMenuBySlug(
   slug: string,
   options?: GetOnlineMenuBySlugOptions
@@ -150,6 +188,23 @@ export async function getOnlineMenuBySlug(
   if (storeError) throw new Error(storeError.message);
   if (!store) return null;
 
+  return buildOnlineMenuForStore(store, options);
+}
+
+async function buildOnlineMenuForStore(
+  store: {
+    id: string;
+    org_id: string;
+    name: string;
+    address: string;
+    phone: string;
+    timezone: string | null;
+    is_active: boolean;
+    settings: Json | null;
+  },
+  options?: GetOnlineMenuBySlugOptions
+): Promise<OnlineMenuData | null> {
+  const admin = createAdminClient();
   const storeSettings = asRecord(store.settings);
   if (storeSettings.online_menu_enabled !== true) return null;
   if (isUnlistedMenu(storeSettings) && !tokenMatches(storeSettings, options?.token)) {
@@ -158,7 +213,7 @@ export async function getOnlineMenuBySlug(
 
   const availability = evaluateOnlineOrderingAvailability({
     settings: storeSettings,
-    storeTimezone: store.timezone,
+    storeTimezone: store.timezone ?? "Africa/Cairo",
   });
   const fulfillment = publicFulfillmentConfig(storeSettings);
 
@@ -223,9 +278,19 @@ export async function getOnlineMenuBySlug(
     variantsByProduct.set(variant.product_id, list);
   }
 
-  const theme = getMenuTheme(
-    options?.themeOverride || parseOnlineMenuTheme(storeSettings)
-  ).slug;
+  const storedTheme = parseOnlineMenuTheme(storeSettings);
+  let themeSlug: MenuThemeSlug = storedTheme;
+  if (options?.themeOverride) {
+    // Preview query param may show any known theme for demos.
+    themeSlug = getMenuTheme(options.themeOverride).slug;
+  } else {
+    const [catalog, entitlements] = await Promise.all([
+      getMenuThemeCatalog(),
+      getOrgMenuThemeEntitlements(store.org_id),
+    ]);
+    themeSlug = resolveEntitledMenuTheme(storedTheme, entitlements, catalog);
+  }
+  const theme = themeSlug;
 
   const coverFromSettings = text(storeSettings.online_menu_cover_url) || null;
   const coverFromCatalog =
@@ -245,6 +310,7 @@ export async function getOnlineMenuBySlug(
       address: store.address,
       phone: text(storeSettings.phone) || store.phone,
       description: text(storeSettings.online_menu_description),
+      menuSlug: text(storeSettings.online_menu_slug) || null,
       theme,
       orderingEnabled: availability.orderingEnabled,
       canOrder: availability.canOrder,

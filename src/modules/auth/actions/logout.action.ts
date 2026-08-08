@@ -11,7 +11,7 @@ import {
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 
-export async function logoutAction() {
+export async function logoutAction(formData?: FormData) {
   const user = await getCurrentUser();
   const supabase = await createClient();
   await supabase.auth.signOut();
@@ -19,6 +19,7 @@ export async function logoutAction() {
   const cookieStore = await cookies();
   await clearActiveStoreCookie();
   cookieStore.delete(CASHIER_COOKIE);
+  // Keep register cookie so the next PIN login stays scoped to this terminal.
   if (user) {
     const orgId = await getOrgId().catch(() => user.org_id);
     await writeAuditLog({
@@ -30,5 +31,10 @@ export async function logoutAction() {
     });
   }
 
-  redirect("/login");
+  const nextRaw = formData?.get("next");
+  const next =
+    typeof nextRaw === "string" && nextRaw.startsWith("/") && !nextRaw.startsWith("//")
+      ? nextRaw
+      : "/login";
+  redirect(next);
 }

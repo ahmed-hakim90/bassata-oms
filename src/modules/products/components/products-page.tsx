@@ -18,6 +18,10 @@ import {
   type BusinessActivitySettings,
   type ProductTemplateSettings,
 } from "@/lib/constants";
+import {
+  isFoodServiceActivity,
+  usesCafeMenuCatalog,
+} from "@/lib/business-activity-flags";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -72,8 +76,10 @@ export function ProductsPage({
   availableStockByVariantId = {},
 }: ProductsPageProps) {
   const router = useRouter();
-  const isSupermarket = businessActivity.activity_type === "supermarket";
-  const showIngredientsCatalog = !isSupermarket && recipesEnabled;
+  const useCafeCatalog = usesCafeMenuCatalog(businessActivity);
+  const useMenuCopy = isFoodServiceActivity(businessActivity.activity_type);
+  const showShelfColumns = !useMenuCopy;
+  const showIngredientsCatalog = recipesEnabled;
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [view, setView] = useState<CatalogView>("menu");
@@ -136,11 +142,11 @@ export function ProductsPage({
   function openCreate() {
     setEditing(null);
     setEditingVariants([]);
-    if (isSupermarket) {
-      setRetailDialogOpen(true);
+    if (useCafeCatalog) {
+      setCafeDialogOpen(true);
       return;
     }
-    setCafeDialogOpen(true);
+    setRetailDialogOpen(true);
   }
 
   function openCreateIngredient() {
@@ -151,11 +157,11 @@ export function ProductsPage({
   function openEdit(item: ProductGridItem) {
     setEditing(item.product);
     setEditingVariants(item.variants ?? []);
-    if (isSupermarket) {
-      setRetailDialogOpen(true);
+    if (useCafeCatalog) {
+      setCafeDialogOpen(true);
       return;
     }
-    setCafeDialogOpen(true);
+    setRetailDialogOpen(true);
   }
 
   function openEditIngredient(item: ProductGridItem) {
@@ -179,9 +185,9 @@ export function ProductsPage({
   function handleBulkDisableTracking() {
     if (
       !confirm(
-        isSupermarket
-          ? "سيتم تفعيل كل منتجات البيع وجعلها غير متتبعة للمخزون. هل تريد المتابعة؟"
-          : "سيتم تفعيل كل أصناف المنيو وجعلها غير متتبعة للمخزون. المكونات لن تتأثر. هل تريد المتابعة؟"
+        useMenuCopy
+          ? "سيتم تفعيل كل أصناف المنيو وجعلها غير متتبعة للمخزون. المكونات لن تتأثر. هل تريد المتابعة؟"
+          : "سيتم تفعيل كل منتجات البيع وجعلها غير متتبعة للمخزون. هل تريد المتابعة؟"
       )
     ) {
       return;
@@ -191,9 +197,9 @@ export function ProductsPage({
       try {
         const result = await bulkDisableMenuInventoryTrackingAction();
         toast.success(
-          isSupermarket
-            ? `تم تحديث ${result.count} منتج`
-            : `تم تحديث ${result.count} صنف منيو`
+          useMenuCopy
+            ? `تم تحديث ${result.count} صنف منيو`
+            : `تم تحديث ${result.count} منتج`
         );
         setSelectedIds([]);
         router.refresh();
@@ -306,7 +312,7 @@ export function ProductsPage({
     ) : (
       <Button type="button" onClick={openCreate}>
         <Plus className="size-4" />
-        {isSupermarket ? "منتج جديد" : "صنف منيو جديد"}
+        {useMenuCopy ? "صنف منيو جديد" : "منتج جديد"}
       </Button>
     );
 
@@ -316,9 +322,9 @@ export function ProductsPage({
         breadcrumb={<span>المخزون · المنتجات</span>}
         title="المنتجات"
         description={
-          isSupermarket
-            ? "كتالوج البيع، الباركود، سعر الشراء وسعر البيع — تجهيز الكاشير والمخزون."
-            : "كتالوج المنيو والأسعار والتصنيفات — المكان اللي بتجهّز منه الكاشير."
+          useMenuCopy
+            ? "كتالوج المنيو والأسعار والتصنيفات — المكان اللي بتجهّز منه الكاشير."
+            : "كتالوج البيع، الباركود، سعر الشراء وسعر البيع — تجهيز الكاشير والمخزون."
         }
         action={
           <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
@@ -328,7 +334,7 @@ export function ProductsPage({
               className="min-w-0 flex-1 shadow-[var(--mds-elevation-1)] sm:flex-initial"
             >
               <Plus className="size-4" />
-              {isSupermarket ? "منتج جديد" : "صنف منيو جديد"}
+              {useMenuCopy ? "صنف منيو جديد" : "منتج جديد"}
             </Button>
             <div className="hidden items-center gap-2 sm:flex">
               {showIngredientsCatalog ? (
@@ -394,9 +400,9 @@ export function ProductsPage({
 
       <div className={`grid gap-[var(--mds-space-3)] ${showIngredientsCatalog ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <OperationalCard
-          title={isSupermarket ? "المنتجات النشطة" : "الأصناف النشطة"}
+          title={useMenuCopy ? "الأصناف النشطة" : "المنتجات النشطة"}
           value={String(activeCount)}
-          subtitle={`من أصل ${menuItems.length} ${isSupermarket ? "منتج" : "صنف منيو"}`}
+          subtitle={`من أصل ${menuItems.length} ${useMenuCopy ? "صنف منيو" : "منتج"}`}
         />
         <OperationalCard
           title="شائعة في الكاشير"
@@ -472,7 +478,7 @@ export function ProductsPage({
               </div>
             ) : (
               <p className="text-sm font-medium text-foreground">
-                {isSupermarket ? "منتجات البيع" : "أصناف المنيو"}
+                {useMenuCopy ? "أصناف المنيو" : "منتجات البيع"}
               </p>
             )}
 
@@ -565,7 +571,7 @@ export function ProductsPage({
               <ProductTable
                 items={filtered}
                 currency={currency}
-                supermarketColumns={isSupermarket}
+                supermarketColumns={showShelfColumns}
                 priceMode={
                   showIngredientsCatalog && view === "ingredients" ? "cost" : "sale"
                 }
@@ -604,20 +610,7 @@ export function ProductsPage({
         </div>
       </div>
 
-      {isSupermarket ? (
-        <ProductFormDialog
-          open={retailDialogOpen}
-          onOpenChange={setRetailDialogOpen}
-          categories={categoryList}
-          product={editing}
-          recipesEnabled={false}
-          productTemplates={productTemplates}
-          businessActivitySettings={businessActivity}
-          currency={currency}
-          existingSkus={existingSkus}
-          onSaved={() => router.refresh()}
-        />
-      ) : (
+      {useCafeCatalog ? (
         <CafeMenuItemDialog
           open={cafeDialogOpen}
           onOpenChange={setCafeDialogOpen}
@@ -626,6 +619,19 @@ export function ProductsPage({
           product={editing}
           initialVariants={editingVariants}
           recipesEnabled={recipesEnabled}
+          currency={currency}
+          existingSkus={existingSkus}
+          onSaved={() => router.refresh()}
+        />
+      ) : (
+        <ProductFormDialog
+          open={retailDialogOpen}
+          onOpenChange={setRetailDialogOpen}
+          categories={categoryList}
+          product={editing}
+          recipesEnabled={recipesEnabled}
+          productTemplates={productTemplates}
+          businessActivitySettings={businessActivity}
           currency={currency}
           existingSkus={existingSkus}
           onSaved={() => router.refresh()}

@@ -6,13 +6,20 @@ import { loadSessionCashBundle } from "@/modules/sessions/services/reconciliatio
 export const dynamic = "force-dynamic";
 
 /** Live session cash totals for POS close — avoids stale RSC props after API checkout. */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await requirePermissionOrRole("session_close", ["owner", "manager", "cashier"]);
     const ctx = await requirePosAccess({ touchSeen: false });
     const session = await getActiveSessionForPos(ctx);
     if (!session) {
       return NextResponse.json({ error: "لا توجد جلسة نشطة" }, { status: 404 });
+    }
+    const requestedSessionId = new URL(request.url).searchParams.get("sessionId");
+    if (requestedSessionId && requestedSessionId !== session.id) {
+      return NextResponse.json(
+        { error: "الجلسة المعروضة لا تطابق الجلسة النشطة. حدّث الصفحة وحاول مرة أخرى." },
+        { status: 409 }
+      );
     }
 
     const bundle = await loadSessionCashBundle(session.id);

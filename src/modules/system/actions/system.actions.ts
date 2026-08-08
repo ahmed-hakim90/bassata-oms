@@ -51,6 +51,7 @@ import {
   resolveSettingsTab,
   type SettingsTabId,
 } from "@/modules/system/components/settings/settings-tabs";
+import { getReportScheduleAction } from "@/modules/reports/actions/report-schedule.actions";
 
 export async function updateOrgSettingsAction(input: {
   name?: string;
@@ -583,9 +584,20 @@ export async function updateStoreAction(
       const { isMenuThemeSlug, DEFAULT_MENU_THEME_SLUG } = await import(
         "@/modules/online-menu/lib/menu-themes"
       );
-      settings.online_menu_theme = isMenuThemeSlug(input.onlineMenu.theme)
+      const {
+        isMenuThemeEnabledForOrg,
+      } = await import("@/modules/online-menu/lib/menu-theme-commerce");
+      const { getTenantMenuThemeAccess } = await import(
+        "@/modules/platform/services/platform-menu-themes.service"
+      );
+      const requested = isMenuThemeSlug(input.onlineMenu.theme)
         ? input.onlineMenu.theme
         : DEFAULT_MENU_THEME_SLUG;
+      const access = await getTenantMenuThemeAccess(user.org_id);
+      if (!isMenuThemeEnabledForOrg(access.entitlements, access.catalog, requested)) {
+        throw new Error("هذا المظهر غير مفعّل لشركتك. تواصل مع مشرف المنصة.");
+      }
+      settings.online_menu_theme = requested;
     }
 
     if (input.onlineMenu.orderingPaused !== undefined) {
@@ -693,7 +705,13 @@ export async function generateDevicePairingCodeAction(deviceId: string) {
 
 export async function updateDeviceAction(
   id: string,
-  input: { storeId?: string; name?: string; isActive?: boolean }
+  input: {
+    storeId?: string;
+    name?: string;
+    isActive?: boolean;
+    scaleEnabled?: boolean;
+    scaleSettings?: Record<string, unknown>;
+  }
 ) {
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   const device = await updateDevice(id, input, user.id);
@@ -804,6 +822,7 @@ export async function getAuditData(filters?: {
 }
 
 async function loadSettingsBundle() {
+  const orgId = await getOrgId();
   const [
     org,
     businessActivity,
@@ -815,6 +834,7 @@ async function loadSettingsBundle() {
     warehouses,
     devices,
     settings,
+    menuThemeAccess,
   ] = await Promise.all([
     getOrganizationSettings(),
     getBusinessActivitySettings(),
@@ -826,6 +846,9 @@ async function loadSettingsBundle() {
     warehouseRepo.listWarehouses(),
     listDevices(),
     getSettings(),
+    import("@/modules/platform/services/platform-menu-themes.service").then((m) =>
+      m.getTenantMenuThemeAccess(orgId)
+    ),
   ]);
   return {
     org,
@@ -838,6 +861,9 @@ async function loadSettingsBundle() {
     warehouses,
     devices,
     settings,
+    menuThemeAccess: {
+      rows: menuThemeAccess.rows,
+    },
   };
 }
 
@@ -1010,6 +1036,11 @@ export async function getUnifiedSettingsData(
         })()
       : null;
 
+  const reportSchedule =
+    has("settings_manage") && activeTab === "features"
+      ? await getReportScheduleAction().catch(() => null)
+      : null;
+
   return {
     visibleTabs,
     activeTab: (visibleTabs.some((t) => t.id === activeTab)
@@ -1023,5 +1054,6 @@ export async function getUnifiedSettingsData(
     usersBundle,
     costCentersBundle,
     auditBundle,
+    reportSchedule,
   };
 }

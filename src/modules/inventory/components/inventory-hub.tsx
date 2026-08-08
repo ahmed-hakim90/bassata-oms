@@ -195,7 +195,7 @@ export function InventoryHub({
 
       <ReorderSuggestions suggestions={reorderSuggestions} />
 
-      <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {quickLinks.map((link) => (
           <OperationalCard
             key={link.href}

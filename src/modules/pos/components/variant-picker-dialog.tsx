@@ -32,12 +32,12 @@ export function VariantPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-sm:max-w-[calc(100%-1rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{product.name}</DialogTitle>
           <DialogDescription>اختر الحجم أو الخيار المناسب قبل الإضافة للسلة</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-2.5">
+        <div className="grid max-h-[min(60dvh,24rem)] gap-2.5 overflow-y-auto overscroll-y-contain pe-0.5">
           {product.variants.map((variant) => {
             const isOutOfStock = variant.stockBadge === "out";
             const blockOutOfStock = isOutOfStock && !allowNegativeStock;
@@ -47,7 +47,7 @@ export function VariantPickerDialog({
                 key={variant.id}
                 variant="outline"
                 disabled={blockOutOfStock}
-                className="h-auto justify-between rounded-2xl border-border/70 bg-card px-4 py-3 text-start hover:border-primary/35 hover:bg-primary/5 disabled:opacity-50"
+                className="h-auto min-h-14 justify-between rounded-2xl border-border/70 bg-card px-4 py-3.5 text-start transition active:scale-[0.99] hover:border-primary/35 hover:bg-primary/5 disabled:opacity-50"
                 onClick={() => {
                   onSelect(product, variant);
                   onClose();

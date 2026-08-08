@@ -12,6 +12,7 @@ import {
   SHELF_LIFE_UNITS,
 } from "@/lib/constants";
 import type { BusinessActivitySettings, BusinessActivityType } from "@/lib/types";
+import { productImportTemplateGroup } from "@/lib/business-activity-flags";
 import {
   PRODUCT_IMPORT_COLUMNS,
   PRODUCT_IMPORT_SIMPLE_COLUMNS,
@@ -23,16 +24,7 @@ import {
 type TemplateGroup = "kitchen" | "supermarket" | "shelf";
 
 function templateGroupFor(activityType: BusinessActivityType): TemplateGroup {
-  if (activityType === "supermarket") return "supermarket";
-  if (
-    activityType === "cafe" ||
-    activityType === "ice_cream" ||
-    activityType === "juice_bar" ||
-    activityType === "restaurant"
-  ) {
-    return "kitchen";
-  }
-  return "shelf";
+  return productImportTemplateGroup(activityType);
 }
 
 function kitchenSamples(activityType: BusinessActivityType) {
@@ -211,10 +203,14 @@ function shelfSamples() {
 }
 
 export function buildProductsTemplateWorkbook(
-  settings: Pick<BusinessActivitySettings, "activity_type" | "enable_variants">
+  settings: Pick<BusinessActivitySettings, "activity_type" | "enable_variants"> & {
+    /** When false, kitchen templates omit the Recipes sheet (cafe default). */
+    include_recipes?: boolean;
+  }
 ): ArrayBuffer {
   const group = templateGroupFor(settings.activity_type);
   const workbook = XLSX.utils.book_new();
+  const includeRecipes = settings.include_recipes === true;
 
   if (group === "supermarket") {
     const header = [...PRODUCT_IMPORT_SUPERMARKET_COLUMNS];
@@ -233,8 +229,12 @@ export function buildProductsTemplateWorkbook(
     const sheet = XLSX.utils.json_to_sheet(samples.products, { header });
     sheet["!cols"] = header.map((name) => ({ wch: Math.max(name.length + 2, 16) }));
     XLSX.utils.book_append_sheet(workbook, sheet, "Products");
-    XLSX.utils.book_append_sheet(workbook, buildVariantsSheet(samples.variants), "Variants");
-    XLSX.utils.book_append_sheet(workbook, buildRecipesSheet(samples.recipes), "Recipes");
+    if (settings.enable_variants) {
+      XLSX.utils.book_append_sheet(workbook, buildVariantsSheet(samples.variants), "Variants");
+    }
+    if (includeRecipes) {
+      XLSX.utils.book_append_sheet(workbook, buildRecipesSheet(samples.recipes), "Recipes");
+    }
     XLSX.utils.book_append_sheet(workbook, buildReadmeSheet(group, settings.activity_type), "README");
     XLSX.utils.book_append_sheet(workbook, buildOptionsSheet(), "Options");
     return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;

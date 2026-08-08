@@ -102,7 +102,6 @@ export function OpenSessionsTable({
               <TableRow className="hover:bg-transparent">
                 {showStoreColumn ? <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الفرع</TableHead> : null}
                 <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الكاشير</TableHead>
-                <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الجهاز</TableHead>
                 <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الفتح</TableHead>
                 <TableHead className="h-10 text-xs font-semibold text-muted-foreground">المدة</TableHead>
                 <TableHead className="h-10 text-xs font-semibold text-muted-foreground">الطلبات</TableHead>
@@ -151,7 +150,6 @@ export function OpenSessionsTable({
                     <TableCell className="font-medium text-primary">
                       {summary.cashierName}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{summary.deviceName ?? "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{formatOpened(summary.openedAt)}</TableCell>
                     <TableCell className="tabular-nums">{summary.durationLabel}</TableCell>
                     <TableCell className="tabular-nums">{summary.orderCount}</TableCell>

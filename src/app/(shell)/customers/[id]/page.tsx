@@ -3,14 +3,18 @@ import { getCustomerProfileData } from "@/modules/customers/actions/customer.act
 import { CustomerDetailPage } from "@/modules/customers/components/customer-detail-page";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
+import { getFeatureFlags } from "@/modules/system/services/settings.service";
 
 export default async function CustomerDetailRoute({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ collect?: string }>;
 }) {
   const { id } = await params;
-  const data = await getCustomerProfileData(id);
+  const query = await searchParams;
+  const [data, flags] = await Promise.all([getCustomerProfileData(id), getFeatureFlags()]);
   if (!data) notFound();
   const user = await getCurrentUser();
   const permissions = user ? await getEffectivePermissions(user) : new Set();
@@ -31,6 +35,8 @@ export default async function CustomerDetailRoute({
       statement={data.statement}
       canCollect={canCollect}
       canEdit={canEdit}
+      creditSalesEnabled={flags.credit_sales === true}
+      initialCollectOpen={query.collect === "1" && canCollect}
     />
   );
 }

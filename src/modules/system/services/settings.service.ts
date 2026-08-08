@@ -210,9 +210,11 @@ function normalizeBusinessActivitySettings(
     activity_type,
     enabled_sales_modes: safeModes,
     default_sales_mode: safeDefault,
-    // Supermarket never uses café-style variants.
+    // Supermarket / pharmacy never use café-style variants.
     enable_variants:
-      activity_type === "supermarket" ? false : Boolean(merged.enable_variants),
+      activity_type === "supermarket" || activity_type === "pharmacy"
+        ? false
+        : Boolean(merged.enable_variants),
   };
 }
 

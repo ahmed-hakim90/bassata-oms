@@ -113,6 +113,8 @@ export interface Device {
   device_key_hash?: string;
   is_active: boolean;
   last_seen_at: string | null;
+  scale_enabled?: boolean;
+  scale_settings?: Record<string, unknown> | null;
 }
 
 export interface Category {
@@ -777,6 +779,18 @@ export interface CustomerPayment {
   voided_at: string | null;
 }
 
+export interface MonthlyClose {
+  id: string;
+  org_id: string;
+  store_id: string | null;
+  period_start: string;
+  period_end: string;
+  status: "draft" | "closed" | "reopened";
+  summary: Record<string, unknown>;
+  closed_by: string | null;
+  closed_at: string | null;
+}
+
 export interface CustomerStatementTransaction {
   id: string;
   at: string;
@@ -852,6 +866,84 @@ export interface ImportJob {
   result: Record<string, unknown>;
   created_by: string;
   created_at: string;
+}
+
+export type GlAccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
+export type JournalEntryStatus = "draft" | "posted" | "void";
+export type JournalSource =
+  | "manual"
+  | "sale"
+  | "expense"
+  | "purchase"
+  | "customer_payment"
+  | "supplier_payment"
+  | "refund"
+  | "adjustment";
+
+export type GlSystemKey =
+  | "cash"
+  | "card"
+  | "wallet"
+  | "other_payment"
+  | "ar"
+  | "inventory"
+  | "ap"
+  | "tax_payable"
+  | "equity_capital"
+  | "retained_earnings"
+  | "sales_revenue"
+  | "sales_discount"
+  | "cogs"
+  | "expense_default"
+  | "waste";
+
+export interface GlAccount {
+  id: string;
+  org_id: string;
+  parent_id: string | null;
+  code: string;
+  name: string;
+  account_type: GlAccountType;
+  is_postable: boolean;
+  is_system: boolean;
+  system_key: GlSystemKey | string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JournalLine {
+  id: string;
+  org_id: string;
+  entry_id: string;
+  account_id: string;
+  debit: number;
+  credit: number;
+  memo: string;
+  line_no: number;
+}
+
+export interface JournalEntry {
+  id: string;
+  org_id: string;
+  store_id: string | null;
+  entry_number: string;
+  entry_date: string;
+  status: JournalEntryStatus;
+  source: JournalSource;
+  source_id: string | null;
+  memo: string;
+  posted_by: string | null;
+  posted_at: string | null;
+  voided_by: string | null;
+  voided_at: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface JournalEntryWithLines extends JournalEntry {
+  lines: JournalLine[];
 }
 
 export interface AuthContext {

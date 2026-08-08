@@ -4,7 +4,6 @@ import {
   ClipboardList,
   Clock,
   Heart,
-  MonitorSmartphone,
   Package,
   Rocket,
   ShoppingCart,
@@ -20,13 +19,6 @@ const SETUP_STEPS = [
     href: "/inventory/warehouses",
     linkLabel: "إدارة المخازن",
     icon: Warehouse,
-  },
-  {
-    title: "عرّف أجهزة الكاشير",
-    body: "أضف جهاز لكل نقطة بيع واطبع كود الاقتران. على جهاز الكاشير افتح صفحة الاقتران وأدخل الكود مرة واحدة فقط.",
-    href: "/devices",
-    linkLabel: "إدارة الأجهزة",
-    icon: MonitorSmartphone,
   },
   {
     title: "أضف المنتجات والتصنيفات",
@@ -53,7 +45,7 @@ const DAILY_STEPS = [
   {
     step: "٢",
     title: "بيع من شاشة الكاشير",
-    body: "اختار المنتجات أو امسح الباركود، اربط العميل برقم موبايله علشان يكسب نقاط، واقبض نقدي أو كارت أو دفع مقسّم.",
+    body: "افتح رابط الفرع زي /nutalla/pos، اكتب PIN الكاشير، اختار المنتجات أو امسح الباركود، واقبض نقدي أو كارت.",
   },
   {
     step: "٣",

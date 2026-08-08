@@ -92,6 +92,16 @@ export async function recordCustomerPayment(input: {
     entityId: paymentId,
     metadata: { customerId: input.customerId, amount: input.amount },
   });
+  const { safePostCustomerPaymentJournal } = await import(
+    "@/modules/accounting/services/gl-posting.service"
+  );
+  await safePostCustomerPaymentJournal({
+    paymentId,
+    storeId: input.storeId,
+    amount: input.amount,
+    paymentMethod: input.paymentMethod,
+    createdBy: input.userId,
+  });
   return paymentId;
 }
 

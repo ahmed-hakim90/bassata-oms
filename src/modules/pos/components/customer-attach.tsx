@@ -216,12 +216,34 @@ export function CustomerAttach({
     });
   }
 
-  if (!customer && !expanded) return null;
+  if (!customer && !expanded) {
+    return (
+      <div className="border-b px-3 py-2.5 max-[390px]:px-2 max-[390px]:py-2 sm:px-4">
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-2.5 text-start transition-colors hover:border-primary/40 hover:bg-primary/5 max-[390px]:gap-2 max-[390px]:px-2.5 max-[390px]:py-2"
+          onClick={() => setExpanded(true)}
+          aria-label="إضافة عميل للفاتورة"
+        >
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground max-[390px]:size-9">
+            <UserRound className="size-4" aria-hidden />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">إضافة عميل</p>
+            <p className="truncate text-xs text-muted-foreground max-[390px]:text-[11px]">
+              بحث بالاسم أو الهاتف · مطلوب للبيع الآجل
+            </p>
+          </div>
+          <UserPlus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="border-b px-4 py-2.5">
+    <div className="border-b px-3 py-2.5 max-[390px]:px-2 max-[390px]:py-2 sm:px-4">
       {customer ? (
-        <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5">
+        <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 max-[390px]:gap-2 max-[390px]:px-2.5">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
             {customer.name.trim() ? firstGrapheme(customer.name) : <UserRound className="size-4" />}
           </div>
@@ -253,7 +275,7 @@ export function CustomerAttach({
           <Button
             variant="ghost"
             size="icon-xs"
-            className="size-9 shrink-0 rounded-xl"
+            className="size-11 shrink-0 rounded-xl"
             aria-label="إزالة العميل"
             onClick={() => {
               setCustomer(null);
@@ -317,12 +339,12 @@ export function CustomerAttach({
             />
           </div>
           {results.length > 0 ? (
-            <ul className="max-h-40 space-y-1.5 overflow-y-auto">
+            <ul className="max-h-[min(40dvh,14rem)] space-y-1.5 overflow-y-auto overscroll-y-contain">
               {results.map((c) => (
                 <li key={c.id}>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 rounded-xl border border-border/70 bg-background px-3 py-2.5 text-start transition-colors hover:bg-muted/60"
+                    className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-border/70 bg-background px-3 py-2.5 text-start transition-colors hover:bg-muted/60 active:scale-[0.99]"
                     onClick={() => attachCustomer(c)}
                   >
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">

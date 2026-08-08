@@ -42,11 +42,13 @@ export function CashierVaultPanel({
           </p>
         </div>
         {canManage ? (
-          <CashierVaultBatchWithdrawDialog
-            storeId={storeId}
-            storeName={storeName}
-            rows={rows}
-          />
+          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:w-full sm:[&_button]:min-h-9 sm:[&_button]:w-auto">
+            <CashierVaultBatchWithdrawDialog
+              storeId={storeId}
+              storeName={storeName}
+              rows={rows}
+            />
+          </div>
         ) : null}
       </div>
 
@@ -55,40 +57,75 @@ export function CashierVaultPanel({
           مفيش كاشير ظاهر على الفرع ده حالياً
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-[var(--mds-radius-lg)] border border-border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>الكاشير</TableHead>
-                <TableHead>الدور</TableHead>
-                <TableHead className="text-start">رصيد الخزينة</TableHead>
-                <TableHead className="text-start">بداية الوردية الجاية</TableHead>
-                {canManage ? <TableHead className="w-[100px]">إجراء</TableHead> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.cashierId}>
-                  <TableCell className="font-medium">{row.cashierName}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {ROLE_LABEL[row.role] ?? row.role}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {formatCurrency(row.balance)}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {formatCurrency(row.pendingOpeningFloat)}
-                  </TableCell>
+        <>
+          <div className="space-y-2 md:hidden">
+            {rows.map((row) => (
+              <div
+                key={row.cashierId}
+                className="space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-3 shadow-[var(--mds-elevation-1)]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{row.cashierName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ROLE_LABEL[row.role] ?? row.role}
+                    </p>
+                  </div>
                   {canManage ? (
-                    <TableCell>
-                      <CashierVaultWithdrawDialog storeId={storeId} row={row} />
-                    </TableCell>
+                    <CashierVaultWithdrawDialog storeId={storeId} row={row} />
                   ) : null}
+                </div>
+                <dl className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-lg bg-muted/40 px-2.5 py-2">
+                    <dt className="text-xs text-muted-foreground">رصيد الخزينة</dt>
+                    <dd className="font-semibold tabular-nums">{formatCurrency(row.balance)}</dd>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 px-2.5 py-2">
+                    <dt className="text-xs text-muted-foreground">بداية الجاية</dt>
+                    <dd className="font-semibold tabular-nums">
+                      {formatCurrency(row.pendingOpeningFloat)}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-[var(--mds-radius-lg)] border border-border bg-card md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الكاشير</TableHead>
+                  <TableHead>الدور</TableHead>
+                  <TableHead className="text-start">رصيد الخزينة</TableHead>
+                  <TableHead className="text-start">بداية الوردية الجاية</TableHead>
+                  {canManage ? <TableHead className="w-[100px]">إجراء</TableHead> : null}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.cashierId}>
+                    <TableCell className="font-medium">{row.cashierName}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {ROLE_LABEL[row.role] ?? row.role}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatCurrency(row.balance)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatCurrency(row.pendingOpeningFloat)}
+                    </TableCell>
+                    {canManage ? (
+                      <TableCell>
+                        <CashierVaultWithdrawDialog storeId={storeId} row={row} />
+                      </TableCell>
+                    ) : null}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </section>
   );

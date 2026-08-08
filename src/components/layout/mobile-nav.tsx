@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
   BarChart3,
+  BookOpen,
+  Building2,
   Calendar,
   CalendarCheck,
   ClipboardList,
@@ -13,6 +15,7 @@ import {
   Ellipsis,
   FileSpreadsheet,
   Heart,
+  Landmark,
   LayoutDashboard,
   Package,
   Receipt,
@@ -36,6 +39,8 @@ import { useUiStore } from "@/stores/ui-store";
 const iconMap = {
   ArrowLeftRight,
   BarChart3,
+  BookOpen,
+  Building2,
   Calendar,
   CalendarCheck,
   ClipboardList,
@@ -44,6 +49,7 @@ const iconMap = {
   Wallet,
   FileSpreadsheet,
   Heart,
+  Landmark,
   LayoutDashboard,
   Package,
   Receipt,
@@ -80,12 +86,14 @@ export function MobileNav({
   featureFlags,
   enableWholesaleSales,
   allowCashierWholesale,
+  enableKitchenDisplay,
   permissions = [],
 }: {
   userRole: UserRole;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   enableWholesaleSales?: boolean;
   allowCashierWholesale?: boolean;
+  enableKitchenDisplay?: boolean;
   permissions?: PermissionKey[];
 }) {
   const { t } = useTranslation();
@@ -97,7 +105,7 @@ export function MobileNav({
     userRole,
     new Set(permissions),
     featureFlags,
-    { enableWholesaleSales, allowCashierWholesale }
+    { enableWholesaleSales, allowCashierWholesale, enableKitchenDisplay }
   ).flatMap((group) => group.items);
   const allowedItems = new Set<string>(allItems.map((item) => item.href));
   const allHrefs = allItems.map((item) => item.href);

@@ -35,7 +35,7 @@ describe("print-job-storage", () => {
 
   it("returns null for invalid payload", () => {
     savePrintJob("bad", { x: 1 });
-    const loaded = loadPrintJob("bad", (v): v is { ok: true } => false);
+    const loaded = loadPrintJob("bad", (_v): _v is { ok: true } => false);
     expect(loaded).toBeNull();
   });
 });

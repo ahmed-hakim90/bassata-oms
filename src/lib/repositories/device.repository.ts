@@ -2,9 +2,19 @@ import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { getDb, throwDbError } from "@/lib/repositories/client";
 import { listStores } from "@/lib/repositories/store.repository";
-import type { DeviceRow } from "@/lib/supabase/database.types";
+import type { DeviceRow, Json } from "@/lib/supabase/database.types";
 
-export type Device = DeviceRow;
+/** App-facing device shape (scale_settings normalized to object). */
+export type Device = {
+  id: string;
+  store_id: string;
+  name: string;
+  device_key_hash: string;
+  is_active: boolean;
+  last_seen_at: string | null;
+  scale_enabled: boolean;
+  scale_settings: Record<string, unknown>;
+};
 
 async function orgStoreIds(): Promise<string[]> {
   return (await listStores()).map((store) => store.id);
@@ -28,7 +38,7 @@ export async function listDevices(storeId?: string): Promise<Device[]> {
   if (storeId) q = q.eq("store_id", storeId);
   const { data, error } = await q;
   if (error) throwDbError(error, "listDevices");
-  return (data ?? []) as Device[];
+  return (data ?? []).map(mapDeviceRow);
 }
 
 export async function getDevice(id: string): Promise<Device | null> {
@@ -43,7 +53,7 @@ export async function getDevice(id: string): Promise<Device | null> {
     .in("store_id", storeIds)
     .maybeSingle();
   if (error) throwDbError(error, "getDevice");
-  return (data as Device | null) ?? null;
+  return data ? mapDeviceRow(data) : null;
 }
 
 export async function createDevice(input: {
@@ -64,7 +74,7 @@ export async function createDevice(input: {
     .select()
     .single();
   if (error || !data) throwDbError(error, "createDevice");
-  return { device: data as Device, deviceKey };
+  return { device: mapDeviceRow(data), deviceKey };
 }
 
 export async function updateDevice(input: {
@@ -72,6 +82,8 @@ export async function updateDevice(input: {
   storeId?: string;
   name?: string;
   isActive?: boolean;
+  scaleEnabled?: boolean;
+  scaleSettings?: Record<string, unknown>;
 }): Promise<Device | null> {
   const db = await getDb();
   const { data, error } = await db
@@ -80,19 +92,36 @@ export async function updateDevice(input: {
       ...(input.storeId !== undefined ? { store_id: input.storeId } : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
+      ...(input.scaleEnabled !== undefined ? { scale_enabled: input.scaleEnabled } : {}),
+      ...(input.scaleSettings !== undefined
+        ? { scale_settings: input.scaleSettings as Json }
+        : {}),
     })
     .eq("id", input.id)
     .select()
     .maybeSingle();
   if (error) throwDbError(error, "updateDevice");
-  return (data as Device | null) ?? null;
+  return data ? mapDeviceRow(data) : null;
+}
+
+function mapDeviceRow(row: DeviceRow): Device {
+  const settings =
+    row.scale_settings &&
+    typeof row.scale_settings === "object" &&
+    !Array.isArray(row.scale_settings)
+      ? (row.scale_settings as Record<string, unknown>)
+      : {};
+  return {
+    ...row,
+    scale_settings: settings,
+  };
 }
 
 export async function deleteDevice(id: string): Promise<Device | null> {
   const db = await getDb();
   const { data, error } = await db.from("devices").delete().eq("id", id).select().maybeSingle();
   if (error) throwDbError(error, "deleteDevice");
-  return (data as Device | null) ?? null;
+  return data ? mapDeviceRow(data) : null;
 }
 
 export async function touchDeviceSeen(deviceId: string): Promise<void> {
@@ -187,5 +216,5 @@ export async function listDevicesForStores(storeIds: string[]): Promise<Device[]
     .eq("is_active", true)
     .order("name");
   if (error) throwDbError(error, "listDevicesForStores");
-  return (data ?? []) as Device[];
+  return (data ?? []).map(mapDeviceRow);
 }

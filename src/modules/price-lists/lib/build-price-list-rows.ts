@@ -25,7 +25,48 @@ export type PriceListRow = {
   salePrice: number;
   /** Catalog unit selling price (sale_price ?? base_price). */
   catalogSalePrice: number;
+  /** Optional “before” price for offers (compare-at). */
+  compareAtPrice: number | null;
 };
+
+export function resolveOfferDisplayPrices(input: {
+  salePrice: number;
+  catalogSalePrice: number;
+  compareAtPrice: number | null;
+  discountPercent: number;
+  showBeforeAfter: boolean;
+}): { displayPrice: number; oldPrice: number | null } {
+  const salePrice = roundMoney(input.salePrice);
+  const afterDiscount = applyDisplayDiscount(salePrice, input.discountPercent);
+
+  if (!input.showBeforeAfter) {
+    return { displayPrice: afterDiscount, oldPrice: null };
+  }
+
+  if (input.discountPercent > 0) {
+    const before =
+      input.compareAtPrice != null && input.compareAtPrice > afterDiscount
+        ? roundMoney(input.compareAtPrice)
+        : salePrice;
+    return {
+      displayPrice: afterDiscount,
+      oldPrice: before > afterDiscount ? before : null,
+    };
+  }
+
+  const beforeCandidate =
+    input.compareAtPrice != null && input.compareAtPrice > 0
+      ? roundMoney(input.compareAtPrice)
+      : input.catalogSalePrice > salePrice
+        ? roundMoney(input.catalogSalePrice)
+        : null;
+
+  if (beforeCandidate != null && beforeCandidate > salePrice) {
+    return { displayPrice: salePrice, oldPrice: beforeCandidate };
+  }
+
+  return { displayPrice: salePrice, oldPrice: null };
+}
 
 export function suggestSaleFromCost(packCost: number, marginPercent: number): number {
   const margin = Number.isFinite(marginPercent) ? marginPercent : 0;
@@ -111,6 +152,7 @@ export function buildPriceListRowFromCost(input: {
     suggestedSalePrice,
     salePrice,
     catalogSalePrice,
+    compareAtPrice: null,
   };
 }
 

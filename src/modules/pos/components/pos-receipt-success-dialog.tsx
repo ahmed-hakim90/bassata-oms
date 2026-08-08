@@ -67,7 +67,7 @@ export function PosReceiptSuccessDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[92dvh] max-w-md overflow-hidden rounded-2xl p-0 sm:max-w-md">
+        <DialogContent className="max-h-[min(94dvh,100%)] max-w-md overflow-hidden rounded-2xl p-0 max-sm:max-w-[calc(100%-0.75rem)] sm:max-w-md">
           <DialogHeader className="space-y-2 border-b border-border/70 px-4 py-4 text-start">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="size-7" />
@@ -79,11 +79,11 @@ export function PosReceiptSuccessDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[min(42dvh,320px)] overflow-y-auto px-4 py-3">
+          <div className="max-h-[min(36dvh,280px)] overflow-y-auto overscroll-y-contain px-4 py-3 max-[390px]:max-h-[min(30dvh,220px)]">
             <ReceiptBrandingPreview receipt={receipt} />
           </div>
 
-          <div className="grid gap-2 border-t border-border/70 p-4">
+          <div className="grid gap-2 border-t border-border/70 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
             <Button
               type="button"
               className="h-14 rounded-2xl text-base font-semibold"
@@ -116,7 +116,7 @@ export function PosReceiptSuccessDialog({
             <Button
               type="button"
               variant="secondary"
-              className="h-11 rounded-xl text-sm"
+              className="h-12 rounded-xl text-sm font-semibold"
               onClick={() => onOpenChange(false)}
             >
               متابعة البيع

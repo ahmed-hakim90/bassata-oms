@@ -16,6 +16,7 @@ import {
   type BusinessActivitySettings,
   type ProductTemplateSettings,
 } from "@/lib/constants";
+import { supportsProductModifiers } from "@/lib/business-activity-flags";
 import {
   getTemplateFromSettings,
   productTemplateToFormValues,
@@ -32,6 +33,7 @@ import {
 } from "@/modules/products/actions/product.actions";
 import { RecipeEditor } from "./recipe-editor";
 import { VariantEditor } from "./variant-editor";
+import { ProductModifiersEditor } from "./product-modifiers-editor";
 import { WholesalePriceTiersEditor } from "./wholesale-price-tiers-editor";
 import { GuidedProductDetailsForm } from "@/modules/products/components/guided-product-details-form";
 import { nextSequentialProductSku } from "@/modules/products/lib/generate-product-sku";
@@ -296,6 +298,11 @@ export function ProductFormDialog({
     Boolean(workingProduct);
   const showWholesaleTiersTab =
     businessActivitySettings.enable_wholesale_sales && Boolean(workingProduct);
+  const showModifiersTab =
+    isEdit &&
+    Boolean(workingProduct) &&
+    (productType === "finished_product" || productType === "finished") &&
+    supportsProductModifiers(businessActivitySettings.activity_type);
 
   async function onSubmit(values: ProductFormValues) {
     try {
@@ -344,7 +351,8 @@ export function ProductFormDialog({
     }
   }
 
-  const showTabs = showVariantsTab || showRecipeTab || showWholesaleTiersTab;
+  const showTabs =
+    showVariantsTab || showRecipeTab || showWholesaleTiersTab || showModifiersTab;
   const detailsForm = (
     <GuidedProductDetailsForm
       form={form}
@@ -353,6 +361,7 @@ export function ProductFormDialog({
       currency={currency}
       activityType={businessActivitySettings.activity_type}
       enablePriceByAmount={businessActivitySettings.enable_price_by_amount}
+      enableWeightSales={businessActivitySettings.enable_weight_sales}
       enableWholesaleSales={businessActivitySettings.enable_wholesale_sales}
       onCancel={() => onOpenChange(false)}
       onSubmit={onSubmit}
@@ -400,6 +409,11 @@ export function ProductFormDialog({
                   أسعار الجملة
                 </TabsTrigger>
               ) : null}
+              {showModifiersTab ? (
+                <TabsTrigger value="modifiers" className="flex-1">
+                  إضافات
+                </TabsTrigger>
+              ) : null}
             </TabsList>
 
             <TabsContent value="details" className="outline-none">
@@ -433,6 +447,12 @@ export function ProductFormDialog({
                   currency={currency}
                   initialTiers={wholesaleTiers ?? []}
                 />
+              </TabsContent>
+            ) : null}
+
+            {showModifiersTab && workingProduct ? (
+              <TabsContent value="modifiers" className="pt-1">
+                <ProductModifiersEditor productId={workingProduct.id} />
               </TabsContent>
             ) : null}
           </Tabs>

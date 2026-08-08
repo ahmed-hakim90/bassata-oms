@@ -23,7 +23,7 @@ export default function PosError({
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-6">
       <ErrorStateBlock
         title="تعذر تحديث شاشة الكاشير"
-        description="السلة محفوظة على الجهاز. اضغط إعادة المحاولة للاستمرار بدون ما تفقد البيع."
+        description="السلة محفوظة. اضغط إعادة المحاولة للاستمرار بدون ما تفقد البيع."
       />
       {error.digest ? (
         <p className="text-xs text-muted-foreground" dir="ltr">

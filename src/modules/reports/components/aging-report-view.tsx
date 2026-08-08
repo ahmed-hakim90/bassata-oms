@@ -36,7 +36,7 @@ function partyColumns(
   currency: string,
   kind: "customer" | "supplier"
 ): ColumnDef<AgingPartyRow>[] {
-  return [
+  const columns: ColumnDef<AgingPartyRow>[] = [
     {
       header: kind === "customer" ? "العميل" : "المورد",
       id: "name",
@@ -84,6 +84,26 @@ function partyColumns(
         ),
     },
   ];
+
+  if (kind === "customer") {
+    columns.push({
+      header: "إجراء",
+      id: "collect",
+      cell: ({ row }) =>
+        row.original.balance > 0 ? (
+          <Link
+            href={`/customers/${row.original.id}?collect=1`}
+            className="text-sm font-medium text-[var(--mds-color-action-primary)] hover:underline"
+          >
+            تحصيل
+          </Link>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    });
+  }
+
+  return columns;
 }
 
 export function AgingReportView({

@@ -307,7 +307,7 @@ export function StockCountWizard({
             }
           />
         ) : (
-          <div className="max-h-[50vh] overflow-y-auto">
+          <div className="max-h-[50vh] overflow-x-auto overflow-y-auto">
             <Table className="min-w-[640px]">
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow className="hover:bg-transparent">

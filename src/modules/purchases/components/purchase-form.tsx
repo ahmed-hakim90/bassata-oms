@@ -1234,10 +1234,10 @@ export function PurchaseForm({
               {formatCurrency(invoice.total || subtotal, currency)}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
             <Button
               variant="outline"
-              className="min-h-11"
+              className="min-h-11 w-full sm:w-auto"
               onClick={() => {
                 if (isDraft) {
                   toast.success("تم الحفظ المؤقت — تابع لاحقًا من القائمة");
@@ -1255,13 +1255,13 @@ export function PurchaseForm({
               <>
                 <Button
                   variant="destructive"
-                  className="min-h-11"
+                  className="min-h-11 w-full sm:w-auto"
                   onClick={() => setConfirmDelete(true)}
                 >
                   حذف
                 </Button>
                 <Button
-                  className="col-span-2 min-h-12 text-base sm:col-span-1 sm:min-w-40"
+                  className="min-h-12 w-full text-base sm:min-w-40 sm:w-auto"
                   onClick={() => {
                     setAmountPaidNow("0");
                     setReceivePaymentMethod("cash");
@@ -1278,7 +1278,7 @@ export function PurchaseForm({
                 <Button
                   type="button"
                   variant="outline"
-                  className="min-h-11 justify-center"
+                  className="min-h-11 w-full justify-center sm:w-auto"
                   onClick={() =>
                     setPrintPreview({
                       href: `/print/purchases/${invoice.id}?embed=1`,
@@ -1291,7 +1291,7 @@ export function PurchaseForm({
                 <Button
                   type="button"
                   variant="outline"
-                  className="min-h-11 justify-center border-primary text-primary"
+                  className="min-h-11 w-full justify-center border-primary text-primary sm:w-auto"
                   onClick={() =>
                     setPrintPreview({
                       href: `/print/purchases/${invoice.id}/receipt?embed=1`,
@@ -1309,7 +1309,7 @@ export function PurchaseForm({
                   href={`/inventory/purchases/price-list?invoice=${invoice.id}`}
                   className={cn(
                     buttonVariants({ variant: "default" }),
-                    "col-span-2 min-h-11 justify-center sm:col-span-1"
+                    "min-h-11 w-full justify-center sm:w-auto"
                   )}
                 >
                   <Tags className="size-4" />
@@ -1317,7 +1317,7 @@ export function PurchaseForm({
                 </Link>
                 <Button
                   variant="outline"
-                  className="col-span-2 min-h-11 sm:col-span-1"
+                  className="min-h-11 w-full sm:w-auto"
                   onClick={() => setConfirmVoid(true)}
                 >
                   إلغاء الاستلام

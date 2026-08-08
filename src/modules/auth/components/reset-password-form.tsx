@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { IceCream } from "lucide-react";
 import { resetPasswordAction } from "@/modules/auth/actions/password.actions";
 import { APP_NAME, APP_TAGLINE_AR } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { AppBrandMark } from "@/components/layout/app-brand-mark";
 
 export function ResetPasswordForm() {
   const [state, formAction, pending] = useActionState(resetPasswordAction, null);
@@ -18,7 +18,7 @@ export function ResetPasswordForm() {
       <div className="space-y-[var(--mds-space-6)] p-[var(--mds-space-8)]">
         <div className="flex flex-col items-center text-center">
           <div className="mb-[var(--mds-space-4)] flex size-12 items-center justify-center rounded-[var(--mds-radius-md)] bg-[var(--mds-color-action-primary)] text-[var(--mds-color-text-inverse)]">
-            <IceCream className="size-6" aria-hidden />
+            <AppBrandMark className="size-6" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
           <p className="mt-[var(--mds-space-1)] text-sm font-medium text-foreground/70">

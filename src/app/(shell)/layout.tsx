@@ -13,6 +13,7 @@ import {
   getBusinessActivitySettings,
   getFeatureFlags,
 } from "@/modules/system/services/settings.service";
+import { isFoodServiceActivity } from "@/lib/business-activity-flags";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import * as storeRepo from "@/lib/repositories/store.repository";
 
@@ -31,6 +32,8 @@ export default async function ShellLayout({
 
   try {
     user = await ensureTenantUser(await getCurrentUser());
+    const { assertUserMatchesHostOrg } = await import("@/lib/tenancy/host-org-session");
+    await assertUserMatchesHostOrg(user.org_id);
     [featureFlags, businessActivity, allStores, cookieStoreId, permissions, posReadiness] =
       await Promise.all([
         getFeatureFlags(),
@@ -41,6 +44,11 @@ export default async function ShellLayout({
         getPosReadiness(),
       ]);
   } catch (error) {
+    const { AuthError } = await import("@/lib/auth/auth-error");
+    if (error instanceof AuthError && error.message.includes("دومين")) {
+      const { redirect } = await import("next/navigation");
+      redirect("/domain-unavailable?reason=tenant");
+    }
     redirectOnAuthFailure(error, "/");
   }
 
@@ -60,9 +68,11 @@ export default async function ShellLayout({
     }
   }
   const pathname = (await headers()).get("x-pathname") ?? "/";
+  const enableKitchenDisplay = isFoodServiceActivity(businessActivity.activity_type);
   const navAccess = {
     enableWholesaleSales: businessActivity.enable_wholesale_sales,
     allowCashierWholesale: businessActivity.allow_cashier_wholesale,
+    enableKitchenDisplay,
   };
   const denial = getPageAccessDenial(
     pathname,
@@ -79,6 +89,7 @@ export default async function ShellLayout({
       featureFlags={featureFlags}
       enableWholesaleSales={businessActivity.enable_wholesale_sales}
       allowCashierWholesale={businessActivity.allow_cashier_wholesale}
+      enableKitchenDisplay={enableKitchenDisplay}
       stores={stores}
       activeStoreId={activeStoreId}
       permissions={[...permissions]}

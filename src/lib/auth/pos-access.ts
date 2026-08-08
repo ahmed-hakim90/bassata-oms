@@ -72,7 +72,23 @@ export async function resolvePosAccess(
     throw new PosAccessError("Store access denied", "access_denied");
   }
 
-  const deviceCtx = await getRegisteredDeviceContext();
+  let deviceCtx = await getRegisteredDeviceContext();
+  let device = deviceCtx ? await deviceRepo.getDevice(deviceCtx.deviceId) : null;
+  const needsImplicitBind =
+    !deviceCtx ||
+    deviceCtx.storeId !== storeId ||
+    !device?.is_active ||
+    device?.store_id !== storeId;
+
+  if (needsImplicitBind && persistCookies) {
+    const { ensureImplicitPosDeviceBinding } = await import("@/lib/auth/implicit-pos-device");
+    const bound = await ensureImplicitPosDeviceBinding(user, { storeId });
+    if (bound.ok) {
+      deviceCtx = { deviceId: bound.deviceId, storeId: bound.storeId };
+      device = await deviceRepo.getDevice(bound.deviceId);
+    }
+  }
+
   if (!deviceCtx) {
     throw new PosAccessError("Register this device to continue", "no_device");
   }
@@ -81,7 +97,6 @@ export async function resolvePosAccess(
     throw new PosAccessError("Device belongs to another store", "store_mismatch");
   }
 
-  const device = await deviceRepo.getDevice(deviceCtx.deviceId);
   if (!device || !device.is_active) {
     throw new PosAccessError("Device is inactive or missing", "device_inactive");
   }
@@ -103,16 +118,16 @@ export async function resolvePosAccess(
 
   let activeCashierId = await getActiveCashierId(storeId, device.id, user);
   if (!activeCashierId) {
+    // Cashier already logged in via PIN/email — unlock as self without a second PIN.
     if (user.role === "cashier") {
-      const allowed = await deviceRepo.cashierCanUseDevice(user.id, storeId, device.id);
-      if (!allowed) {
-        throw new PosAccessError("You are not allowed on this device", "access_denied");
+      if (persistCookies) {
+        await setActiveCashierId(user.id, { storeId, deviceId: device.id });
       }
+      activeCashierId = user.id;
+    } else {
+      // Owner/manager: PIN switch selects which cashier identity sells.
+      throw new PosAccessError("Cashier PIN required", "cashier_required");
     }
-    if (persistCookies) {
-      await setActiveCashierId(user.id, { storeId, deviceId: device.id });
-    }
-    activeCashierId = user.id;
   }
 
   if (user.role === "cashier" && activeCashierId !== user.id) {

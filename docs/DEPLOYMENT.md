@@ -12,9 +12,20 @@ SweetFlow supports **local demo** (seed data) and **production** (onboarding onl
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Public | Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server only | Service role for admin user provisioning |
 | `SweetFlow_COOKIE_SECRET` | Yes (prod) | Server only | HMAC secret for device, cashier, tracking tokens, and `sf_active_store` cookies (32+ chars). **Required in production** — app fails closed; never falls back to `SUPABASE_SERVICE_ROLE_KEY` (R9 / ADR-002). **Must be distinct per environment** (local ≠ staging ≠ production). Sharing secrets across Preview/Production on Vercel is an ops defect — rotate if values match. |
-| `NEXT_PUBLIC_APP_URL` | Yes (prod) | Public | Canonical app URL (auth redirects, public menu links). Distinct per env domain. |
+| `NEXT_PUBLIC_APP_URL` | Yes (prod) | Public | Canonical **platform** host (auth redirects, invite links, white-label fallback). Distinct per env domain. |
+| `PLATFORM_RESERVED_HOSTS` | No | Server only | Extra hostnames that cannot be claimed as org custom domains. |
 | `PLATFORM_BOOTSTRAP_EMAILS` | No | Server only | Comma-separated emails bootstrapped into `platform_admins` on first authenticated `/platform` access. **Active after S02.** Use distinct lists per env — never share staging ↔ production. |
 | `ONBOARDING_REQUIRE_INVITE` | No | Server only | When `true`, forces invite-gated onboarding even outside `NODE_ENV=production` (useful for staging-like local). **Ignored as a bypass:** production always requires an invite — there is no env flag that opens onboarding in prod. |
+| `RESEND_API_KEY` | Yes (prod mail) | Server only | Resend API key for transactional email (password reset, invites, session/discount owner alerts). When unset, sends are skipped and core flows continue. |
+| `EMAIL_FROM` | Yes (prod mail) | Server only | Verified Resend from address, e.g. `Velora <noreply@yourdomain.com>`. Domain must be verified in Resend. |
+| `EMAIL_REPLY_TO` | No | Server only | Optional reply-to address for outbound mail. |
+
+### Resend / transactional email
+
+1. Create a Resend account and verify your sending domain.
+2. Set `RESEND_API_KEY` and `EMAIL_FROM` on the host (distinct per env).
+3. Password reset uses Supabase Admin `generateLink` (recovery) + Resend template — do not rely on Supabase built-in SMTP for app copy.
+4. Manual checks after deploy: `/forgot-password`, create user in Settings → Users, platform company invite, close a POS session, manager discount override.
 
 ### Secrets isolation (staging ≠ production)
 
@@ -38,6 +49,14 @@ Copy from `.env.example` and fill values in your host (Vercel, Docker, etc.).
 4. Suspend/reactivate orgs, create company invites (copy token once), review `platform_audit_logs`.
 
 Tenant owners without a `platform_admins` row (and not in bootstrap emails) see AccessDenied.
+
+### Custom domains (white-label)
+
+See [CUSTOM_DOMAINS.md](./CUSTOM_DOMAINS.md). After migration `20260808010000_org_custom_domains.sql`:
+
+1. Platform → org → set hostname → customer DNS (CNAME) + Vercel Domains + Supabase Auth Redirect URLs.
+2. Verify in Platform until status is `active`.
+3. Staging smoke: login + `/menu` on the custom host; suspended org must show unavailable page.
 
 ### Invite-gated onboarding (production)
 
