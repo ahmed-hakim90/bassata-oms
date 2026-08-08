@@ -1,6 +1,6 @@
 # SYSTEM MAP / BAS-01
 
-> Velora (GitHub `bassata-oms` · local `velora` · Vercel `velora`) — multi-location POS + light ERP for cafés, restaurants, and retail  
+> Velora (GitHub `velora` · local `velora` · Vercel `velora`) — multi-location POS + light ERP for cafés, restaurants, and retail  
 > Last updated: 2026-08-08
 
 ## Core / runtime
