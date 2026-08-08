@@ -1,7 +1,7 @@
 import Link from "next/link";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
 import {
   computeSessionLifecycle,

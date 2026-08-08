@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import {
   applyBusinessActivityPresetAction,
   updateBusinessActivitySettingsAction,

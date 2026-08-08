@@ -35,7 +35,7 @@ npm run verify:production   # smoke + all remote verify scripts
 npm run smoke:check
 ```
 
-يشمل: lint · typecheck · unit tests · build · التحقق من ملفات الهجرات · `SweetFlow_COOKIE_SECRET`.
+يشمل: lint · typecheck · unit tests · build · التحقق من ملفات الهجرات · `VELORA_COOKIE_SECRET`.
 
 ### CI
 
@@ -86,11 +86,11 @@ npm run db:types   # بعد تغيير schema على remote
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | ✅ |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | ✅ |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ server-only | ✅ server-only |
-| `SweetFlow_COOKIE_SECRET` | ✅ **قيمة مختلفة** عن prod | ✅ 32+ byte عشوائي |
+| `VELORA_COOKIE_SECRET` | ✅ **قيمة مختلفة** عن prod | ✅ 32+ byte عشوائي |
 | `NEXT_PUBLIC_APP_URL` | `https://staging...` | `https://app...` |
 | `PLATFORM_BOOTSTRAP_EMAILS` | قائمة منفصلة عن prod | قائمة منفصلة — بوابة `/platform` |
 
-**لا تشارك** `SUPABASE_SERVICE_ROLE_KEY` أو `SweetFlow_COOKIE_SECRET` بين staging و production.
+**لا تشارك** `SUPABASE_SERVICE_ROLE_KEY` أو `VELORA_COOKIE_SECRET` بين staging و production.
 
 ### 1.3 Supabase Auth (Staging)
 

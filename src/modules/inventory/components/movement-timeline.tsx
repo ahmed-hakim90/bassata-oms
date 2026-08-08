@@ -2,8 +2,8 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
-import { GlassPanel } from "@/components/SweetFlow/glass-panel";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { GlassPanel } from "@/components/Velora/glass-panel";
+import { StatusPill } from "@/components/Velora/status-pill";
 import type { MovementTimelineItem } from "../services/movement.service";
 import { cn } from "@/lib/utils";
 

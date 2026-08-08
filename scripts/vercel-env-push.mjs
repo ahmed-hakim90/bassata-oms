@@ -16,6 +16,8 @@ const KEYS = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
+  "VELORA_COOKIE_SECRET",
+  // Legacy alias kept during brand unify dual-read window.
   "SweetFlow_COOKIE_SECRET",
   "NEXT_PUBLIC_APP_URL",
   "RESEND_API_KEY",
@@ -43,6 +45,14 @@ for (const line of readFileSync(envPath, "utf8").split("\n")) {
 }
 
 values.NEXT_PUBLIC_APP_URL = PRODUCTION_APP_URL;
+
+// Brand unify: keep canonical + legacy cookie secrets in sync when only one is present.
+const cookieSecret =
+  values.VELORA_COOKIE_SECRET || values.SweetFlow_COOKIE_SECRET;
+if (cookieSecret) {
+  values.VELORA_COOKIE_SECRET = cookieSecret;
+  values.SweetFlow_COOKIE_SECRET = cookieSecret;
+}
 
 for (const key of KEYS) {
   const value = values[key];

@@ -15,11 +15,13 @@ import {
   Shield,
   UserRoundSearch,
 } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -249,33 +251,36 @@ export function PlatformUsersConsole({
         ) : filteredUsers.length === 0 ? (
           <EmptyStateBlock title="مفيش نتائج" description="عدّل البحث أو فلتر الشركة." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="px-2 py-2 text-start font-medium">المستخدم</th>
-                  <th className="px-2 py-2 text-start font-medium">الشركة</th>
-                  <th className="px-2 py-2 text-start font-medium">الدور</th>
-                  <th className="px-2 py-2 text-start font-medium">الحالة</th>
-                  <th className="px-2 py-2 text-start font-medium">تاريخ</th>
-                  <th className="px-2 py-2 text-start font-medium">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-border/60 align-top">
-                    <td className="px-2 py-3">
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
-                    </td>
-                    <td className="px-2 py-3">
-                      <p>{user.org_name}</p>
-                      <StatusPill
-                        label={user.org_status === "suspended" ? "شركة معلّقة" : "شركة نشطة"}
-                        variant={user.org_status === "suspended" ? "danger" : "success"}
-                      />
-                    </td>
-                    <td className="px-2 py-3">
+          <ResponsiveListLayout
+            mobile={filteredUsers.map((user) => (
+              <MobileEntityCard
+                key={user.id}
+                title={user.name}
+                subtitle={user.email}
+                badge={
+                  <StatusPill
+                    label={user.is_active ? "نشط" : "موقوف"}
+                    variant={user.is_active ? "success" : "danger"}
+                  />
+                }
+                fields={[
+                  {
+                    label: "الشركة",
+                    value: (
+                      <span className="flex flex-col gap-1">
+                        <span>{user.org_name}</span>
+                        <StatusPill
+                          label={
+                            user.org_status === "suspended" ? "شركة معلّقة" : "شركة نشطة"
+                          }
+                          variant={user.org_status === "suspended" ? "danger" : "success"}
+                        />
+                      </span>
+                    ),
+                  },
+                  {
+                    label: "الدور",
+                    value: (
                       <Select
                         value={user.role}
                         disabled={pending}
@@ -306,109 +311,270 @@ export function PlatformUsersConsole({
                           ))}
                         </SelectContent>
                       </Select>
-                    </td>
-                    <td className="px-2 py-3">
-                      <StatusPill
-                        label={user.is_active ? "نشط" : "موقوف"}
-                        variant={user.is_active ? "success" : "danger"}
-                      />
-                    </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-muted-foreground">
-                      {user.created_at ? formatDateTime(user.created_at) : "—"}
-                    </td>
-                    <td className="px-2 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        {user.is_active ? (
-                          <Button
-                            size="sm"
-                            variant="destructive"
+                    ),
+                  },
+                  {
+                    label: "تاريخ",
+                    value: user.created_at ? formatDateTime(user.created_at) : "—",
+                  },
+                ]}
+                footer={
+                  <div className="flex flex-wrap gap-2">
+                    {user.is_active ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={pending}
+                        onClick={() => setDeactivateUser(user)}
+                      >
+                        <Ban className="size-3.5" />
+                        إيقاف
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => {
+                          startTransition(async () => {
+                            const result = await setPlatformTenantUserActiveAction({
+                              userId: user.id,
+                              isActive: true,
+                            });
+                            if (!result.ok) {
+                              toast.error(result.error);
+                              return;
+                            }
+                            toast.success("تم تفعيل المستخدم");
+                            refresh();
+                          });
+                        }}
+                      >
+                        <CheckCircle2 className="size-3.5" />
+                        تفعيل
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => {
+                        setPasswordUser(user);
+                        setNewPassword("");
+                      }}
+                    >
+                      <KeyRound className="size-3.5" />
+                      كلمة مرور
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending || !user.auth_user_id}
+                      onClick={() => {
+                        startTransition(async () => {
+                          const result = await signOutPlatformTenantUserAction(user.id);
+                          if (!result.ok) {
+                            toast.error(result.error);
+                            return;
+                          }
+                          toast.success("تم إنهاء جلسات المستخدم");
+                        });
+                      }}
+                    >
+                      <LogOut className="size-3.5" />
+                      إنهاء جلسات
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending || !user.auth_user_id || !user.is_active}
+                      onClick={() => {
+                        startTransition(async () => {
+                          const result = await createTenantImpersonationLinkAction(user.id);
+                          if (!result.ok) {
+                            toast.error(result.error);
+                            return;
+                          }
+                          setImpersonateLink(result.data.actionLink);
+                          setImpersonateEmail(result.data.email);
+                          toast.success("تم توليد لينك دخول لمرة واحدة");
+                        });
+                      }}
+                    >
+                      <UserRoundSearch className="size-3.5" />
+                      دخول كحسابه
+                    </Button>
+                  </div>
+                }
+              />
+            ))}
+            desktop={
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="px-2 py-2 text-start font-medium">المستخدم</th>
+                      <th className="px-2 py-2 text-start font-medium">الشركة</th>
+                      <th className="px-2 py-2 text-start font-medium">الدور</th>
+                      <th className="px-2 py-2 text-start font-medium">الحالة</th>
+                      <th className="px-2 py-2 text-start font-medium">تاريخ</th>
+                      <th className="px-2 py-2 text-start font-medium">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((user) => (
+                      <tr key={user.id} className="border-b border-border/60 align-top">
+                        <td className="px-2 py-3">
+                          <p className="font-medium">{user.name}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </td>
+                        <td className="px-2 py-3">
+                          <p>{user.org_name}</p>
+                          <StatusPill
+                            label={
+                              user.org_status === "suspended" ? "شركة معلّقة" : "شركة نشطة"
+                            }
+                            variant={user.org_status === "suspended" ? "danger" : "success"}
+                          />
+                        </td>
+                        <td className="px-2 py-3">
+                          <Select
+                            value={user.role}
                             disabled={pending}
-                            onClick={() => setDeactivateUser(user)}
-                          >
-                            <Ban className="size-3.5" />
-                            إيقاف
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={pending}
-                            onClick={() => {
+                            onValueChange={(value) => {
+                              if (!value) return;
                               startTransition(async () => {
-                                const result = await setPlatformTenantUserActiveAction({
+                                const result = await setPlatformTenantUserRoleAction({
                                   userId: user.id,
-                                  isActive: true,
+                                  role: value as UserRole,
                                 });
                                 if (!result.ok) {
                                   toast.error(result.error);
                                   return;
                                 }
-                                toast.success("تم تفعيل المستخدم");
+                                toast.success("تم تغيير الدور");
                                 refresh();
                               });
                             }}
                           >
-                            <CheckCircle2 className="size-3.5" />
-                            تفعيل
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={pending}
-                          onClick={() => {
-                            setPasswordUser(user);
-                            setNewPassword("");
-                          }}
-                        >
-                          <KeyRound className="size-3.5" />
-                          كلمة مرور
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={pending || !user.auth_user_id}
-                          onClick={() => {
-                            startTransition(async () => {
-                              const result = await signOutPlatformTenantUserAction(user.id);
-                              if (!result.ok) {
-                                toast.error(result.error);
-                                return;
-                              }
-                              toast.success("تم إنهاء جلسات المستخدم");
-                            });
-                          }}
-                        >
-                          <LogOut className="size-3.5" />
-                          إنهاء جلسات
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={pending || !user.auth_user_id || !user.is_active}
-                          onClick={() => {
-                            startTransition(async () => {
-                              const result = await createTenantImpersonationLinkAction(user.id);
-                              if (!result.ok) {
-                                toast.error(result.error);
-                                return;
-                              }
-                              setImpersonateLink(result.data.actionLink);
-                              setImpersonateEmail(result.data.email);
-                              toast.success("تم توليد لينك دخول لمرة واحدة");
-                            });
-                          }}
-                        >
-                          <UserRoundSearch className="size-3.5" />
-                          دخول كحسابه
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                            <SelectTrigger className="h-8 w-[140px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROLES.map((role) => (
+                                <SelectItem key={role} value={role}>
+                                  {ROLE_LABELS[role]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="px-2 py-3">
+                          <StatusPill
+                            label={user.is_active ? "نشط" : "موقوف"}
+                            variant={user.is_active ? "success" : "danger"}
+                          />
+                        </td>
+                        <td className="px-2 py-3 whitespace-nowrap text-muted-foreground">
+                          {user.created_at ? formatDateTime(user.created_at) : "—"}
+                        </td>
+                        <td className="px-2 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            {user.is_active ? (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={pending}
+                                onClick={() => setDeactivateUser(user)}
+                              >
+                                <Ban className="size-3.5" />
+                                إيقاف
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={pending}
+                                onClick={() => {
+                                  startTransition(async () => {
+                                    const result = await setPlatformTenantUserActiveAction({
+                                      userId: user.id,
+                                      isActive: true,
+                                    });
+                                    if (!result.ok) {
+                                      toast.error(result.error);
+                                      return;
+                                    }
+                                    toast.success("تم تفعيل المستخدم");
+                                    refresh();
+                                  });
+                                }}
+                              >
+                                <CheckCircle2 className="size-3.5" />
+                                تفعيل
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={pending}
+                              onClick={() => {
+                                setPasswordUser(user);
+                                setNewPassword("");
+                              }}
+                            >
+                              <KeyRound className="size-3.5" />
+                              كلمة مرور
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={pending || !user.auth_user_id}
+                              onClick={() => {
+                                startTransition(async () => {
+                                  const result = await signOutPlatformTenantUserAction(user.id);
+                                  if (!result.ok) {
+                                    toast.error(result.error);
+                                    return;
+                                  }
+                                  toast.success("تم إنهاء جلسات المستخدم");
+                                });
+                              }}
+                            >
+                              <LogOut className="size-3.5" />
+                              إنهاء جلسات
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={pending || !user.auth_user_id || !user.is_active}
+                              onClick={() => {
+                                startTransition(async () => {
+                                  const result = await createTenantImpersonationLinkAction(
+                                    user.id
+                                  );
+                                  if (!result.ok) {
+                                    toast.error(result.error);
+                                    return;
+                                  }
+                                  setImpersonateLink(result.data.actionLink);
+                                  setImpersonateEmail(result.data.email);
+                                  toast.success("تم توليد لينك دخول لمرة واحدة");
+                                });
+                              }}
+                            >
+                              <UserRoundSearch className="size-3.5" />
+                              دخول كحسابه
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+          />
         )}
       </OperationalCard>
 

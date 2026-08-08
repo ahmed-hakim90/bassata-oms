@@ -1,18 +1,9 @@
+import { resolveCookieSigningSecret } from "@/lib/auth/cookie-signing-secret";
+
 const VERSION = "v1";
 
-/** Prod fails closed (R9): never fall back to service_role / anon key. */
 function cookieSecret(): string {
-  const dedicated = process.env.SweetFlow_COOKIE_SECRET;
-  if (dedicated) return dedicated;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("SweetFlow_COOKIE_SECRET is required in production");
-  }
-  const fallback =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!fallback) {
-    throw new Error("Missing cookie signing secret");
-  }
-  return fallback;
+  return resolveCookieSigningSecret();
 }
 
 function base64UrlToBytes(value: string): Uint8Array {

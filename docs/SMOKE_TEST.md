@@ -19,7 +19,7 @@ Equivalent to `lint` + `tsc --noEmit` + `vitest run` + `build` + env/migration f
 | `npm run test` | Included in smoke:check |
 | `npm run build` | Included in smoke:check |
 | Migration files 001–031 present | Included in smoke:check |
-| `SweetFlow_COOKIE_SECRET` set | Required in CI/production (`smoke:check`) |
+| `VELORA_COOKIE_SECRET` set | Required in CI/production (`smoke:check`; legacy alias OK) |
 
 After applying `006_fix_flags_and_org_rls.sql` on remote, run:
 

@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CircleDollarSign, MinusCircle, TrendingDown, TrendingUp } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { PageHeader } from "@/components/Velora/page-header";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -164,37 +166,109 @@ export function IncomeStatementPage({
           <div className="space-y-6">
             <section>
               <h3 className="mb-2 text-sm font-medium">الإيرادات</h3>
-              <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-[560px] text-sm">
-                  <thead className="bg-muted/40 text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 text-start font-medium">الكود</th>
-                      <th className="px-3 py-2 text-start font-medium">الحساب</th>
-                      <th className="px-3 py-2 text-start font-medium">المبلغ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <ResponsiveListLayout
+                mobile={
+                  <>
                     {result.revenueLines
                       .filter((line) => !line.isContraRevenue)
                       .map((line) => (
-                        <tr key={line.accountId} className="border-t">
-                          <td className="px-3 py-2 font-mono tabular-nums">
-                            <Link
-                              href={`/accounting/ledger?accountId=${line.accountId}&from=${result.from}&to=${result.to}&storeId=${selectedStore}`}
-                              className="text-primary underline-offset-2 hover:underline"
-                            >
-                              {line.code}
-                            </Link>
-                          </td>
-                          <td className="px-3 py-2">{line.name}</td>
-                          <td className="px-3 py-2 tabular-nums">
-                            {formatCurrency(line.amount, currency)}
-                          </td>
-                        </tr>
+                        <MobileEntityCard
+                          key={line.accountId}
+                          href={`/accounting/ledger?accountId=${line.accountId}&from=${result.from}&to=${result.to}&storeId=${selectedStore}`}
+                          title={line.name}
+                          subtitle={`إيرادات · ${line.code}`}
+                          fields={[
+                            {
+                              label: "المبلغ",
+                              value: (
+                                <span className="tabular-nums font-medium">
+                                  {formatCurrency(line.amount, currency)}
+                                </span>
+                              ),
+                            },
+                          ]}
+                          trailingHint="فتح الدفتر ←"
+                        />
                       ))}
                     {result.salesDiscounts > 0
                       ? result.revenueLines
                           .filter((line) => line.isContraRevenue)
+                          .map((line) => (
+                            <MobileEntityCard
+                              key={line.accountId}
+                              href={`/accounting/ledger?accountId=${line.accountId}&from=${result.from}&to=${result.to}&storeId=${selectedStore}`}
+                              title={line.name}
+                              subtitle={`خصم · ${line.code}`}
+                              fields={[
+                                {
+                                  label: "المبلغ",
+                                  value: (
+                                    <span className="tabular-nums font-medium text-destructive">
+                                      ({formatCurrency(Math.abs(line.amount), currency)})
+                                    </span>
+                                  ),
+                                },
+                              ]}
+                              trailingHint="فتح الدفتر ←"
+                            />
+                          ))
+                      : null}
+                    <MobileEntityCard
+                      title="إجمالي الإيراد"
+                      fields={[
+                        {
+                          label: "المبلغ",
+                          value: (
+                            <span className="tabular-nums">
+                              {formatCurrency(result.grossRevenue, currency)}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                    {result.salesDiscounts > 0 ? (
+                      <MobileEntityCard
+                        title="خصم المبيعات"
+                        fields={[
+                          {
+                            label: "المبلغ",
+                            value: (
+                              <span className="tabular-nums text-destructive">
+                                ({formatCurrency(result.salesDiscounts, currency)})
+                              </span>
+                            ),
+                          },
+                        ]}
+                      />
+                    ) : null}
+                    <MobileEntityCard
+                      title="صافي الإيراد"
+                      fields={[
+                        {
+                          label: "المبلغ",
+                          value: (
+                            <span className="tabular-nums font-semibold">
+                              {formatCurrency(result.netRevenue, currency)}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                  </>
+                }
+                desktop={
+                  <div className="overflow-x-auto rounded-xl border">
+                    <table className="w-full min-w-[560px] text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 text-start font-medium">الكود</th>
+                          <th className="px-3 py-2 text-start font-medium">الحساب</th>
+                          <th className="px-3 py-2 text-start font-medium">المبلغ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.revenueLines
+                          .filter((line) => !line.isContraRevenue)
                           .map((line) => (
                             <tr key={line.accountId} className="border-t">
                               <td className="px-3 py-2 font-mono tabular-nums">
@@ -206,43 +280,64 @@ export function IncomeStatementPage({
                                 </Link>
                               </td>
                               <td className="px-3 py-2">{line.name}</td>
-                              <td className="px-3 py-2 tabular-nums text-destructive">
-                                ({formatCurrency(Math.abs(line.amount), currency)})
+                              <td className="px-3 py-2 tabular-nums">
+                                {formatCurrency(line.amount, currency)}
                               </td>
                             </tr>
-                          ))
-                      : null}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t bg-muted/20">
-                      <td className="px-3 py-2" colSpan={2}>
-                        إجمالي الإيراد
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {formatCurrency(result.grossRevenue, currency)}
-                      </td>
-                    </tr>
-                    {result.salesDiscounts > 0 ? (
-                      <tr className="border-t">
-                        <td className="px-3 py-2" colSpan={2}>
-                          خصم المبيعات
-                        </td>
-                        <td className="px-3 py-2 tabular-nums text-destructive">
-                          ({formatCurrency(result.salesDiscounts, currency)})
-                        </td>
-                      </tr>
-                    ) : null}
-                    <tr className="border-t bg-muted/30 font-medium">
-                      <td className="px-3 py-2" colSpan={2}>
-                        صافي الإيراد
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {formatCurrency(result.netRevenue, currency)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                          ))}
+                        {result.salesDiscounts > 0
+                          ? result.revenueLines
+                              .filter((line) => line.isContraRevenue)
+                              .map((line) => (
+                                <tr key={line.accountId} className="border-t">
+                                  <td className="px-3 py-2 font-mono tabular-nums">
+                                    <Link
+                                      href={`/accounting/ledger?accountId=${line.accountId}&from=${result.from}&to=${result.to}&storeId=${selectedStore}`}
+                                      className="text-primary underline-offset-2 hover:underline"
+                                    >
+                                      {line.code}
+                                    </Link>
+                                  </td>
+                                  <td className="px-3 py-2">{line.name}</td>
+                                  <td className="px-3 py-2 tabular-nums text-destructive">
+                                    ({formatCurrency(Math.abs(line.amount), currency)})
+                                  </td>
+                                </tr>
+                              ))
+                          : null}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t bg-muted/20">
+                          <td className="px-3 py-2" colSpan={2}>
+                            إجمالي الإيراد
+                          </td>
+                          <td className="px-3 py-2 tabular-nums">
+                            {formatCurrency(result.grossRevenue, currency)}
+                          </td>
+                        </tr>
+                        {result.salesDiscounts > 0 ? (
+                          <tr className="border-t">
+                            <td className="px-3 py-2" colSpan={2}>
+                              خصم المبيعات
+                            </td>
+                            <td className="px-3 py-2 tabular-nums text-destructive">
+                              ({formatCurrency(result.salesDiscounts, currency)})
+                            </td>
+                          </tr>
+                        ) : null}
+                        <tr className="border-t bg-muted/30 font-medium">
+                          <td className="px-3 py-2" colSpan={2}>
+                            صافي الإيراد
+                          </td>
+                          <td className="px-3 py-2 tabular-nums">
+                            {formatCurrency(result.netRevenue, currency)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                }
+              />
             </section>
 
             <section>
@@ -250,45 +345,85 @@ export function IncomeStatementPage({
               {result.expenseLines.length === 0 ? (
                 <p className="text-sm text-muted-foreground">مفيش مصروفات في الفترة.</p>
               ) : (
-                <div className="overflow-x-auto rounded-xl border">
-                  <table className="w-full min-w-[560px] text-sm">
-                    <thead className="bg-muted/40 text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2 text-start font-medium">الكود</th>
-                        <th className="px-3 py-2 text-start font-medium">الحساب</th>
-                        <th className="px-3 py-2 text-start font-medium">المبلغ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <ResponsiveListLayout
+                  mobile={
+                    <>
                       {result.expenseLines.map((line) => (
-                        <tr key={line.accountId} className="border-t">
-                          <td className="px-3 py-2 font-mono tabular-nums">
-                            <Link
-                              href={`/accounting/ledger?accountId=${line.accountId}&from=${result.from}&to=${result.to}&storeId=${selectedStore}`}
-                              className="text-primary underline-offset-2 hover:underline"
-                            >
-                              {line.code}
-                            </Link>
-                          </td>
-                          <td className="px-3 py-2">{line.name}</td>
-                          <td className="px-3 py-2 tabular-nums">
-                            {formatCurrency(line.amount, currency)}
-                          </td>
-                        </tr>
+                        <MobileEntityCard
+                          key={line.accountId}
+                          href={`/accounting/ledger?accountId=${line.accountId}&from=${result.from}&to=${result.to}&storeId=${selectedStore}`}
+                          title={line.name}
+                          subtitle={`مصروفات · ${line.code}`}
+                          fields={[
+                            {
+                              label: "المبلغ",
+                              value: (
+                                <span className="tabular-nums font-medium">
+                                  {formatCurrency(line.amount, currency)}
+                                </span>
+                              ),
+                            },
+                          ]}
+                          trailingHint="فتح الدفتر ←"
+                        />
                       ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t bg-muted/30 font-medium">
-                        <td className="px-3 py-2" colSpan={2}>
-                          إجمالي المصروفات
-                        </td>
-                        <td className="px-3 py-2 tabular-nums">
-                          {formatCurrency(result.totalExpenses, currency)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
+                      <MobileEntityCard
+                        title="إجمالي المصروفات"
+                        fields={[
+                          {
+                            label: "المبلغ",
+                            value: (
+                              <span className="tabular-nums font-semibold">
+                                {formatCurrency(result.totalExpenses, currency)}
+                              </span>
+                            ),
+                          },
+                        ]}
+                      />
+                    </>
+                  }
+                  desktop={
+                    <div className="overflow-x-auto rounded-xl border">
+                      <table className="w-full min-w-[560px] text-sm">
+                        <thead className="bg-muted/40 text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-2 text-start font-medium">الكود</th>
+                            <th className="px-3 py-2 text-start font-medium">الحساب</th>
+                            <th className="px-3 py-2 text-start font-medium">المبلغ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.expenseLines.map((line) => (
+                            <tr key={line.accountId} className="border-t">
+                              <td className="px-3 py-2 font-mono tabular-nums">
+                                <Link
+                                  href={`/accounting/ledger?accountId=${line.accountId}&from=${result.from}&to=${result.to}&storeId=${selectedStore}`}
+                                  className="text-primary underline-offset-2 hover:underline"
+                                >
+                                  {line.code}
+                                </Link>
+                              </td>
+                              <td className="px-3 py-2">{line.name}</td>
+                              <td className="px-3 py-2 tabular-nums">
+                                {formatCurrency(line.amount, currency)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t bg-muted/30 font-medium">
+                            <td className="px-3 py-2" colSpan={2}>
+                              إجمالي المصروفات
+                            </td>
+                            <td className="px-3 py-2 tabular-nums">
+                              {formatCurrency(result.totalExpenses, currency)}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  }
+                />
               )}
             </section>
 

@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

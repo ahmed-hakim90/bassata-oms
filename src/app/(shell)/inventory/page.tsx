@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
 import type { ProductType } from "@/lib/types";
 import { InventoryHub } from "@/modules/inventory/components/inventory-hub";

@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/SweetFlow/page-header";
+import { PageHeader } from "@/components/Velora/page-header";
 import { ChangePasswordForm } from "@/modules/auth/components/change-password-form";
 
 export default function AccountPage() {

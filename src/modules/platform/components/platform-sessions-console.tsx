@@ -4,9 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Ban } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,50 +44,82 @@ export function PlatformSessionsConsole({
         {sessions.length === 0 ? (
           <EmptyStateBlock title="مفيش جلسات مفتوحة" description="كل الورديات مقفولة دلوقتي." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="px-2 py-2 text-start font-medium">الشركة / الفرع</th>
-                  <th className="px-2 py-2 text-start font-medium">الكاشير</th>
-                  <th className="px-2 py-2 text-start font-medium">الفتح</th>
-                  <th className="px-2 py-2 text-start font-medium">بداية النقد</th>
-                  <th className="px-2 py-2 text-start font-medium">إجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((session) => (
-                  <tr key={session.id} className="border-b border-border/60">
-                    <td className="px-2 py-3">
-                      <p className="font-medium">{session.org_name}</p>
-                      <p className="text-xs text-muted-foreground">{session.store_name}</p>
-                    </td>
-                    <td className="px-2 py-3">{session.cashier_name}</td>
-                    <td className="px-2 py-3 whitespace-nowrap text-muted-foreground">
-                      {formatDateTime(session.opened_at)}
-                    </td>
-                    <td className="px-2 py-3 tabular-nums">
-                      {formatCurrency(session.opening_cash)}
-                    </td>
-                    <td className="px-2 py-3">
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={pending}
-                        onClick={() => {
-                          setTarget(session);
-                          setReason("إغلاق إجباري من لوحة المنصة");
-                        }}
-                      >
-                        <Ban className="size-3.5" />
-                        إغلاق إجباري
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveListLayout
+            mobile={sessions.map((session) => (
+              <MobileEntityCard
+                key={session.id}
+                title={session.cashier_name}
+                subtitle={`${session.org_name} · ${session.store_name}`}
+                fields={[
+                  { label: "الفتح", value: formatDateTime(session.opened_at) },
+                  {
+                    label: "بداية النقد",
+                    value: formatCurrency(session.opening_cash),
+                  },
+                ]}
+                footer={
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={pending}
+                    onClick={() => {
+                      setTarget(session);
+                      setReason("إغلاق إجباري من لوحة المنصة");
+                    }}
+                  >
+                    <Ban className="size-3.5" />
+                    إغلاق إجباري
+                  </Button>
+                }
+              />
+            ))}
+            desktop={
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[960px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="px-2 py-2 text-start font-medium">الشركة / الفرع</th>
+                      <th className="px-2 py-2 text-start font-medium">الكاشير</th>
+                      <th className="px-2 py-2 text-start font-medium">الفتح</th>
+                      <th className="px-2 py-2 text-start font-medium">بداية النقد</th>
+                      <th className="px-2 py-2 text-start font-medium">إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sessions.map((session) => (
+                      <tr key={session.id} className="border-b border-border/60">
+                        <td className="px-2 py-3">
+                          <p className="font-medium">{session.org_name}</p>
+                          <p className="text-xs text-muted-foreground">{session.store_name}</p>
+                        </td>
+                        <td className="px-2 py-3">{session.cashier_name}</td>
+                        <td className="px-2 py-3 whitespace-nowrap text-muted-foreground">
+                          {formatDateTime(session.opened_at)}
+                        </td>
+                        <td className="px-2 py-3 tabular-nums">
+                          {formatCurrency(session.opening_cash)}
+                        </td>
+                        <td className="px-2 py-3">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={pending}
+                            onClick={() => {
+                              setTarget(session);
+                              setReason("إغلاق إجباري من لوحة المنصة");
+                            }}
+                          >
+                            <Ban className="size-3.5" />
+                            إغلاق إجباري
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+          />
         )}
       </OperationalCard>
 

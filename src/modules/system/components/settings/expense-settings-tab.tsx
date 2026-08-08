@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { updateExpenseSettingsAction } from "@/modules/system/actions/system.actions";
 import { CostCentersPage } from "@/modules/accounting/components/cost-centers-page";
 import type { CostCenter, ExpenseCategory, ExpenseSettings } from "@/lib/types";

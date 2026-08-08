@@ -6,14 +6,14 @@ alwaysApply: true
 # Project Context — Velora
 
 **Product:** Velora — نظام كاشير وإدارة فروع (multi-location POS + light ERP). 
-**Repo:** GitHub `velora` · local folder `velora` · npm package `velora` · Vercel project `velora` · production `https://velora-oms.vercel.app` · UI kit folder: `SweetFlow`. 
+**Repo:** GitHub `velora` · local folder `velora` · npm package `velora` · Vercel project `velora` · production `https://velora-oms.vercel.app` · UI kit folder: `Velora`. 
 **System map:** Read and keep `SYSTEM_MAP.md` current when modules, primary path, roles, or integrations change.
 
 ## Stack
 
 - Next.js 16 App Router · React 19 · Tailwind 4
 - Supabase (Auth, Postgres, RLS, Storage)
-- shadcn (base-nova) + **SweetFlow** composites (`src/components/SweetFlow/*`)
+- shadcn (base-nova) + **Velora** composites (`src/components/Velora/*`)
 - TanStack Table · Zustand · RHF+Zod · sonner
 - Edge session: `src/proxy.ts` (not legacy middleware assumptions)
 
@@ -31,7 +31,7 @@ Arabic-first RTL (`lang="ar"` `dir="rtl"`, Cairo). Shared chrome via `t()`; many
 
 ## Design reference
 
-Follow `docs/DESIGN_SYSTEM.md` and existing SweetFlow primitives (`PageHeader`, `OperationalCard`, `DataTableShell`, `StandardModal`, state blocks). Do not add a second design system.
+Follow `docs/DESIGN_SYSTEM.md` and existing Velora primitives (`PageHeader`, `OperationalCard`, `DataTableShell`, `StandardModal`, state blocks). Do not add a second design system.
 
 ## Also read
 

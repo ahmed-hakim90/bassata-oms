@@ -22,8 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { formatCurrency } from "@/lib/format";
 import { sanitizeDecimalInput } from "@/lib/digits";
 import { cn } from "@/lib/utils";

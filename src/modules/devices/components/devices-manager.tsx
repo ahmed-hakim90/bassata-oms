@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { StatusPill } from "@/components/Velora/status-pill";
 import {
   createDeviceAction,
   deleteDeviceAction,

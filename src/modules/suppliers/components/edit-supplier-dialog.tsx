@@ -5,13 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import type { Supplier } from "@/lib/types";
 import { updateSupplierAction } from "@/modules/suppliers/actions/supplier.actions";
 
@@ -76,15 +71,37 @@ export function EditSupplierDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="rounded-3xl">
-        <DialogHeader>
-          <DialogTitle>تعديل المورد</DialogTitle>
-          <DialogDescription>تعديل بيانات المورد. التغييرات تُطبَّق فورًا.</DialogDescription>
-        </DialogHeader>
+      <StandardModalContent
+        size="sm"
+        title="تعديل المورد"
+        description="تعديل بيانات المورد. التغييرات تُطبَّق فورًا."
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl"
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              className="h-11 rounded-xl font-semibold"
+              onClick={submit}
+              disabled={pending}
+            >
+              حفظ
+            </Button>
+          </>
+        }
+      >
         <div className="grid gap-4">
           <div className="space-y-2">
             <Label>الاسم</Label>
             <Input
+              className="h-11"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
@@ -92,6 +109,7 @@ export function EditSupplierDialog({
           <div className="space-y-2">
             <Label>التواصل</Label>
             <Input
+              className="h-11"
               value={form.contact_info}
               onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
             />
@@ -102,6 +120,7 @@ export function EditSupplierDialog({
               type="number"
               min="0"
               step="0.01"
+              className="h-11"
               value={form.opening_balance}
               onChange={(e) => setForm({ ...form, opening_balance: e.target.value })}
             />
@@ -109,11 +128,8 @@ export function EditSupplierDialog({
               المبلغ المستحق على المحل قبل أي فواتير في النظام.
             </p>
           </div>
-          <Button onClick={submit} disabled={pending}>
-            حفظ
-          </Button>
         </div>
-      </DialogContent>
+      </StandardModalContent>
     </Dialog>
   );
 }

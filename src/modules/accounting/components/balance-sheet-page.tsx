@@ -10,10 +10,12 @@ import {
   Landmark,
   Scale,
 } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { PageHeader } from "@/components/Velora/page-header";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,45 +63,85 @@ function SectionTable({
       {lines.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead className="bg-muted/40 text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 text-start font-medium">الكود</th>
-                <th className="px-3 py-2 text-start font-medium">الحساب</th>
-                <th className="px-3 py-2 text-start font-medium">الرصيد</th>
-              </tr>
-            </thead>
-            <tbody>
+        <ResponsiveListLayout
+          mobile={
+            <>
               {lines.map((line) => (
-                <tr key={line.accountId} className="border-t">
-                  <td className="px-3 py-2 font-mono tabular-nums">
-                    <Link
-                      href={`/accounting/ledger?accountId=${line.accountId}&from=${asOf.slice(0, 4)}-01-01&to=${asOf}&storeId=${storeId}`}
-                      className="text-primary underline-offset-2 hover:underline"
-                    >
-                      {line.code}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2">{line.name}</td>
-                  <td className="px-3 py-2 tabular-nums">
-                    {formatCurrency(line.balance, currency)}
-                  </td>
-                </tr>
+                <MobileEntityCard
+                  key={line.accountId}
+                  href={`/accounting/ledger?accountId=${line.accountId}&from=${asOf.slice(0, 4)}-01-01&to=${asOf}&storeId=${storeId}`}
+                  title={line.name}
+                  subtitle={`${title} · ${line.code}`}
+                  fields={[
+                    {
+                      label: "الرصيد",
+                      value: (
+                        <span className="tabular-nums font-medium">
+                          {formatCurrency(line.balance, currency)}
+                        </span>
+                      ),
+                    },
+                  ]}
+                  trailingHint="فتح الدفتر ←"
+                />
               ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t bg-muted/30 font-medium">
-                <td className="px-3 py-2" colSpan={2}>
-                  {totalLabel}
-                </td>
-                <td className="px-3 py-2 tabular-nums">
-                  {formatCurrency(total, currency)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+              <MobileEntityCard
+                title={totalLabel}
+                fields={[
+                  {
+                    label: "الرصيد",
+                    value: (
+                      <span className="tabular-nums font-semibold">
+                        {formatCurrency(total, currency)}
+                      </span>
+                    ),
+                  },
+                ]}
+              />
+            </>
+          }
+          desktop={
+            <div className="overflow-x-auto rounded-xl border">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead className="bg-muted/40 text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-start font-medium">الكود</th>
+                    <th className="px-3 py-2 text-start font-medium">الحساب</th>
+                    <th className="px-3 py-2 text-start font-medium">الرصيد</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line) => (
+                    <tr key={line.accountId} className="border-t">
+                      <td className="px-3 py-2 font-mono tabular-nums">
+                        <Link
+                          href={`/accounting/ledger?accountId=${line.accountId}&from=${asOf.slice(0, 4)}-01-01&to=${asOf}&storeId=${storeId}`}
+                          className="text-primary underline-offset-2 hover:underline"
+                        >
+                          {line.code}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2">{line.name}</td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {formatCurrency(line.balance, currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t bg-muted/30 font-medium">
+                    <td className="px-3 py-2" colSpan={2}>
+                      {totalLabel}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums">
+                      {formatCurrency(total, currency)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          }
+        />
       )}
     </section>
   );
@@ -260,68 +302,139 @@ export function BalanceSheetPage({
 
             <section>
               <h3 className="mb-2 text-sm font-medium">حقوق الملكية</h3>
-              <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-[560px] text-sm">
-                  <thead className="bg-muted/40 text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 text-start font-medium">الكود</th>
-                      <th className="px-3 py-2 text-start font-medium">الحساب</th>
-                      <th className="px-3 py-2 text-start font-medium">الرصيد</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <ResponsiveListLayout
+                mobile={
+                  <>
                     {result.equity.map((line) => (
-                      <tr key={line.accountId} className="border-t">
-                        <td className="px-3 py-2 font-mono tabular-nums">
-                          <Link
-                            href={`/accounting/ledger?accountId=${line.accountId}&from=${result.ytdFrom}&to=${result.asOf}&storeId=${selectedStore}`}
-                            className="text-primary underline-offset-2 hover:underline"
-                          >
-                            {line.code}
-                          </Link>
-                        </td>
-                        <td className="px-3 py-2">{line.name}</td>
-                        <td className="px-3 py-2 tabular-nums">
-                          {formatCurrency(line.balance, currency)}
-                        </td>
-                      </tr>
+                      <MobileEntityCard
+                        key={line.accountId}
+                        href={`/accounting/ledger?accountId=${line.accountId}&from=${result.ytdFrom}&to=${result.asOf}&storeId=${selectedStore}`}
+                        title={line.name}
+                        subtitle={`حقوق الملكية · ${line.code}`}
+                        fields={[
+                          {
+                            label: "الرصيد",
+                            value: (
+                              <span className="tabular-nums font-medium">
+                                {formatCurrency(line.balance, currency)}
+                              </span>
+                            ),
+                          },
+                        ]}
+                        trailingHint="فتح الدفتر ←"
+                      />
                     ))}
-                    <tr className="border-t">
-                      <td className="px-3 py-2 font-mono tabular-nums text-muted-foreground">
-                        —
-                      </td>
-                      <td className="px-3 py-2">
-                        صافي ربح / خسارة السنة ({result.ytdFrom} → {result.asOf})
-                      </td>
-                      <td
-                        className={`px-3 py-2 tabular-nums ${
-                          result.netIncomeYtd < 0 ? "text-destructive" : ""
-                        }`}
-                      >
-                        {formatCurrency(result.netIncomeYtd, currency)}
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t bg-muted/20">
-                      <td className="px-3 py-2" colSpan={2}>
-                        حقوق الملكية (دفتري)
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {formatCurrency(result.totalEquityBook, currency)}
-                      </td>
-                    </tr>
-                    <tr className="border-t bg-muted/30 font-medium">
-                      <td className="px-3 py-2" colSpan={2}>
-                        إجمالي حقوق الملكية
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {formatCurrency(result.totalEquity, currency)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                    <MobileEntityCard
+                      title="صافي ربح / خسارة السنة"
+                      subtitle={`${result.ytdFrom} → ${result.asOf}`}
+                      fields={[
+                        {
+                          label: "الرصيد",
+                          value: (
+                            <span
+                              className={`tabular-nums font-medium ${
+                                result.netIncomeYtd < 0 ? "text-destructive" : ""
+                              }`}
+                            >
+                              {formatCurrency(result.netIncomeYtd, currency)}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                    <MobileEntityCard
+                      title="حقوق الملكية (دفتري)"
+                      fields={[
+                        {
+                          label: "الرصيد",
+                          value: (
+                            <span className="tabular-nums">
+                              {formatCurrency(result.totalEquityBook, currency)}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                    <MobileEntityCard
+                      title="إجمالي حقوق الملكية"
+                      fields={[
+                        {
+                          label: "الرصيد",
+                          value: (
+                            <span className="tabular-nums font-semibold">
+                              {formatCurrency(result.totalEquity, currency)}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                  </>
+                }
+                desktop={
+                  <div className="overflow-x-auto rounded-xl border">
+                    <table className="w-full min-w-[560px] text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 text-start font-medium">الكود</th>
+                          <th className="px-3 py-2 text-start font-medium">الحساب</th>
+                          <th className="px-3 py-2 text-start font-medium">الرصيد</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.equity.map((line) => (
+                          <tr key={line.accountId} className="border-t">
+                            <td className="px-3 py-2 font-mono tabular-nums">
+                              <Link
+                                href={`/accounting/ledger?accountId=${line.accountId}&from=${result.ytdFrom}&to=${result.asOf}&storeId=${selectedStore}`}
+                                className="text-primary underline-offset-2 hover:underline"
+                              >
+                                {line.code}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-2">{line.name}</td>
+                            <td className="px-3 py-2 tabular-nums">
+                              {formatCurrency(line.balance, currency)}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="border-t">
+                          <td className="px-3 py-2 font-mono tabular-nums text-muted-foreground">
+                            —
+                          </td>
+                          <td className="px-3 py-2">
+                            صافي ربح / خسارة السنة ({result.ytdFrom} → {result.asOf})
+                          </td>
+                          <td
+                            className={`px-3 py-2 tabular-nums ${
+                              result.netIncomeYtd < 0 ? "text-destructive" : ""
+                            }`}
+                          >
+                            {formatCurrency(result.netIncomeYtd, currency)}
+                          </td>
+                        </tr>
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t bg-muted/20">
+                          <td className="px-3 py-2" colSpan={2}>
+                            حقوق الملكية (دفتري)
+                          </td>
+                          <td className="px-3 py-2 tabular-nums">
+                            {formatCurrency(result.totalEquityBook, currency)}
+                          </td>
+                        </tr>
+                        <tr className="border-t bg-muted/30 font-medium">
+                          <td className="px-3 py-2" colSpan={2}>
+                            إجمالي حقوق الملكية
+                          </td>
+                          <td className="px-3 py-2 tabular-nums">
+                            {formatCurrency(result.totalEquity, currency)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                }
+              />
             </section>
 
             <div className="grid gap-3 sm:grid-cols-2">

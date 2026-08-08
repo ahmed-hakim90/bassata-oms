@@ -3,8 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/ui/dialog";
-import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { OrderDetail } from "@/modules/orders/components/order-detail";
 import { getOrderDetailAction } from "@/modules/orders/actions/order.actions";
 import type { OrderWithDetails } from "@/modules/orders/services/order.service";

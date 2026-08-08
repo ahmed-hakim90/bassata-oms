@@ -7,7 +7,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { formatCurrency } from "@/lib/format";
 import { withdrawCashierVaultAction } from "@/modules/sessions/actions/session.actions";
 import type { CashierVaultSummary } from "@/modules/sessions/services/cashier-vault.service";

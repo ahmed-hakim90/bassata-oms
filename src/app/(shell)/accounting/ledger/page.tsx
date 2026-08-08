@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { AuthError } from "@/lib/auth/auth-error";
 import { getAccountLedgerPageData } from "@/modules/accounting/actions/account-ledger.actions";
 import { AccountLedgerPage } from "@/modules/accounting/components/account-ledger-page";

@@ -24,11 +24,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import type { AppUser, Store, Permission, PermissionKey } from "@/lib/types";
 import type { UserRole } from "@/lib/constants";
 import { ROLE_LABELS } from "@/lib/constants";

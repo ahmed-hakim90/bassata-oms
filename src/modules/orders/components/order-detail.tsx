@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { APP_NAME } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n/use-translation";

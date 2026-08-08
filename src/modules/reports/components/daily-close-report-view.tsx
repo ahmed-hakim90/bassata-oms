@@ -26,7 +26,7 @@ import {
 import type { ReportContext } from "@/modules/reports/core/report-context";
 import type { DailyCloseReport } from "@/modules/reports/services/daily-close-report.service";
 import type { Store } from "@/lib/types";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 
 interface DailyCloseReportViewProps {
   filters: ReportFilters;

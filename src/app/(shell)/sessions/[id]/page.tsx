@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { SessionDetailPage } from "@/modules/sessions/components/session-detail-page";

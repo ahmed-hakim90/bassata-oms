@@ -24,7 +24,7 @@ import {
 import {
   Dialog,
 } from "@/components/ui/dialog";
-import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createProductAction,

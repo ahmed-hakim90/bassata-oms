@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AppBrandMark } from "@/components/layout/app-brand-mark";
-import { SweetFormField } from "@/components/SweetFlow/form-field";
+import { FormField } from "@/components/Velora/form-field";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
 export function LoginForm() {
@@ -32,7 +32,7 @@ export function LoginForm() {
         </div>
 
         <form action={formAction} className="space-y-[var(--mds-space-4)]">
-          <SweetFormField id="email" label={t("Email")}>
+          <FormField id="email" label={t("Email")}>
             <Input
               id="email"
               name="email"
@@ -41,8 +41,8 @@ export function LoginForm() {
               autoComplete="email"
               className="h-10 rounded-[var(--mds-radius-md)]"
             />
-          </SweetFormField>
-          <SweetFormField id="password" label={t("Password")}>
+          </FormField>
+          <FormField id="password" label={t("Password")}>
             <PasswordInput
               id="password"
               name="password"
@@ -50,7 +50,7 @@ export function LoginForm() {
               autoComplete="current-password"
               className="h-10 rounded-[var(--mds-radius-md)]"
             />
-          </SweetFormField>
+          </FormField>
           {state?.error ? (
             <p
               className="rounded-[var(--mds-radius-md)] border border-[color-mix(in_srgb,var(--mds-color-feedback-danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--mds-color-feedback-danger)_8%,transparent)] px-3 py-2 text-sm text-[var(--mds-color-feedback-danger)]"

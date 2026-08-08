@@ -1,9 +1,9 @@
 ---
-description: SweetFlow business rules the agent must not invent around
+description: Velora business rules the agent must not invent around
 alwaysApply: true
 ---
 
-# Business Rules — SweetFlow
+# Business Rules — Velora
 
 ## Auth & access
 

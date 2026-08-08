@@ -18,9 +18,9 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { phoneSearchDigits } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 import {
@@ -324,7 +324,7 @@ export function OnlineOrdersPageClient({
         {hasSearch ? (
           <button
             type="button"
-            className="absolute end-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="absolute end-1.5 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="مسح البحث"
             onClick={() => setSearch("")}
           >
@@ -347,7 +347,7 @@ export function OnlineOrdersPageClient({
               role="tab"
               aria-selected={active}
               className={cn(
-                "inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-[var(--mds-radius-sm)] px-3 text-sm font-medium transition-colors sm:flex-none",
+                "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-[var(--mds-radius-sm)] px-3 text-sm font-medium transition-colors sm:min-h-9 sm:flex-none",
                 active
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"

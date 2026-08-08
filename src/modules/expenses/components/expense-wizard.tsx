@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import {
   createExpenseAction,
   deleteExpenseAction,

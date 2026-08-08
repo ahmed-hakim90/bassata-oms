@@ -5,7 +5,7 @@ import { changePasswordAction } from "@/modules/auth/actions/password.actions";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 
 export function ChangePasswordForm() {
   const [state, formAction, pending] = useActionState(changePasswordAction, null);

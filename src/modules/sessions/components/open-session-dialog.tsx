@@ -5,9 +5,10 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import {
   getPendingOpeningFloatAction,
   openSessionAction,
@@ -103,11 +104,32 @@ export function OpenSessionDialog({
       >
         {triggerChildren ?? t("Open session")}
       </Button>
-      <DialogContent className="rounded-2xl sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("Open cashier session")}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
+      <StandardModalContent
+        size="sm"
+        title={t("Open cashier session")}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl"
+              disabled={pending}
+              onClick={() => setOpen(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              className="h-11 rounded-xl font-semibold"
+              disabled={pending || loadingVault}
+              onClick={handleOpen}
+            >
+              {pending ? t("Opening...") : t("Start session")}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
           {vaultBalance != null ? (
             <p className="text-sm text-muted-foreground">
               رصيد الخزينة:{" "}
@@ -127,7 +149,7 @@ export function OpenSessionDialog({
               readOnly={floatLocked || loadingVault}
               disabled={floatLocked || loadingVault}
               onChange={(e) => setCash(e.target.value)}
-              className="rounded-xl"
+              className="h-11 rounded-xl"
             />
             {floatLocked ? (
               <p className="text-xs text-muted-foreground">
@@ -140,15 +162,8 @@ export function OpenSessionDialog({
               </p>
             )}
           </div>
-          <Button
-            className="w-full rounded-xl"
-            disabled={pending || loadingVault}
-            onClick={handleOpen}
-          >
-            {pending ? t("Opening...") : t("Start session")}
-          </Button>
         </div>
-      </DialogContent>
+      </StandardModalContent>
     </Dialog>
   );
 }

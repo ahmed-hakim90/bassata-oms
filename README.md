@@ -64,7 +64,7 @@ Quick login: any seeded email below with password **`demo1234`** (from `scripts/
 
 One-liner demo DB: `npm run db:reset-demo`
 
-> **Note:** npm package is `velora`; UI kit folder is `SweetFlow`; design tokens are Meridian (`--mds-*`). Operator-facing brand is **Velora**.
+> **Note:** npm package is `velora`; UI kit folder is `src/components/Velora`; design tokens are Meridian (`--mds-*`). Brand: **Velora**. See [docs/BRAND_UNIFY.md](docs/BRAND_UNIFY.md).
 
 ## Supabase Setup (Production)
 
@@ -109,7 +109,7 @@ See [docs/PRODUCTION_PLAN.md](docs/PRODUCTION_PLAN.md), [docs/DEPLOYMENT.md](doc
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-SweetFlow_COOKIE_SECRET=your-long-random-secret
+VELORA_COOKIE_SECRET=your-long-random-secret
 PLATFORM_BOOTSTRAP_EMAILS=admin@company.com
 ```
 
@@ -123,7 +123,7 @@ PLATFORM_BOOTSTRAP_EMAILS=admin@company.com
 src/
 ├── app/(shell)/          # Sidebar layout routes
 ├── components/
-│   ├── SweetFlow/        # Design system composites
+│   ├── Velora/           # Design system composites
 │   └── ui/               # shadcn primitives
 ├── lib/
 │   ├── auth/             # Session, guards, page access

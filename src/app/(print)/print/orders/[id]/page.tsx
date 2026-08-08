@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageAuth } from "@/lib/auth/page-guard";
 import { getOrder } from "@/modules/orders/services/order.service";
 import { getReportBranding } from "@/modules/reports/services/report-branding.service";

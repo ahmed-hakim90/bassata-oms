@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { AuthError } from "@/lib/auth/auth-error";
 import { getJournalsPageData } from "@/modules/accounting/actions/journal.actions";
 import { JournalsPage } from "@/modules/accounting/components/journals-page";

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PageHeader } from "@/components/SweetFlow/page-header";
+import { PageHeader } from "@/components/Velora/page-header";
 import { cn } from "@/lib/utils";
 
 interface ReportPageProps {

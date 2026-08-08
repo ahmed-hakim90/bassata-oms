@@ -4,11 +4,13 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Download, Search } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -231,112 +233,191 @@ export function PlatformUsageConsole({ rows }: { rows: PlatformOrgUsageRow[] }) 
         ) : filtered.length === 0 ? (
           <EmptyStateBlock title="مفيش نتائج" description="غيّر البحث أو الفلتر." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="px-2 py-2 text-start font-medium">الشركة</th>
-                  <th className="px-2 py-2 text-start font-medium">الباقة</th>
-                  <th className="px-2 py-2 text-start font-medium">فروع</th>
-                  <th className="px-2 py-2 text-start font-medium">مستخدمين</th>
-                  <th className="px-2 py-2 text-start font-medium">سجلات</th>
-                  <th className="px-2 py-2 text-start font-medium">ضغط</th>
-                  <th className="px-2 py-2 text-start font-medium">تشغيل</th>
-                  <th className="px-2 py-2 text-start font-medium">تحكم</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row) => {
-                  const suspended = row.org_status === "suspended";
-                  return (
-                    <tr key={row.org_id} className="border-b border-border/60 align-top">
-                      <td className="px-2 py-3">
-                        <Link
-                          href={`/platform/orgs/${row.org_id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {row.org_name}
-                        </Link>
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <StatusPill
-                            label={suspended ? "معلّقة" : "نشطة"}
-                            variant={suspended ? "danger" : "success"}
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {row.currency}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-2 py-3">
-                        <p className="font-medium">{PLAN_LABELS[row.plan.plan]}</p>
-                        {row.plan.notes ? (
-                          <p className="mt-1 max-w-[12rem] truncate text-xs text-muted-foreground">
-                            {row.plan.notes}
-                          </p>
-                        ) : null}
-                      </td>
-                      <td className="px-2 py-3">
+          <ResponsiveListLayout
+            mobile={filtered.map((row) => {
+              const suspended = row.org_status === "suspended";
+              return (
+                <MobileEntityCard
+                  key={row.org_id}
+                  title={row.org_name}
+                  subtitle={`${PLAN_LABELS[row.plan.plan]} · ${row.currency}`}
+                  badge={
+                    <StatusPill
+                      label={pressureLabel(row.pressure.worst)}
+                      variant={pressureVariant(row.pressure.worst)}
+                    />
+                  }
+                  fields={[
+                    {
+                      label: "الحالة",
+                      value: (
+                        <StatusPill
+                          label={suspended ? "معلّقة" : "نشطة"}
+                          variant={suspended ? "danger" : "success"}
+                        />
+                      ),
+                    },
+                    {
+                      label: "فروع",
+                      value: (
                         <UsageCell
                           current={row.usage.stores}
                           limit={row.plan.max_stores}
                           pressure={row.pressure.stores}
                         />
-                      </td>
-                      <td className="px-2 py-3">
+                      ),
+                    },
+                    {
+                      label: "مستخدمين",
+                      value: (
                         <UsageCell
                           current={row.usage.users}
                           limit={row.plan.max_users}
                           pressure={row.pressure.users}
                         />
-                      </td>
-                      <td className="px-2 py-3">
+                      ),
+                    },
+                    {
+                      label: "سجلات",
+                      value: (
                         <UsageCell
                           current={row.usage.devices}
                           limit={row.plan.max_devices}
                           pressure={row.pressure.devices}
                         />
-                      </td>
-                      <td className="px-2 py-3">
-                        <StatusPill
-                          label={pressureLabel(row.pressure.worst)}
-                          variant={pressureVariant(row.pressure.worst)}
-                        />
-                      </td>
-                      <td className="px-2 py-3 text-xs text-muted-foreground">
-                        <p>
-                          طلبات:{" "}
-                          <span className="tabular-nums font-medium text-foreground">
-                            {row.order_count}
-                          </span>
-                        </p>
-                        <p>
-                          منتجات/عملاء:{" "}
-                          <span className="tabular-nums font-medium text-foreground">
-                            {row.product_count}/{row.customer_count}
-                          </span>
-                        </p>
-                        <p>حجم: {formatApproxBytes(row.database_bytes)}</p>
-                        <p>
-                          آخر طلب:{" "}
-                          {row.last_order_at
-                            ? formatDateTime(row.last_order_at)
-                            : "—"}
-                        </p>
-                      </td>
-                      <td className="px-2 py-3">
-                        <Link
-                          href={`/platform/orgs/${row.org_id}`}
-                          className="inline-flex h-8 items-center rounded-[var(--mds-radius-md)] border border-border bg-background px-3 text-[0.8125rem] font-medium hover:bg-muted"
-                        >
-                          باقة وتحكم
-                        </Link>
-                      </td>
+                      ),
+                    },
+                    {
+                      label: "طلبات",
+                      value: row.order_count,
+                    },
+                    {
+                      label: "آخر طلب",
+                      value: row.last_order_at
+                        ? formatDateTime(row.last_order_at)
+                        : "—",
+                    },
+                  ]}
+                  footer={
+                    <Link
+                      href={`/platform/orgs/${row.org_id}`}
+                      className="inline-flex h-8 items-center rounded-[var(--mds-radius-md)] border border-border bg-background px-3 text-[0.8125rem] font-medium hover:bg-muted"
+                    >
+                      باقة وتحكم
+                    </Link>
+                  }
+                />
+              );
+            })}
+            desktop={
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="px-2 py-2 text-start font-medium">الشركة</th>
+                      <th className="px-2 py-2 text-start font-medium">الباقة</th>
+                      <th className="px-2 py-2 text-start font-medium">فروع</th>
+                      <th className="px-2 py-2 text-start font-medium">مستخدمين</th>
+                      <th className="px-2 py-2 text-start font-medium">سجلات</th>
+                      <th className="px-2 py-2 text-start font-medium">ضغط</th>
+                      <th className="px-2 py-2 text-start font-medium">تشغيل</th>
+                      <th className="px-2 py-2 text-start font-medium">تحكم</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {filtered.map((row) => {
+                      const suspended = row.org_status === "suspended";
+                      return (
+                        <tr key={row.org_id} className="border-b border-border/60 align-top">
+                          <td className="px-2 py-3">
+                            <Link
+                              href={`/platform/orgs/${row.org_id}`}
+                              className="font-medium hover:underline"
+                            >
+                              {row.org_name}
+                            </Link>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <StatusPill
+                                label={suspended ? "معلّقة" : "نشطة"}
+                                variant={suspended ? "danger" : "success"}
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {row.currency}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-2 py-3">
+                            <p className="font-medium">{PLAN_LABELS[row.plan.plan]}</p>
+                            {row.plan.notes ? (
+                              <p className="mt-1 max-w-[12rem] truncate text-xs text-muted-foreground">
+                                {row.plan.notes}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="px-2 py-3">
+                            <UsageCell
+                              current={row.usage.stores}
+                              limit={row.plan.max_stores}
+                              pressure={row.pressure.stores}
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <UsageCell
+                              current={row.usage.users}
+                              limit={row.plan.max_users}
+                              pressure={row.pressure.users}
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <UsageCell
+                              current={row.usage.devices}
+                              limit={row.plan.max_devices}
+                              pressure={row.pressure.devices}
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <StatusPill
+                              label={pressureLabel(row.pressure.worst)}
+                              variant={pressureVariant(row.pressure.worst)}
+                            />
+                          </td>
+                          <td className="px-2 py-3 text-xs text-muted-foreground">
+                            <p>
+                              طلبات:{" "}
+                              <span className="tabular-nums font-medium text-foreground">
+                                {row.order_count}
+                              </span>
+                            </p>
+                            <p>
+                              منتجات/عملاء:{" "}
+                              <span className="tabular-nums font-medium text-foreground">
+                                {row.product_count}/{row.customer_count}
+                              </span>
+                            </p>
+                            <p>حجم: {formatApproxBytes(row.database_bytes)}</p>
+                            <p>
+                              آخر طلب:{" "}
+                              {row.last_order_at
+                                ? formatDateTime(row.last_order_at)
+                                : "—"}
+                            </p>
+                          </td>
+                          <td className="px-2 py-3">
+                            <Link
+                              href={`/platform/orgs/${row.org_id}`}
+                              className="inline-flex h-8 items-center rounded-[var(--mds-radius-md)] border border-border bg-background px-3 text-[0.8125rem] font-medium hover:bg-muted"
+                            >
+                              باقة وتحكم
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            }
+          />
         )}
       </OperationalCard>
     </div>

@@ -30,8 +30,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { PageHeader } from "@/components/SweetFlow/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { PageHeader } from "@/components/Velora/page-header";
 import { ProductGrid, type ProductGridItem } from "./product-grid";
 import { ProductTable } from "./product-table";
 import { CategoryList } from "./category-list";

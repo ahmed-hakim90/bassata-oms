@@ -10,7 +10,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import {
   APP_NAME,
   APP_TAGLINE_AR,

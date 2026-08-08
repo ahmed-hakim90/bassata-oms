@@ -1,6 +1,6 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
-import { PageHeader } from "@/components/SweetFlow/page-header";
+import { PageHeader } from "@/components/Velora/page-header";
 import { OnlineOrdersPageClient } from "@/modules/online-orders/components/online-orders-page";
 import {
   listOnlineOrdersWithItems,

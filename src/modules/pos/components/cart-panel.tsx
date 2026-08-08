@@ -22,8 +22,8 @@ import type { PaymentMethod } from "@/lib/types";
 import { computePosCartTotals } from "@/modules/pos/lib/cart-totals";
 import { getCartSubtotal, usePosStore } from "@/stores/pos-store";
 import { CustomerAttach } from "@/modules/pos/components/customer-attach";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { playPosErrorSound } from "@/modules/pos/lib/pos-sounds";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
@@ -306,8 +306,8 @@ export function CartPanel({
                       <>
                     <Button
                       variant="outline"
-                      size="icon-xs"
-                      className="size-11 rounded-xl lg:size-11"
+                      size="icon"
+                      className="size-11 rounded-xl"
                       aria-label="تقليل الكمية"
                       onClick={() => updateQuantity(line.id, line.quantity - 1)}
                     >
@@ -318,8 +318,8 @@ export function CartPanel({
                     </span>
                     <Button
                       variant="outline"
-                      size="icon-xs"
-                      className="size-11 rounded-xl lg:size-11"
+                      size="icon"
+                      className="size-11 rounded-xl"
                       aria-label="زيادة الكمية"
                       onClick={() => updateQuantity(line.id, line.quantity + 1)}
                     >
@@ -329,8 +329,8 @@ export function CartPanel({
                     )}
                     <Button
                       variant="ghost"
-                      size="icon-xs"
-                      className="size-11 rounded-xl lg:size-11"
+                      size="icon"
+                      className="size-11 rounded-xl"
                       aria-label="حذف الصنف"
                       onClick={() => removeItem(line.id)}
                     >
@@ -523,8 +523,8 @@ export function CartPanel({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon-xs"
-                    className="size-8 rounded-lg"
+                    size="icon"
+                    className="size-11 rounded-xl"
                     aria-label="إلغاء الخصم"
                     onClick={() => {
                       setDiscountAmount(0);

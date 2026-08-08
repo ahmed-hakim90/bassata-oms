@@ -11,11 +11,11 @@ import {
   Gauge,
   Users,
 } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import type {

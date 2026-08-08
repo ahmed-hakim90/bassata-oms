@@ -13,9 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { KpiCard } from "@/components/Velora/kpi-card";
 import { formatRelativeTime } from "@/lib/format";
 import { selectLabelById } from "@/lib/select-label";
 import { useTranslation } from "@/lib/i18n/use-translation";

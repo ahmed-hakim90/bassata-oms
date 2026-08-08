@@ -34,8 +34,8 @@ import {
 import { formatUnit, isPurchasePackUnit } from "@/lib/units";
 import { selectLabelById } from "@/lib/select-label";
 import type { Category, MeasurementUnit } from "@/lib/types";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
-import { SweetFormField } from "@/components/SweetFlow/form-field";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { FormField } from "@/components/Velora/form-field";
 import { getVisibleAdvancedSettingsForProduct } from "@/modules/products/lib/advanced-settings-visibility";
 import {
   getFirstProductFormErrorStep,
@@ -307,15 +307,15 @@ export function GuidedProductDetailsForm({
       <div className="min-h-[14rem] space-y-4">
       {step === 1 ? (
         <div className="space-y-4">
-          <SweetFormField id="name" label="اسم المنتج" error={errors.name?.message}>
+          <FormField id="name" label="اسم المنتج" error={errors.name?.message}>
             <Input
               id="name"
               aria-invalid={!!errors.name}
               {...form.register("name")}
             />
-          </SweetFormField>
+          </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <SweetFormField id="category_id" label="التصنيف" error={errors.category_id?.message}>
+            <FormField id="category_id" label="التصنيف" error={errors.category_id?.message}>
               <Select
                 value={values.category_id}
                 onValueChange={(v) =>
@@ -335,8 +335,8 @@ export function GuidedProductDetailsForm({
                   ))}
                 </SelectContent>
               </Select>
-            </SweetFormField>
-            <SweetFormField
+            </FormField>
+            <FormField
               id="product_code"
               label={isSupermarket ? "الباركود" : "كود المنتج / الباركود"}
               hint={isEdit ? undefined : "يُنشأ تلقائياً"}
@@ -347,9 +347,9 @@ export function GuidedProductDetailsForm({
                 value={values.sku || "—"}
                 className="bg-muted/50"
               />
-            </SweetFormField>
+            </FormField>
           </div>
-          <SweetFormField
+          <FormField
             id="image_upload"
             label="صورة المنتج"
             hint="ارفع صورة من الجهاز. يمكن أيضاً استخدام رابط صورة مباشر."
@@ -370,13 +370,13 @@ export function GuidedProductDetailsForm({
                 placeholder="https://example.com/image.jpg"
               />
             </div>
-          </SweetFormField>
+          </FormField>
         </div>
       ) : null}
 
       {step === 2 ? (
         <div className="space-y-4">
-          <SweetFormField
+          <FormField
             id="product_type"
             label={isSupermarket ? "بتبيع إزاي؟" : "نوع المنتج"}
             error={errors.product_type?.message}
@@ -422,10 +422,10 @@ export function GuidedProductDetailsForm({
                 );
               })}
             </div>
-          </SweetFormField>
+          </FormField>
           {!isSupermarket ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <SweetFormField
+              <FormField
                 id="sales_unit_type"
                 label="طريقة البيع"
                 error={errors.sales_unit_type?.message}
@@ -453,8 +453,8 @@ export function GuidedProductDetailsForm({
                     ))}
                   </SelectContent>
                 </Select>
-              </SweetFormField>
-              <SweetFormField id="sale_unit" label="وحدة المخزون">
+              </FormField>
+              <FormField id="sale_unit" label="وحدة المخزون">
                 <Select
                   value={values.sale_unit}
                   onValueChange={(v) =>
@@ -480,7 +480,7 @@ export function GuidedProductDetailsForm({
                     ))}
                   </SelectContent>
                 </Select>
-              </SweetFormField>
+              </FormField>
             </div>
           ) : null}
           {showSupermarketPurchasePacking ? (
@@ -532,7 +532,7 @@ export function GuidedProductDetailsForm({
                 })}
               </div>
               {purchasePackUnit ? (
-                <SweetFormField
+                <FormField
                   id="units_per_purchase_unit"
                   label={
                     isWeightSell
@@ -550,7 +550,7 @@ export function GuidedProductDetailsForm({
                     aria-invalid={!!errors.units_per_purchase_unit}
                     {...form.register("units_per_purchase_unit", { valueAsNumber: true })}
                   />
-                </SweetFormField>
+                </FormField>
               ) : null}
             </div>
           ) : null}
@@ -561,7 +561,7 @@ export function GuidedProductDetailsForm({
         <div className="space-y-4">
           {isSupermarket ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <SweetFormField
+              <FormField
                 id="last_unit_cost"
                 label="سعر الشراء"
                 error={errors.last_unit_cost?.message}
@@ -574,8 +574,8 @@ export function GuidedProductDetailsForm({
                   aria-invalid={!!errors.last_unit_cost}
                   {...form.register("last_unit_cost", { valueAsNumber: true })}
                 />
-              </SweetFormField>
-              <SweetFormField
+              </FormField>
+              <FormField
                 id="base_price"
                 label={
                   values.sales_unit_type === "weight" ? "سعر البيع / الكيلو" : "سعر البيع"
@@ -590,11 +590,11 @@ export function GuidedProductDetailsForm({
                   aria-invalid={!!errors.base_price}
                   {...form.register("base_price", { valueAsNumber: true })}
                 />
-              </SweetFormField>
+              </FormField>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              <SweetFormField
+              <FormField
                 id="base_price"
                 label="سعر التكلفة"
                 error={errors.base_price?.message}
@@ -606,8 +606,8 @@ export function GuidedProductDetailsForm({
                   aria-invalid={!!errors.base_price}
                   {...form.register("base_price", { valueAsNumber: true })}
                 />
-              </SweetFormField>
-              <SweetFormField
+              </FormField>
+              <FormField
                 id="sale_price"
                 label="سعر البيع"
                 error={errors.sale_price?.message}
@@ -626,7 +626,7 @@ export function GuidedProductDetailsForm({
                     )
                   }
                 />
-              </SweetFormField>
+              </FormField>
             </div>
           )}
         </div>
@@ -656,9 +656,9 @@ export function GuidedProductDetailsForm({
               )}
             </div>
           </div>
-          <SweetFormField id="description" label="الوصف">
+          <FormField id="description" label="الوصف">
             <Textarea id="description" rows={3} {...form.register("description")} />
-          </SweetFormField>
+          </FormField>
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={values.is_active} onCheckedChange={(v) => form.setValue("is_active", Boolean(v))} />

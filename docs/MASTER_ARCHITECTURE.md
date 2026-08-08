@@ -519,16 +519,16 @@ src/app/(shell|operational|auth|print)/   thin routes
 src/modules/<domain>/{actions,services,components,schemas}
 src/lib/{auth,repositories,services,supabase}
 src/stores/   zustand (pos, auth UI, shell UI)
-src/components/SweetFlow/ + components/ui/
+src/components/Velora/ + components/ui/
 ```
 
 ### 13.2 Rules
 
-- Arabic-first RTL; SweetFlow design system only ([DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)).  
+- Arabic-first RTL; Velora design system only ([DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)).  
 - Forms: RHF + Zod.  
 - Server Components by default; client for POS interactivity.  
 - States: loading / empty / error / success on every page.  
-- Fix DESIGN_SYSTEM path casing doc drift (`SweetFlow` vs `sweetflow`).
+- UI kit path: `src/components/Velora/` ([BRAND_UNIFY.md](./BRAND_UNIFY.md)).
 
 ### 13.3 State
 
@@ -895,7 +895,7 @@ flowchart TD
 | R6 | Stock drift FEFO incomplete | M | High | Batch tests | P4 |
 | R7 | Scope creep (offline/KDS early) | H | High | Strict phase order | All |
 | R8 | Doc/code drift | H | Med | Phase 0 + CI doc checks optional | P0 |
-| R9 | Cookie secret fallback to service role | M | High | Enforce SweetFlow_COOKIE_SECRET in prod | P1 |
+| R9 | Cookie secret fallback to service role | M | High | Enforce VELORA_COOKIE_SECRET in prod (legacy SweetFlow_COOKIE_SECRET dual-read) | P1 |
 | R10 | Billing before isolation | L | Critical | P9 depends P1 | P9 |
 
 ---

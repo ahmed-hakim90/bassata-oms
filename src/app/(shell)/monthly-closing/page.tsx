@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { AuthError } from "@/lib/auth/auth-error";
 import { getClosingData } from "@/modules/monthly-closing/actions/closing.actions";
 import { ClosingPage } from "@/modules/monthly-closing/components/closing-page";

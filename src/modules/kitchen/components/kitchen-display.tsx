@@ -3,9 +3,9 @@
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { StatusPill } from "@/components/Velora/status-pill";
 import {
   advanceKitchenStatusAction,
   listKitchenTicketsAction,

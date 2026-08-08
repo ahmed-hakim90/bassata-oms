@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { formatCurrency } from "@/lib/format";
 import type { POSProduct, POSVariant } from "@/modules/pos/services/catalog.service";
 

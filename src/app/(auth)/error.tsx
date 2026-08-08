@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ErrorStateBlock } from "@/components/SweetFlow/state-blocks";
+import { ErrorStateBlock } from "@/components/Velora/state-blocks";
 
 export default function AuthErrorBoundary({
   error,

@@ -1,7 +1,7 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
 import * as storeRepo from "@/lib/repositories/store.repository";
-import { PageHeader } from "@/components/SweetFlow/page-header";
+import { PageHeader } from "@/components/Velora/page-header";
 import { MovementTimeline } from "@/modules/inventory/components/movement-timeline";
 import { getMovementTimeline } from "@/modules/inventory/services/movement.service";
 

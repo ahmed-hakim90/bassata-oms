@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
 import {
   getActiveCashierId,
@@ -9,14 +9,14 @@ import * as storeRepo from "@/lib/repositories/store.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { listDevices } from "@/modules/system/services/users.service";
-import { PageHeader } from "@/components/SweetFlow/page-header";
+import { PageHeader } from "@/components/Velora/page-header";
 import { OpenSessionDialog } from "@/modules/sessions/components/open-session-dialog";
 import { CloseSessionStepper } from "@/modules/sessions/components/close-session-stepper";
 import { OpenSessionsTable } from "@/modules/sessions/components/open-sessions-table";
 import { ClosedSessionsTable } from "@/modules/sessions/components/closed-sessions-table";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
 import { CashierVaultPanel } from "@/modules/sessions/components/cashier-vault-panel";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { calcExpectedCash } from "@/modules/sessions/services/reconciliation.service";
 import { getOpenSessionSummaries } from "@/modules/sessions/services/open-session-summary.service";
 import {

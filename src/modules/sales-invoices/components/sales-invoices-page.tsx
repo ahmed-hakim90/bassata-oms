@@ -6,11 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { PageHeader } from "@/components/Velora/page-header";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { DataTableShell } from "@/components/Velora/data-table-shell";
+import { StatusPill } from "@/components/Velora/status-pill";
 import {
   Select,
   SelectContent,
@@ -175,44 +175,49 @@ export function SalesInvoicesPage({
       <DataTableShell title={`الفواتير (${rows.length})`} scrollable={false}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((invoice) => (
-            <OperationalCard key={invoice.id}>
-              <div className="flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold">{invoice.order_number}</h3>
-                      <StatusPill
-                        label={statusLabels[invoice.document_status ?? "draft"]}
-                        variant={statusVariant[invoice.document_status ?? "draft"]}
-                      />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {invoice.customerName ?? "بدون عميل"} ·{" "}
-                      {formatDateTime(
-                        invoice.document_date
-                          ? `${invoice.document_date}T12:00:00.000Z`
-                          : invoice.created_at
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{formatCurrency(invoice.total, currency)}</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      refreshCatalog(true);
-                      setActiveId(invoice.id);
-                    }}
-                  >
-                    <Pencil className="size-3.5" />
-                    فتح
-                  </Button>
-                </div>
-              </div>
-            </OperationalCard>
+            <MobileEntityCard
+              key={invoice.id}
+              title={invoice.order_number}
+              subtitle={invoice.customerName ?? "بدون عميل"}
+              badge={
+                <StatusPill
+                  label={statusLabels[invoice.document_status ?? "draft"]}
+                  variant={statusVariant[invoice.document_status ?? "draft"]}
+                />
+              }
+              fields={[
+                {
+                  label: "التاريخ",
+                  value: formatDateTime(
+                    invoice.document_date
+                      ? `${invoice.document_date}T12:00:00.000Z`
+                      : invoice.created_at
+                  ),
+                },
+                {
+                  label: "الإجمالي",
+                  value: (
+                    <span className="tabular-nums font-semibold">
+                      {formatCurrency(invoice.total, currency)}
+                    </span>
+                  ),
+                },
+              ]}
+              footer={
+                <Button
+                  type="button"
+                  className="h-11 w-full sm:w-auto"
+                  variant="outline"
+                  onClick={() => {
+                    refreshCatalog(true);
+                    setActiveId(invoice.id);
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                  فتح
+                </Button>
+              }
+            />
           ))}
         </div>
       </DataTableShell>

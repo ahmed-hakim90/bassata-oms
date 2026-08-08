@@ -6,14 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { formatCurrency } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { forceCloseSessionAction } from "@/modules/sessions/actions/session.actions";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
 import type { OpenSessionSummary } from "@/modules/sessions/services/open-session-summary.service";
@@ -65,10 +60,32 @@ export function ForceCloseSessionDialog({
         إغلاق إجباري
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>إغلاق جلسة إجباري (مدير)</DialogTitle>
-          </DialogHeader>
+        <StandardModalContent
+          size="sm"
+          title="إغلاق جلسة إجباري (مدير)"
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-xl"
+                disabled={pending}
+                onClick={() => setOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-11 rounded-xl font-semibold"
+                disabled={pending || !closeReason.trim() || !actualCash}
+                onClick={handleForceClose}
+              >
+                {pending ? "جاري الإغلاق…" : "تأكيد الإغلاق الإجباري"}
+              </Button>
+            </>
+          }
+        >
           <div className="space-y-4">
             <div className="rounded-xl bg-muted/50 p-3 text-sm">
               <p className="font-medium">{summary.cashierName}</p>
@@ -120,15 +137,8 @@ export function ForceCloseSessionDialog({
                 rows={2}
               />
             </div>
-            <Button
-              className={cn("w-full rounded-xl")}
-              disabled={pending || !closeReason.trim() || !actualCash}
-              onClick={handleForceClose}
-            >
-              {pending ? "جاري الإغلاق…" : "تأكيد الإغلاق الإجباري"}
-            </Button>
           </div>
-        </DialogContent>
+        </StandardModalContent>
       </Dialog>
     </>
   );

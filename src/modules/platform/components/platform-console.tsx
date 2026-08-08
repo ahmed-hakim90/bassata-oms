@@ -13,12 +13,14 @@ import {
   Search,
   UserPlus,
 } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -168,100 +170,172 @@ export function PlatformConsole({ organizations, rollup }: PlatformConsoleProps)
         ) : filteredOrgs.length === 0 ? (
           <EmptyStateBlock title="مفيش نتائج" description="جرّب كلمة بحث تانية." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="px-2 py-2 text-start font-medium">الاسم</th>
-                  <th className="px-2 py-2 text-start font-medium">الحالة</th>
-                  <th className="px-2 py-2 text-start font-medium">فروع</th>
-                  <th className="px-2 py-2 text-start font-medium">مستخدمين</th>
-                  <th className="px-2 py-2 text-start font-medium">طلبات</th>
-                  <th className="px-2 py-2 text-start font-medium">آخر طلب</th>
-                  <th className="px-2 py-2 text-start font-medium">إجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrgs.map((org) => {
-                  const suspended = org.status === "suspended";
-                  return (
-                    <tr key={org.id} className="border-b border-border/60">
-                      <td className="px-2 py-3">
-                        <Link
-                          href={`/platform/orgs/${org.id}`}
-                          className="font-medium text-foreground hover:underline"
+          <ResponsiveListLayout
+            mobile={filteredOrgs.map((org) => {
+              const suspended = org.status === "suspended";
+              return (
+                <MobileEntityCard
+                  key={org.id}
+                  title={org.name}
+                  subtitle={org.currency}
+                  badge={
+                    <StatusPill
+                      label={suspended ? "معلّقة" : "نشطة"}
+                      variant={suspended ? "danger" : "success"}
+                    />
+                  }
+                  fields={[
+                    { label: "فروع", value: org.health.storeCount },
+                    { label: "مستخدمين", value: org.health.userCount },
+                    { label: "طلبات", value: org.health.orderCount },
+                    {
+                      label: "آخر طلب",
+                      value: org.health.lastOrderAt
+                        ? formatDateTime(org.health.lastOrderAt)
+                        : "—",
+                    },
+                  ]}
+                  footer={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/platform/orgs/${org.id}`}
+                        className="inline-flex h-8 items-center rounded-[var(--mds-radius-md)] border border-border bg-background px-3 text-[0.8125rem] font-medium hover:bg-muted"
+                      >
+                        تحكم كامل
+                      </Link>
+                      {suspended ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => {
+                            startTransition(async () => {
+                              const result = await reactivateOrganizationAction(org.id);
+                              if (!result.ok) {
+                                toast.error(result.error);
+                                return;
+                              }
+                              toast.success("تم إعادة تفعيل الشركة");
+                              refresh();
+                            });
+                          }}
                         >
-                          {org.name}
-                        </Link>
-                        <p className="text-xs text-muted-foreground">{org.currency}</p>
-                      </td>
-                      <td className="px-2 py-3">
-                        <StatusPill
-                          label={suspended ? "معلّقة" : "نشطة"}
-                          variant={suspended ? "danger" : "success"}
-                        />
-                      </td>
-                      <td className="px-2 py-3 tabular-nums text-muted-foreground">
-                        {org.health.storeCount}
-                      </td>
-                      <td className="px-2 py-3 tabular-nums text-muted-foreground">
-                        {org.health.userCount}
-                      </td>
-                      <td className="px-2 py-3 tabular-nums text-muted-foreground">
-                        {org.health.orderCount}
-                      </td>
-                      <td className="px-2 py-3 text-muted-foreground whitespace-nowrap">
-                        {org.health.lastOrderAt
-                          ? formatDateTime(org.health.lastOrderAt)
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/platform/orgs/${org.id}`}
-                            className="inline-flex h-8 items-center rounded-[var(--mds-radius-md)] border border-border bg-background px-3 text-[0.8125rem] font-medium hover:bg-muted"
-                          >
-                            تحكم كامل
-                          </Link>
-                          {suspended ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={pending}
-                              onClick={() => {
-                                startTransition(async () => {
-                                  const result = await reactivateOrganizationAction(org.id);
-                                  if (!result.ok) {
-                                    toast.error(result.error);
-                                    return;
-                                  }
-                                  toast.success("تم إعادة تفعيل الشركة");
-                                  refresh();
-                                });
-                              }}
-                            >
-                              <CheckCircle2 className="size-3.5" />
-                              تفعيل
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              disabled={pending}
-                              onClick={() => setConfirmSuspend(org)}
-                            >
-                              <Ban className="size-3.5" />
-                              تعليق
-                            </Button>
-                          )}
-                        </div>
-                      </td>
+                          <CheckCircle2 className="size-3.5" />
+                          تفعيل
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={pending}
+                          onClick={() => setConfirmSuspend(org)}
+                        >
+                          <Ban className="size-3.5" />
+                          تعليق
+                        </Button>
+                      )}
+                    </div>
+                  }
+                />
+              );
+            })}
+            desktop={
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[920px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="px-2 py-2 text-start font-medium">الاسم</th>
+                      <th className="px-2 py-2 text-start font-medium">الحالة</th>
+                      <th className="px-2 py-2 text-start font-medium">فروع</th>
+                      <th className="px-2 py-2 text-start font-medium">مستخدمين</th>
+                      <th className="px-2 py-2 text-start font-medium">طلبات</th>
+                      <th className="px-2 py-2 text-start font-medium">آخر طلب</th>
+                      <th className="px-2 py-2 text-start font-medium">إجراء</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {filteredOrgs.map((org) => {
+                      const suspended = org.status === "suspended";
+                      return (
+                        <tr key={org.id} className="border-b border-border/60">
+                          <td className="px-2 py-3">
+                            <Link
+                              href={`/platform/orgs/${org.id}`}
+                              className="font-medium text-foreground hover:underline"
+                            >
+                              {org.name}
+                            </Link>
+                            <p className="text-xs text-muted-foreground">{org.currency}</p>
+                          </td>
+                          <td className="px-2 py-3">
+                            <StatusPill
+                              label={suspended ? "معلّقة" : "نشطة"}
+                              variant={suspended ? "danger" : "success"}
+                            />
+                          </td>
+                          <td className="px-2 py-3 tabular-nums text-muted-foreground">
+                            {org.health.storeCount}
+                          </td>
+                          <td className="px-2 py-3 tabular-nums text-muted-foreground">
+                            {org.health.userCount}
+                          </td>
+                          <td className="px-2 py-3 tabular-nums text-muted-foreground">
+                            {org.health.orderCount}
+                          </td>
+                          <td className="px-2 py-3 text-muted-foreground whitespace-nowrap">
+                            {org.health.lastOrderAt
+                              ? formatDateTime(org.health.lastOrderAt)
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Link
+                                href={`/platform/orgs/${org.id}`}
+                                className="inline-flex h-8 items-center rounded-[var(--mds-radius-md)] border border-border bg-background px-3 text-[0.8125rem] font-medium hover:bg-muted"
+                              >
+                                تحكم كامل
+                              </Link>
+                              {suspended ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={pending}
+                                  onClick={() => {
+                                    startTransition(async () => {
+                                      const result = await reactivateOrganizationAction(org.id);
+                                      if (!result.ok) {
+                                        toast.error(result.error);
+                                        return;
+                                      }
+                                      toast.success("تم إعادة تفعيل الشركة");
+                                      refresh();
+                                    });
+                                  }}
+                                >
+                                  <CheckCircle2 className="size-3.5" />
+                                  تفعيل
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  disabled={pending}
+                                  onClick={() => setConfirmSuspend(org)}
+                                >
+                                  <Ban className="size-3.5" />
+                                  تعليق
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            }
+          />
         )}
       </OperationalCard>
 

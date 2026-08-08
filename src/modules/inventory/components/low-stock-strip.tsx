@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import { GlassPanel } from "@/components/SweetFlow/glass-panel";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { GlassPanel } from "@/components/Velora/glass-panel";
+import { StatusPill } from "@/components/Velora/status-pill";
 import type { InventoryAlert } from "../services/alert.service";
 import { ScrollArea } from "@/components/ui/scroll-area";
 

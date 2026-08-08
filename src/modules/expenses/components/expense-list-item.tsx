@@ -3,7 +3,8 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { formatCurrency } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { approveExpenseAction } from "@/modules/expenses/actions/expense.actions";
@@ -48,37 +49,45 @@ export function ExpenseListItem({
     });
   }
 
+  const createdLabel = new Date(expense.created_at).toLocaleString("ar-EG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
   return (
-    <li className="flex flex-wrap items-center justify-between gap-[var(--mds-space-2)] rounded-[var(--mds-radius-md)] border border-border bg-card px-[var(--mds-space-4)] py-[var(--mds-space-3)] text-card-foreground shadow-[var(--mds-elevation-1)] transition-colors hover:bg-muted/30">
-      <div>
-        <p className="font-medium">{expense.title}</p>
-        <p className="text-xs text-muted-foreground">
-          {centerName} · {categoryName}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {new Date(expense.created_at).toLocaleString("ar-EG", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}{" "}
-          · {SOURCE_LABELS[expense.expense_source] ?? expense.expense_source} ·{" "}
-          {t(expense.payment_method)}
-          {expense.inventory_item_id && expense.quantity
-            ? ` · ${expense.quantity} × ${expense.unit_cost ?? 0}`
-            : null}
-        </p>
-      </div>
-      <div className="flex items-center gap-3">
+    <MobileEntityCard
+      title={expense.title}
+      subtitle={`${centerName} · ${categoryName}`}
+      badge={
         <StatusPill
           label={STATUS_LABELS[expense.status] ?? expense.status}
           variant={expense.status === "approved" ? "success" : "warning"}
         />
-        {expense.status === "pending" && canApprove && (
-          <Button size="sm" disabled={pending} onClick={handleApprove}>
+      }
+      fields={[
+        { label: "المبلغ", value: formatCurrency(expense.amount) },
+        { label: "التاريخ", value: createdLabel },
+        {
+          label: "المصدر",
+          value: SOURCE_LABELS[expense.expense_source] ?? expense.expense_source,
+        },
+        { label: "الدفع", value: t(expense.payment_method) },
+        ...(expense.inventory_item_id && expense.quantity
+          ? [
+              {
+                label: "الكمية",
+                value: `${expense.quantity} × ${expense.unit_cost ?? 0}`,
+              },
+            ]
+          : []),
+      ]}
+      footer={
+        expense.status === "pending" && canApprove ? (
+          <Button size="sm" className="w-full sm:w-auto" disabled={pending} onClick={handleApprove}>
             اعتماد
           </Button>
-        )}
-        <span className="font-semibold tabular-nums">{formatCurrency(expense.amount)}</span>
-      </div>
-    </li>
+        ) : undefined
+      }
+    />
   );
 }

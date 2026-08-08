@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { formatCurrency } from "@/lib/format";
 import type {
   OwnerFinanceSnapshot,

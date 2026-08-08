@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import {
   getValidatedActiveStoreId,
   requireAnyPermission,
@@ -6,8 +6,8 @@ import {
 } from "@/lib/auth/guards";
 import { runPageAuth } from "@/lib/auth/page-guard";
 import { getPosReadiness } from "@/lib/auth/pos-readiness";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { PosReadinessStatus } from "@/components/SweetFlow/pos-readiness-status";
+import { PageHeader } from "@/components/Velora/page-header";
+import { PosReadinessStatus } from "@/components/Velora/pos-readiness-status";
 import { ExpenseWizard } from "@/modules/expenses/components/expense-wizard";
 import { ExpenseFiltersBar } from "@/modules/expenses/components/expense-filters-bar";
 import { ExpenseListItem } from "@/modules/expenses/components/expense-list-item";
@@ -15,7 +15,7 @@ import * as expenseRepo from "@/lib/repositories/expense.repository";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import { Button } from "@/components/ui/button";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import type { ExpenseSource, ExpenseStatus } from "@/lib/types";
 
 interface ExpensesPageProps {
@@ -122,7 +122,7 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
           }
         />
       ) : (
-        <ul className="flex flex-col gap-[var(--mds-space-2)]">
+        <div className="flex flex-col gap-[var(--mds-space-2)]">
           {expenses.map((e) => (
             <ExpenseListItem
               key={e.id}
@@ -132,7 +132,7 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
               canApprove={canApprove}
             />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

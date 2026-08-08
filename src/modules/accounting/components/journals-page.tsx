@@ -4,10 +4,13 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FilePenLine, ScrollText, Sparkles, XCircle } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { PageHeader } from "@/components/Velora/page-header";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,14 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { formatCurrency } from "@/lib/format";
 import { selectLabelById } from "@/lib/select-label";
 import type { GlAccount, JournalEntry, JournalEntryStatus, Store } from "@/lib/types";
@@ -100,6 +97,7 @@ export function JournalsPage({
   >([]);
   const [detailEntry, setDetailEntry] = useState<JournalEntry | null>(null);
   const [detailTotals, setDetailTotals] = useState({ debit: 0, credit: 0 });
+  const [voidEntryId, setVoidEntryId] = useState<string | null>(null);
   const [form, setForm] = useState({
     storeId,
     entryDate: new Date().toISOString().slice(0, 10),
@@ -223,16 +221,19 @@ export function JournalsPage({
   };
 
   const onVoid = (id: string) => {
-    if (!window.confirm("تأكيد إلغاء ترحيل القيد؟")) return;
-    startTransition(async () => {
-      const result = await voidJournalAction(id);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("تم إلغاء القيد");
-      router.refresh();
-    });
+    setVoidEntryId(id);
+  };
+
+  const confirmVoid = async () => {
+    if (!voidEntryId) return;
+    const result = await voidJournalAction(voidEntryId);
+    if (!result.ok) {
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
+    toast.success("تم إلغاء القيد");
+    setVoidEntryId(null);
+    router.refresh();
   };
 
   const onOpenDetail = (entry: JournalEntry) => {
@@ -433,86 +434,163 @@ export function JournalsPage({
             description="غيّر البحث أو الفلاتر."
           />
         ) : (
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[860px] text-sm">
-              <thead className="bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-start font-medium">الرقم</th>
-                  <th className="px-3 py-2 text-start font-medium">التاريخ</th>
-                  <th className="px-3 py-2 text-start font-medium">الفرع</th>
-                  <th className="px-3 py-2 text-start font-medium">البيان</th>
-                  <th className="px-3 py-2 text-start font-medium">المصدر</th>
-                  <th className="px-3 py-2 text-start font-medium">الحالة</th>
-                  <th className="px-3 py-2 text-start font-medium">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((entry) => (
-                  <tr key={entry.id} className="border-t">
-                    <td className="px-3 py-2 font-mono text-xs">{entry.entry_number}</td>
-                    <td className="px-3 py-2 tabular-nums">{entry.entry_date}</td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {entry.store_id
-                        ? (storeMap.get(entry.store_id) ?? "فرع")
-                        : "كل الفروع"}
-                    </td>
-                    <td className="px-3 py-2">{entry.memo || "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {SOURCE_LABELS[entry.source] ?? entry.source}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Badge
-                        variant={
-                          entry.status === "posted"
-                            ? "default"
-                            : entry.status === "void"
-                              ? "destructive"
-                              : "secondary"
-                        }
+          <ResponsiveListLayout
+            mobile={visible.map((entry) => (
+              <MobileEntityCard
+                key={entry.id}
+                title={entry.entry_number}
+                subtitle={entry.memo || "—"}
+                badge={
+                  <Badge
+                    variant={
+                      entry.status === "posted"
+                        ? "default"
+                        : entry.status === "void"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                  >
+                    {STATUS_LABELS[entry.status]}
+                  </Badge>
+                }
+                fields={[
+                  { label: "التاريخ", value: entry.entry_date },
+                  {
+                    label: "الفرع",
+                    value: entry.store_id
+                      ? (storeMap.get(entry.store_id) ?? "فرع")
+                      : "كل الفروع",
+                  },
+                  {
+                    label: "المصدر",
+                    value: SOURCE_LABELS[entry.source] ?? entry.source,
+                  },
+                ]}
+                footer={
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="min-h-11"
+                      disabled={pending}
+                      onClick={() => onOpenDetail(entry)}
+                    >
+                      عرض
+                    </Button>
+                    {canManage && entry.status === "draft" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="min-h-11"
+                        disabled={pending}
+                        onClick={() => onPost(entry.id)}
                       >
-                        {STATUS_LABELS[entry.status]}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          disabled={pending}
-                          onClick={() => onOpenDetail(entry)}
-                        >
-                          عرض
-                        </Button>
-                        {canManage && entry.status === "draft" ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={pending}
-                            onClick={() => onPost(entry.id)}
+                        ترحيل
+                      </Button>
+                    ) : null}
+                    {canManage && entry.status === "posted" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="min-h-11"
+                        disabled={pending}
+                        onClick={() => onVoid(entry.id)}
+                      >
+                        إلغاء
+                      </Button>
+                    ) : null}
+                  </div>
+                }
+              />
+            ))}
+            desktop={
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full min-w-[860px] text-sm">
+                  <thead className="bg-muted/40 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 text-start font-medium">الرقم</th>
+                      <th className="px-3 py-2 text-start font-medium">التاريخ</th>
+                      <th className="px-3 py-2 text-start font-medium">الفرع</th>
+                      <th className="px-3 py-2 text-start font-medium">البيان</th>
+                      <th className="px-3 py-2 text-start font-medium">المصدر</th>
+                      <th className="px-3 py-2 text-start font-medium">الحالة</th>
+                      <th className="px-3 py-2 text-start font-medium">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((entry) => (
+                      <tr key={entry.id} className="border-t">
+                        <td className="px-3 py-2 font-mono text-xs">
+                          {entry.entry_number}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums">{entry.entry_date}</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {entry.store_id
+                            ? (storeMap.get(entry.store_id) ?? "فرع")
+                            : "كل الفروع"}
+                        </td>
+                        <td className="px-3 py-2">{entry.memo || "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {SOURCE_LABELS[entry.source] ?? entry.source}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge
+                            variant={
+                              entry.status === "posted"
+                                ? "default"
+                                : entry.status === "void"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
                           >
-                            ترحيل
-                          </Button>
-                        ) : null}
-                        {canManage && entry.status === "posted" ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            disabled={pending}
-                            onClick={() => onVoid(entry.id)}
-                          >
-                            إلغاء
-                          </Button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                            {STATUS_LABELS[entry.status]}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={pending}
+                              onClick={() => onOpenDetail(entry)}
+                            >
+                              عرض
+                            </Button>
+                            {canManage && entry.status === "draft" ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={pending}
+                                onClick={() => onPost(entry.id)}
+                              >
+                                ترحيل
+                              </Button>
+                            ) : null}
+                            {canManage && entry.status === "posted" ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                disabled={pending}
+                                onClick={() => onVoid(entry.id)}
+                              >
+                                إلغاء
+                              </Button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+          />
         )}
       </OperationalCard>
 
@@ -523,13 +601,32 @@ export function JournalsPage({
           setOpen(v);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>قيد يومية جديد</DialogTitle>
-            <DialogDescription>
-              أدخل تاريخ القيد والبيان والأسطر — المدين لازم يساوي الدائن.
-            </DialogDescription>
-          </DialogHeader>
+        <StandardModalContent
+          size="lg"
+          title="قيد يومية جديد"
+          description="أدخل تاريخ القيد والبيان والأسطر — المدين لازم يساوي الدائن."
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-xl"
+                disabled={pending}
+                onClick={() => setOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="button"
+                className="h-11 rounded-xl font-semibold"
+                disabled={pending}
+                onClick={onCreate}
+              >
+                حفظ مسودة
+              </Button>
+            </>
+          }
+        >
           <div className="grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <AccountingStoreSelect
@@ -655,26 +752,26 @@ export function JournalsPage({
               ))}
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              إلغاء
-            </Button>
-            <Button type="button" disabled={pending} onClick={onCreate}>
-              حفظ مسودة
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+        </StandardModalContent>
       </Dialog>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="rounded-3xl sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>
-              {detailEntry?.entry_number ?? "تفاصيل القيد"}
-            </DialogTitle>
-            <DialogDescription>{detailEntry?.memo || "بدون بيان"}</DialogDescription>
-          </DialogHeader>
-          <div className="mb-3 grid gap-2 sm:grid-cols-3 text-sm">
+        <StandardModalContent
+          size="md"
+          title={detailEntry?.entry_number ?? "تفاصيل القيد"}
+          description={detailEntry?.memo || "بدون بيان"}
+          footer={
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl"
+              onClick={() => setDetailOpen(false)}
+            >
+              إغلاق
+            </Button>
+          }
+        >
+          <div className="grid gap-2 sm:grid-cols-3 text-sm">
             <div className="rounded-xl border bg-muted/20 px-3 py-2">
               <div className="text-xs text-muted-foreground">التاريخ</div>
               <div className="tabular-nums">{detailEntry?.entry_date ?? "—"}</div>
@@ -736,8 +833,20 @@ export function JournalsPage({
               </tfoot>
             </table>
           </div>
-        </DialogContent>
+        </StandardModalContent>
       </Dialog>
+
+      <ConfirmActionDialog
+        open={voidEntryId != null}
+        onOpenChange={(open) => {
+          if (!open) setVoidEntryId(null);
+        }}
+        title="إلغاء ترحيل القيد"
+        description="تأكيد إلغاء ترحيل القيد؟ لا يمكن التراجع عن هذا الإجراء بسهولة."
+        confirmLabel="إلغاء الترحيل"
+        destructive
+        onConfirm={confirmVoid}
+      />
     </>
   );
 }

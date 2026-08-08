@@ -8,7 +8,7 @@ import { ReportPage } from "@/modules/reports/components/report-page";
 import { ReportFiltersBar } from "@/modules/reports/components/report-filters";
 import { ReportKpiGrid } from "@/modules/reports/components/report-kpi-grid";
 import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { exportExpensesReportExcel } from "@/modules/reports/actions/expenses-report.actions";
 import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
 import { reportFiltersToSearchParams, type ReportFilters } from "@/modules/reports/core/report-filters.schema";

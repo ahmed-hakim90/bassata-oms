@@ -41,7 +41,7 @@ alwaysApply: true
 | Domain helpers | `modules/<domain>/lib` |
 | Business rules | `services` |
 | Shared hooks | `hooks` |
-| Shared UI | `components/ui` / SweetFlow |
+| Shared UI | `components/ui` / Velora |
 | Domain components | `modules/<domain>/components` |
 
 ### 6. Extend, Don't Duplicate

@@ -7,10 +7,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { PageHeader } from "@/components/Velora/page-header";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { Product, Supplier, Warehouse } from "@/lib/types";
 import type { PurchaseWithLines } from "@/modules/purchases/services/purchase.service";
@@ -72,33 +72,42 @@ function PurchaseInvoiceCard({
     purchase.received_at ?? `${purchase.document_date}T12:00:00.000Z`;
 
   return (
-    <OperationalCard accent="var(--mds-color-action-primary)">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-semibold">{purchase.invoice_number}</h3>
-              <StatusPill
-                label={statusLabels[purchase.status]}
-                variant={statusVariant[purchase.status]}
-              />
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {purchase.supplierName} · {purchase.lines.length} أصناف
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {purchase.warehouseName} · {formatDateTime(stamp)}
-            </p>
-            {isDraft ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                مسودة محفوظة — المخزون لم يتحدث بعد
-              </p>
-            ) : null}
-          </div>
-          <p className="shrink-0 text-lg font-semibold tabular-nums sm:text-xl">
-            {formatCurrency(purchase.total, currency)}
-          </p>
-        </div>
+    <MobileEntityCard
+      title={purchase.invoice_number}
+      subtitle={`${purchase.supplierName} · ${purchase.lines.length} أصناف`}
+      badge={
+        <StatusPill
+          label={statusLabels[purchase.status]}
+          variant={statusVariant[purchase.status]}
+        />
+      }
+      fields={[
+        {
+          label: "الإجمالي",
+          value: (
+            <span className="tabular-nums font-semibold">
+              {formatCurrency(purchase.total, currency)}
+            </span>
+          ),
+        },
+        {
+          label: "المخزن",
+          value: purchase.warehouseName,
+        },
+        {
+          label: "التاريخ",
+          value: formatDateTime(stamp),
+        },
+        ...(isDraft
+          ? [
+              {
+                label: "ملاحظة",
+                value: "مسودة — المخزون لم يتحدث بعد",
+              },
+            ]
+          : []),
+      ]}
+      footer={
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           {purchase.lines.length > 0 ? (
             <Button
@@ -131,8 +140,8 @@ function PurchaseInvoiceCard({
             {isDraft ? "متابعة" : "فتح"}
           </Button>
         </div>
-      </div>
-    </OperationalCard>
+      }
+    />
   );
 }
 

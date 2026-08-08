@@ -24,8 +24,8 @@ import {
   YAxis,
 } from "recharts";
 import { DollarSign, Package, TrendingUp, Users } from "lucide-react";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { formatCurrency } from "@/lib/format";
 import type { ProductProfitRow } from "@/modules/reports/services/profitability-report.service";
 import type { InventoryKpi } from "@/modules/reports/services/inventory-report.service";

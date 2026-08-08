@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { headers } from "next/headers";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { redirectOnAuthFailure } from "@/lib/auth/redirect-on-auth-failure";
 import {
   getEffectivePermissions,

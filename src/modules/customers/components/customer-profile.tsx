@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Receipt } from "lucide-react";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { LoyaltyLedgerEntry } from "@/lib/types";
 import type { CustomerProfile } from "@/modules/customers/services/customer.service";

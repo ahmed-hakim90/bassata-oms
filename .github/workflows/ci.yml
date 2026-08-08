@@ -22,7 +22,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder
           SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder
-          SweetFlow_COOKIE_SECRET: ci-test-secret-minimum-32-characters-long
+          VELORA_COOKIE_SECRET: ci-test-secret-minimum-32-characters-long
 
   e2e:
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SweetFlow_COOKIE_SECRET: ci-e2e-secret-minimum-32-characters-long
+          VELORA_COOKIE_SECRET: ci-e2e-secret-minimum-32-characters-long
       - run: npm run start &
       - run: sleep 15
       - run: npm run test:e2e

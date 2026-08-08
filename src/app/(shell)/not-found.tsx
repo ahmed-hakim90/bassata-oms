@@ -1,4 +1,4 @@
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 
 export default function ShellNotFound() {
   return (

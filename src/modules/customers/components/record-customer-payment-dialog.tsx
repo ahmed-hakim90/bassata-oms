@@ -5,13 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -19,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 import type { PaymentMethod } from "@/lib/types";
@@ -93,15 +88,34 @@ export function RecordCustomerPaymentDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-md" dir="rtl">
-        <DialogHeader>
-          <DialogTitle>تحصيل دفعة</DialogTitle>
-          <DialogDescription>
-            المستحق الحالي {formatCurrency(accountBalance)}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-[var(--mds-space-3)]">
-          <div className="space-y-[var(--mds-space-2)]">
+      <StandardModalContent
+        size="sm"
+        title="تحصيل دفعة"
+        description={`المستحق الحالي ${formatCurrency(accountBalance)}`}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl"
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              className="h-11 rounded-xl font-semibold"
+              onClick={submit}
+              disabled={pending || amountTooHigh}
+            >
+              {pending ? "جاري الحفظ…" : "تسجيل التحصيل"}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid gap-3">
+          <div className="space-y-2">
             <Label htmlFor="customer-collect-amount">المبلغ</Label>
             <Input
               id="customer-collect-amount"
@@ -111,16 +125,16 @@ export function RecordCustomerPaymentDialog({
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="rounded-[var(--mds-radius-md)]"
+              className="h-11"
             />
             {amountTooHigh ? (
               <p className="text-xs text-destructive">المبلغ أكبر من المستحق</p>
             ) : null}
           </div>
-          <div className="space-y-[var(--mds-space-2)]">
+          <div className="space-y-2">
             <Label>الطريقة</Label>
             <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
-              <SelectTrigger className="rounded-[var(--mds-radius-md)]">
+              <SelectTrigger className="h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -138,24 +152,17 @@ export function RecordCustomerPaymentDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-[var(--mds-space-2)]">
+          <div className="space-y-2">
             <Label htmlFor="customer-collect-ref">مرجع</Label>
             <Input
               id="customer-collect-ref"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              className="rounded-[var(--mds-radius-md)]"
+              className="h-11"
             />
           </div>
-          <Button
-            onClick={submit}
-            disabled={pending || amountTooHigh}
-            className="shadow-[var(--mds-elevation-1)]"
-          >
-            {pending ? "جاري الحفظ…" : "تسجيل التحصيل"}
-          </Button>
         </div>
-      </DialogContent>
+      </StandardModalContent>
     </Dialog>
   );
 }

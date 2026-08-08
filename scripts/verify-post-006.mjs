@@ -71,7 +71,7 @@ const { data: orgBefore } = await supabase
   .eq("id", orgId)
   .single();
 
-const testName = orgBefore?.name === "SweetFlow Demo" ? "SweetFlow Demo" : "SweetFlow Demo";
+const testName = "Velora Demo";
 
 const { data: orgUpdated, error: orgError } = await supabase
   .from("organizations")

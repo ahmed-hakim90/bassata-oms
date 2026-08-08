@@ -17,9 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
-import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
-import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
+import { DataTableShell } from "@/components/Velora/data-table-shell";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
 interface ReportTableProps<T> {

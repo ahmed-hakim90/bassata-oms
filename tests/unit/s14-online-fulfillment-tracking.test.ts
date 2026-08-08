@@ -96,14 +96,14 @@ describe("online-order-tracking token", () => {
   const orderId = "550e8400-e29b-41d4-a716-446655440000";
 
   it("creates and verifies a valid token", () => {
-    process.env.SweetFlow_COOKIE_SECRET = "s14-test-secret";
+    process.env.VELORA_COOKIE_SECRET = "s14-test-secret";
     const token = createOnlineOrderTrackingToken(orderId);
     expect(token.startsWith(`${orderId}.`)).toBe(true);
     expect(verifyOnlineOrderTrackingToken(token)).toBe(orderId);
   });
 
   it("rejects tampered or invalid tokens", () => {
-    process.env.SweetFlow_COOKIE_SECRET = "s14-test-secret";
+    process.env.VELORA_COOKIE_SECRET = "s14-test-secret";
     const token = createOnlineOrderTrackingToken(orderId);
     expect(verifyOnlineOrderTrackingToken(`${orderId}.deadbeef`)).toBeNull();
     expect(verifyOnlineOrderTrackingToken("not-a-uuid.abc")).toBeNull();

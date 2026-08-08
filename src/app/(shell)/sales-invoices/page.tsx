@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { AuthError } from "@/lib/auth/auth-error";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
-import { LoadingStateBlock } from "@/components/SweetFlow/state-blocks";
+import { LoadingStateBlock } from "@/components/Velora/state-blocks";
 import { getSalesInvoicesData } from "@/modules/sales-invoices/actions/sales-invoice.actions";
 import { SalesInvoicesPage } from "@/modules/sales-invoices/components/sales-invoices-page";
 

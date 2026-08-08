@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { ROLE_LABELS, ROLES, type UserRole } from "@/lib/constants";
 import type { Permission, PermissionKey } from "@/lib/types";
 import { updateRolePermissionsAction } from "@/modules/accounting/actions/permission.actions";

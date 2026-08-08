@@ -1,8 +1,8 @@
 "use client";
 
 import { Boxes } from "lucide-react";
-import { GlassPanel } from "@/components/SweetFlow/glass-panel";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { GlassPanel } from "@/components/Velora/glass-panel";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { formatUnit } from "@/lib/units";
 import type { Category } from "@/lib/types";
 import type { StockLevelView } from "../services/stock.service";

@@ -94,7 +94,7 @@ This audit is the written team agreement for S00-T5.
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Souqna 030–031 marked dropped; platform not live until ADR-001 |
 | [README.md](../README.md) | No live `/platform` / monthly-closing claims |
 | [PRODUCTION_PLAN.md](./PRODUCTION_PLAN.md) | Align with MASTER (Souqna deferred, platform deferred, monthly close removed) |
-| [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) | Path casing `src/components/SweetFlow/` |
+| [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) | Path casing `src/components/Velora/` |
 
 ---
 

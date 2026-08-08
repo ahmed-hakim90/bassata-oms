@@ -2,8 +2,9 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { EmptyStateBlock, LoadingStateBlock } from "@/components/Velora/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -176,10 +177,14 @@ export function AuditLogsPage({
       </OperationalCard>
 
       <OperationalCard title={`آخر النشاط (صفحة ${page})`}>
-        {logs.length === 0 ? (
-          <p className="py-[var(--mds-space-8)] text-center text-muted-foreground">
-            مفيش أحداث مطابقة للفلاتر دي
-          </p>
+        {pending && logs.length === 0 ? (
+          <LoadingStateBlock label="جاري تحميل سجل النشاط..." />
+        ) : logs.length === 0 ? (
+          <EmptyStateBlock
+            title="مفيش أحداث مطابقة للفلاتر دي"
+            description="غيّر الفلاتر أو وسّع الفترة عشان تشوف نشاط أكتر."
+            className="border-0 bg-transparent shadow-none"
+          />
         ) : (
           <ul className="divide-y divide-border">
             {logs.map((log) => (

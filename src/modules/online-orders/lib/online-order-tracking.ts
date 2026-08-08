@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { resolveCookieSigningSecret } from "@/lib/auth/cookie-signing-secret";
 
 /**
  * Tokenized public tracking link — HMAC over order id (no new DB column).
@@ -8,17 +9,7 @@ import crypto from "node:crypto";
 const PREFIX = "ot1";
 
 function trackingSecret(): string {
-  const dedicated = process.env.SweetFlow_COOKIE_SECRET;
-  if (dedicated) return dedicated;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("SweetFlow_COOKIE_SECRET is required in production");
-  }
-  const fallback =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!fallback) {
-    throw new Error("Missing tracking signing secret");
-  }
-  return fallback;
+  return resolveCookieSigningSecret();
 }
 
 function signOrderId(orderId: string): string {

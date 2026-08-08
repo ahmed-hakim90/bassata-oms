@@ -32,9 +32,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { LoadingStateBlock } from "@/components/SweetFlow/state-blocks";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { LoadingStateBlock } from "@/components/Velora/state-blocks";
 import { DocumentPrintPreviewModal } from "@/components/print/document-print-preview-modal";
 import { formatCurrency } from "@/lib/format";
 import { sanitizeDecimalInput } from "@/lib/digits";

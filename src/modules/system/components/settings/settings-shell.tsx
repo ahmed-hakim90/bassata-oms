@@ -2,9 +2,18 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PageHeader } from "@/components/SweetFlow/page-header";
+import { PageHeader } from "@/components/Velora/page-header";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { selectLabelById } from "@/lib/select-label";
 import type { FeatureFlag } from "@/lib/constants";
 import type {
   AppUser,
@@ -178,24 +187,51 @@ export function SettingsShell({
             value={settingsQuery}
             onChange={(event) => setSettingsQuery(event.target.value)}
           />
-          <div className="min-w-0 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {filteredTabs.length > 0 ? (
-              <TabsList className="flex h-auto w-max min-w-full flex-nowrap justify-start gap-1 rounded-[var(--mds-radius-md)] bg-muted p-1">
-                {filteredTabs.map((tab) => (
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    title={tab.label}
-                    className="h-9 shrink-0 rounded-[var(--mds-radius-md)] px-3 text-sm font-medium whitespace-nowrap data-active:bg-[var(--mds-color-action-primary)] data-active:text-[var(--mds-color-text-inverse)] data-active:shadow-[var(--mds-elevation-1)]"
-                  >
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            ) : (
-              <p className="text-sm text-muted-foreground">لا توجد نتائج.</p>
-            )}
-          </div>
+          {filteredTabs.length === 0 ? (
+            <EmptyStateBlock title="لا توجد نتائج" description="جرّب كلمة بحث أخرى." />
+          ) : (
+            <>
+              <div className="md:hidden">
+                <Select
+                  value={activeTab}
+                  onValueChange={(value) => {
+                    if (value) setTab(value);
+                  }}
+                >
+                  <SelectTrigger className="h-11 w-full" aria-label="قسم الإعدادات">
+                    <SelectValue>
+                      {() =>
+                        selectLabelById(filteredTabs, activeTab, (tab) => tab.label) ||
+                        selectLabelById(visibleTabs, activeTab, (tab) => tab.label) ||
+                        "اختر قسمًا"
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredTabs.map((tab) => (
+                      <SelectItem key={tab.id} value={tab.id} label={tab.label}>
+                        {tab.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="hidden min-w-0 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] md:block [&::-webkit-scrollbar]:hidden">
+                <TabsList className="flex h-auto w-max min-w-full flex-nowrap justify-start gap-1 rounded-[var(--mds-radius-md)] bg-muted p-1">
+                  {filteredTabs.map((tab) => (
+                    <TabsTrigger
+                      key={tab.id}
+                      value={tab.id}
+                      title={tab.label}
+                      className="h-9 shrink-0 rounded-[var(--mds-radius-md)] px-3 text-sm font-medium whitespace-nowrap data-active:bg-[var(--mds-color-action-primary)] data-active:text-[var(--mds-color-text-inverse)] data-active:shadow-[var(--mds-elevation-1)]"
+                    >
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
+            </>
+          )}
         </div>
 
         {canManageSettings && bundle ? (

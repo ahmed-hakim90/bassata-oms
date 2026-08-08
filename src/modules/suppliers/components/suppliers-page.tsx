@@ -14,10 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { KpiCard } from "@/components/Velora/kpi-card";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { SupplierListSummary } from "@/lib/types";
 import {

@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { AuthError } from "@/lib/auth/auth-error";
 import { getIncomeStatementPageData } from "@/modules/accounting/actions/income-statement.actions";
 import { IncomeStatementPage } from "@/modules/accounting/components/income-statement-page";

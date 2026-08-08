@@ -4,10 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeftRight, BookOpen, CircleDot } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { PageHeader } from "@/components/Velora/page-header";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -251,64 +253,158 @@ export function AccountLedgerPage({
               description="مفيش قيود مرحلة على الحساب ده في الفترة المختارة."
             />
           ) : (
-            <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full min-w-[800px] text-sm">
-                <thead className="bg-muted/40 text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-start font-medium">التاريخ</th>
-                    <th className="px-3 py-2 text-start font-medium">رقم القيد</th>
-                    <th className="px-3 py-2 text-start font-medium">البيان</th>
-                    <th className="px-3 py-2 text-start font-medium">مدين</th>
-                    <th className="px-3 py-2 text-start font-medium">دائن</th>
-                    <th className="px-3 py-2 text-start font-medium">الرصيد</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-t bg-muted/20">
-                    <td className="px-3 py-2" colSpan={5}>
-                      رصيد افتتاحي
-                    </td>
-                    <td className="px-3 py-2 tabular-nums font-medium">
-                      {formatCurrency(result.openingBalance, currency)}
-                    </td>
-                  </tr>
+            <ResponsiveListLayout
+              mobile={
+                <>
+                  <MobileEntityCard
+                    title="رصيد افتتاحي"
+                    fields={[
+                      {
+                        label: "الرصيد",
+                        value: (
+                          <span className="tabular-nums font-medium">
+                            {formatCurrency(result.openingBalance, currency)}
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
                   {result.movements.map((row) => (
-                    <tr key={row.lineId} className="border-t">
-                      <td className="px-3 py-2 tabular-nums">{row.entryDate}</td>
-                      <td className="px-3 py-2 font-mono tabular-nums">
-                        {row.entryNumber}
-                      </td>
-                      <td className="px-3 py-2">{row.memo || "—"}</td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {row.debit > 0 ? formatCurrency(row.debit, currency) : "—"}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {row.credit > 0 ? formatCurrency(row.credit, currency) : "—"}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {formatCurrency(row.runningBalance, currency)}
-                      </td>
-                    </tr>
+                    <MobileEntityCard
+                      key={row.lineId}
+                      title={row.entryNumber}
+                      subtitle={row.entryDate}
+                      fields={[
+                        { label: "البيان", value: row.memo || "—" },
+                        {
+                          label: "مدين",
+                          value:
+                            row.debit > 0 ? (
+                              <span className="tabular-nums">
+                                {formatCurrency(row.debit, currency)}
+                              </span>
+                            ) : (
+                              "—"
+                            ),
+                        },
+                        {
+                          label: "دائن",
+                          value:
+                            row.credit > 0 ? (
+                              <span className="tabular-nums">
+                                {formatCurrency(row.credit, currency)}
+                              </span>
+                            ) : (
+                              "—"
+                            ),
+                        },
+                        {
+                          label: "الرصيد",
+                          value: (
+                            <span className="tabular-nums font-medium">
+                              {formatCurrency(row.runningBalance, currency)}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
                   ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t bg-muted/30 font-medium">
-                    <td className="px-3 py-2" colSpan={3}>
-                      الإجمالي / الختامي
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {formatCurrency(result.periodDebit, currency)}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {formatCurrency(result.periodCredit, currency)}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {formatCurrency(result.closingBalance, currency)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  <MobileEntityCard
+                    title="الإجمالي / الختامي"
+                    fields={[
+                      {
+                        label: "مدين",
+                        value: (
+                          <span className="tabular-nums">
+                            {formatCurrency(result.periodDebit, currency)}
+                          </span>
+                        ),
+                      },
+                      {
+                        label: "دائن",
+                        value: (
+                          <span className="tabular-nums">
+                            {formatCurrency(result.periodCredit, currency)}
+                          </span>
+                        ),
+                      },
+                      {
+                        label: "الرصيد",
+                        value: (
+                          <span className="tabular-nums font-semibold">
+                            {formatCurrency(result.closingBalance, currency)}
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
+                </>
+              }
+              desktop={
+                <div className="overflow-x-auto rounded-xl border">
+                  <table className="w-full min-w-[800px] text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-start font-medium">التاريخ</th>
+                        <th className="px-3 py-2 text-start font-medium">رقم القيد</th>
+                        <th className="px-3 py-2 text-start font-medium">البيان</th>
+                        <th className="px-3 py-2 text-start font-medium">مدين</th>
+                        <th className="px-3 py-2 text-start font-medium">دائن</th>
+                        <th className="px-3 py-2 text-start font-medium">الرصيد</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t bg-muted/20">
+                        <td className="px-3 py-2" colSpan={5}>
+                          رصيد افتتاحي
+                        </td>
+                        <td className="px-3 py-2 tabular-nums font-medium">
+                          {formatCurrency(result.openingBalance, currency)}
+                        </td>
+                      </tr>
+                      {result.movements.map((row) => (
+                        <tr key={row.lineId} className="border-t">
+                          <td className="px-3 py-2 tabular-nums">{row.entryDate}</td>
+                          <td className="px-3 py-2 font-mono tabular-nums">
+                            {row.entryNumber}
+                          </td>
+                          <td className="px-3 py-2">{row.memo || "—"}</td>
+                          <td className="px-3 py-2 tabular-nums">
+                            {row.debit > 0
+                              ? formatCurrency(row.debit, currency)
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums">
+                            {row.credit > 0
+                              ? formatCurrency(row.credit, currency)
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums">
+                            {formatCurrency(row.runningBalance, currency)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t bg-muted/30 font-medium">
+                        <td className="px-3 py-2" colSpan={3}>
+                          الإجمالي / الختامي
+                        </td>
+                        <td className="px-3 py-2 tabular-nums">
+                          {formatCurrency(result.periodDebit, currency)}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums">
+                          {formatCurrency(result.periodCredit, currency)}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums">
+                          {formatCurrency(result.closingBalance, currency)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              }
+            />
           )}
         </OperationalCard>
       )}

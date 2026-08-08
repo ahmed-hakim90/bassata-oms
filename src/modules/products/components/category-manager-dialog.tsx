@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import {
   createCategoryAction,
   deleteCategoryAction,
@@ -292,9 +293,11 @@ export function CategoryManagerDialog({
 
           <div className="min-h-[260px] space-y-2">
             {sortedCategories.length === 0 ? (
-              <div className="flex h-full min-h-[220px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-                مفيش تصنيفات لسة
-              </div>
+              <EmptyStateBlock
+                title="مفيش تصنيفات لسة"
+                description="أضف تصنيفًا من النموذج على اليمين عشان تنظّم المنتجات."
+                className="min-h-[220px]"
+              />
             ) : (
               sortedCategories.map((category) => (
                 <div

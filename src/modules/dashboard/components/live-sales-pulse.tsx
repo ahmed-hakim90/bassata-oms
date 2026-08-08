@@ -7,7 +7,7 @@ import {
   Tooltip,
   XAxis,
 } from "recharts";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { formatCurrency } from "@/lib/format";
 
 interface LiveSalesPulseProps {

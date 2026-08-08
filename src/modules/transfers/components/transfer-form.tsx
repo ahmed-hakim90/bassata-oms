@@ -13,8 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import type { Product, Store, TransferOrderLine, Warehouse } from "@/lib/types";
 import { selectLabelById } from "@/lib/select-label";
 import {

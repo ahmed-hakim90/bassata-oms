@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { AuthError } from "@/lib/auth/auth-error";
 import { getChartOfAccountsData } from "@/modules/accounting/actions/gl-account.actions";
 import { ChartOfAccountsPage } from "@/modules/accounting/components/chart-of-accounts-page";

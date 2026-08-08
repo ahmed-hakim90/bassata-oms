@@ -5,7 +5,7 @@ Phases 3–4 of [PRODUCT_EXECUTION_PLAN.md](./PRODUCT_EXECUTION_PLAN.md). Execut
 ## Phase 3 — Infrastructure checklist
 
 - [ ] Dedicated **staging** Supabase project + Vercel preview/staging URL
-- [ ] Staging env vars distinct from production (`SweetFlow_COOKIE_SECRET` unique)
+- [ ] Staging env vars distinct from production (`VELORA_COOKIE_SECRET` unique)
 - [ ] Production env vars present per [DEPLOYMENT.md](./DEPLOYMENT.md)
 - [ ] Supabase Auth Site URL + redirect URLs for staging and production
 - [ ] SMTP / email provider for password reset
@@ -28,7 +28,7 @@ Full ops list: [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md).
 1. **Hardware pilot** — [DEVICE_MATRIX.md](./DEVICE_MATRIX.md) Day-0 + [results/hardware-pilot-results.md](./results/hardware-pilot-results.md)
 2. **Manual SaaS** — plans/limits + suspend (incl. non-payment) without Stripe
 3. **Billing** — after first revenue / successful pilot week
-4. **Brand unify** — after stability (Velora public; SweetFlow/CafeFlow internals frozen)
+4. **Brand unify** — done ([BRAND_UNIFY.md](./BRAND_UNIFY.md)); cookie wire names `sf_*` and demo `@CafeFlow.local` remain
 5. **Offline** — Phase 10 only after online path rock-solid
 
 ## Phase 4 — Pilot rollout

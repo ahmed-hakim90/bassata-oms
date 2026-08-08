@@ -1,12 +1,12 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import {
   buildProfitSnapshot,
   getActiveSessions,

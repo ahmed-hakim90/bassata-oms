@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { SupplierPriceSummary } from "@/modules/purchases/services/price-history.service";
 

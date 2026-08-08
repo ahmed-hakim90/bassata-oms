@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import type { Product, Warehouse } from "@/lib/types";
 import { recordWasteAction } from "@/modules/waste/actions/waste.actions";
 import { WASTE_REASONS } from "@/modules/waste/constants";

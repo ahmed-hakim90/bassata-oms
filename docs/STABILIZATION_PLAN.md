@@ -4,11 +4,12 @@ This plan freezes broad brand renaming until the product flows are stable enough
 
 ## Brand rename freeze
 
-Do not rename internal SweetFlow identifiers during stabilization:
+Brand unify (2026-08-08) moved the UI kit to `@/components/Velora/...` and the cookie secret to `VELORA_COOKIE_SECRET` (legacy `SweetFlow_COOKIE_SECRET` dual-read). See [BRAND_UNIFY.md](./BRAND_UNIFY.md).
 
-- Keep `SweetFlow_COOKIE_SECRET` unchanged.
+Still frozen for wire stability:
+
 - Keep cookie names such as `sf_registered_device`, `sf_active_store`, and `sf_active_cashier`.
-- Keep component import paths such as `@/components/SweetFlow/...`.
+- Do not rename demo auth emails (`@CafeFlow.local`) without a coordinated reseed.
 - Keep package, Supabase project, seed, and script names unchanged.
 
 Surface-level copy can be adjusted when it improves user understanding, but it must not touch environment variables, cookie names, import paths, seed identifiers, or package names.

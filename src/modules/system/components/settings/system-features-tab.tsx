@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { updateFeatureFlagsAction } from "@/modules/system/actions/system.actions";
 import { ADVANCED_FEATURE_FLAGS, type FeatureFlag } from "@/lib/constants";
 import { ReportScheduleCard } from "@/modules/reports/components/report-schedule-card";

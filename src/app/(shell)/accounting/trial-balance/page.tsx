@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { AuthError } from "@/lib/auth/auth-error";
 import { getTrialBalancePageData } from "@/modules/accounting/actions/trial-balance.actions";
 import { TrialBalancePage } from "@/modules/accounting/components/trial-balance-page";

@@ -4,10 +4,12 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Ban, CheckCircle2, Download, Search } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDateTime } from "@/lib/format";
@@ -74,70 +76,128 @@ export function PlatformDevicesConsole({ devices }: { devices: PlatformDeviceRow
         {filtered.length === 0 ? (
           <EmptyStateBlock title="مفيش أجهزة" description="مفيش نتائج مطابقة." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="px-2 py-2 text-start font-medium">الجهاز</th>
-                  <th className="px-2 py-2 text-start font-medium">الشركة / الفرع</th>
-                  <th className="px-2 py-2 text-start font-medium">آخر ظهور</th>
-                  <th className="px-2 py-2 text-start font-medium">الحالة</th>
-                  <th className="px-2 py-2 text-start font-medium">إجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((device) => (
-                  <tr key={device.id} className="border-b border-border/60">
-                    <td className="px-2 py-3 font-medium">{device.name}</td>
-                    <td className="px-2 py-3">
-                      <p>{device.org_name}</p>
-                      <p className="text-xs text-muted-foreground">{device.store_name}</p>
-                    </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-muted-foreground">
-                      {device.last_seen_at ? formatDateTime(device.last_seen_at) : "—"}
-                    </td>
-                    <td className="px-2 py-3">
-                      <StatusPill
-                        label={device.is_active ? "نشط" : "موقوف"}
-                        variant={device.is_active ? "success" : "danger"}
-                      />
-                    </td>
-                    <td className="px-2 py-3">
-                      <Button
-                        size="sm"
-                        variant={device.is_active ? "destructive" : "outline"}
-                        disabled={pending}
-                        onClick={() => {
-                          startTransition(async () => {
-                            const result = await setPlatformDeviceActiveAction({
-                              deviceId: device.id,
-                              isActive: !device.is_active,
-                            });
-                            if (!result.ok) {
-                              toast.error(result.error);
-                              return;
-                            }
-                            toast.success(device.is_active ? "تم إيقاف الجهاز" : "تم تفعيل الجهاز");
-                            router.refresh();
-                          });
-                        }}
-                      >
-                        {device.is_active ? (
-                          <>
-                            <Ban className="size-3.5" /> إيقاف
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="size-3.5" /> تفعيل
-                          </>
-                        )}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveListLayout
+            mobile={filtered.map((device) => (
+              <MobileEntityCard
+                key={device.id}
+                title={device.name}
+                subtitle={`${device.org_name} · ${device.store_name}`}
+                badge={
+                  <StatusPill
+                    label={device.is_active ? "نشط" : "موقوف"}
+                    variant={device.is_active ? "success" : "danger"}
+                  />
+                }
+                fields={[
+                  {
+                    label: "آخر ظهور",
+                    value: device.last_seen_at ? formatDateTime(device.last_seen_at) : "—",
+                  },
+                ]}
+                footer={
+                  <Button
+                    size="sm"
+                    variant={device.is_active ? "destructive" : "outline"}
+                    disabled={pending}
+                    onClick={() => {
+                      startTransition(async () => {
+                        const result = await setPlatformDeviceActiveAction({
+                          deviceId: device.id,
+                          isActive: !device.is_active,
+                        });
+                        if (!result.ok) {
+                          toast.error(result.error);
+                          return;
+                        }
+                        toast.success(
+                          device.is_active ? "تم إيقاف الجهاز" : "تم تفعيل الجهاز"
+                        );
+                        router.refresh();
+                      });
+                    }}
+                  >
+                    {device.is_active ? (
+                      <>
+                        <Ban className="size-3.5" /> إيقاف
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="size-3.5" /> تفعيل
+                      </>
+                    )}
+                  </Button>
+                }
+              />
+            ))}
+            desktop={
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="px-2 py-2 text-start font-medium">الجهاز</th>
+                      <th className="px-2 py-2 text-start font-medium">الشركة / الفرع</th>
+                      <th className="px-2 py-2 text-start font-medium">آخر ظهور</th>
+                      <th className="px-2 py-2 text-start font-medium">الحالة</th>
+                      <th className="px-2 py-2 text-start font-medium">إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((device) => (
+                      <tr key={device.id} className="border-b border-border/60">
+                        <td className="px-2 py-3 font-medium">{device.name}</td>
+                        <td className="px-2 py-3">
+                          <p>{device.org_name}</p>
+                          <p className="text-xs text-muted-foreground">{device.store_name}</p>
+                        </td>
+                        <td className="px-2 py-3 whitespace-nowrap text-muted-foreground">
+                          {device.last_seen_at ? formatDateTime(device.last_seen_at) : "—"}
+                        </td>
+                        <td className="px-2 py-3">
+                          <StatusPill
+                            label={device.is_active ? "نشط" : "موقوف"}
+                            variant={device.is_active ? "success" : "danger"}
+                          />
+                        </td>
+                        <td className="px-2 py-3">
+                          <Button
+                            size="sm"
+                            variant={device.is_active ? "destructive" : "outline"}
+                            disabled={pending}
+                            onClick={() => {
+                              startTransition(async () => {
+                                const result = await setPlatformDeviceActiveAction({
+                                  deviceId: device.id,
+                                  isActive: !device.is_active,
+                                });
+                                if (!result.ok) {
+                                  toast.error(result.error);
+                                  return;
+                                }
+                                toast.success(
+                                  device.is_active ? "تم إيقاف الجهاز" : "تم تفعيل الجهاز"
+                                );
+                                router.refresh();
+                              });
+                            }}
+                          >
+                            {device.is_active ? (
+                              <>
+                                <Ban className="size-3.5" /> إيقاف
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="size-3.5" /> تفعيل
+                              </>
+                            )}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+          />
         )}
       </OperationalCard>
     </div>

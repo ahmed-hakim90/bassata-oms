@@ -11,7 +11,7 @@ Copy per screen or screen group:
 
 **Finished when**
 - [ ] Page answers: where am I / what needs attention / next action (≤3s scan)
-- [ ] Uses SweetFlow shell primitives (`PageHeader` or POS chrome, not ad-hoc titles)
+- [ ] Uses Velora shell primitives (`PageHeader` or POS chrome, not ad-hoc titles)
 - [ ] Empty / Loading / Error use `state-blocks` (or POS-equivalent with same semantics)
 - [ ] Primary action is obvious; destructive actions confirm
 - [ ] Responsive at 768 / 1024 / 1280

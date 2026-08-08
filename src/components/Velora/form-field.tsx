@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-type SweetFormFieldProps = {
+type FormFieldProps = {
   id: string;
   label: string;
   error?: string;
@@ -11,14 +11,14 @@ type SweetFormFieldProps = {
   className?: string;
 };
 
-export function SweetFormField({
+export function FormField({
   id,
   label,
   error,
   hint,
   children,
   className,
-}: SweetFormFieldProps) {
+}: FormFieldProps) {
   return (
     <div className={cn("grid gap-2", className)}>
       <Label htmlFor={id}>{label}</Label>
@@ -31,3 +31,6 @@ export function SweetFormField({
     </div>
   );
 }
+
+/** @deprecated Use {@link FormField} */
+export const SweetFormField = FormField;

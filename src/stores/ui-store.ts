@@ -65,7 +65,7 @@ export const useUiStore = create<UiState>()(
       openMobileNavSheet: () => set({ mobileNavSheetOpen: true }),
     }),
     {
-      name: "SweetFlow-ui",
+      name: "Velora-ui",
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         theme: state.theme,

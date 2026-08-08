@@ -61,14 +61,22 @@ if (missing.length) {
 const requireCookieSecret =
   process.env.NODE_ENV === "production" || process.env.CI === "true";
 
-if (!process.env.SweetFlow_COOKIE_SECRET) {
+const cookieSecret =
+  process.env.VELORA_COOKIE_SECRET?.trim() ||
+  process.env.SweetFlow_COOKIE_SECRET?.trim();
+if (!cookieSecret) {
   if (requireCookieSecret) {
-    console.error("✗ SweetFlow_COOKIE_SECRET required in production/CI");
+    console.error(
+      "✗ VELORA_COOKIE_SECRET required in production/CI (legacy SweetFlow_COOKIE_SECRET still accepted)"
+    );
     process.exit(1);
   }
-  console.warn("⚠ SweetFlow_COOKIE_SECRET not set — dev fallback only");
+  console.warn("⚠ VELORA_COOKIE_SECRET not set — dev fallback only");
 } else {
-  console.log("✓ SweetFlow_COOKIE_SECRET set");
+  const via = process.env.VELORA_COOKIE_SECRET?.trim()
+    ? "VELORA_COOKIE_SECRET"
+    : "SweetFlow_COOKIE_SECRET (legacy)";
+  console.log(`✓ Cookie signing secret set (${via})`);
 }
 
 const migrations = [

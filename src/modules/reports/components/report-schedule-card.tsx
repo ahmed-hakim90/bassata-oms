@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { updateReportScheduleAction } from "@/modules/reports/actions/report-schedule.actions";
 import {
   REPORT_SCHEDULE_KEYS,

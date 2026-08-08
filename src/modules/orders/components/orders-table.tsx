@@ -20,9 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
-import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { formatCurrency } from "@/lib/format";
 import type { Order } from "@/lib/types";
 import { cn } from "@/lib/utils";

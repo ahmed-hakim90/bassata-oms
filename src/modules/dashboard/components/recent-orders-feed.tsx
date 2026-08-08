@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { format } from "date-fns";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import type { Order } from "@/lib/types";
 

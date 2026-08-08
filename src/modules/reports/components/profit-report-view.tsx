@@ -27,7 +27,7 @@ import { ReportKpiGrid } from "@/modules/reports/components/report-kpi-grid";
 import { ReportChartSection } from "@/modules/reports/components/report-chart-section";
 import { ReportTable } from "@/modules/reports/components/report-table";
 import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { exportProfitReportExcel } from "@/modules/reports/actions/profit-report.actions";
 import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
 import {

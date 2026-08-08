@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageStoreId } from "@/lib/auth/page-guard";
 import * as storeRepo from "@/lib/repositories/store.repository";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { buttonVariants } from "@/components/ui/button";
 import { OrdersTable } from "@/modules/orders/components/orders-table";
 import { listOrders } from "@/modules/orders/services/order.service";

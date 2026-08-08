@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { BookOpen, Landmark, ScrollText, Sparkles } from "lucide-react";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { PageHeader } from "@/components/Velora/page-header";
+import { KpiCard } from "@/components/Velora/kpi-card";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,14 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import type { GlAccountType } from "@/lib/types";
 import {
   createGlAccountAction,
@@ -253,86 +249,148 @@ export function ChartOfAccountsPage({
             description="غيّر البحث أو فلتر النوع."
           />
         ) : (
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-start font-medium">الكود</th>
-                  <th className="px-3 py-2 text-start font-medium">الاسم</th>
-                  <th className="px-3 py-2 text-start font-medium">النوع</th>
-                  <th className="px-3 py-2 text-start font-medium">الحالة</th>
-                  <th className="px-3 py-2 text-start font-medium">دفتر</th>
-                  {canManage ? (
-                    <th className="px-3 py-2 text-start font-medium">إجراء</th>
-                  ) : null}
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((account) => (
-                  <tr key={account.id} className="border-t">
-                    <td
-                      className="px-3 py-2 font-mono tabular-nums"
-                      style={{ paddingInlineStart: `${12 + account.depth * 16}px` }}
-                    >
-                      {account.code}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span>{account.name}</span>
-                        {account.is_system ? (
-                          <Badge variant="secondary">نظام</Badge>
-                        ) : null}
-                        {!account.is_postable ? (
-                          <Badge variant="outline">تجميعي</Badge>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <Badge variant="outline">
-                        {TYPE_LABELS[account.account_type]}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2">
-                      {account.is_active ? (
-                        <span className="text-emerald-700 dark:text-emerald-400">نشط</span>
-                      ) : (
-                        <span className="text-muted-foreground">معطّل</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      {account.is_postable ? (
-                        <Link
-                          href={`/accounting/ledger?accountId=${account.id}`}
-                          className="text-sm text-primary underline-offset-2 hover:underline"
-                        >
-                          دفتر
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    {canManage ? (
-                      <td className="px-3 py-2">
-                        {!account.is_system ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            disabled={pending}
-                            onClick={() => onToggleActive(account)}
-                          >
-                            {account.is_active ? "تعطيل" : "تفعيل"}
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
+          <ResponsiveListLayout
+            mobile={visible.map((account) => (
+              <MobileEntityCard
+                key={account.id}
+                title={account.code}
+                subtitle={
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span>{account.name}</span>
+                    {account.is_system ? (
+                      <Badge variant="secondary">نظام</Badge>
                     ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    {!account.is_postable ? (
+                      <Badge variant="outline">تجميعي</Badge>
+                    ) : null}
+                  </span>
+                }
+                badge={
+                  <Badge variant="outline">
+                    {TYPE_LABELS[account.account_type]}
+                  </Badge>
+                }
+                fields={[
+                  {
+                    label: "الحالة",
+                    value: account.is_active ? (
+                      <span className="text-emerald-700 dark:text-emerald-400">نشط</span>
+                    ) : (
+                      <span className="text-muted-foreground">معطّل</span>
+                    ),
+                  },
+                ]}
+                footer={
+                  <div className="flex flex-wrap items-center gap-2">
+                    {account.is_postable ? (
+                      <Link
+                        href={`/accounting/ledger?accountId=${account.id}`}
+                        className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-primary"
+                      >
+                        دفتر
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">مفيش دفتر</span>
+                    )}
+                    {canManage && !account.is_system ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="min-h-11"
+                        disabled={pending}
+                        onClick={() => onToggleActive(account)}
+                      >
+                        {account.is_active ? "تعطيل" : "تفعيل"}
+                      </Button>
+                    ) : null}
+                  </div>
+                }
+              />
+            ))}
+            desktop={
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead className="bg-muted/40 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 text-start font-medium">الكود</th>
+                      <th className="px-3 py-2 text-start font-medium">الاسم</th>
+                      <th className="px-3 py-2 text-start font-medium">النوع</th>
+                      <th className="px-3 py-2 text-start font-medium">الحالة</th>
+                      <th className="px-3 py-2 text-start font-medium">دفتر</th>
+                      {canManage ? (
+                        <th className="px-3 py-2 text-start font-medium">إجراء</th>
+                      ) : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((account) => (
+                      <tr key={account.id} className="border-t">
+                        <td
+                          className="px-3 py-2 font-mono tabular-nums"
+                          style={{ paddingInlineStart: `${12 + account.depth * 16}px` }}
+                        >
+                          {account.code}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{account.name}</span>
+                            {account.is_system ? (
+                              <Badge variant="secondary">نظام</Badge>
+                            ) : null}
+                            {!account.is_postable ? (
+                              <Badge variant="outline">تجميعي</Badge>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge variant="outline">
+                            {TYPE_LABELS[account.account_type]}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2">
+                          {account.is_active ? (
+                            <span className="text-emerald-700 dark:text-emerald-400">نشط</span>
+                          ) : (
+                            <span className="text-muted-foreground">معطّل</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {account.is_postable ? (
+                            <Link
+                              href={`/accounting/ledger?accountId=${account.id}`}
+                              className="text-sm text-primary underline-offset-2 hover:underline"
+                            >
+                              دفتر
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        {canManage ? (
+                          <td className="px-3 py-2">
+                            {!account.is_system ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                disabled={pending}
+                                onClick={() => onToggleActive(account)}
+                              >
+                                {account.is_active ? "تعطيل" : "تفعيل"}
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        ) : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+          />
         )}
       </OperationalCard>
 
@@ -342,37 +400,57 @@ export function ChartOfAccountsPage({
           description="من البيع والمصروفات والقيود اليدوية"
           className="mt-4"
         >
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead className="bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-start font-medium">الرقم</th>
-                  <th className="px-3 py-2 text-start font-medium">التاريخ</th>
-                  <th className="px-3 py-2 text-start font-medium">البيان</th>
-                  <th className="px-3 py-2 text-start font-medium">المصدر</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overview.recentPosted.map((entry) => (
-                  <tr key={entry.id} className="border-t">
-                    <td className="px-3 py-2 font-mono text-xs">
-                      <Link
-                        href="/accounting/journals"
-                        className="text-primary underline-offset-2 hover:underline"
-                      >
-                        {entry.entry_number}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">{entry.entry_date}</td>
-                    <td className="px-3 py-2">{entry.memo || "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {SOURCE_LABELS[entry.source] ?? entry.source}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveListLayout
+            mobile={overview.recentPosted.map((entry) => (
+              <MobileEntityCard
+                key={entry.id}
+                href="/accounting/journals"
+                title={entry.entry_number}
+                subtitle={entry.memo || "—"}
+                fields={[
+                  { label: "التاريخ", value: entry.entry_date },
+                  {
+                    label: "المصدر",
+                    value: SOURCE_LABELS[entry.source] ?? entry.source,
+                  },
+                ]}
+                trailingHint="فتح القيود ←"
+              />
+            ))}
+            desktop={
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead className="bg-muted/40 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 text-start font-medium">الرقم</th>
+                      <th className="px-3 py-2 text-start font-medium">التاريخ</th>
+                      <th className="px-3 py-2 text-start font-medium">البيان</th>
+                      <th className="px-3 py-2 text-start font-medium">المصدر</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overview.recentPosted.map((entry) => (
+                      <tr key={entry.id} className="border-t">
+                        <td className="px-3 py-2 font-mono text-xs">
+                          <Link
+                            href="/accounting/journals"
+                            className="text-primary underline-offset-2 hover:underline"
+                          >
+                            {entry.entry_number}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-2 tabular-nums">{entry.entry_date}</td>
+                        <td className="px-3 py-2">{entry.memo || "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {SOURCE_LABELS[entry.source] ?? entry.source}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+          />
         </OperationalCard>
       ) : null}
 
@@ -383,13 +461,32 @@ export function ChartOfAccountsPage({
           setOpen(v);
         }}
       >
-        <DialogContent className="rounded-3xl sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>حساب جديد</DialogTitle>
-            <DialogDescription>
-              أضف حسابًا يدويًا تحت الدليل الحالي. حسابات النظام محمية من الحذف.
-            </DialogDescription>
-          </DialogHeader>
+        <StandardModalContent
+          size="sm"
+          title="حساب جديد"
+          description="أضف حسابًا يدويًا تحت الدليل الحالي. حسابات النظام محمية من الحذف."
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-xl"
+                disabled={pending}
+                onClick={() => setOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="button"
+                className="h-11 rounded-xl font-semibold"
+                disabled={pending}
+                onClick={onCreate}
+              >
+                حفظ
+              </Button>
+            </>
+          }
+        >
           <div className="grid gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="coa-code">الكود</Label>
@@ -456,15 +553,7 @@ export function ChartOfAccountsPage({
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              إلغاء
-            </Button>
-            <Button type="button" disabled={pending} onClick={onCreate}>
-              حفظ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+        </StandardModalContent>
       </Dialog>
     </>
   );

@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
-import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
+import { DataTableShell } from "@/components/Velora/data-table-shell";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import {
   Table,
   TableBody,

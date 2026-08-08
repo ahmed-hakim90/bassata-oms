@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import {
   createCafeIngredientAction,
   updateCafeIngredientAction,

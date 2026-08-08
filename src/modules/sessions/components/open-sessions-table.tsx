@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
 import { ForceCloseSessionDialog } from "@/modules/sessions/components/force-close-session-dialog";
 import type { OpenSessionSummary } from "@/modules/sessions/services/open-session-summary.service";
-import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
-import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
+import { DataTableShell } from "@/components/Velora/data-table-shell";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import {
   Table,
   TableBody,

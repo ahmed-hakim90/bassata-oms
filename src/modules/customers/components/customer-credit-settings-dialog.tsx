@@ -6,13 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { updateCustomerAction } from "@/modules/customers/actions/customer.actions";
 
 interface CustomerCreditSettingsDialogProps {
@@ -61,13 +56,34 @@ export function CustomerCreditSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={syncFromProps}>
-      <DialogContent className="sm:max-w-md" dir="rtl">
-        <DialogHeader>
-          <DialogTitle>إعدادات الآجل</DialogTitle>
-          <DialogDescription>حد الائتمان وشروط الدفع لهذا العميل</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-[var(--mds-space-3)]">
-          <div className="space-y-[var(--mds-space-2)]">
+      <StandardModalContent
+        size="sm"
+        title="إعدادات الآجل"
+        description="حد الائتمان وشروط الدفع لهذا العميل"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl"
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              className="h-11 rounded-xl font-semibold"
+              onClick={save}
+              disabled={pending}
+            >
+              {pending ? "جاري الحفظ…" : "حفظ إعدادات الآجل"}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid gap-3">
+          <div className="space-y-2">
             <Label htmlFor="credit-limit">حد الآجل</Label>
             <Input
               id="credit-limit"
@@ -76,28 +92,21 @@ export function CustomerCreditSettingsDialog({
               step="0.01"
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
-              className="rounded-[var(--mds-radius-md)]"
+              className="h-11"
             />
           </div>
-          <div className="space-y-[var(--mds-space-2)]">
+          <div className="space-y-2">
             <Label htmlFor="payment-terms">شروط الدفع</Label>
             <Input
               id="payment-terms"
               value={terms}
               placeholder="مثال: صافي ٣٠ يوم"
               onChange={(e) => setTerms(e.target.value)}
-              className="rounded-[var(--mds-radius-md)]"
+              className="h-11"
             />
           </div>
-          <Button
-            onClick={save}
-            disabled={pending}
-            className="shadow-[var(--mds-elevation-1)]"
-          >
-            {pending ? "جاري الحفظ…" : "حفظ إعدادات الآجل"}
-          </Button>
         </div>
-      </DialogContent>
+      </StandardModalContent>
     </Dialog>
   );
 }

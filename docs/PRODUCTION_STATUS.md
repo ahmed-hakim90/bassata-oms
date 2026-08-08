@@ -11,7 +11,7 @@ Last updated: 2026-08-08 (Top-5 gaps P0 ops pass)
 | Platform console `/platform` | Restored (ADR-001); bootstrap via `PLATFORM_BOOTSTRAP_EMAILS` |
 | Online menu / orders | First-party QR menu (Souqna **not** live — ADR-009) |
 | Vercel production | https://velora-oms.vercel.app |
-| Cookie HMAC | `SweetFlow_COOKIE_SECRET` required in prod |
+| Cookie HMAC | `VELORA_COOKIE_SECRET` required in prod (legacy `SweetFlow_COOKIE_SECRET` dual-read) |
 | Transactional email code path | Resend templates wired |
 
 ## P0 ops checklist (signed 2026-08-08)
@@ -21,7 +21,7 @@ Last updated: 2026-08-08 (Top-5 gaps P0 ops pass)
 | `RESEND_API_KEY` on Vercel Production | **Pass** | `vercel env ls` — present after push from `.env.local` |
 | `EMAIL_FROM` on Vercel Production | **Pass** | same |
 | `RESEND_*` / `EMAIL_FROM` on Preview | **Pass** | pushed for staging mail smoke |
-| Core secrets on Production (`SweetFlow_COOKIE_SECRET`, Supabase URL/anon/service, `NEXT_PUBLIC_APP_URL`) | **Pass** | present on Production |
+| Core secrets on Production (`VELORA_COOKIE_SECRET` and/or legacy `SweetFlow_COOKIE_SECRET`, Supabase URL/anon/service, `NEXT_PUBLIC_APP_URL`) | **Pass** | legacy present; push canonical via `npm run vercel:env` |
 | Core secrets slots on Preview | **Pass** | present (distinct values **not** re-verified by decrypt — ops must confirm Preview ≠ Production periodically) |
 | `PLATFORM_BOOTSTRAP_EMAILS` Production + Preview | **Pass (slots)** | present; keep lists tight per env |
 | Supabase Auth Site URL + Redirect URLs (platform host) | **Operator confirm** | Dashboard → Auth → URL config: `https://velora-oms.vercel.app/auth/callback` (+ reset variant) |
@@ -51,7 +51,7 @@ See [results/custom-domain-pilot-results.md](./results/custom-domain-pilot-resul
 | 1 | Hardware pilot on store devices | **Next** — [DEVICE_MATRIX.md](./DEVICE_MATRIX.md) · [results/hardware-pilot-results.md](./results/hardware-pilot-results.md) |
 | 2 | Manual SaaS (plans/limits + suspend, no Stripe) | **Ready for ops** — capacity on create; suspend blocks login; non-payment reason + plan note; org-status fail-closed |
 | 3 | Billing (Stripe / Marketplace) | Deferred until post-pilot revenue |
-| 4 | Brand unify (Velora vs SweetFlow/CafeFlow) | Frozen until after stability |
+| 4 | Brand unify (Velora vs SweetFlow/CafeFlow) | **Done** — [BRAND_UNIFY.md](./BRAND_UNIFY.md); UI kit `Velora/`; env `VELORA_COOKIE_SECRET` + legacy dual-read |
 | 5 | Offline / weak network | Phase 10 — after online-stable |
 
 ## Not live / deferred

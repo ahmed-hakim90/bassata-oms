@@ -14,10 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { Dialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import type { PromotionRule, PromotionRuleType, PromotionScopeType } from "@/lib/types";

@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageAuth } from "@/lib/auth/page-guard";
 import { PriceListPrintView } from "@/modules/price-lists/components/price-list-print-view";
 

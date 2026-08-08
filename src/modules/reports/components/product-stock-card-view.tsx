@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { ReportPage } from "@/modules/reports/components/report-page";
 import { ReportKpiGrid } from "@/modules/reports/components/report-kpi-grid";
 import { ReportTable } from "@/modules/reports/components/report-table";

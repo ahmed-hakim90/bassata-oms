@@ -14,7 +14,7 @@ Use this checklist before pointing production traffic at a new deployment.
 - [ ] All migrations applied through `038` (`supabase db push` or CI migration step)
 - [ ] `033`/`034`/`035`/`036`/`037`/`038` applied in production
 - [ ] `030`/`031` applied if using Souqna integration
-- [ ] `SweetFlow_COOKIE_SECRET` set (32+ random bytes; never commit)
+- [ ] `VELORA_COOKIE_SECRET` set (32+ random bytes; never commit; legacy `SweetFlow_COOKIE_SECRET` dual-read OK)
 - [ ] `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set on host
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` set server-only (Vercel/host secrets)
 - [ ] `NEXT_PUBLIC_APP_URL` set to production domain (Souqna webhooks + Settings)

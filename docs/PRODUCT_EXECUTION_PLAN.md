@@ -7,7 +7,7 @@ Source of truth for phased delivery. Supersedes the old “smoke-first” cutove
 - Current phase: **0 — Product Quality** (shell + auth + settings + menu Meridian pass in progress / largely applied)
 - Smoke / Staging / SMTP deferred until after Feature Freeze
 - **Offline is out of MVP** (no PWA before Pilot)
-- Meridian tokens (`--mds-*`) via existing SweetFlow components — no second design system
+- Meridian tokens (`--mds-*`) via existing Velora components — no second design system
 - Phase 0 ships in waves: Foundation + POS, then ops hot screens, then inventory/catalog
 
 ```mermaid
@@ -24,8 +24,8 @@ flowchart LR
 
 | Lane | Owns | Must not touch |
 |------|------|----------------|
-| **A — Design System / Shell** | `src/components/SweetFlow/*`, `src/components/layout/*`, shell layouts, CSS tokens | feature modules |
-| **B — POS** | `src/modules/pos/**` | layout / SweetFlow primitives (consume only) |
+| **A — Design System / Shell** | `src/components/Velora/*`, `src/components/layout/*`, shell layouts, CSS tokens | feature modules |
+| **B — POS** | `src/modules/pos/**` | layout / Velora primitives (consume only) |
 | **C — Ops** | sessions, orders, expenses, dashboard | POS / layout |
 | **D — Inventory & catalog** | inventory, products, purchases, suppliers, transfers, stock-count, waste | POS |
 | **E — Docs & gates** | `docs/*` criteria, budgets, checklists | product code |
@@ -56,7 +56,7 @@ Dashboard, sessions, orders, expenses — PageHeader + state-blocks + responsive
 
 Inventory hub, products, purchases, suppliers, transfers, stock-count, waste — same quality bar, no new features.
 
-Exit Phase 0: daily MVP screens consistent with Meridian/SweetFlow; acceptance criteria per screen group.
+Exit Phase 0: daily MVP screens consistent with Meridian/Velora; acceptance criteria per screen group.
 
 ## Phase 1 — Feature Complete + Freeze
 

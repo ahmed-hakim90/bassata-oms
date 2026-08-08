@@ -10,7 +10,7 @@ import { ReportFiltersBar } from "@/modules/reports/components/report-filters";
 import { ReportKpiGrid } from "@/modules/reports/components/report-kpi-grid";
 import { ReportTable } from "@/modules/reports/components/report-table";
 import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { exportPeriodsReportExcel } from "@/modules/reports/actions/executive-report.actions";
 import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
 import {

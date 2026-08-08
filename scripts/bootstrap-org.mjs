@@ -44,7 +44,7 @@ function arg(name) {
 
 const email = arg("--email");
 const password = arg("--password");
-const orgName = arg("--org") ?? "SweetFlow Organization";
+const orgName = arg("--org") ?? "Velora Organization";
 const storeName = arg("--store") ?? "Main Store";
 
 if (!email || !password) {

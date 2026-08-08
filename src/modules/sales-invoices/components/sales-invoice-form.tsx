@@ -28,8 +28,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { formatCurrency } from "@/lib/format";
 import { sanitizeDecimalInput } from "@/lib/digits";
 import { PAYMENT_METHODS } from "@/lib/constants";
@@ -920,135 +923,292 @@ export function SalesInvoiceForm({
           </form>
         ) : null}
 
-        <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>الصنف</TableHead>
-                <TableHead>كمية</TableHead>
-                <TableHead>سعر</TableHead>
-                <TableHead>الإجمالي</TableHead>
-                {isDraft ? <TableHead className="w-12" /> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoice.lines.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={isDraft ? 5 : 4} className="text-center text-muted-foreground">
-                    مفيش أصناف على الفاتورة
-                  </TableCell>
-                </TableRow>
-              ) : (
-                invoice.lines.map((line) => (
-                  <TableRow key={line.id}>
-                    <TableCell>{line.productName}</TableCell>
-                    <TableCell>
+        {invoice.lines.length === 0 ? (
+          <EmptyStateBlock title="مفيش أصناف على الفاتورة" />
+        ) : (
+          <ResponsiveListLayout
+            mobile={invoice.lines.map((line) => {
+              const lineLocked = lifecyclePending || line.id.startsWith("temp-");
+              return (
+                <MobileEntityCard
+                  key={line.id}
+                  title={line.productName}
+                  fields={[
+                    {
+                      label: "الإجمالي",
+                      value: (
+                        <span className="tabular-nums">
+                          {formatCurrency(line.line_total, currency)}
+                        </span>
+                      ),
+                    },
+                  ]}
+                  footer={
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">كمية</Label>
+                          {isDraft ? (
+                            <Input
+                              className="h-11 min-w-0 tabular-nums"
+                              value={String(line.quantity)}
+                              disabled={lineLocked}
+                              onChange={(e) => {
+                                const quantity =
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) || 0;
+                                if (quantity <= 0) return;
+                                const product = productMap.get(line.product_id);
+                                if (!product) return;
+                                const tiered = wholesalePriceFor(
+                                  product,
+                                  quantity,
+                                  wholesaleTiersByProductId
+                                );
+                                const lineTotal = Number(
+                                  (quantity * tiered.unitPrice).toFixed(2)
+                                );
+                                const nextLines = invoice.lines.map((row) =>
+                                  row.id === line.id
+                                    ? {
+                                        ...row,
+                                        quantity,
+                                        unit_price: tiered.unitPrice,
+                                        line_total: lineTotal,
+                                        base_quantity: quantity,
+                                        tier_id: tiered.tierId,
+                                      }
+                                    : row
+                                );
+                                publishLocal(
+                                  withInvoiceTotals(
+                                    invoice,
+                                    nextLines,
+                                    invoice.discount,
+                                    taxRateRef.current
+                                  )
+                                );
+                              }}
+                              onBlur={(e) => {
+                                const quantity =
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) ||
+                                  line.quantity;
+                                if (quantity <= 0) return;
+                                updateLine(line.id, quantity, { repriceFromTiers: true });
+                              }}
+                            />
+                          ) : (
+                            <p className="flex h-11 items-center tabular-nums font-medium">
+                              {line.quantity}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">سعر</Label>
+                          {isDraft ? (
+                            <Input
+                              className="h-11 min-w-0 tabular-nums"
+                              value={String(line.unit_price)}
+                              disabled={lineLocked}
+                              onChange={(e) => {
+                                const price = parseFloat(
+                                  sanitizeDecimalInput(e.target.value)
+                                );
+                                if (!Number.isFinite(price) || price < 0) return;
+                                const lineTotal = Number(
+                                  (line.quantity * price).toFixed(2)
+                                );
+                                const nextLines = invoice.lines.map((row) =>
+                                  row.id === line.id
+                                    ? {
+                                        ...row,
+                                        unit_price: price,
+                                        line_total: lineTotal,
+                                        tier_id: null,
+                                      }
+                                    : row
+                                );
+                                publishLocal(
+                                  withInvoiceTotals(
+                                    invoice,
+                                    nextLines,
+                                    invoice.discount,
+                                    taxRateRef.current
+                                  )
+                                );
+                              }}
+                              onBlur={(e) => {
+                                const price =
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) ||
+                                  line.unit_price;
+                                updateLine(line.id, line.quantity, {
+                                  unitPrice: price,
+                                  repriceFromTiers: false,
+                                });
+                              }}
+                            />
+                          ) : (
+                            <p className="flex h-11 items-center tabular-nums font-medium">
+                              {formatCurrency(line.unit_price, currency)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                       {isDraft ? (
-                        <Input
-                          className="w-full min-w-0 sm:w-20"
-                          value={String(line.quantity)}
-                          disabled={lifecyclePending || line.id.startsWith("temp-")}
-                          onChange={(e) => {
-                            const quantity =
-                              parseFloat(sanitizeDecimalInput(e.target.value)) || 0;
-                            if (quantity <= 0) return;
-                            const product = productMap.get(line.product_id);
-                            if (!product) return;
-                            const tiered = wholesalePriceFor(
-                              product,
-                              quantity,
-                              wholesaleTiersByProductId
-                            );
-                            const lineTotal = Number((quantity * tiered.unitPrice).toFixed(2));
-                            const nextLines = invoice.lines.map((row) =>
-                              row.id === line.id
-                                ? {
-                                    ...row,
-                                    quantity,
-                                    unit_price: tiered.unitPrice,
-                                    line_total: lineTotal,
-                                    base_quantity: quantity,
-                                    tier_id: tiered.tierId,
-                                  }
-                                : row
-                            );
-                            publishLocal(
-                              withInvoiceTotals(
-                                invoice,
-                                nextLines,
-                                invoice.discount,
-                                taxRateRef.current
-                              )
-                            );
-                          }}
-                          onBlur={(e) => {
-                            const quantity =
-                              parseFloat(sanitizeDecimalInput(e.target.value)) || line.quantity;
-                            if (quantity <= 0) return;
-                            updateLine(line.id, quantity, { repriceFromTiers: true });
-                          }}
-                        />
-                      ) : (
-                        line.quantity
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isDraft ? (
-                        <Input
-                          className="w-24"
-                          value={String(line.unit_price)}
-                          disabled={lifecyclePending || line.id.startsWith("temp-")}
-                          onChange={(e) => {
-                            const price = parseFloat(sanitizeDecimalInput(e.target.value));
-                            if (!Number.isFinite(price) || price < 0) return;
-                            const lineTotal = Number((line.quantity * price).toFixed(2));
-                            const nextLines = invoice.lines.map((row) =>
-                              row.id === line.id
-                                ? { ...row, unit_price: price, line_total: lineTotal, tier_id: null }
-                                : row
-                            );
-                            publishLocal(
-                              withInvoiceTotals(
-                                invoice,
-                                nextLines,
-                                invoice.discount,
-                                taxRateRef.current
-                              )
-                            );
-                          }}
-                          onBlur={(e) => {
-                            const price =
-                              parseFloat(sanitizeDecimalInput(e.target.value)) || line.unit_price;
-                            updateLine(line.id, line.quantity, {
-                              unitPrice: price,
-                              repriceFromTiers: false,
-                            });
-                          }}
-                        />
-                      ) : (
-                        formatCurrency(line.unit_price, currency)
-                      )}
-                    </TableCell>
-                    <TableCell>{formatCurrency(line.line_total, currency)}</TableCell>
-                    {isDraft ? (
-                      <TableCell>
                         <Button
                           type="button"
-                          size="icon"
-                          variant="ghost"
+                          variant="outline"
+                          className="h-11 w-full text-destructive"
                           disabled={lifecyclePending}
                           onClick={() => removeLine(line.id)}
                         >
                           <Trash2 className="size-4" />
+                          حذف البند
                         </Button>
-                      </TableCell>
-                    ) : null}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      ) : null}
+                    </div>
+                  }
+                />
+              );
+            })}
+            desktop={
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>الصنف</TableHead>
+                      <TableHead>كمية</TableHead>
+                      <TableHead>سعر</TableHead>
+                      <TableHead>الإجمالي</TableHead>
+                      {isDraft ? <TableHead className="w-12" /> : null}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoice.lines.map((line) => (
+                      <TableRow key={line.id}>
+                        <TableCell>{line.productName}</TableCell>
+                        <TableCell>
+                          {isDraft ? (
+                            <Input
+                              className="w-full min-w-0 sm:w-20"
+                              value={String(line.quantity)}
+                              disabled={lifecyclePending || line.id.startsWith("temp-")}
+                              onChange={(e) => {
+                                const quantity =
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) || 0;
+                                if (quantity <= 0) return;
+                                const product = productMap.get(line.product_id);
+                                if (!product) return;
+                                const tiered = wholesalePriceFor(
+                                  product,
+                                  quantity,
+                                  wholesaleTiersByProductId
+                                );
+                                const lineTotal = Number(
+                                  (quantity * tiered.unitPrice).toFixed(2)
+                                );
+                                const nextLines = invoice.lines.map((row) =>
+                                  row.id === line.id
+                                    ? {
+                                        ...row,
+                                        quantity,
+                                        unit_price: tiered.unitPrice,
+                                        line_total: lineTotal,
+                                        base_quantity: quantity,
+                                        tier_id: tiered.tierId,
+                                      }
+                                    : row
+                                );
+                                publishLocal(
+                                  withInvoiceTotals(
+                                    invoice,
+                                    nextLines,
+                                    invoice.discount,
+                                    taxRateRef.current
+                                  )
+                                );
+                              }}
+                              onBlur={(e) => {
+                                const quantity =
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) ||
+                                  line.quantity;
+                                if (quantity <= 0) return;
+                                updateLine(line.id, quantity, { repriceFromTiers: true });
+                              }}
+                            />
+                          ) : (
+                            line.quantity
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isDraft ? (
+                            <Input
+                              className="w-24"
+                              value={String(line.unit_price)}
+                              disabled={lifecyclePending || line.id.startsWith("temp-")}
+                              onChange={(e) => {
+                                const price = parseFloat(
+                                  sanitizeDecimalInput(e.target.value)
+                                );
+                                if (!Number.isFinite(price) || price < 0) return;
+                                const lineTotal = Number(
+                                  (line.quantity * price).toFixed(2)
+                                );
+                                const nextLines = invoice.lines.map((row) =>
+                                  row.id === line.id
+                                    ? {
+                                        ...row,
+                                        unit_price: price,
+                                        line_total: lineTotal,
+                                        tier_id: null,
+                                      }
+                                    : row
+                                );
+                                publishLocal(
+                                  withInvoiceTotals(
+                                    invoice,
+                                    nextLines,
+                                    invoice.discount,
+                                    taxRateRef.current
+                                  )
+                                );
+                              }}
+                              onBlur={(e) => {
+                                const price =
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) ||
+                                  line.unit_price;
+                                updateLine(line.id, line.quantity, {
+                                  unitPrice: price,
+                                  repriceFromTiers: false,
+                                });
+                              }}
+                            />
+                          ) : (
+                            formatCurrency(line.unit_price, currency)
+                          )}
+                        </TableCell>
+                        <TableCell>{formatCurrency(line.line_total, currency)}</TableCell>
+                        {isDraft ? (
+                          <TableCell>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="size-11"
+                              disabled={lifecyclePending}
+                              onClick={() => removeLine(line.id)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            }
+          />
+        )}
 
         <div className="flex flex-wrap gap-4 text-sm">
           <span>الجزئي: {formatCurrency(invoice.subtotal, currency)}</span>

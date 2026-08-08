@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/SweetFlow/page-header";
+import { PageHeader } from "@/components/Velora/page-header";
 import type { MonthlyClose, Store } from "@/lib/types";
 import { AccountingSubnav } from "@/modules/accounting/components/accounting-subnav";
 import { ClosingWizard } from "./closing-wizard";

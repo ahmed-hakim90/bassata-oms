@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyStateBlock, LoadingStateBlock } from "@/components/Velora/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import { roundMoney } from "@/lib/money";
@@ -256,13 +257,21 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
               </div>
 
               {loadingList && list.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">جاري التحميل…</p>
+                <LoadingStateBlock label="جاري التحميل…" className="border-0 shadow-none" />
               ) : list.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  {query.trim()
-                    ? "لا يوجد عميل بمستحقات مطابقة للبحث"
-                    : "لا توجد مستحقات حاليًا"}
-                </p>
+                <EmptyStateBlock
+                  title={
+                    query.trim()
+                      ? "لا يوجد عميل بمستحقات مطابقة للبحث"
+                      : "لا توجد مستحقات حاليًا"
+                  }
+                  description={
+                    query.trim()
+                      ? "جرّب اسمًا أو رقم هاتف مختلف."
+                      : "لما يكون فيه عملاء عليهم مبالغ هتظهر هنا."
+                  }
+                  className="border-0 bg-transparent py-6 shadow-none"
+                />
               ) : (
                 <ul className="space-y-2">
                   {list.map((customer) => (

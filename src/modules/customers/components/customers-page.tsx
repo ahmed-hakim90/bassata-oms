@@ -13,9 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import { firstGrapheme } from "@/lib/first-grapheme";
 import type { Customer } from "@/lib/types";

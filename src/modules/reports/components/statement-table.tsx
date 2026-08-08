@@ -8,8 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MobileEntityCard } from "@/components/SweetFlow/mobile-entity-card";
-import { ResponsiveListLayout } from "@/components/SweetFlow/responsive-list-layout";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n/use-translation";
 

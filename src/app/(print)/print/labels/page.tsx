@@ -1,4 +1,4 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { runPageAuth } from "@/lib/auth/page-guard";
 import { requireBarcodeLabelAccess } from "@/modules/reports/actions/report-access.actions";
 import { LabelPrintView } from "@/modules/reports/labels/label-print-view";

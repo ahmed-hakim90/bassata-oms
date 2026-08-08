@@ -201,7 +201,7 @@ describe("cross-tenant: public online order", () => {
   beforeEach(() => {
     vi.resetModules();
     adminFrom.mockReset();
-    process.env.SweetFlow_COOKIE_SECRET = "test-cookie-secret";
+    process.env.VELORA_COOKIE_SECRET = "test-cookie-secret";
     vi.doMock("@/lib/supabase/admin", () => ({
       createAdminClient: () => ({
         from: adminFrom,

@@ -5,13 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
 import {
   Select,
   SelectContent,
@@ -126,13 +121,32 @@ export function RecordPaymentDialog({
         onOpenChange(v);
       }}
     >
-      <DialogContent className="rounded-3xl">
-        <DialogHeader>
-          <DialogTitle>تسجيل دفعة للمورد</DialogTitle>
-          <DialogDescription>
-            أدخل تفاصيل الدفعة — ستُضاف لكشف حساب المورد فورًا.
-          </DialogDescription>
-        </DialogHeader>
+      <StandardModalContent
+        size="md"
+        title="تسجيل دفعة للمورد"
+        description="أدخل تفاصيل الدفعة — ستُضاف لكشف حساب المورد فورًا."
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl"
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              className="h-11 rounded-xl font-semibold"
+              onClick={submit}
+              disabled={pending || loading}
+            >
+              حفظ الدفعة
+            </Button>
+          </>
+        }
+      >
         <div className="grid gap-4">
           {pickerMode ? (
             <div className="space-y-2">
@@ -232,11 +246,8 @@ export function RecordPaymentDialog({
               className="min-h-11"
             />
           </div>
-          <Button className="min-h-11 w-full" onClick={submit} disabled={pending || loading}>
-            حفظ الدفعة
-          </Button>
         </div>
-      </DialogContent>
+      </StandardModalContent>
     </Dialog>
   );
 }

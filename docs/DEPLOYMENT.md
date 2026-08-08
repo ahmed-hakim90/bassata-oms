@@ -1,6 +1,6 @@
 # Deployment
 
-SweetFlow supports **local demo** (seed data) and **production** (onboarding only). See [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md) before production cutover.
+Velora supports **local demo** (seed data) and **production** (onboarding only). See [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md) before production cutover.
 
 **Architecture authority:** [MASTER_ARCHITECTURE.md](./MASTER_ARCHITECTURE.md). Migration net state: [MIGRATION_AUDIT.md](./MIGRATION_AUDIT.md).
 
@@ -11,7 +11,7 @@ SweetFlow supports **local demo** (seed data) and **production** (onboarding onl
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Public | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Public | Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server only | Service role for admin user provisioning |
-| `SweetFlow_COOKIE_SECRET` | Yes (prod) | Server only | HMAC secret for device, cashier, tracking tokens, and `sf_active_store` cookies (32+ chars). **Required in production** — app fails closed; never falls back to `SUPABASE_SERVICE_ROLE_KEY` (R9 / ADR-002). **Must be distinct per environment** (local ≠ staging ≠ production). Sharing secrets across Preview/Production on Vercel is an ops defect — rotate if values match. |
+| `VELORA_COOKIE_SECRET` | Yes (prod) | Server only | HMAC secret for device, cashier, tracking tokens, and `sf_active_store` cookies (32+ chars). **Required in production** — app fails closed; never falls back to `SUPABASE_SERVICE_ROLE_KEY` (R9 / ADR-002). Legacy alias `SweetFlow_COOKIE_SECRET` still accepted (dual-read). **Must be distinct per environment** (local ≠ staging ≠ production). Sharing secrets across Preview/Production on Vercel is an ops defect — rotate if values match. |
 | `NEXT_PUBLIC_APP_URL` | Yes (prod) | Public | Canonical **platform** host (auth redirects, invite links, white-label fallback). Distinct per env domain. |
 | `PLATFORM_RESERVED_HOSTS` | No | Server only | Extra hostnames that cannot be claimed as org custom domains. |
 | `PLATFORM_BOOTSTRAP_EMAILS` | No | Server only | Comma-separated emails bootstrapped into `platform_admins` on first authenticated `/platform` access. **Active after S02.** Use distinct lists per env — never share staging ↔ production. |
@@ -31,13 +31,13 @@ SweetFlow supports **local demo** (seed data) and **production** (onboarding onl
 
 Confirm before go-live (S16-T4):
 
-1. `SweetFlow_COOKIE_SECRET` — unique random value per env; 32+ characters; never committed; never reuse service role key.
+1. `VELORA_COOKIE_SECRET` — unique random value per env; 32+ characters; never committed; never reuse service role key. (Legacy `SweetFlow_COOKIE_SECRET` dual-read OK during transition.)
 2. `SUPABASE_SERVICE_ROLE_KEY` / project URL / anon key — each env points at its **own** Supabase project (MASTER_ARCHITECTURE §15).
 3. `PLATFORM_BOOTSTRAP_EMAILS` — distinct allow-lists; production list is tight.
 4. Vercel: if a variable shows on both Production and Preview, **verify the decrypted values differ** (same slot name does not guarantee distinct values). Rotate Preview independently if needed.
 5. Local `.env.local` must not be copied wholesale into production.
 
-**S16 confirmation (2026-07-13):** Guidance above matches code (`signed-cookie*.ts`, online tracking HMAC) and `.env.example`. Host lists `SweetFlow_COOKIE_SECRET` on Production + Preview — operator must still prove values are distinct before M6 exit (not verified by decrypting in CI).
+**S16 confirmation (2026-07-13):** Guidance above matches code (`signed-cookie*.ts`, online tracking HMAC) and `.env.example`. Host should list `VELORA_COOKIE_SECRET` (and/or legacy alias) on Production + Preview — operator must still prove values are distinct before M6 exit (not verified by decrypting in CI). Brand unify: [BRAND_UNIFY.md](./BRAND_UNIFY.md).
 
 Copy from `.env.example` and fill values in your host (Vercel, Docker, etc.).
 

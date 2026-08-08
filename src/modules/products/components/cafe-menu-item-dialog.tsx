@@ -17,8 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StandardModalContent } from "@/components/SweetFlow/standard-modal";
-import { SweetFormField } from "@/components/SweetFlow/form-field";
+import { StandardModalContent } from "@/components/Velora/standard-modal";
+import { FormField } from "@/components/Velora/form-field";
 import { nextSequentialProductSku } from "@/modules/products/lib/generate-product-sku";
 import {
   createCafeIngredientAction,
@@ -327,7 +327,7 @@ function CafeMenuItemDialogContent({
           <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <SweetFormField id="menu_item_name" label="اسم الصنف">
+                <FormField id="menu_item_name" label="اسم الصنف">
                   <Input
                     id="menu_item_name"
                     value={draft.name}
@@ -336,8 +336,8 @@ function CafeMenuItemDialogContent({
                     }
                     placeholder="كابتشينو"
                   />
-                </SweetFormField>
-                <SweetFormField id="menu_item_category" label="التصنيف">
+                </FormField>
+                <FormField id="menu_item_category" label="التصنيف">
                   <Select
                     value={draft.category_id}
                     onValueChange={(value) =>
@@ -357,10 +357,10 @@ function CafeMenuItemDialogContent({
                       ))}
                     </SelectContent>
                   </Select>
-                </SweetFormField>
+                </FormField>
               </div>
 
-              <SweetFormField
+              <FormField
                 id="menu_item_image"
                 label="صورة الصنف"
                 hint="ارفع صورة من الجهاز أو اترك الرابط الحالي كما هو."
@@ -385,7 +385,7 @@ function CafeMenuItemDialogContent({
                     />
                   ) : null}
                 </div>
-              </SweetFormField>
+              </FormField>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm">

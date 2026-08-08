@@ -4,7 +4,7 @@ This plan tracks the remaining work to turn SweetFlow from a strong release cand
 
 ## Stabilization rule
 
-Broad brand renaming is frozen until the core product flows are stable. Keep internal names, env vars, cookie prefixes, package names, component import paths, seeds, and scripts unchanged. See [STABILIZATION_PLAN.md](./STABILIZATION_PLAN.md).
+Brand unify to Velora applied 2026-08-08 ([BRAND_UNIFY.md](./BRAND_UNIFY.md)). Cookie wire names (`sf_*`) and demo `@CafeFlow.local` emails remain frozen for session/seed stability. See [STABILIZATION_PLAN.md](./STABILIZATION_PLAN.md).
 
 ## Phase 1 — Release candidate hardening
 
@@ -12,7 +12,7 @@ Broad brand renaming is frozen until the core product flows are stable. Keep int
 - [x] Include unit tests in `npm run smoke:check`.
 - [x] Migrate the deprecated Next.js `middleware.ts` convention to `proxy.ts`.
 - [x] Clean current lint warnings or mark intentional exceptions locally.
-- [ ] Keep broad brand rename frozen until POS/device/onboarding/security flows are stable.
+- [x] Brand unify to Velora (UI kit path + `VELORA_COOKIE_SECRET` dual-read).
 - [ ] Run the full manual smoke checklist on a reset local demo database.
 - [ ] Run the full manual smoke checklist on staging.
 - [ ] Record known staging gaps before production cutover.

@@ -152,7 +152,7 @@ describe("submitPublicOnlineOrder", () => {
     mocks.admin.from.mockImplementation(mocks.defaultFrom);
     mocks.admin.rpc.mockReset();
     mocks.admin.rpc.mockResolvedValue({ data: null, error: null });
-    process.env.SweetFlow_COOKIE_SECRET = "test-cookie-secret";
+    process.env.VELORA_COOKIE_SECRET = "test-cookie-secret";
   });
 
   it("recalculates prices server-side and stores a pending online order", async () => {

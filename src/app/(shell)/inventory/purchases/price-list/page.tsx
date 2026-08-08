@@ -1,8 +1,8 @@
-import { AccessDenied } from "@/components/SweetFlow/access-denied";
+import { AccessDenied } from "@/components/Velora/access-denied";
 import { requirePageAuth } from "@/lib/auth/page-guard";
 import { getPriceListStudioDataAction } from "@/modules/price-lists/actions/price-list.actions";
 import { PriceListStudio } from "@/modules/price-lists/components/price-list-studio";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

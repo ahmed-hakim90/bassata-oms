@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { closeSessionAction } from "@/modules/sessions/actions/session.actions";

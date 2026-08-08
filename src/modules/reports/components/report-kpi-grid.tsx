@@ -1,6 +1,6 @@
 "use client";
 
-import { KpiCard } from "@/components/SweetFlow/kpi-card";
+import { KpiCard } from "@/components/Velora/kpi-card";
 import { cn } from "@/lib/utils";
 
 export interface ReportKpiItem {

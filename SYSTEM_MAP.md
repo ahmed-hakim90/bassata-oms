@@ -1,11 +1,11 @@
 # SYSTEM MAP / BAS-01
 
 > Velora (GitHub `velora` · local `velora` · Vercel `velora`) — multi-location POS + light ERP for cafés, restaurants, and retail  
-> Last updated: 2026-08-08
+> Last updated: 2026-08-08 (brand unify: Velora UI kit)
 
 ## Core / runtime
 
-Next.js 16 App Router · React 19 · Supabase Auth/Postgres/RLS/Storage · SweetFlow / shadcn · Zustand · Zod · Vercel (hosting + cron)
+Next.js 16 App Router · React 19 · Supabase Auth/Postgres/RLS/Storage · Velora UI kit / shadcn · Zustand · Zod · Vercel (hosting + cron)
 
 ## Modules
 

@@ -11,8 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { GlassPanel } from "@/components/SweetFlow/glass-panel";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { GlassPanel } from "@/components/Velora/glass-panel";
+import { StatusPill } from "@/components/Velora/status-pill";
 import {
   exportProductsDataAction,
   exportProductsTemplateAction,

@@ -1,11 +1,11 @@
 ---
-description: SweetFlow domain entities and surfaces
+description: Velora domain entities and surfaces
 alwaysApply: true
 ---
 
 # Domain — Velora
 
-Internal UI kit path remains `src/components/SweetFlow/*`.
+Internal UI kit path: `src/components/Velora/*`.
 
 ## Surfaces
 

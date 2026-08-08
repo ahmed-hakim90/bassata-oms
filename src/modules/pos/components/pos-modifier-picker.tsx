@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { LoadingStateBlock } from "@/components/Velora/state-blocks";
 import { listActiveModifiersForPosAction } from "@/modules/products/actions/product-modifiers.actions";
 import type { ProductModifierGroup } from "@/modules/products/services/product-modifiers.service";
 import { formatCurrency } from "@/lib/format";
@@ -94,7 +95,10 @@ export function PosModifierPicker(props: {
           </DialogTitle>
         </DialogHeader>
         {loading ? (
-          <p className="px-4 py-8 text-center text-sm text-muted-foreground">جاري التحميل…</p>
+          <LoadingStateBlock
+            label="جاري التحميل…"
+            className="mx-4 my-4 border-0 shadow-none"
+          />
         ) : (
           <div className="max-h-[min(55dvh,22rem)] space-y-4 overflow-y-auto overscroll-y-contain px-3 py-3 sm:px-4">
             {groups.map((group) => (

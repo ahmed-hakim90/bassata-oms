@@ -10,7 +10,7 @@ import { ReportPage } from "@/modules/reports/components/report-page";
 import { ReportFiltersBar } from "@/modules/reports/components/report-filters";
 import { ReportKpiGrid } from "@/modules/reports/components/report-kpi-grid";
 import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
+import { OperationalCard } from "@/components/Velora/operational-card";
 import { exportHeatmapReportExcel } from "@/modules/reports/actions/executive-report.actions";
 import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
 import {
@@ -147,8 +147,8 @@ export function HeatmapReportView({
         {heatmap.axisKeys.length === 0 ? (
           <p className="text-sm text-muted-foreground">لا توجد مبيعات في الفترة المحددة.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
+          <div className="-mx-1 overflow-x-auto px-1">
+            <table className="w-max min-w-full border-collapse text-xs">
               <thead>
                 <tr>
                   <th className="sticky start-0 bg-background p-1 text-start font-medium">

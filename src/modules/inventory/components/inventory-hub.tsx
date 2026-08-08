@@ -11,9 +11,9 @@ import {
   Warehouse,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { PageHeader } from "@/components/Velora/page-header";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { StockCards, type StockCategoryGroup } from "./stock-cards";
 import { MovementTimeline } from "./movement-timeline";
 import { LowStockStrip } from "./low-stock-strip";

@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ConfirmActionDialog } from "@/components/SweetFlow/confirm-action-dialog";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { playPosErrorSound } from "@/modules/pos/lib/pos-sounds";
 import {

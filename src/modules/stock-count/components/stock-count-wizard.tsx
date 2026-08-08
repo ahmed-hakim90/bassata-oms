@@ -19,10 +19,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DataTableShell } from "@/components/SweetFlow/data-table-shell";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { DataTableShell } from "@/components/Velora/data-table-shell";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { formatUnit } from "@/lib/units";
 import type { Product } from "@/lib/types";
 import type { StockCountWithLines } from "@/modules/stock-count/services/count.service";
@@ -307,48 +309,52 @@ export function StockCountWizard({
             }
           />
         ) : (
-          <div className="max-h-[50vh] overflow-x-auto overflow-y-auto">
-            <Table className="min-w-[640px]">
-              <TableHeader className="sticky top-0 z-10 bg-card">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-10 text-xs font-semibold text-muted-foreground">
-                    المنتج
-                  </TableHead>
-                  <TableHead className="h-10 text-end text-xs font-semibold text-muted-foreground">
-                    الرصيد المتاح
-                  </TableHead>
-                  <TableHead className="h-10 text-end text-xs font-semibold text-muted-foreground">
-                    الحالي
-                  </TableHead>
-                  <TableHead className="h-10 w-[96px] text-xs font-semibold text-muted-foreground">
-                    تصفير
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLines.map((line) => {
-                  const product = productMap.get(line.product_id);
-                  const name = product?.name ?? "صنف";
-                  const unit = product ? formatUnit(product.unit) : "";
-                  const counted = counts[line.product_id] ?? line.counted_qty;
-                  return (
-                    <TableRow key={line.id}>
-                      <TableCell className="max-w-[240px] font-medium">
-                        <span className="truncate block">{name}</span>
-                        {unit ? (
-                          <span className="text-xs text-muted-foreground">{unit}</span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums text-muted-foreground">
-                        {line.expected_qty}
-                      </TableCell>
-                      <TableCell className="text-end">
+          <div className="max-h-[50vh] overflow-y-auto">
+            <ResponsiveListLayout
+              mobile={filteredLines.map((line) => {
+                const product = productMap.get(line.product_id);
+                const name = product?.name ?? "صنف";
+                const unit = product ? formatUnit(product.unit) : "";
+                const counted = counts[line.product_id] ?? line.counted_qty;
+                const variance = counted - line.expected_qty;
+                return (
+                  <MobileEntityCard
+                    key={line.id}
+                    title={name}
+                    subtitle={unit || undefined}
+                    fields={[
+                      {
+                        label: "المتوقع",
+                        value: (
+                          <span className="tabular-nums">{line.expected_qty}</span>
+                        ),
+                      },
+                      {
+                        label: "الفرق",
+                        value: (
+                          <span
+                            className={
+                              variance === 0
+                                ? "tabular-nums text-muted-foreground"
+                                : variance > 0
+                                  ? "tabular-nums text-emerald-600"
+                                  : "tabular-nums text-red-600"
+                            }
+                          >
+                            {variance > 0 ? "+" : ""}
+                            {variance}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    footer={
+                      <div className="flex items-center gap-2">
                         <Input
                           type="number"
                           min={0}
                           step="any"
                           inputMode="decimal"
-                          className="ms-auto h-9 w-24 text-center tabular-nums"
+                          className="h-11 flex-1 text-center tabular-nums"
                           aria-label={`الرصيد الحالي لـ ${name}`}
                           value={counted}
                           onChange={(e) =>
@@ -358,25 +364,95 @@ export function StockCountWizard({
                             )
                           }
                         />
-                      </TableCell>
-                      <TableCell>
                         <Button
                           type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-muted-foreground"
+                          variant="outline"
+                          className="h-11 shrink-0 px-3"
                           aria-label={`تصفير ${name}`}
                           disabled={pending || counted === 0}
                           onClick={() => setCountedQty(line.product_id, 0)}
                         >
                           تصفير
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      </div>
+                    }
+                  />
+                );
+              })}
+              desktop={
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[640px]">
+                    <TableHeader className="sticky top-0 z-10 bg-card">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="h-10 text-xs font-semibold text-muted-foreground">
+                          المنتج
+                        </TableHead>
+                        <TableHead className="h-10 text-end text-xs font-semibold text-muted-foreground">
+                          الرصيد المتاح
+                        </TableHead>
+                        <TableHead className="h-10 text-end text-xs font-semibold text-muted-foreground">
+                          الحالي
+                        </TableHead>
+                        <TableHead className="h-10 w-[96px] text-xs font-semibold text-muted-foreground">
+                          تصفير
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredLines.map((line) => {
+                        const product = productMap.get(line.product_id);
+                        const name = product?.name ?? "صنف";
+                        const unit = product ? formatUnit(product.unit) : "";
+                        const counted = counts[line.product_id] ?? line.counted_qty;
+                        return (
+                          <TableRow key={line.id}>
+                            <TableCell className="max-w-[240px] font-medium">
+                              <span className="truncate block">{name}</span>
+                              {unit ? (
+                                <span className="text-xs text-muted-foreground">{unit}</span>
+                              ) : null}
+                            </TableCell>
+                            <TableCell className="text-end tabular-nums text-muted-foreground">
+                              {line.expected_qty}
+                            </TableCell>
+                            <TableCell className="text-end">
+                              <Input
+                                type="number"
+                                min={0}
+                                step="any"
+                                inputMode="decimal"
+                                className="ms-auto h-9 w-24 text-center tabular-nums"
+                                aria-label={`الرصيد الحالي لـ ${name}`}
+                                value={counted}
+                                onChange={(e) =>
+                                  setCountedQty(
+                                    line.product_id,
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-muted-foreground"
+                                aria-label={`تصفير ${name}`}
+                                disabled={pending || counted === 0}
+                                onClick={() => setCountedQty(line.product_id, 0)}
+                              >
+                                تصفير
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              }
+            />
           </div>
         )}
       </DataTableShell>

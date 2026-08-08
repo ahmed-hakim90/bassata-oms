@@ -4,10 +4,10 @@ import { useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { PageHeader } from "@/components/Velora/page-header";
+import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { formatDateTime } from "@/lib/format";
 import type { Product, Store, Warehouse } from "@/lib/types";
 import type { TransferWithLines } from "@/modules/transfers/services/transfer.service";
@@ -36,13 +36,6 @@ const statusVariant: Record<
   sent: "warning",
   received: "success",
   cancelled: "danger",
-};
-
-const statusAccent: Record<TransferWithLines["status"], string> = {
-  draft: "var(--mds-color-border-default)",
-  sent: "var(--mds-color-feedback-warning)",
-  received: "var(--mds-color-feedback-success)",
-  cancelled: "var(--mds-color-feedback-danger)",
 };
 
 export function TransfersPage({
@@ -104,32 +97,32 @@ export function TransfersPage({
       ) : (
         <div className="grid gap-[var(--mds-space-3)]">
           {transfers.map((t) => (
-            <OperationalCard key={t.id} accent={statusAccent[t.status]}>
-              <div className="flex flex-wrap items-center justify-between gap-[var(--mds-space-4)]">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
-                    <span className="font-semibold">
-                      {t.fromStoreName} / {t.fromWarehouseName}
-                    </span>
-                    <span className="text-muted-foreground">←</span>
-                    <span className="font-semibold">
-                      {t.toStoreName} / {t.toWarehouseName}
-                    </span>
-                    <StatusPill
-                      label={TRANSFER_STATUS_LABELS[t.status]}
-                      variant={statusVariant[t.status]}
-                    />
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t.lines.length} أصناف · {formatDateTime(t.created_at)}
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setEditingId(t.id)}>
+            <MobileEntityCard
+              key={t.id}
+              title={`${t.fromStoreName} / ${t.fromWarehouseName}`}
+              subtitle={`← ${t.toStoreName} / ${t.toWarehouseName}`}
+              badge={
+                <StatusPill
+                  label={TRANSFER_STATUS_LABELS[t.status]}
+                  variant={statusVariant[t.status]}
+                />
+              }
+              fields={[
+                { label: "أصناف", value: String(t.lines.length) },
+                { label: "التاريخ", value: formatDateTime(t.created_at) },
+              ]}
+              footer={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => setEditingId(t.id)}
+                >
                   <Pencil className="size-4" />
                   فتح
                 </Button>
-              </div>
-            </OperationalCard>
+              }
+            />
           ))}
         </div>
       )}

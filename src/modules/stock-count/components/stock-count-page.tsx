@@ -12,10 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/SweetFlow/page-header";
-import { OperationalCard } from "@/components/SweetFlow/operational-card";
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
-import { StatusPill } from "@/components/SweetFlow/status-pill";
+import { PageHeader } from "@/components/Velora/page-header";
+import { OperationalCard } from "@/components/Velora/operational-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { StatusPill } from "@/components/Velora/status-pill";
 import { formatDateTime } from "@/lib/format";
 import type { Product, Warehouse } from "@/lib/types";
 import { selectLabelById } from "@/lib/select-label";

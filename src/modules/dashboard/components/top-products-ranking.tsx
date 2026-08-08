@@ -1,4 +1,4 @@
-import { EmptyStateBlock } from "@/components/SweetFlow/state-blocks";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import type { TopProduct } from "@/modules/dashboard/services/dashboard.service";
 
