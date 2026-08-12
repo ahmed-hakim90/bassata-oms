@@ -194,7 +194,9 @@ export async function getOnlineMenuBySlug(
 export type OnlineMenuOgMeta = {
   businessName: string;
   branchLabel: string | null;
+  tagline: string | null;
   logoUrl: string | null;
+  coverUrl: string | null;
 };
 
 /**
@@ -239,8 +241,10 @@ export async function getOnlineMenuOgMetaBySlug(
     storeName && storeName !== businessName ? storeName : null;
   const logoUrl =
     text(storeSettings.online_menu_logo_url) || text(organization.logo_url) || null;
+  const coverUrl = text(storeSettings.online_menu_cover_url) || null;
+  const tagline = text(storeSettings.online_menu_description) || null;
 
-  return { businessName, branchLabel, logoUrl };
+  return { businessName, branchLabel, tagline, logoUrl, coverUrl };
 }
 
 async function buildOnlineMenuForStore(

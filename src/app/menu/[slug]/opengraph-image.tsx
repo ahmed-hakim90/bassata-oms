@@ -1,3 +1,5 @@
+import { access, readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 import { firstGrapheme } from "@/lib/first-grapheme";
 import {
@@ -20,15 +22,15 @@ type Props = {
 
 type OgFonts = Awaited<ReturnType<typeof loadArabicOgFonts>>;
 
-function ogLine(value: string): string {
-  return compactArabicOgSpaces(sanitizeOgText(value));
+function ogLine(value: string, fallback?: string): string {
+  return compactArabicOgSpaces(sanitizeOgText(value, fallback));
 }
 
-function ogWords(value: string): string[] {
-  return ogLine(value).split(" ").filter(Boolean);
+function ogWords(value: string, fallback?: string): string[] {
+  return ogLine(value, fallback).split(" ").filter(Boolean);
 }
 
-async function loadLogoDataUrl(url: string | null): Promise<string | null> {
+async function loadRemoteImageDataUrl(url: string | null): Promise<string | null> {
   if (!url) return null;
   try {
     const response = await fetch(url, {
@@ -46,17 +48,71 @@ async function loadLogoDataUrl(url: string | null): Promise<string | null> {
   }
 }
 
+async function loadLocalHeroDataUrl(slug: string): Promise<string | null> {
+  const safeSlug = slug.replace(/[^a-z0-9_-]/gi, "").toLowerCase();
+  if (!safeSlug) return null;
+  for (const ext of ["jpg", "jpeg", "png", "webp"] as const) {
+    const filePath = path.join(process.cwd(), "public/og/heroes", `${safeSlug}.${ext}`);
+    try {
+      await access(filePath);
+      const bytes = await readFile(filePath);
+      if (bytes.byteLength === 0 || bytes.byteLength > 1_200_000) continue;
+      const mime =
+        ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+      return `data:${mime};base64,${bytes.toString("base64")}`;
+    } catch {
+      // try next extension
+    }
+  }
+  return null;
+}
+
+function WordRow(props: {
+  words: string[];
+  fontSize: number;
+  color: string;
+  gap?: number;
+  maxWidth?: number;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row-reverse",
+        justifyContent: "flex-start",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: props.gap ?? 12,
+        maxWidth: props.maxWidth ?? 520,
+      }}
+    >
+      {props.words.map((word, index) => (
+        <span
+          key={`${word}-${index}`}
+          style={{
+            fontSize: props.fontSize,
+            lineHeight: 1.25,
+            color: props.color,
+          }}
+        >
+          {word}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function buildCard(input: {
   title: string;
-  subtitle: string | null;
+  tagline: string;
   monogram: string;
   logoDataUrl: string | null;
+  heroDataUrl: string | null;
   fonts: OgFonts;
 }) {
-  const title = ogLine(input.title);
   const titleWords = ogWords(input.title);
-  const subtitleWords = input.subtitle ? ogWords(input.subtitle) : [];
-  const titleSize = title.length > 28 ? 52 : title.length > 18 ? 62 : 72;
+  const taglineWords = ogWords(input.tagline, "منيو إلكتروني");
+  const titleSize = input.title.length > 26 ? 46 : input.title.length > 18 ? 54 : 60;
 
   return new ImageResponse(
     (
@@ -66,7 +122,7 @@ function buildCard(input: {
           height: "100%",
           display: "flex",
           position: "relative",
-          background: "#0b1220",
+          background: "#070b14",
           fontFamily: ARABIC_OG_FONT_FAMILY,
           color: "#fff7ed",
         }}
@@ -77,7 +133,7 @@ function buildCard(input: {
             inset: 0,
             display: "flex",
             background:
-              "radial-gradient(circle at 18% 20%, rgba(251,146,60,0.35), transparent 42%), radial-gradient(circle at 88% 78%, rgba(14,116,144,0.38), transparent 46%), linear-gradient(160deg, #0f172a 0%, #111827 55%, #1c1917 100%)",
+              "radial-gradient(circle at 78% 18%, rgba(249,115,22,0.28), transparent 36%), radial-gradient(circle at 18% 82%, rgba(15,23,42,0.9), transparent 40%), linear-gradient(120deg, #05070d 0%, #0b1220 48%, #1c1410 100%)",
           }}
         />
 
@@ -87,51 +143,49 @@ function buildCard(input: {
             width: "100%",
             height: "100%",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 48,
+            flexDirection: "row-reverse",
+            padding: 28,
+            gap: 24,
           }}
         >
+          {/* Brand panel — visual right in RTL */}
           <div
             style={{
-              width: "100%",
+              width: 520,
               height: "100%",
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
               justifyContent: "center",
-              gap: 18,
-              borderRadius: 40,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(15, 23, 42, 0.78)",
-              padding: "40px 52px",
+              alignItems: "flex-start",
+              gap: 22,
+              padding: "28px 20px 28px 8px",
             }}
           >
             <div
               style={{
-                width: 148,
-                height: 148,
-                borderRadius: 36,
+                width: 96,
+                height: 96,
+                borderRadius: 28,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.16)",
                 overflow: "hidden",
-                boxShadow: "0 18px 40px rgba(0,0,0,0.28)",
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(253,186,116,0.35)",
+                boxShadow: "0 16px 40px rgba(0,0,0,0.35)",
               }}
             >
               {input.logoDataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={input.logoDataUrl}
-                  width={148}
-                  height={148}
+                  width={96}
+                  height={96}
                   alt=""
-                  style={{ objectFit: "cover", width: 148, height: 148 }}
+                  style={{ objectFit: "cover", width: 96, height: 96 }}
                 />
               ) : (
-                <div style={{ display: "flex", fontSize: 64, color: "#fdba74" }}>
+                <div style={{ display: "flex", fontSize: 44, color: "#fdba74" }}>
                   {input.monogram}
                 </div>
               )}
@@ -140,88 +194,104 @@ function buildCard(input: {
             <div
               style={{
                 display: "flex",
-                padding: "10px 20px",
+                padding: "8px 16px",
                 borderRadius: 999,
-                background: "rgba(251, 146, 60, 0.16)",
-                border: "1px solid rgba(251, 146, 60, 0.38)",
+                background: "rgba(249,115,22,0.14)",
+                border: "1px solid rgba(249,115,22,0.4)",
                 color: "#fdba74",
-                fontSize: 24,
+                fontSize: 22,
                 flexDirection: "row-reverse",
                 gap: 8,
               }}
             >
               {ogWords("منيو إلكتروني").map((word, index) => (
-                <span key={`eyebrow-${index}`}>{word}</span>
+                <span key={`badge-${index}`}>{word}</span>
               ))}
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row-reverse",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 16,
-                maxWidth: 980,
-                flexWrap: "wrap",
-              }}
-            >
-              {titleWords.map((word, index) => (
-                <span
-                  key={`title-${index}`}
-                  style={{
-                    fontSize: titleSize,
-                    lineHeight: 1.2,
-                    color: "#fff7ed",
-                  }}
-                >
-                  {word}
-                </span>
-              ))}
-            </div>
+            <WordRow words={titleWords} fontSize={titleSize} color="#fff7ed" gap={14} />
 
-            {subtitleWords.length > 0 ? (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row-reverse",
-                  justifyContent: "center",
-                  gap: 10,
-                  maxWidth: 820,
-                }}
-              >
-                {subtitleWords.map((word, index) => (
-                  <span
-                    key={`subtitle-${index}`}
-                    style={{
-                      fontSize: 30,
-                      color: "rgba(255,247,237,0.78)",
-                    }}
-                  >
-                    {word}
-                  </span>
-                ))}
-              </div>
-            ) : null}
+            <WordRow
+              words={taglineWords}
+              fontSize={26}
+              color="rgba(255,247,237,0.78)"
+              gap={10}
+              maxWidth={480}
+            />
 
             <div
               style={{
                 display: "flex",
                 marginTop: 8,
-                padding: "16px 34px",
+                padding: "14px 28px",
                 borderRadius: 999,
                 background: "#f97316",
                 color: "#111827",
-                fontSize: 28,
-                boxShadow: "0 12px 30px rgba(249,115,22,0.35)",
+                fontSize: 24,
+                boxShadow: "0 14px 36px rgba(249,115,22,0.38)",
                 flexDirection: "row-reverse",
-                gap: 10,
+                gap: 8,
               }}
             >
               {ogWords("افتح المنيو").map((word, index) => (
                 <span key={`cta-${index}`}>{word}</span>
               ))}
             </div>
+          </div>
+
+          {/* Food hero — visual left in RTL */}
+          <div
+            style={{
+              flex: 1,
+              height: "100%",
+              display: "flex",
+              borderRadius: 32,
+              overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "linear-gradient(160deg, #1f2937 0%, #111827 100%)",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
+              position: "relative",
+            }}
+          >
+            {input.heroDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={input.heroDataUrl}
+                width={620}
+                height={574}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background:
+                    "radial-gradient(circle at 40% 35%, rgba(249,115,22,0.35), transparent 55%), linear-gradient(145deg, #1c1917, #0f172a)",
+                  color: "#fdba74",
+                  fontSize: 120,
+                }}
+              >
+                {input.monogram}
+              </div>
+            )}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                background:
+                  "linear-gradient(90deg, rgba(7,11,20,0.05) 0%, rgba(7,11,20,0.55) 100%)",
+              }}
+            />
           </div>
         </div>
       </div>
@@ -236,28 +306,33 @@ export default async function MenuOpenGraphImage({ params }: Props) {
   try {
     const fonts = await loadArabicOgFonts();
     let title = sanitizeOgText("منيو أونلاين");
-    let subtitle: string | null = null;
+    let tagline = "منيو إلكتروني فاخر";
     let logoDataUrl: string | null = null;
+    let heroDataUrl: string | null = null;
 
     try {
       const meta = await getOnlineMenuOgMetaBySlug(slug);
       if (meta) {
         title = sanitizeOgText(meta.businessName);
-        subtitle = meta.branchLabel
-          ? sanitizeOgText(meta.branchLabel, "")
-          : null;
-        if (!subtitle) subtitle = null;
-        logoDataUrl = await loadLogoDataUrl(meta.logoUrl);
+        if (meta.tagline) tagline = sanitizeOgText(meta.tagline, tagline);
+        logoDataUrl = await loadRemoteImageDataUrl(meta.logoUrl);
+        heroDataUrl =
+          (await loadRemoteImageDataUrl(meta.coverUrl)) ??
+          (await loadLocalHeroDataUrl(slug));
+      } else {
+        heroDataUrl = await loadLocalHeroDataUrl(slug);
       }
     } catch (error) {
       console.warn("[menu-og] meta lookup failed:", error);
+      heroDataUrl = await loadLocalHeroDataUrl(slug);
     }
 
     return buildCard({
       title,
-      subtitle,
+      tagline,
       monogram: firstGrapheme(title, "م"),
       logoDataUrl,
+      heroDataUrl,
       fonts,
     });
   } catch (error) {
