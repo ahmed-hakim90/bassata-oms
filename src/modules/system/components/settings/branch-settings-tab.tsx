@@ -21,6 +21,9 @@ import type { Store, Warehouse } from "@/lib/types";
 import type { BusinessActivityType } from "@/lib/constants";
 import { PosSetupGuide } from "@/modules/system/components/settings/pos-setup-guide";
 import { BranchQrDownloadCard } from "@/modules/system/components/settings/branch-qr-download-card";
+import { MenuViewStatsCard } from "@/modules/online-menu/components/menu-view-stats-card";
+import { appendOnlineMenuSourceParam } from "@/modules/online-menu/lib/online-menu-view-source";
+import type { OnlineMenuViewStats } from "@/modules/online-menu/services/online-menu-views.service";
 import {
   WEEKDAY_KEYS,
   WEEKDAY_LABELS_AR,
@@ -102,6 +105,7 @@ interface BranchSettingsTabProps {
   warehouses: Warehouse[];
   activityType?: BusinessActivityType;
   menuThemeRows: MenuThemeAccessRow[];
+  menuViewStatsByStore?: Record<string, OnlineMenuViewStats>;
 }
 
 export function BranchSettingsTab({
@@ -109,6 +113,7 @@ export function BranchSettingsTab({
   warehouses,
   activityType,
   menuThemeRows,
+  menuViewStatsByStore = {},
 }: BranchSettingsTabProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -222,7 +227,14 @@ export function BranchSettingsTab({
               edit.onlineMenuUnlisted,
               onlineMenuToken
             );
+            const onlineMenuLinkHref = onlineMenuHref
+              ? appendOnlineMenuSourceParam(onlineMenuHref, "link")
+              : "";
+            const onlineMenuQrHref = onlineMenuHref
+              ? appendOnlineMenuSourceParam(onlineMenuHref, "qr")
+              : "";
             const logoUrl = storeLogoUrls[store.id] ?? getOnlineMenuLogoUrl(store);
+            const menuViewStats = menuViewStatsByStore[store.id];
 
             return (
               <TabsContent key={store.id} value={store.id} className="mt-0">
@@ -255,7 +267,7 @@ export function BranchSettingsTab({
                         size="sm"
                         className="w-full sm:w-auto"
                         nativeButton={false}
-                        render={<a href={onlineMenuHref} target="_blank" rel="noopener noreferrer" />}
+                        render={<a href={onlineMenuLinkHref || onlineMenuHref} target="_blank" rel="noopener noreferrer" />}
                       >
                         فتح منيو الأونلاين
                       </Button>
@@ -421,16 +433,17 @@ export function BranchSettingsTab({
                               ? "رابط المنيو غير المُدرج: "
                               : "رابط المنيو العام: "}
                             <span className="font-mono text-foreground break-all">
-                              {onlineMenuHref}
+                              {onlineMenuLinkHref || onlineMenuHref}
                             </span>
                           </p>
+                          {menuViewStats ? <MenuViewStatsCard stats={menuViewStats} /> : null}
                           {!edit.onlineMenuUnlisted ? (
                             <BranchQrDownloadCard
                               storeName={store.name}
                               storeCode={store.code}
                               address={store.address}
                               phone={store.phone}
-                              onlineMenuHref={onlineMenuHref}
+                              onlineMenuHref={onlineMenuQrHref || onlineMenuHref}
                             />
                           ) : (
                             <p className="text-xs text-muted-foreground">

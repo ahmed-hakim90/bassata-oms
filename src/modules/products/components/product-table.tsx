@@ -172,11 +172,12 @@ export function ProductTable({
   }
 
   const priceHeader = supermarketColumns
-    ? "سعر البيع"
+    ? "سعر البيع / القطعة"
     : priceMode === "cost"
       ? "تكلفة الوحدة"
       : "السعر";
   const codeHeader = supermarketColumns ? "الباركود" : "الكود";
+  const purchaseHeader = "سعر الشراء / القطعة";
 
   function toggleProduct(productId: string, checked: boolean) {
     if (!onSelectedIdsChange) return;
@@ -339,7 +340,7 @@ export function ProductTable({
             ) : null}
             {supermarketColumns ? (
               <TableHead className="h-10 text-xs font-semibold text-muted-foreground">
-                سعر الشراء
+                {purchaseHeader}
               </TableHead>
             ) : null}
             <TableHead className="h-10 text-xs font-semibold text-muted-foreground">

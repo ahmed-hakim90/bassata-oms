@@ -6,6 +6,17 @@ import { getBusinessActivitySettings } from "@/modules/system/services/settings.
 
 export type KitchenStatus = "queued" | "preparing" | "ready" | "served";
 
+const KITCHEN_STATUS_FORWARD: Record<KitchenStatus, KitchenStatus | null> = {
+  queued: "preparing",
+  preparing: "ready",
+  ready: "served",
+  served: null,
+};
+
+export function isAllowedKitchenTransition(current: KitchenStatus, next: KitchenStatus): boolean {
+  return KITCHEN_STATUS_FORWARD[current] === next;
+}
+
 export type KitchenTicket = {
   id: string;
   orderNumber: string;
@@ -82,7 +93,7 @@ export async function advanceKitchenStatus(
   orderId: string,
   next: KitchenStatus
 ): Promise<void> {
-  await requirePermission("order_view");
+  await requirePermission("kitchen_manage");
   await requireKitchenDisplayEnabled();
   const supabase = await createClient();
   const { data: order, error: loadError } = await supabase
@@ -93,11 +104,20 @@ export async function advanceKitchenStatus(
   if (loadError || !order) throw new Error(loadError?.message ?? "الطلب غير موجود");
   await requireStoreAccess(order.store_id);
 
-  const { error } = await supabase
+  const current = (order.kitchen_status ?? "queued") as KitchenStatus;
+  if (!isAllowedKitchenTransition(current, next)) {
+    throw new Error("انتقال حالة المطبخ غير مسموح");
+  }
+
+  const { data: updated, error } = await supabase
     .from("orders")
     .update({ kitchen_status: next })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .filter("kitchen_status", order.kitchen_status == null ? "is" : "eq", order.kitchen_status)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!updated) throw new Error("تغيرت حالة الطلب من جهاز آخر؛ حدّث الشاشة وحاول مجددًا");
 }
 
 /** Mark completed POS order for kitchen queue when food-service activity. */

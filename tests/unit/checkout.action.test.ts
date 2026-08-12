@@ -3,7 +3,10 @@ import { checkoutAction } from "@/modules/pos/actions/checkout.action";
 import * as guards from "@/lib/auth/guards";
 import * as posAccess from "@/lib/auth/pos-access";
 import { completeCheckout } from "@/modules/pos/services/checkout.service";
-import { getSessionSettings } from "@/modules/system/services/settings.service";
+import {
+  getBusinessActivitySettings,
+  getSessionSettings,
+} from "@/modules/system/services/settings.service";
 
 vi.mock("next/server", () => ({
   after: (fn: () => void) => {
@@ -18,6 +21,7 @@ vi.mock("@/modules/sessions/services/session-lifecycle.service", () => ({
 }));
 vi.mock("@/modules/system/services/settings.service", () => ({
   getSessionSettings: vi.fn(),
+  getBusinessActivitySettings: vi.fn().mockResolvedValue({ activity_type: "retail" }),
 }));
 vi.mock("@/modules/pos/services/manager-override.service", () => ({
   requiresManagerDiscountOverride: vi.fn(() => false),
@@ -81,6 +85,9 @@ describe("checkoutAction payment validation", () => {
       allow_manager_force_close: true,
       manager_discount_override_amount: null,
     });
+    vi.mocked(getBusinessActivitySettings).mockResolvedValue({
+      activity_type: "retail",
+    } as Awaited<ReturnType<typeof getBusinessActivitySettings>>);
     vi.mocked(completeCheckout).mockResolvedValue({
       order: {
         id: "order-1",

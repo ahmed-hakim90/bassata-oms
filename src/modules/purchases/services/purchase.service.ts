@@ -66,8 +66,8 @@ function enrichPurchasesInMemory(
   return invoices.map((invoice) => ({
     ...invoice,
     lines: linesByInvoice.get(invoice.id) ?? [],
-    supplierName: supplierMap.get(invoice.supplier_id) ?? "Unknown",
-    warehouseName: warehouseMap.get(invoice.warehouse_id) ?? "Unknown warehouse",
+    supplierName: supplierMap.get(invoice.supplier_id) ?? "مورد غير معروف",
+    warehouseName: warehouseMap.get(invoice.warehouse_id) ?? "مخزن غير معروف",
   }));
 }
 
@@ -110,7 +110,7 @@ async function assertWarehouseBelongsToStore(
 ): Promise<void> {
   const warehouse = await warehouseRepo.getWarehouse(warehouseId);
   if (!warehouse || warehouse.store_id !== storeId || !warehouse.is_active) {
-    throw new Error("Warehouse does not belong to the selected store");
+    throw new Error("المخزن لا يتبع الفرع المحدد أو أنه غير نشط");
   }
 }
 
@@ -125,11 +125,21 @@ export async function getPurchase(id: string): Promise<PurchaseWithLines | null>
   return enrichPurchase(invoice);
 }
 
+/** Matches sales-invoice style: PI-YYYYMMDD-0001 */
+export function nextPurchaseInvoiceNumber(
+  documentDate: string,
+  existingOnDateCount: number
+): string {
+  const day = documentDate.replace(/-/g, "");
+  return `PI-${day}-${String(existingOnDateCount + 1).padStart(4, "0")}`;
+}
+
 export async function createDraftPurchase(input: {
   storeId: string;
   warehouseId: string;
   supplierId: string;
-  invoiceNumber: string;
+  /** When omitted/blank, server generates PI-YYYYMMDD-NNNN. */
+  invoiceNumber?: string;
   extraCost?: number;
   createdBy: string;
   documentDate?: string;
@@ -137,12 +147,19 @@ export async function createDraftPurchase(input: {
   const documentDate = normalizeDocumentDate(input.documentDate ?? todayDocumentDate());
   await assertPeriodOpen(input.storeId, documentDateToOccurredAt(documentDate));
   await assertWarehouseBelongsToStore(input.warehouseId, input.storeId);
+  const trimmedNumber = input.invoiceNumber?.trim() ?? "";
+  const invoiceNumber =
+    trimmedNumber ||
+    nextPurchaseInvoiceNumber(
+      documentDate,
+      await purchaseRepo.countPurchasesOnDocumentDate(input.storeId, documentDate)
+    );
   const invoice = await purchaseRepo.insertPurchase(
     {
       store_id: input.storeId,
       warehouse_id: input.warehouseId,
       supplier_id: input.supplierId,
-      invoice_number: input.invoiceNumber,
+      invoice_number: invoiceNumber,
       status: "draft",
       subtotal: 0,
       extra_cost: Math.max(0, input.extraCost ?? 0),
@@ -507,7 +524,7 @@ export async function receivePurchase(
     isFeatureEnabled("prevent_negative_stock"),
   ]);
   if (!warehouse || warehouse.store_id !== invoice.store_id || !warehouse.is_active) {
-    throw new Error("Warehouse does not belong to the selected store");
+    throw new Error("المخزن لا يتبع الفرع المحدد أو أنه غير نشط");
   }
 
   const allocations = allocateLandedCosts(lines, invoice.extra_cost);

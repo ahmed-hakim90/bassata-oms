@@ -65,12 +65,6 @@ if (authError || !authData.session) {
 }
 console.log("✓ Signed in as", ownerEmail);
 
-const { data: orgBefore } = await supabase
-  .from("organizations")
-  .select("name")
-  .eq("id", orgId)
-  .single();
-
 const testName = "Velora Demo";
 
 const { data: orgUpdated, error: orgError } = await supabase

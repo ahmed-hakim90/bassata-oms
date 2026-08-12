@@ -39,7 +39,7 @@ export function summarizeExpiryBatches(
       return {
         id: batch.id,
         productId: batch.product_id,
-        productName: productMap.get(batch.product_id)?.name ?? "Unknown product",
+        productName: productMap.get(batch.product_id)?.name ?? "صنف غير معروف",
         batchNumber: batch.batch_number,
         expiryDate: batch.expiry_date!,
         remainingQuantity: batch.remaining_quantity,

@@ -176,7 +176,7 @@ async function getIngredientRecipeUsageNames(productId: string): Promise<string[
   return [
     ...new Set(
       usages.map((usage) => {
-        const productName = productMap.get(usage.productId) ?? "Unknown product";
+        const productName = productMap.get(usage.productId) ?? "صنف غير معروف";
         const variantName = usage.variantId
           ? variantMap.get(`${usage.productId}:${usage.variantId}`)
           : null;

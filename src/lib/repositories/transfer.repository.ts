@@ -1,4 +1,4 @@
-import { getDb, throwDbError } from "@/lib/repositories/client";
+import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapTransfer, mapTransferLine } from "@/lib/repositories/mappers";
 import { listStores } from "@/lib/repositories/store.repository";
 import type { TransferOrder, TransferOrderLine } from "@/lib/types";
@@ -62,7 +62,19 @@ export async function insertTransfer(
     const { error: lineError } = await db.from("transfer_order_lines").insert(
       lines.map((l) => ({ ...l, transfer_id: data.id }))
     );
-    if (lineError) throwDbError(lineError, "insertTransfer.lines");
+    if (lineError) {
+      const { error: cleanupError } = await db
+        .from("transfer_orders")
+        .delete()
+        .eq("id", data.id)
+        .eq("status", "draft");
+      if (cleanupError) {
+        throw new Error(
+          `فشل إنشاء سطور التحويل وتعذر حذف المسودة غير المكتملة: ${lineError.message}`
+        );
+      }
+      throwDbError(lineError, "insertTransfer.lines");
+    }
   }
   return mapTransfer(data);
 }
@@ -133,4 +145,45 @@ export async function deleteTransfer(id: string): Promise<void> {
   const db = await getDb();
   const { error } = await db.from("transfer_orders").delete().eq("id", id);
   if (error) throwDbError(error, "deleteTransfer");
+}
+
+async function runTransferLifecycleRpc(
+  fn: "send_transfer_atomic" | "receive_transfer_atomic" | "void_transfer_atomic",
+  args: Record<string, unknown>
+): Promise<TransferOrder> {
+  const { data, error } = await callRpc<Record<string, unknown>>(fn, args);
+  if (error || !data) throwDbError(error, fn);
+  return mapTransfer(data as Parameters<typeof mapTransfer>[0]);
+}
+
+export function sendTransferAtomic(
+  transferId: string,
+  userId: string,
+  preventNegativeStock: boolean
+): Promise<TransferOrder> {
+  return runTransferLifecycleRpc("send_transfer_atomic", {
+    p_transfer_id: transferId,
+    p_user_id: userId,
+    p_prevent_negative: preventNegativeStock,
+  });
+}
+
+export function receiveTransferAtomic(
+  transferId: string,
+  userId: string
+): Promise<TransferOrder> {
+  return runTransferLifecycleRpc("receive_transfer_atomic", {
+    p_transfer_id: transferId,
+    p_user_id: userId,
+  });
+}
+
+export function voidTransferAtomic(
+  transferId: string,
+  userId: string
+): Promise<TransferOrder> {
+  return runTransferLifecycleRpc("void_transfer_atomic", {
+    p_transfer_id: transferId,
+    p_user_id: userId,
+  });
 }

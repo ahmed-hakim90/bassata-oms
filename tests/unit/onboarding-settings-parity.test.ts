@@ -64,10 +64,12 @@ describe("S08 onboarding ↔ settings parity helpers", () => {
   it("covers every DB-supported activity type in app constants", () => {
     expect([...BUSINESS_ACTIVITY_TYPES].sort()).toEqual(
       [
+        "bakery",
         "cafe",
         "ice_cream",
         "juice_bar",
         "mixed",
+        "pharmacy",
         "restaurant",
         "retail",
         "supermarket",

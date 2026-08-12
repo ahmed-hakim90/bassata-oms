@@ -136,11 +136,11 @@ export async function getOpenSessionSummaries(input: {
 
     return {
       session,
-      cashierName: input.userMap.get(session.cashier_id) ?? "Unknown",
+      cashierName: input.userMap.get(session.cashier_id) ?? "مستخدم غير معروف",
       deviceName: session.device_id
         ? (input.deviceMap.get(session.device_id) ?? null)
         : null,
-      storeName: input.storeMap.get(session.store_id) ?? "Unknown",
+      storeName: input.storeMap.get(session.store_id) ?? "فرع غير معروف",
       openedAt: session.opened_at,
       durationLabel: formatSessionDuration(lifecycleResult.hoursOpen),
       hoursOpen: lifecycleResult.hoursOpen,

@@ -1,4 +1,4 @@
-import { getDb, throwDbError } from "@/lib/repositories/client";
+import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapOnlineOrder, mapOnlineOrderItem } from "@/lib/repositories/mappers";
 import { listStores } from "@/lib/repositories/store.repository";
 import type { OnlineOrder, OnlineOrderItem, OnlineOrderStatus } from "@/lib/types";
@@ -143,4 +143,54 @@ export async function replaceOnlineOrderItems(
     .select();
   if (error) throwDbError(error, "replaceOnlineOrderItems.insert");
   return (data ?? []).map(mapOnlineOrderItem);
+}
+
+export async function updateOnlineOrderDetailsAtomic(
+  orderId: string,
+  order: {
+    customer_name: string;
+    customer_phone: string | null;
+    notes: string;
+    subtotal: number;
+    total: number;
+    discount: number;
+    tax: number;
+  },
+  items: {
+    product_id: string;
+    variant_id: string | null;
+    product_name: string;
+    variant_name: string | null;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+  }[]
+): Promise<OnlineOrder> {
+  const { data, error } = await callRpc<Record<string, unknown>>(
+    "update_online_order_details_atomic",
+    {
+      p_online_order_id: orderId,
+      p_order: order,
+      p_items: items,
+    }
+  );
+  if (error || !data) throwDbError(error, "updateOnlineOrderDetailsAtomic");
+  return mapOnlineOrder(data as never);
+}
+
+export async function transitionOnlineOrderStatusAtomic(
+  orderId: string,
+  status: Exclude<OnlineOrderStatus, "invoiced">,
+  actorId: string
+): Promise<OnlineOrder> {
+  const { data, error } = await callRpc<Record<string, unknown>>(
+    "transition_online_order_status_atomic",
+    {
+      p_online_order_id: orderId,
+      p_status: status,
+      p_actor_id: actorId,
+    }
+  );
+  if (error || !data) throwDbError(error, "transitionOnlineOrderStatusAtomic");
+  return mapOnlineOrder(data as never);
 }

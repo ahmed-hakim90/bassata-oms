@@ -1,24 +1,29 @@
 import { ImageResponse } from "next/og";
-import { getOnlineMenuBySlug } from "@/modules/online-menu/services/online-menu.service";
+import {
+  ARABIC_OG_FONT_FAMILY,
+  loadArabicOgFonts,
+} from "@/lib/og/arabic-og-font";
+import {
+  orderOgTextForSatori,
+  sanitizeOgText,
+} from "@/lib/og/sanitize-og-text";
+import { getOnlineMenuOgMetaBySlug } from "@/modules/online-menu/services/online-menu.service";
 
 export const alt = "منيو أونلاين";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+/** Cache share cards — crawlers re-fetch aggressively. */
+export const revalidate = 3600;
 
 type Props = {
   params: Promise<{ slug: string }>;
 };
 
-export default async function MenuOpenGraphImage({ params }: Props) {
-  const { slug } = await params;
-  const menu = await getOnlineMenuBySlug(slug, { skipRateLimit: true });
-  const businessName =
-    menu?.organization.name.trim() || menu?.store.name.trim() || "منيو أونلاين";
-  const branchLabel =
-    menu?.store.name && menu.store.name.trim() !== businessName
-      ? menu.store.name.trim()
-      : null;
-
+function buildCard(input: {
+  title: string;
+  subtitle: string | null;
+  fonts: Awaited<ReturnType<typeof loadArabicOgFonts>>;
+}) {
   return new ImageResponse(
     (
       <div
@@ -32,7 +37,7 @@ export default async function MenuOpenGraphImage({ params }: Props) {
           padding: 72,
           background: "linear-gradient(160deg, #0f172a 0%, #134e4a 55%, #0e7490 100%)",
           color: "#ffffff",
-          fontFamily: "system-ui, sans-serif",
+          fontFamily: ARABIC_OG_FONT_FAMILY,
           textAlign: "center",
         }}
       >
@@ -41,35 +46,82 @@ export default async function MenuOpenGraphImage({ params }: Props) {
             fontSize: 28,
             opacity: 0.8,
             marginBottom: 20,
-            letterSpacing: 1,
           }}
         >
-          منيو أونلاين
+          {orderOgTextForSatori(sanitizeOgText("منيو أونلاين"))}
         </div>
         <div
           style={{
-            fontSize: 72,
-            fontWeight: 700,
-            lineHeight: 1.15,
-            letterSpacing: -1,
+            fontSize: 64,
+            fontWeight: 400,
+            lineHeight: 1.2,
             maxWidth: 980,
           }}
         >
-          {businessName}
+          {orderOgTextForSatori(input.title)}
         </div>
-        {branchLabel ? (
+        {input.subtitle ? (
           <div
             style={{
               marginTop: 24,
               fontSize: 32,
               opacity: 0.9,
+              maxWidth: 920,
             }}
           >
-            {branchLabel}
+            {orderOgTextForSatori(input.subtitle)}
           </div>
         ) : null}
       </div>
     ),
-    { ...size }
+    { ...size, fonts: input.fonts }
   );
+}
+
+export default async function MenuOpenGraphImage({ params }: Props) {
+  const { slug } = await params;
+
+  try {
+    const fonts = await loadArabicOgFonts();
+    let title = sanitizeOgText("منيو أونلاين");
+    let subtitle: string | null = null;
+
+    try {
+      const meta = await getOnlineMenuOgMetaBySlug(slug);
+      if (meta) {
+        title = sanitizeOgText(meta.businessName);
+        subtitle = meta.branchLabel
+          ? sanitizeOgText(meta.branchLabel, "")
+          : null;
+        if (!subtitle) subtitle = null;
+      }
+    } catch (error) {
+      console.warn("[menu-og] meta lookup failed:", error);
+    }
+
+    return buildCard({ title, subtitle, fonts });
+  } catch (error) {
+    console.error("[menu-og] image render failed:", error);
+    // Last-resort Latin-only card so crawlers stop getting 500s.
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#0f172a",
+            color: "#ffffff",
+            fontSize: 64,
+            fontFamily: "sans-serif",
+          }}
+        >
+          Online Menu
+        </div>
+      ),
+      { ...size }
+    );
+  }
 }

@@ -70,7 +70,7 @@ export function MovementTimeline({ movements, compact }: MovementTimelineProps) 
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {movement.warehouseName} · {movement.reason ?? "No reason provided"} ·{" "}
+                  {movement.warehouseName} · {movement.reason ?? "بدون سبب مسجل"} ·{" "}
                   {formatDistanceToNow(new Date(movement.created_at), { addSuffix: true })}
                 </p>
                 <p

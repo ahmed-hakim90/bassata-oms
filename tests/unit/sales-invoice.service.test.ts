@@ -92,6 +92,8 @@ describe("sales invoice access & lifecycle guards", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(periodLock.assertPeriodOpen).mockResolvedValue(undefined);
+    vi.mocked(orderRepo.getOrderPayments).mockResolvedValue([]);
+    vi.mocked(orderRepo.getOrderItems).mockResolvedValue([]);
   });
 
   it("blocks when wholesale sales are disabled", async () => {

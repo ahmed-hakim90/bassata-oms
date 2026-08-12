@@ -47,6 +47,7 @@ import {
   formatUnit,
   productHasPurchasePacking,
   productPurchaseFactor,
+  suggestedPurchaseEntryUnitCost,
 } from "@/lib/units";
 import { ProductSearchCombobox } from "@/modules/products/components/product-search-combobox";
 import { matchProducts } from "@/modules/products/lib/match-products";
@@ -154,7 +155,7 @@ export function PurchaseForm({
   const [extraCost, setExtraCost] = useState("");
   const [barcode, setBarcode] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
-  const [quantity, setQuantity] = useState("");
+  const [quantity, setQuantity] = useState("1");
   const [unitCost, setUnitCost] = useState("");
   const [entryUnit, setEntryUnit] = useState<MeasurementUnit>("piece");
   const [batchNumber, setBatchNumber] = useState("");
@@ -174,12 +175,11 @@ export function PurchaseForm({
   const [showLineDetails, setShowLineDetails] = useState(false);
   const [showHeader, setShowHeader] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
-  const barcodeRef = useRef<HTMLInputElement>(null);
+  const productSearchRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
   const snapshotRef = useRef<PurchaseWithLines | null>(null);
 
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
-  const productLabel = (p: Product) => `${p.name} · ${formatUnit(p.unit)}`;
 
   const selectProduct = useCallback((product: Product) => {
     setSelectedProductId(product.id);
@@ -188,6 +188,7 @@ export function PurchaseForm({
     setEntryUnit(productHasPurchasePacking(product) ? product.cost_unit : base);
     setBarcode(product.name);
     setHighlightIndex(0);
+    setQuantity((prev) => (prev.trim() ? prev : "1"));
     setTimeout(() => {
       qtyRef.current?.focus();
       qtyRef.current?.select();
@@ -201,6 +202,9 @@ export function PurchaseForm({
     : "piece";
   const selectedPurchaseUnit = selectedProduct?.cost_unit ?? selectedBaseUnit;
   const selectedFactor = selectedProduct ? productPurchaseFactor(selectedProduct) : 1;
+  const suggestedEntryCost = selectedProduct
+    ? suggestedPurchaseEntryUnitCost(selectedProduct, entryUnit)
+    : 0;
   const parsedQuantity = parseFloat(quantity);
   const parsedUnitCost = parseFloat(unitCost);
   const entryPreview =
@@ -210,7 +214,7 @@ export function PurchaseForm({
           unitCost:
             Number.isFinite(parsedUnitCost) && parsedUnitCost >= 0
               ? parsedUnitCost
-              : selectedProduct.last_unit_cost || 0,
+              : suggestedEntryCost,
           entryUnit,
           baseUnit: selectedBaseUnit,
           purchaseUnit: selectedPurchaseUnit,
@@ -225,7 +229,7 @@ export function PurchaseForm({
 
   const resetLineInputs = () => {
     setBarcode("");
-    setQuantity("");
+    setQuantity("1");
     setUnitCost("");
     setEntryUnit("piece");
     setBatchNumber("");
@@ -233,7 +237,7 @@ export function PurchaseForm({
     setExpiryDate("");
     setSelectedProductId("");
     setHighlightIndex(0);
-    setTimeout(() => barcodeRef.current?.focus(), 50);
+    setTimeout(() => productSearchRef.current?.focus(), 50);
   };
 
   useEffect(() => {
@@ -259,15 +263,14 @@ export function PurchaseForm({
   }, [initialInvoiceId]);
 
   const handleCreateDraft = () => {
-    if (!supplierId || !warehouseId || !invoiceNumber.trim()) {
-      toast.error("اختار المورد والمخزن واكتب رقم الفاتورة");
+    if (!supplierId || !warehouseId) {
+      toast.error("اختار المورد والمخزن");
       return;
     }
     startTransition(async () => {
       const result = await createPurchaseAction({
         supplierId,
         warehouseId,
-        invoiceNumber: invoiceNumber.trim(),
         extraCost: parseFloat(extraCost) || 0,
         documentDate,
       });
@@ -277,6 +280,7 @@ export function PurchaseForm({
       }
       const created = result.data;
       const supplier = suppliers.find((s) => s.id === supplierId);
+      setInvoiceNumber(created.invoice_number);
       setInvoice({
         ...created,
         lines: [],
@@ -284,7 +288,7 @@ export function PurchaseForm({
         warehouseName: warehouses.find((w) => w.id === warehouseId)?.name ?? "",
       });
       toast.success("مسودة محفوظة — أضف الأصناف");
-      setTimeout(() => barcodeRef.current?.focus(), 100);
+      setTimeout(() => productSearchRef.current?.focus(), 100);
     });
   };
 
@@ -411,59 +415,68 @@ export function PurchaseForm({
     [invoice, productMap]
   );
 
-  const lookupBarcode = (code: string) =>
-    products.find((p) => p.barcode === code.trim() || p.sku === code.trim());
+  const lookupBarcode = (code: string) => {
+    const normalized = code.trim().toLowerCase();
+    if (!normalized) return undefined;
+    return products.find(
+      (p) =>
+        p.barcode?.toLowerCase() === normalized || p.sku?.toLowerCase() === normalized
+    );
+  };
 
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const found = lookupBarcode(barcode);
 
-    const searchMatches = matchProducts(products, barcode);
-    
-    if (!found && searchMatches.length > 0) {
-      const pick = searchMatches[Math.min(highlightIndex, searchMatches.length - 1)];
-      if (pick) {
-        selectProduct(pick);
+    if (found) {
+      if (selectedProductId === found.id) {
+        addLine(
+          found.id,
+          Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1,
+          Number.isFinite(parsedUnitCost) && parsedUnitCost >= 0
+            ? parsedUnitCost
+            : suggestedPurchaseEntryUnitCost(found, entryUnit),
+          entryUnit,
+          batchNumber || null,
+          productionDate || null,
+          expiryDate || calculatedExpiryDate || null
+        );
         return;
       }
-    }
-
-    if (found && (!selectedProductId || selectedProductId !== found.id)) {
       selectProduct(found);
       return;
     }
 
-    if (!selectedProductId && searchMatches.length === 1) {
+    if (selectedProductId) {
+      const product = productMap.get(selectedProductId);
+      if (!product) {
+        toast.error("المنتج غير موجود");
+        return;
+      }
+      addLine(
+        selectedProductId,
+        Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1,
+        Number.isFinite(parsedUnitCost) && parsedUnitCost >= 0
+          ? parsedUnitCost
+          : suggestedPurchaseEntryUnitCost(product, entryUnit),
+        entryUnit,
+        batchNumber || null,
+        productionDate || null,
+        expiryDate || calculatedExpiryDate || null
+      );
+      return;
+    }
+
+    const searchMatches = matchProducts(products, barcode);
+    if (searchMatches.length === 1) {
       selectProduct(searchMatches[0]!);
       return;
     }
-
-    if (!selectedProductId && searchMatches.length > 1) {
-      toast.info("اختار المنتج من القائمة");
+    if (searchMatches.length > 1) {
+      selectProduct(searchMatches[Math.min(highlightIndex, searchMatches.length - 1)]!);
       return;
     }
-
-    const productId = selectedProductId || found?.id;
-    if (!productId) {
-      toast.error("المنتج غير موجود");
-      return;
-    }
-    const product = productMap.get(productId);
-    if (!product) {
-      toast.error("المنتج غير موجود");
-      return;
-    }
-    addLine(
-      productId,
-      Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1,
-      Number.isFinite(parsedUnitCost) && parsedUnitCost >= 0
-        ? parsedUnitCost
-        : product.last_unit_cost || 0,
-      entryUnit,
-      batchNumber || null,
-      productionDate || null,
-      expiryDate || calculatedExpiryDate || null
-    );
+    toast.error("المنتج غير موجود");
   };
 
   const handleReceive = async () => {
@@ -692,16 +705,6 @@ export function PurchaseForm({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>رقم الفاتورة</Label>
-            <Input
-              className="min-h-11"
-              value={invoiceNumber}
-              onChange={(e) => setInvoiceNumber(e.target.value)}
-              placeholder="INV-001"
-              onKeyDown={(e) => e.key === "Enter" && handleCreateDraft()}
-            />
-          </div>
-          <div className="space-y-2">
             <Label>تاريخ الفاتورة</Label>
             <Input
               className="min-h-11"
@@ -709,6 +712,7 @@ export function PurchaseForm({
               max={new Date().toISOString().slice(0, 10)}
               value={documentDate}
               onChange={(e) => setDocumentDate(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateDraft()}
             />
           </div>
           <div className="space-y-2">
@@ -937,7 +941,14 @@ export function PurchaseForm({
               </div>
             ) : null}
 
-            <form onSubmit={handleBarcodeSubmit} className="grid gap-3">
+            <form
+              onSubmit={handleBarcodeSubmit}
+              className={
+                selectedHasPacking
+                  ? "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_7rem_5.5rem_6.5rem_auto] sm:items-end"
+                  : "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_5.5rem_6.5rem_auto] sm:items-end"
+              }
+            >
               <ProductSearchCombobox
                 products={products}
                 value={barcode}
@@ -952,174 +963,155 @@ export function PurchaseForm({
                   }
                 }}
                 onSelect={selectProduct}
+                onHighlightChange={setHighlightIndex}
                 selectedProductId={selectedProductId}
-                label="باركود / بحث منتج"
-                placeholder="امسح باركود أو ابحث بالاسم…"
-                className="min-h-12 text-lg"
+                currency={currency}
+                inputRef={productSearchRef}
+                className="min-h-11"
               />
-              <div className="space-y-2">
-                <Label>المنتج {selectedProduct ? "المختار" : ""}</Label>
-                <Select
-                  value={selectedProductId}
-                  onValueChange={(v) => {
-                    const p = productMap.get(v ?? "");
-                    if (p) selectProduct(p);
-                    else setSelectedProductId("");
-                  }}
-                >
-                  <SelectTrigger className="min-h-11 w-full">
-                    <SelectValue placeholder="أو اختار من القائمة">
-                      {(value) => {
-                        const p = products.find((x) => x.id === value);
-                        return p ? productLabel(p) : "أو اختار من القائمة";
-                      }}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id} label={productLabel(p)}>
-                        {productLabel(p)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {selectedHasPacking ? (
-                  <div className="col-span-2 space-y-2 sm:col-span-1">
-                    <Label>وحدة الإدخال</Label>
-                    <Select
-                      value={entryUnit}
-                      onValueChange={(v) =>
-                        setEntryUnit((v as MeasurementUnit) ?? selectedBaseUnit)
-                      }
-                    >
-                      <SelectTrigger className="min-h-11 w-full">
-                        <SelectValue>{() => formatUnit(entryUnit)}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={selectedBaseUnit} label={formatUnit(selectedBaseUnit)}>
-                          {formatUnit(selectedBaseUnit)}
-                        </SelectItem>
-                        <SelectItem
-                          value={selectedPurchaseUnit}
-                          label={formatUnit(selectedPurchaseUnit)}
-                        >
-                          {formatUnit(selectedPurchaseUnit)} ({selectedFactor}{" "}
-                          {formatUnit(selectedBaseUnit)})
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
-                <div className="space-y-2">
-                  <Label>
-                    الكمية
-                    {selectedProduct
-                      ? ` (${formatUnit(selectedHasPacking ? entryUnit : selectedBaseUnit)})`
-                      : ""}
-                  </Label>
-                  <Input
-                    ref={qtyRef}
-                    type="text"
-                    inputMode="decimal"
-                    enterKeyHint="next"
-                    className="min-h-11"
-                    value={quantity}
-                    onChange={(e) => setQuantity(sanitizeDecimalInput(e.target.value))}
-                    placeholder="1"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>
-                    التكلفة
-                    {selectedProduct
-                      ? ` / ${formatUnit(selectedHasPacking ? entryUnit : selectedBaseUnit)}`
-                      : ""}
-                  </Label>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    enterKeyHint="done"
-                    className="min-h-11"
-                    value={unitCost}
-                    onChange={(e) => setUnitCost(sanitizeDecimalInput(e.target.value))}
-                    placeholder={
-                      selectedProduct && selectedProduct.last_unit_cost > 0
-                        ? String(selectedProduct.last_unit_cost)
-                        : "آخر تكلفة"
+              {selectedHasPacking ? (
+                <div>
+                  <Label className="mb-1.5 text-xs text-muted-foreground">وحدة</Label>
+                  <Select
+                    value={entryUnit}
+                    onValueChange={(v) =>
+                      setEntryUnit((v as MeasurementUnit) ?? selectedBaseUnit)
                     }
+                  >
+                    <SelectTrigger className="min-h-11 w-full">
+                      <SelectValue>{() => formatUnit(entryUnit)}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={selectedBaseUnit} label={formatUnit(selectedBaseUnit)}>
+                        {formatUnit(selectedBaseUnit)}
+                      </SelectItem>
+                      <SelectItem
+                        value={selectedPurchaseUnit}
+                        label={formatUnit(selectedPurchaseUnit)}
+                      >
+                        {formatUnit(selectedPurchaseUnit)} ({selectedFactor}{" "}
+                        {formatUnit(selectedBaseUnit)})
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              <div>
+                <Label
+                  htmlFor="purchase-line-quantity"
+                  className="mb-1.5 text-xs text-muted-foreground"
+                >
+                  كمية
+                  {selectedProduct
+                    ? ` (${formatUnit(selectedHasPacking ? entryUnit : selectedBaseUnit)})`
+                    : ""}
+                </Label>
+                <Input
+                  id="purchase-line-quantity"
+                  ref={qtyRef}
+                  type="text"
+                  inputMode="decimal"
+                  enterKeyHint="done"
+                  className="min-h-11 tabular-nums"
+                  value={quantity}
+                  onChange={(e) => setQuantity(sanitizeDecimalInput(e.target.value))}
+                  placeholder="1"
+                />
+              </div>
+              <div>
+                <Label
+                  htmlFor="purchase-line-cost"
+                  className="mb-1.5 text-xs text-muted-foreground"
+                >
+                  تكلفة
+                  {selectedProduct
+                    ? ` / ${formatUnit(selectedHasPacking ? entryUnit : selectedBaseUnit)}`
+                    : ""}
+                </Label>
+                <Input
+                  id="purchase-line-cost"
+                  type="text"
+                  inputMode="decimal"
+                  enterKeyHint="done"
+                  className="min-h-11 tabular-nums"
+                  value={unitCost}
+                  onChange={(e) => setUnitCost(sanitizeDecimalInput(e.target.value))}
+                  placeholder={
+                    suggestedEntryCost > 0 ? String(suggestedEntryCost) : "آخر تكلفة"
+                  }
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="submit"
+                  className="h-11 w-full sm:h-11 sm:w-auto"
+                  disabled={!selectedProductId && !barcode.trim()}
+                >
+                  <Plus className="size-4" />
+                  إضافة
+                </Button>
+              </div>
+            </form>
+            {entryPreview ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                يتحوّل للمخزون: {entryPreview.quantity} {formatUnit(selectedBaseUnit)} ×{" "}
+                {formatCurrency(entryPreview.unitCost, currency)} ={" "}
+                {formatCurrency(entryPreview.lineTotal, currency)}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2 h-9 justify-start gap-1 px-0 text-muted-foreground"
+              onClick={() => setShowLineDetails((v) => !v)}
+            >
+              {showLineDetails ? (
+                <ChevronUp className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+              تفاصيل إضافية (تشغيلة / صلاحية)
+            </Button>
+            {showLineDetails ? (
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>رقم التشغيلة</Label>
+                  <Input
+                    className="min-h-11"
+                    value={batchNumber}
+                    onChange={(e) => setBatchNumber(e.target.value)}
+                    placeholder="اختياري"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>تاريخ الإنتاج</Label>
+                  <Input
+                    className="min-h-11"
+                    type="date"
+                    value={productionDate}
+                    onChange={(e) => setProductionDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>تاريخ الانتهاء</Label>
+                  <Input
+                    className="min-h-11"
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>محسوب تلقائيًا</Label>
+                  <Input
+                    className="min-h-11"
+                    value={calculatedExpiryDate ?? "-"}
+                    readOnly
                   />
                 </div>
               </div>
-              {entryPreview ? (
-                <p className="text-xs text-muted-foreground">
-                  يتحوّل للمخزون: {entryPreview.quantity} {formatUnit(selectedBaseUnit)} ×{" "}
-                  {formatCurrency(entryPreview.unitCost, currency)} ={" "}
-                  {formatCurrency(entryPreview.lineTotal, currency)}
-                </p>
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 justify-start gap-1 px-0 text-muted-foreground"
-                onClick={() => setShowLineDetails((v) => !v)}
-              >
-                {showLineDetails ? (
-                  <ChevronUp className="size-4" />
-                ) : (
-                  <ChevronDown className="size-4" />
-                )}
-                تفاصيل إضافية (تشغيلة / صلاحية)
-              </Button>
-              {showLineDetails ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>رقم التشغيلة</Label>
-                    <Input
-                      className="min-h-11"
-                      value={batchNumber}
-                      onChange={(e) => setBatchNumber(e.target.value)}
-                      placeholder="اختياري"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>تاريخ الإنتاج</Label>
-                    <Input
-                      className="min-h-11"
-                      type="date"
-                      value={productionDate}
-                      onChange={(e) => setProductionDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>تاريخ الانتهاء</Label>
-                    <Input
-                      className="min-h-11"
-                      type="date"
-                      value={expiryDate}
-                      onChange={(e) => setExpiryDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>محسوب تلقائيًا</Label>
-                    <Input
-                      className="min-h-11"
-                      value={calculatedExpiryDate ?? "-"}
-                      readOnly
-                    />
-                  </div>
-                </div>
-              ) : null}
-              <Button
-                type="submit"
-                className="min-h-12 w-full text-base"
-                disabled={!selectedProductId && !barcode.trim()}
-              >
-                <Plus className="size-4" /> إضافة للصنف
-              </Button>
-            </form>
+            ) : null}
           </>
         )}
       </OperationalCard>

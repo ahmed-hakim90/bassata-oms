@@ -23,8 +23,8 @@ export async function listWasteWithProducts(storeId?: string): Promise<WasteWith
   const warehouseMap = new Map(warehouses.map((w) => [w.id, w.name]));
   return records.map((r) => ({
     ...r,
-    productName: productMap.get(r.product_id) ?? "Unknown",
-    warehouseName: warehouseMap.get(r.warehouse_id) ?? "Unknown warehouse",
+    productName: productMap.get(r.product_id) ?? "صنف غير معروف",
+    warehouseName: warehouseMap.get(r.warehouse_id) ?? "مخزن غير معروف",
   }));
 }
 

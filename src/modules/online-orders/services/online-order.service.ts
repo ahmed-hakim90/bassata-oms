@@ -8,10 +8,6 @@ import * as storeRepo from "@/lib/repositories/store.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { resolveVariantPrice } from "@/modules/products/services/variant.service";
-import {
-  releaseStockForOnlineOrder,
-  reserveStockForOnlineOrder,
-} from "@/modules/online-orders/services/online-order-reservation.service";
 import { evaluateOnlineOrderingAvailability } from "@/modules/online-menu/lib/online-ordering-hours";
 import {
   parseOnlineFulfillment,
@@ -422,11 +418,12 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
     });
   }
 
-  // Generated Supabase types lag behind the current remote schema for online-order promo fields.
+  // One RPC transaction creates the header and every line, preventing orphan headers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: order, error: orderError } = await (admin as any)
-    .from("online_orders")
-    .insert({
+  const { data: order, error: orderError } = await (admin as any).rpc(
+    "create_online_order_atomic",
+    {
+      p_order: {
       store_id: store.id,
       customer_name: customerName,
       customer_phone: customerPhone || null,
@@ -442,23 +439,8 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
       delivery_area: fulfillment.deliveryArea,
       delivery_address: fulfillment.deliveryAddress,
       delivery_fee: fulfillment.deliveryFee,
-    })
-    .select("*")
-    .single();
-  if (orderError || !order) {
-    const msg = orderError?.message ?? "";
-    if (msg.includes("online_orders_customer_phone_not_blank") || msg.includes("customer_phone")) {
-      throw new Error("رقم الهاتف مطلوب أو اتركه فارغًا حسب إعداد المتجر");
-    }
-    throw new Error(msg || "تعذر إرسال الطلب");
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: itemsError } = await (admin as any)
-    .from("online_order_items")
-    .insert(
-      priced.items.map((item) => ({
-        online_order_id: order.id,
+      },
+      p_items: priced.items.map((item) => ({
         product_id: item.product_id,
         variant_id: item.variant_id,
         product_name: item.product_name,
@@ -469,9 +451,16 @@ export async function submitPublicOnlineOrder(input: PublicOnlineOrderInput) {
         list_unit_price: item.list_unit_price,
         discount_amount: item.discount_amount,
         promotion_rule_id: item.promotion_rule_id,
-      }))
-    );
-  if (itemsError) throw new Error(itemsError.message);
+      })),
+    }
+  );
+  if (orderError || !order) {
+    const msg = orderError?.message ?? "";
+    if (msg.includes("online_orders_customer_phone_not_blank") || msg.includes("customer_phone")) {
+      throw new Error("رقم الهاتف مطلوب أو اتركه فارغًا حسب إعداد المتجر");
+    }
+    throw new Error(msg || "تعذر إرسال الطلب");
+  }
 
   return {
     id: order.id,
@@ -496,7 +485,7 @@ export async function getOnlineOrderWithItems(id: string): Promise<OnlineOrderWi
     onlineOrderRepo.getOnlineOrderItems(id),
     storeRepo.getStore(order.store_id),
   ]);
-  return { ...order, items, storeName: store?.name ?? "Store" };
+  return { ...order, items, storeName: store?.name ?? "فرع غير معروف" };
 }
 
 const ACTIVE_ONLINE_ORDER_STATUSES: OnlineOrderStatus[] = [
@@ -521,7 +510,7 @@ export async function listOnlineOrdersWithItems(
   return orders.map((order) => ({
     ...order,
     items: itemsByOrder.get(order.id) ?? [],
-    storeName: storeNameById.get(order.store_id) ?? "Store",
+    storeName: storeNameById.get(order.store_id) ?? "فرع غير معروف",
   }));
 }
 
@@ -582,7 +571,7 @@ export async function updateOnlineOrderDetails(
 
   const priced = await priceLinesForStaffOrder(input.lines);
   const deliveryFee = roundMoney(existing.delivery_fee ?? 0);
-  await onlineOrderRepo.updateOnlineOrder(id, {
+  await onlineOrderRepo.updateOnlineOrderDetailsAtomic(id, {
     customer_name: customerName,
     customer_phone: customerPhone || null,
     notes: input.notes?.trim() ?? "",
@@ -590,8 +579,7 @@ export async function updateOnlineOrderDetails(
     total: roundMoney(priced.subtotal + deliveryFee),
     discount: 0,
     tax: 0,
-  });
-  await onlineOrderRepo.replaceOnlineOrderItems(id, priced.items);
+  }, priced.items);
 
   const orgId = await getOrgId();
   await writeAuditLog({
@@ -620,21 +608,7 @@ export async function updateOnlineOrderStatus(
     throw new Error("انتقال الحالة غير مسموح لهذا الطلب");
   }
 
-  const fulfillmentStatuses: OnlineOrderStatus[] = ["accepted", "preparing", "ready"];
-  const becomingAccepted =
-    existing.status === "pending" && fulfillmentStatuses.includes(status);
-  const becomingCancelled =
-    status === "cancelled" && existing.status !== "cancelled";
-
-  if (becomingAccepted) {
-    await reserveStockForOnlineOrder(existing, userId);
-  }
-  if (becomingCancelled) {
-    await releaseStockForOnlineOrder(existing, userId, "إلغاء طلب أونلاين — تحرير الحجز");
-  }
-
-  const updated = await onlineOrderRepo.updateOnlineOrder(id, { status });
-  if (!updated) throw new Error("الطلب غير موجود");
+  const updated = await onlineOrderRepo.transitionOnlineOrderStatusAtomic(id, status, userId);
 
   const orgId = await getOrgId();
   await writeAuditLog({
@@ -668,11 +642,6 @@ export async function invoiceOnlineOrder(input: {
   const store = await storeRepo.getStore(input.storeId);
   if (!store) throw new Error("الفرع غير موجود");
 
-  const lines = order.items.map((item) => ({
-    product_id: item.product_id,
-    variant_id: item.variant_id,
-    quantity: item.quantity,
-  }));
   const payments = input.payments
     .map((payment) => ({
       method: payment.method,
@@ -693,34 +662,17 @@ export async function invoiceOnlineOrder(input: {
     throw new Error("البيع الآجل يحتاج رقم هاتف عميل مسجّل");
   }
 
-  // Release reservation before checkout sale deduction (avoids double-hold).
-  await releaseStockForOnlineOrder(order, input.userId, "فوترة طلب أونلاين — تحرير الحجز");
-
   let result;
   try {
-    result =
-      payments.length > 1
-        ? await orderRepo.completeCheckoutSplitRpc({
-            storeId: input.storeId,
-            sessionId: input.sessionId,
-            cashierId: input.cashierId,
-            customerId,
-            paymentMethod,
-            discount: 0,
-            lines,
-            payments,
-            deviceId: input.deviceId ?? null,
-          })
-        : await orderRepo.completeCheckoutRpc({
-            storeId: input.storeId,
-            sessionId: input.sessionId,
-            cashierId: input.cashierId,
-            customerId,
-            paymentMethod,
-            discount: 0,
-            lines,
-            deviceId: input.deviceId ?? null,
-          });
+    result = await orderRepo.invoiceOnlineOrderCheckoutRpc({
+      onlineOrderId: order.id,
+      sessionId: input.sessionId,
+      cashierId: input.cashierId,
+      customerId,
+      paymentMethod,
+      payments,
+      deviceId: input.deviceId ?? null,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("Split payments must equal order total")) {
@@ -748,11 +700,6 @@ export async function invoiceOnlineOrder(input: {
     }
     throw error;
   }
-
-  await onlineOrderRepo.updateOnlineOrder(order.id, {
-    status: "invoiced",
-    order_id: result.order_id,
-  });
 
   const orgId = await getOrgId();
   await writeAuditLog({

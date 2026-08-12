@@ -18,8 +18,8 @@ export function attachMovementNames(
 
   return movements.map((m) => ({
     ...m,
-    productName: productMap.get(m.product_id) ?? "Unknown",
-    warehouseName: warehouseMap.get(m.warehouse_id) ?? "Unknown warehouse",
+    productName: productMap.get(m.product_id) ?? "صنف غير معروف",
+    warehouseName: warehouseMap.get(m.warehouse_id) ?? "مخزن غير معروف",
   }));
 }
 

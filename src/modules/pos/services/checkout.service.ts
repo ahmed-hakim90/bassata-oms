@@ -292,7 +292,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
   after(() => {
     void (async () => {
       try {
-        const items = await orderRepo.getOrderItems(order.id);
+        const items = (await orderRepo.getOrderItems(order.id)) ?? [];
         const cogs = items.reduce((sum, item) => sum + Number(item.line_cost ?? 0), 0);
         await safePostSaleJournal({
           orderId: order.id,

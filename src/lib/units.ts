@@ -187,6 +187,28 @@ export function productPackingForPricing(
 }
 
 /**
+ * Catalog `last_unit_cost` is always per base unit (piece/kg).
+ * When the purchase form enters by carton/pack, suggest pack cost = base × factor.
+ */
+export function suggestedPurchaseEntryUnitCost(
+  product: PurchasePackProduct & { last_unit_cost?: number | null },
+  entryUnit: MeasurementUnit
+): number {
+  const baseCost = Number(product.last_unit_cost ?? 0);
+  if (!Number.isFinite(baseCost) || baseCost <= 0) return 0;
+
+  const baseUnit = product.base_unit ?? product.unit;
+  if (
+    entryUnit === product.cost_unit &&
+    productHasPurchasePacking(product) &&
+    entryUnit !== baseUnit
+  ) {
+    return Number((baseCost * productPurchaseFactor(product)).toFixed(4));
+  }
+  return baseCost;
+}
+
+/**
  * Convert a purchase line entry (piece or carton) into base-unit qty + unit cost.
  * Stock and purchase_invoice_lines always persist in base units.
  * Factor may be fractional (e.g. carton = 2.5 kg).

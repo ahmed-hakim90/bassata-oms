@@ -309,15 +309,16 @@ export function OnboardingWizard({
               </p>
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>اسم المؤسسة</Label>
+              <Label htmlFor="organization-name">اسم المؤسسة</Label>
               <Input
+                id="organization-name"
                 value={organization.name}
                 onChange={(e) => setOrganization({ ...organization, name: e.target.value })}
               />
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>الشعار</Label>
-              <Input type="file" accept="image/*" onChange={(e) => handleLogoChange(e.target.files?.[0] ?? null)} />
+              <Label htmlFor="organization-logo">الشعار</Label>
+              <Input id="organization-logo" type="file" accept="image/*" onChange={(e) => handleLogoChange(e.target.files?.[0] ?? null)} />
               {organization.logoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={organization.logoUrl} alt="معاينة الشعار" className="mt-[var(--mds-space-2)] h-16 w-16 rounded-[var(--mds-radius-md)] object-cover" />
@@ -325,31 +326,35 @@ export function OnboardingWizard({
             </div>
             <div className="grid grid-cols-2 gap-[var(--mds-space-4)]">
               <div className="space-y-[var(--mds-space-2)]">
-                <Label>العملة</Label>
+                <Label htmlFor="organization-currency">العملة</Label>
                 <Input
+                  id="organization-currency"
                   value={organization.currency}
                   onChange={(e) => setOrganization({ ...organization, currency: e.target.value })}
                 />
               </div>
               <div className="space-y-[var(--mds-space-2)]">
-                <Label>المنطقة الزمنية</Label>
+                <Label htmlFor="organization-timezone">المنطقة الزمنية</Label>
                 <Input
+                  id="organization-timezone"
                   value={organization.timezone}
                   onChange={(e) => setOrganization({ ...organization, timezone: e.target.value })}
                 />
               </div>
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>الدولة</Label>
+              <Label htmlFor="organization-country">الدولة</Label>
               <Input
+                id="organization-country"
                 value={organization.country}
                 onChange={(e) => setOrganization({ ...organization, country: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-2 gap-[var(--mds-space-4)]">
               <div className="space-y-[var(--mds-space-2)]">
-                <Label>نسبة الضريبة (%)</Label>
+                <Label htmlFor="organization-tax-rate">نسبة الضريبة (%)</Label>
                 <Input
+                  id="organization-tax-rate"
                   type="number"
                   min={0}
                   max={100}
@@ -390,20 +395,21 @@ export function OnboardingWizard({
         <OperationalCard title="أول فرع">
           <div className="grid gap-[var(--mds-space-4)]">
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>اسم الفرع</Label>
-              <Input value={store.name} onChange={(e) => setStore({ ...store, name: e.target.value })} />
+              <Label htmlFor="store-name">اسم الفرع</Label>
+              <Input id="store-name" value={store.name} onChange={(e) => setStore({ ...store, name: e.target.value })} />
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>العنوان</Label>
-              <Textarea value={store.address} onChange={(e) => setStore({ ...store, address: e.target.value })} />
+              <Label htmlFor="store-address">العنوان</Label>
+              <Textarea id="store-address" value={store.address} onChange={(e) => setStore({ ...store, address: e.target.value })} />
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>الهاتف</Label>
-              <Input value={store.phone} onChange={(e) => setStore({ ...store, phone: e.target.value })} />
+              <Label htmlFor="store-phone">الهاتف</Label>
+              <Input id="store-phone" value={store.phone} onChange={(e) => setStore({ ...store, phone: e.target.value })} />
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>المنطقة الزمنية للفرع</Label>
+              <Label htmlFor="store-timezone">المنطقة الزمنية للفرع</Label>
               <Input
+                id="store-timezone"
                 value={store.timezone}
                 onChange={(e) => setStore({ ...store, timezone: e.target.value })}
               />
@@ -416,12 +422,13 @@ export function OnboardingWizard({
         <OperationalCard title="حساب المالك">
           <div className="grid gap-[var(--mds-space-4)]">
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>الاسم</Label>
-              <Input value={owner.name} onChange={(e) => setOwner({ ...owner, name: e.target.value })} />
+              <Label htmlFor="owner-name">الاسم</Label>
+              <Input id="owner-name" value={owner.name} onChange={(e) => setOwner({ ...owner, name: e.target.value })} />
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>البريد الإلكتروني</Label>
+              <Label htmlFor="owner-email">البريد الإلكتروني</Label>
               <Input
+                id="owner-email"
                 type="email"
                 value={owner.email}
                 readOnly={false}
@@ -429,8 +436,9 @@ export function OnboardingWizard({
               />
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>كلمة المرور</Label>
+              <Label htmlFor="owner-password">كلمة المرور</Label>
               <PasswordInput
+                id="owner-password"
                 value={owner.password}
                 onChange={(e) => setOwner({ ...owner, password: e.target.value })}
               />
@@ -509,8 +517,9 @@ export function OnboardingWizard({
         <OperationalCard title="الإعدادات الافتراضية">
           <div className="grid gap-[var(--mds-space-4)]">
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>بداية الإيصال</Label>
+              <Label htmlFor="receipt-header">بداية الإيصال</Label>
               <Textarea
+                id="receipt-header"
                 value={defaultSettings.receiptHeader}
                 onChange={(e) =>
                   setDefaultSettings({ ...defaultSettings, receiptHeader: e.target.value })
@@ -518,8 +527,9 @@ export function OnboardingWizard({
               />
             </div>
             <div className="space-y-[var(--mds-space-2)]">
-              <Label>نهاية الإيصال</Label>
+              <Label htmlFor="receipt-footer">نهاية الإيصال</Label>
               <Textarea
+                id="receipt-footer"
                 value={defaultSettings.receiptFooter}
                 onChange={(e) =>
                   setDefaultSettings({ ...defaultSettings, receiptFooter: e.target.value })
@@ -564,8 +574,9 @@ export function OnboardingWizard({
             </label>
             <div className="grid grid-cols-2 gap-[var(--mds-space-4)]">
               <div className="space-y-[var(--mds-space-2)]">
-                <Label>أقصى ساعات فتح الجلسة</Label>
+                <Label htmlFor="session-max-hours">أقصى ساعات فتح الجلسة</Label>
                 <Input
+                  id="session-max-hours"
                   type="number"
                   min={1}
                   max={72}
@@ -582,8 +593,9 @@ export function OnboardingWizard({
                 />
               </div>
               <div className="space-y-[var(--mds-space-2)]">
-                <Label>ساعات تحذير الجلسة</Label>
+                <Label htmlFor="session-warning-hours">ساعات تحذير الجلسة</Label>
                 <Input
+                  id="session-warning-hours"
                   type="number"
                   min={1}
                   max={72}

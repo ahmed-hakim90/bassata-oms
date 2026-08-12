@@ -126,7 +126,7 @@ export async function getSalesReport(options?: {
   >();
   for (const item of items ?? []) {
     const existing = productStats.get(item.product_id) ?? {
-      name: productMap.get(item.product_id) ?? "Unknown",
+      name: productMap.get(item.product_id) ?? "صنف غير معروف",
       quantity: 0,
       revenue: 0,
       cost: 0,
@@ -153,7 +153,7 @@ export async function getSalesReport(options?: {
   for (const item of items ?? []) {
     if (!item.variant_id) continue;
     const key = `${item.product_id}:${item.variant_id}`;
-    const productName = productMap.get(item.product_id) ?? "Unknown";
+    const productName = productMap.get(item.product_id) ?? "صنف غير معروف";
     const variantName = variantNameMap.get(item.variant_id) ?? "Variant";
     const existing = variantStats.get(key) ?? {
       name: variantName,

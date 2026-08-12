@@ -47,7 +47,7 @@ export function buildSupplierPriceHistory(
       const entry: SupplierPriceHistoryEntry = {
         id: `${purchase.id}-${line.id}`,
         productId: line.product_id,
-        productName: productMap.get(line.product_id) ?? "Unknown product",
+        productName: productMap.get(line.product_id) ?? "صنف غير معروف",
         supplierId: purchase.supplier_id,
         supplierName: supplierMap.get(purchase.supplier_id) ?? purchase.supplierName,
         invoiceId: purchase.id,

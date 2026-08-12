@@ -125,11 +125,29 @@ const mocks = vi.hoisted(() => {
     throw new Error(`Unexpected table ${table}`);
   }
 
+  function defaultRpc(
+    name: string,
+    args: { p_order?: Record<string, unknown>; p_items?: unknown[] }
+  ) {
+    if (name === "create_online_order_atomic") {
+      insertedOrders.push(args.p_order);
+      insertedItems.push(args.p_items);
+      return Promise.resolve({
+        data: {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          total: args.p_order?.total,
+        },
+        error: null,
+      });
+    }
+    return Promise.resolve({ data: null, error: null });
+  }
+
   const admin = {
     from: vi.fn(defaultFrom),
-    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+    rpc: vi.fn(defaultRpc),
   };
-  return { admin, insertedOrders, insertedItems, defaultFrom };
+  return { admin, insertedOrders, insertedItems, defaultFrom, defaultRpc };
 });
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -151,7 +169,7 @@ describe("submitPublicOnlineOrder", () => {
     mocks.admin.from.mockReset();
     mocks.admin.from.mockImplementation(mocks.defaultFrom);
     mocks.admin.rpc.mockReset();
-    mocks.admin.rpc.mockResolvedValue({ data: null, error: null });
+    mocks.admin.rpc.mockImplementation(mocks.defaultRpc);
     process.env.VELORA_COOKIE_SECRET = "test-cookie-secret";
   });
 
@@ -188,7 +206,6 @@ describe("submitPublicOnlineOrder", () => {
     });
     expect(mocks.insertedItems[0]).toEqual([
       {
-        online_order_id: "550e8400-e29b-41d4-a716-446655440000",
         product_id: "product-1",
         variant_id: "variant-1",
         product_name: "Latte",

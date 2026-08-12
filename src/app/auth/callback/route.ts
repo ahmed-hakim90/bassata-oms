@@ -5,10 +5,25 @@ import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { isOrganizationSuspended } from "@/lib/org-status";
 
+/** Only allow same-origin application paths after authentication. */
+export function resolveAuthRedirect(origin: string, requestedPath: string | null): URL {
+  const fallback = new URL("/", origin);
+  if (!requestedPath || !requestedPath.startsWith("/") || requestedPath.startsWith("//")) {
+    return fallback;
+  }
+
+  try {
+    const destination = new URL(requestedPath, origin);
+    return destination.origin === fallback.origin ? destination : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const destination = resolveAuthRedirect(origin, searchParams.get("next"));
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=auth`);
@@ -45,5 +60,5 @@ export async function GET(request: Request) {
     // Org may not exist during onboarding edge cases
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  return NextResponse.redirect(destination);
 }

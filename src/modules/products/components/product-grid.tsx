@@ -128,7 +128,9 @@ export function ProductGrid({
           });
           const amount = priceMode === "cost" ? product.last_unit_cost : saleDisplay.amount;
           const unitSuffix =
-            priceMode === "cost" && product.cost_unit ? ` / ${formatUnit(product.cost_unit)}` : "";
+            priceMode === "cost"
+              ? ` / ${formatUnit(product.base_unit ?? product.unit)}`
+              : "";
           const priceRange = priceMode === "sale" ? saleDisplay.rangeLabel : "";
           const stock = stockForProduct(
             product,

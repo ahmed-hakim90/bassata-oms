@@ -59,14 +59,14 @@ export async function getSessionReport(
 
   const sessionsByCashier = [...cashierMap.entries()].map(([cashierId, data]) => ({
     cashierId,
-    cashierName: userMap.get(cashierId) ?? "Unknown",
+    cashierName: userMap.get(cashierId) ?? "مستخدم غير معروف",
     ...data,
   }));
 
   const recentSessions = sessions.slice(0, 10).map((s) => ({
     id: s.id,
-    cashierName: userMap.get(s.cashier_id) ?? "Unknown",
-    storeName: storeMap.get(s.store_id) ?? "Unknown",
+    cashierName: userMap.get(s.cashier_id) ?? "مستخدم غير معروف",
+    storeName: storeMap.get(s.store_id) ?? "فرع غير معروف",
     openedAt: s.opened_at,
     closedAt: s.closed_at,
     variance: s.variance,

@@ -82,7 +82,7 @@ export async function getRecipeWithLines(
     );
     return {
       ...base,
-      ingredient_name: ing?.name ?? "Unknown",
+      ingredient_name: ing?.name ?? "مكوّن غير معروف",
       ingredient_unit: ing?.unit ?? "piece",
       ingredient_last_unit_cost: ing?.last_unit_cost ?? 0,
       ingredient_cost_unit: ing?.cost_unit ?? ing?.unit ?? "piece",
@@ -141,6 +141,7 @@ export async function upsertRecipe(
   const orgId = await getOrgId();
 
   const existing = await getRecipeByProductId(productId, variantId ?? null);
+  const previousLines = existing ? await getRecipeLines(existing.id) : [];
   let recipe: ProductRecipe;
 
   if (existing) {
@@ -182,7 +183,33 @@ export async function upsertRecipe(
         sort_order: i,
       }))
     );
-    if (lineError) throwDbError(lineError, "upsertRecipe");
+    if (lineError) {
+      if (existing) {
+        const { error: restoreError } = await db.from("product_recipe_lines").insert(
+          previousLines.map((line) => ({
+            recipe_id: line.recipe_id,
+            ingredient_product_id: line.ingredient_product_id,
+            quantity: line.quantity,
+            unit: line.unit,
+            sort_order: line.sort_order,
+          }))
+        );
+        if (restoreError) {
+          throw new Error(
+            `فشل حفظ الوصفة وتعذر استعادة سطورها السابقة: ${lineError.message}`
+          );
+        }
+      } else {
+        const { error: cleanupError } = await db
+          .from("product_recipes")
+          .delete()
+          .eq("id", recipe.id);
+        if (cleanupError) {
+          throw new Error(`فشل حفظ الوصفة وتعذر حذف الوصفة غير المكتملة: ${lineError.message}`);
+        }
+      }
+      throwDbError(lineError, "upsertRecipe.lines");
+    }
   }
 
   return recipe;

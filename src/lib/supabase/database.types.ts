@@ -3916,6 +3916,25 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_online_menu_view: {
+        Args: {
+          p_slug: string
+          p_source?: string
+          p_org_id?: string | null
+        }
+        Returns: undefined
+      }
+      get_online_menu_view_stats: {
+        Args: {
+          p_store_id: string
+          p_days?: number
+        }
+        Returns: {
+          source: string
+          view_count: number
+          days: number
+        }[]
+      }
       auth_app_user_id: { Args: never; Returns: string }
       auth_org_id: { Args: never; Returns: string }
       auth_user_id: { Args: never; Returns: string }

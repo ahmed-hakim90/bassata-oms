@@ -233,9 +233,9 @@ export function SalesInvoicesPage({
         action={
           <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-end">
             <div className="space-y-1">
-              <Label className="text-xs">المخزن</Label>
+              <Label htmlFor="new-invoice-warehouse" className="text-xs">المخزن</Label>
               <Select value={warehouseId || undefined} onValueChange={(v) => setWarehouseId(v ?? "")}>
-                <SelectTrigger className="h-11 w-full sm:h-9 sm:w-44">
+                <SelectTrigger id="new-invoice-warehouse" className="h-11 w-full sm:h-9 sm:w-44">
                   <SelectValue placeholder="المخزن">
                     {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                   </SelectValue>
@@ -250,9 +250,9 @@ export function SalesInvoicesPage({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">عميل</Label>
+              <Label htmlFor="new-invoice-customer" className="text-xs">عميل</Label>
               <Select value={customerId || undefined} onValueChange={(v) => setCustomerId(v ?? "__none__")}>
-                <SelectTrigger className="h-11 w-full sm:h-9 sm:w-44">
+                <SelectTrigger id="new-invoice-customer" className="h-11 w-full sm:h-9 sm:w-44">
                   <SelectValue placeholder="عميل">
                     {(value) =>
                       value === "__none__"

@@ -128,6 +128,8 @@ describe("cross-tenant: public online menu", () => {
       error: null,
     });
     const variantsQuery = createChainableQuery({ data: [], error: null });
+    const platformSettingsQuery = createChainableQuery({ data: null, error: null });
+    const appSettingsQuery = createChainableQuery({ data: null, error: null });
 
     adminFrom.mockImplementation((table: string) => {
       if (table === "stores") return storeQuery;
@@ -135,6 +137,8 @@ describe("cross-tenant: public online menu", () => {
       if (table === "categories") return categoriesQuery;
       if (table === "products") return productsQuery;
       if (table === "product_variants") return variantsQuery;
+      if (table === "platform_settings") return platformSettingsQuery;
+      if (table === "app_settings") return appSettingsQuery;
       throw new Error(`unexpected table ${table}`);
     });
 

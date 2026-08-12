@@ -80,6 +80,10 @@ export interface SettingsShellProps {
     menuThemeAccess?: {
       rows: import("@/modules/online-menu/lib/menu-theme-commerce").MenuThemeAccessRow[];
     };
+    menuViewStatsByStore?: Record<
+      string,
+      import("@/modules/online-menu/services/online-menu-views.service").OnlineMenuViewStats
+    >;
   } | null;
   sessionSettings: SessionSettings | null;
   featureFlags: Record<FeatureFlag, boolean> | null;
@@ -248,6 +252,7 @@ export function SettingsShell({
                 warehouses={bundle.warehouses}
                 activityType={bundle.businessActivity.activity_type}
                 menuThemeRows={bundle.menuThemeAccess?.rows ?? []}
+                menuViewStatsByStore={bundle.menuViewStatsByStore}
               />
             </TabsContent>
             <TabsContent value="features" className="min-w-0 data-hidden:hidden">

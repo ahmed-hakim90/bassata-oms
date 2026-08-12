@@ -30,6 +30,7 @@ vi.mock("@/modules/system/services/settings.service", () => ({
     enable_weight_sales: false,
     enable_price_by_amount: false,
   })),
+  getFeatureFlags: vi.fn(async () => ({ recipes: true })),
 }));
 
 function workbookBuffer(rows: Record<string, unknown>[]): ArrayBuffer {

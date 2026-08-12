@@ -59,7 +59,6 @@ export async function getPurchaseDetailAction(
 export async function createPurchaseAction(input: {
   warehouseId: string;
   supplierId: string;
-  invoiceNumber: string;
   extraCost?: number;
   documentDate?: string;
 }): Promise<PurchaseActionResult<PurchaseInvoice>> {
@@ -71,7 +70,6 @@ export async function createPurchaseAction(input: {
       storeId,
       warehouseId: input.warehouseId,
       supplierId: input.supplierId,
-      invoiceNumber: input.invoiceNumber,
       extraCost: input.extraCost,
       createdBy: user.id,
       documentDate: input.documentDate,

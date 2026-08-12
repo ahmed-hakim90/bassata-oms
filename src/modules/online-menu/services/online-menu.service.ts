@@ -191,6 +191,55 @@ export async function getOnlineMenuBySlug(
   return buildOnlineMenuForStore(store, options);
 }
 
+export type OnlineMenuOgMeta = {
+  businessName: string;
+  branchLabel: string | null;
+};
+
+/**
+ * Lightweight public meta for Open Graph images.
+ * Avoids loading products/variants/themes (crawlers hammer this route).
+ */
+export async function getOnlineMenuOgMetaBySlug(
+  slug: string
+): Promise<OnlineMenuOgMeta | null> {
+  const normalizedSlug = normalizeOnlineMenuSlug(slug);
+  if (!normalizedSlug) return null;
+
+  const admin = createAdminClient();
+  const { data: store, error: storeError } = await admin
+    .from("stores")
+    .select("org_id, name, is_active, settings")
+    .eq("is_active", true)
+    .filter("settings->>online_menu_slug", "eq", normalizedSlug)
+    .maybeSingle();
+
+  if (storeError) throw new Error(storeError.message);
+  if (!store) return null;
+
+  const storeSettings = asRecord(store.settings);
+  if (storeSettings.online_menu_enabled !== true) return null;
+  // Unlisted menus still get a generic share card without requiring token
+  // (crawlers never send the preview token).
+
+  const { data: organization, error: orgError } = await admin
+    .from("organizations")
+    .select("id, name")
+    .eq("id", store.org_id)
+    .maybeSingle();
+
+  if (orgError) throw new Error(orgError.message);
+  if (!organization || organization.id !== store.org_id) return null;
+
+  const orgName = text(organization.name);
+  const storeName = text(store.name);
+  const businessName = orgName || storeName || "منيو أونلاين";
+  const branchLabel =
+    storeName && storeName !== businessName ? storeName : null;
+
+  return { businessName, branchLabel };
+}
+
 async function buildOnlineMenuForStore(
   store: {
     id: string;

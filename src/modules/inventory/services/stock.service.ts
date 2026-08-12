@@ -53,7 +53,7 @@ export function attachProductsToLevels(
     const product = productMap.get(level.product_id);
     return {
       ...level,
-      productName: product?.name ?? "Unknown",
+      productName: product?.name ?? "صنف غير معروف",
       sku: product?.sku ?? "",
     };
   });

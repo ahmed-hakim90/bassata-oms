@@ -65,7 +65,7 @@ export async function getExpensesByCategory(options?: {
   return totals
     .map((t) => ({
       categoryId: t.categoryId,
-      name: categoryMap.get(t.categoryId) ?? "Unknown",
+      name: categoryMap.get(t.categoryId) ?? "تصنيف غير معروف",
       amount: t.amount,
     }))
     .sort((a, b) => b.amount - a.amount);
@@ -88,7 +88,7 @@ export async function getExpensesByStore(options?: {
   return [...totals.entries()]
     .map(([storeId, amount]) => ({
       storeId,
-      storeName: storeMap.get(storeId) ?? "Unknown",
+      storeName: storeMap.get(storeId) ?? "فرع غير معروف",
       amount,
       percentage: grandTotal > 0 ? (amount / grandTotal) * 100 : 0,
     }))
@@ -124,7 +124,7 @@ export async function getSessionExpensesReport(options?: {
     const session = sessionMap.get(e.session_id);
     const existing = bySession.get(e.session_id) ?? {
       sessionId: e.session_id,
-      cashierName: userMap.get(session?.cashier_id ?? "") ?? "Unknown",
+      cashierName: userMap.get(session?.cashier_id ?? "") ?? "مستخدم غير معروف",
       total: 0,
       expenses: [],
     };

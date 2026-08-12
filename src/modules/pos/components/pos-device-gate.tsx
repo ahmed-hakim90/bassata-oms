@@ -35,7 +35,6 @@ export function PosDeviceGate() {
     if (started.current) return;
     started.current = true;
     bind();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
   }, []);
 
   return (

@@ -8,6 +8,9 @@ vi.mock("@/lib/repositories/user.repository");
 vi.mock("@/lib/org-status", () => ({
   isOrganizationSuspended: vi.fn().mockResolvedValue(false),
 }));
+vi.mock("@/lib/tenancy/host-org-session", () => ({
+  assertUserMatchesHostOrg: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     auth: {

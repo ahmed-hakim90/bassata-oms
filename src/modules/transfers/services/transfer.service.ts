@@ -3,8 +3,8 @@ import * as storeRepo from "@/lib/repositories/store.repository";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
-import { adjustStock } from "@/lib/services/inventory-movement.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
+import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import type { TransferOrder, TransferOrderLine } from "@/lib/types";
 
 export interface TransferWithLines extends TransferOrder {
@@ -28,10 +28,10 @@ async function enrichTransfer(transfer: TransferOrder): Promise<TransferWithLine
   return {
     ...transfer,
     lines,
-    fromStoreName: from?.name ?? "Unknown",
-    toStoreName: to?.name ?? "Unknown",
-    fromWarehouseName: fromWarehouse?.name ?? "Unknown warehouse",
-    toWarehouseName: toWarehouse?.name ?? "Unknown warehouse",
+    fromStoreName: from?.name ?? "فرع غير معروف",
+    toStoreName: to?.name ?? "فرع غير معروف",
+    fromWarehouseName: fromWarehouse?.name ?? "مخزن غير معروف",
+    toWarehouseName: toWarehouse?.name ?? "مخزن غير معروف",
   };
 }
 
@@ -41,7 +41,7 @@ async function assertWarehouseBelongsToStore(
 ): Promise<void> {
   const warehouse = await warehouseRepo.getWarehouse(warehouseId);
   if (!warehouse || warehouse.store_id !== storeId || !warehouse.is_active) {
-    throw new Error("Warehouse does not belong to the selected store");
+    throw new Error("المخزن لا يتبع الفرع المحدد أو أنه غير نشط");
   }
 }
 
@@ -68,7 +68,7 @@ export async function createDraftTransfer(input: {
   createdBy: string;
 }): Promise<TransferOrder> {
   if (input.fromWarehouseId === input.toWarehouseId) {
-    throw new Error("Source and destination warehouses must differ");
+    throw new Error("يجب أن يختلف مخزن المصدر عن مخزن الوجهة");
   }
   await assertPeriodOpen(input.fromStoreId);
   await assertWarehouseBelongsToStore(input.fromWarehouseId, input.fromStoreId);
@@ -107,7 +107,7 @@ export async function addTransferLine(input: {
   batchNumber?: string | null;
 }): Promise<TransferOrderLine> {
   const transfer = await transferRepo.getTransfer(input.transferId);
-  if (!transfer || transfer.status !== "draft") throw new Error("Transfer not editable");
+  if (!transfer || transfer.status !== "draft") throw new Error("لا يمكن تعديل هذا التحويل");
 
   const lines = await transferRepo.getTransferLines(input.transferId);
   const existing = lines.find(
@@ -139,48 +139,14 @@ export async function addTransferLine(input: {
 
 export async function sendTransfer(transferId: string, userId: string): Promise<TransferOrder> {
   const transfer = await transferRepo.getTransfer(transferId);
-  if (!transfer) throw new Error("Transfer not found");
-  if (transfer.status !== "draft") throw new Error("Transfer already sent");
+  if (!transfer) throw new Error("التحويل غير موجود");
+  if (transfer.status !== "draft") throw new Error("تم إرسال التحويل بالفعل");
   await assertPeriodOpen(transfer.from_store_id);
 
   const lines = await transferRepo.getTransferLines(transferId);
-  if (lines.length === 0) throw new Error("Add at least one line");
-
-  for (const line of lines) {
-    await adjustStock({
-      storeId: transfer.from_store_id,
-      warehouseId: transfer.from_warehouse_id,
-      productId: line.product_id,
-      variantId: line.variant_id,
-      quantityDelta: -line.quantity_sent,
-      movementType: "transfer_out",
-      referenceType: "transfer_order",
-      referenceId: transferId,
-      createdBy: userId,
-      batch: {
-        batchNumber: line.batch_number ?? null,
-        sourceType: "transfer",
-        sourceDocumentId: transferId,
-      },
-    });
-  }
-
-  const updated = await transferRepo.updateTransfer(transferId, {
-    status: "sent",
-    sent_at: new Date().toISOString(),
-  });
-  if (!updated) throw new Error("Failed to send transfer");
-
-  const orgId = await getOrgId();
-  await writeAuditLog({
-    orgId,
-    storeId: transfer.from_store_id,
-    userId,
-    action: "transfer.sent",
-    entityType: "transfer_order",
-    entityId: transferId,
-  });
-  return updated;
+  if (lines.length === 0) throw new Error("أضف صنفًا واحدًا على الأقل");
+  const preventNegativeStock = await isFeatureEnabled("prevent_negative_stock");
+  return transferRepo.sendTransferAtomic(transferId, userId, preventNegativeStock);
 }
 
 export async function receiveTransfer(
@@ -188,49 +154,10 @@ export async function receiveTransfer(
   userId: string
 ): Promise<TransferOrder> {
   const transfer = await transferRepo.getTransfer(transferId);
-  if (!transfer) throw new Error("Transfer not found");
-  if (transfer.status !== "sent") throw new Error("Transfer must be sent first");
+  if (!transfer) throw new Error("التحويل غير موجود");
+  if (transfer.status !== "sent") throw new Error("يجب إرسال التحويل أولًا");
   await assertPeriodOpen(transfer.to_store_id);
-
-  const lines = await transferRepo.getTransferLines(transferId);
-  for (const line of lines) {
-    await transferRepo.updateTransferLine(line.id, {
-      quantity_received: line.quantity_sent,
-    });
-    await adjustStock({
-      storeId: transfer.to_store_id,
-      warehouseId: transfer.to_warehouse_id,
-      productId: line.product_id,
-      variantId: line.variant_id,
-      quantityDelta: line.quantity_sent,
-      movementType: "transfer_in",
-      referenceType: "transfer_order",
-      referenceId: transferId,
-      createdBy: userId,
-      batch: {
-        batchNumber: line.batch_number ?? null,
-        sourceType: "transfer",
-        sourceDocumentId: transferId,
-      },
-    });
-  }
-
-  const updated = await transferRepo.updateTransfer(transferId, {
-    status: "received",
-    received_at: new Date().toISOString(),
-  });
-  if (!updated) throw new Error("Failed to receive transfer");
-
-  const orgId = await getOrgId();
-  await writeAuditLog({
-    orgId,
-    storeId: transfer.to_store_id,
-    userId,
-    action: "transfer.received",
-    entityType: "transfer_order",
-    entityId: transferId,
-  });
-  return updated;
+  return transferRepo.receiveTransferAtomic(transferId, userId);
 }
 
 export async function removeTransferLine(lineId: string): Promise<void> {
@@ -238,7 +165,7 @@ export async function removeTransferLine(lineId: string): Promise<void> {
   if (!line) return;
   const transfer = await transferRepo.getTransfer(line.transfer_id);
   if (!transfer || transfer.status !== "draft") {
-    throw new Error("Transfer not editable");
+    throw new Error("لا يمكن تعديل هذا التحويل");
   }
   await transferRepo.deleteTransferLine(lineId);
 }
@@ -248,18 +175,18 @@ export async function updateTransferLineQuantity(
   quantity: number,
   batchNumber?: string | null
 ): Promise<TransferOrderLine> {
-  if (quantity <= 0) throw new Error("Invalid quantity");
+  if (quantity <= 0) throw new Error("يجب أن تكون الكمية أكبر من صفر");
   const line = await transferRepo.getTransferLine(lineId);
-  if (!line) throw new Error("Line not found");
+  if (!line) throw new Error("بند التحويل غير موجود");
   const transfer = await transferRepo.getTransfer(line.transfer_id);
   if (!transfer || transfer.status !== "draft") {
-    throw new Error("Transfer not editable");
+    throw new Error("لا يمكن تعديل هذا التحويل");
   }
   const updated = await transferRepo.updateTransferLine(lineId, {
     quantity_sent: quantity,
     batch_number: batchNumber ?? line.batch_number ?? null,
   });
-  if (!updated) throw new Error("Failed to update line");
+  if (!updated) throw new Error("تعذر تحديث بند التحويل");
   return updated;
 }
 
@@ -273,15 +200,15 @@ export async function updateDraftTransfer(
   }
 ): Promise<TransferOrder> {
   const transfer = await transferRepo.getTransfer(transferId);
-  if (!transfer) throw new Error("Transfer not found");
-  if (transfer.status !== "draft") throw new Error("Transfer not editable");
+  if (!transfer) throw new Error("التحويل غير موجود");
+  if (transfer.status !== "draft") throw new Error("لا يمكن تعديل هذا التحويل");
 
   const fromStoreId = input.fromStoreId ?? transfer.from_store_id;
   const toStoreId = input.toStoreId ?? transfer.to_store_id;
   const fromWarehouseId = input.fromWarehouseId ?? transfer.from_warehouse_id;
   const toWarehouseId = input.toWarehouseId ?? transfer.to_warehouse_id;
   if (fromWarehouseId === toWarehouseId) {
-    throw new Error("Source and destination warehouses must differ");
+    throw new Error("يجب أن يختلف مخزن المصدر عن مخزن الوجهة");
   }
 
   await assertPeriodOpen(fromStoreId);
@@ -294,14 +221,14 @@ export async function updateDraftTransfer(
     from_warehouse_id: fromWarehouseId,
     to_warehouse_id: toWarehouseId,
   });
-  if (!updated) throw new Error("Failed to update transfer");
+  if (!updated) throw new Error("تعذر تحديث التحويل");
   return updated;
 }
 
 export async function deleteDraftTransfer(transferId: string, userId: string): Promise<void> {
   const transfer = await transferRepo.getTransfer(transferId);
-  if (!transfer) throw new Error("Transfer not found");
-  if (transfer.status !== "draft") throw new Error("Only draft transfers can be deleted");
+  if (!transfer) throw new Error("التحويل غير موجود");
+  if (transfer.status !== "draft") throw new Error("لا يمكن حذف التحويل بعد إرساله");
   await transferRepo.deleteTransferLinesForTransfer(transferId);
   await transferRepo.deleteTransfer(transferId);
   const orgId = await getOrgId();
@@ -317,89 +244,19 @@ export async function deleteDraftTransfer(transferId: string, userId: string): P
 
 export async function voidTransfer(transferId: string, userId: string): Promise<TransferOrder> {
   const transfer = await transferRepo.getTransfer(transferId);
-  if (!transfer) throw new Error("Transfer not found");
+  if (!transfer) throw new Error("التحويل غير موجود");
   if (transfer.status === "draft") {
-    throw new Error("Delete draft transfers instead of voiding");
+    throw new Error("احذف التحويل المسودة بدلًا من إلغائه");
   }
-  if (transfer.status === "cancelled") throw new Error("Transfer already cancelled");
-
-  const lines = await transferRepo.getTransferLines(transferId);
+  if (transfer.status === "cancelled") throw new Error("تم إلغاء التحويل بالفعل");
 
   if (transfer.status === "sent") {
     await assertPeriodOpen(transfer.from_store_id);
-    for (const line of lines) {
-      await adjustStock({
-        storeId: transfer.from_store_id,
-        warehouseId: transfer.from_warehouse_id,
-        productId: line.product_id,
-        variantId: line.variant_id,
-        quantityDelta: line.quantity_sent,
-        movementType: "transfer_out",
-        referenceType: "transfer_order",
-        referenceId: transferId,
-        createdBy: userId,
-        batch: {
-          batchNumber: line.batch_number ?? null,
-          sourceType: "transfer",
-          sourceDocumentId: transferId,
-        },
-      });
-    }
   } else if (transfer.status === "received") {
     await assertPeriodOpen(transfer.to_store_id);
     await assertPeriodOpen(transfer.from_store_id);
-    for (const line of lines) {
-      await adjustStock({
-        storeId: transfer.to_store_id,
-        warehouseId: transfer.to_warehouse_id,
-        productId: line.product_id,
-        variantId: line.variant_id,
-        quantityDelta: -line.quantity_sent,
-        movementType: "transfer_in",
-        referenceType: "transfer_order",
-        referenceId: transferId,
-        createdBy: userId,
-        batch: {
-          batchNumber: line.batch_number ?? null,
-          sourceType: "transfer",
-          sourceDocumentId: transferId,
-        },
-      });
-      await adjustStock({
-        storeId: transfer.from_store_id,
-        warehouseId: transfer.from_warehouse_id,
-        productId: line.product_id,
-        variantId: line.variant_id,
-        quantityDelta: line.quantity_sent,
-        movementType: "transfer_out",
-        referenceType: "transfer_order",
-        referenceId: transferId,
-        createdBy: userId,
-        batch: {
-          batchNumber: line.batch_number ?? null,
-          sourceType: "transfer",
-          sourceDocumentId: transferId,
-        },
-      });
-    }
   } else {
-    throw new Error("Cannot void transfer in this status");
+    throw new Error("لا يمكن إلغاء التحويل في حالته الحالية");
   }
-
-  const updated = await transferRepo.updateTransfer(transferId, {
-    status: "cancelled",
-  });
-  if (!updated) throw new Error("Failed to void transfer");
-
-  const orgId = await getOrgId();
-  await writeAuditLog({
-    orgId,
-    storeId: transfer.from_store_id,
-    userId,
-    action: "transfer.voided",
-    entityType: "transfer_order",
-    entityId: transferId,
-    metadata: { previousStatus: transfer.status },
-  });
-  return updated;
+  return transferRepo.voidTransferAtomic(transferId, userId);
 }

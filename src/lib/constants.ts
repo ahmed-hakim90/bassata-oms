@@ -88,6 +88,7 @@ export const PERMISSIONS = [
   "order_view",
   "order_void",
   "order_refund",
+  "kitchen_manage",
   // Products
   "product_manage",
   "recipe_manage",

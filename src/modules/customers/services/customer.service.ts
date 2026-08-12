@@ -6,6 +6,26 @@ import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { normalizeEgyptPhone, phoneSearchDigits } from "@/lib/phone";
 import type { Customer, LoyaltyLedgerEntry, Order, OrderItem } from "@/lib/types";
+import { z } from "zod";
+
+const customerNameSchema = z.string().trim().min(2, "اسم العميل يجب أن يكون حرفين على الأقل").max(120);
+const customerEmailSchema = z.string().trim().email("البريد الإلكتروني غير صالح").max(254);
+
+function validateCustomerPhone(value: string): string {
+  const phone = normalizeEgyptPhone(value);
+  const digits = phoneSearchDigits(phone);
+  if (!phone) throw new Error("اكتب رقم الهاتف");
+  if (digits.length < 8 || digits.length > 15) throw new Error("رقم الهاتف غير صالح");
+  if (phone === "+10000000000" || phone === "01000000000" || phone === "10000000000") {
+    throw new Error("أدخل رقم هاتف حقيقي للعميل");
+  }
+  return phone;
+}
+
+function normalizeOptionalEmail(value: string | null | undefined): string | null {
+  const email = value?.trim() ?? "";
+  return email ? customerEmailSchema.parse(email) : null;
+}
 
 export interface CustomerProfile extends Customer {
   loyaltyBalance: number;
@@ -57,7 +77,7 @@ export async function getCustomerProfile(id: string): Promise<CustomerProfile | 
   const favoriteProducts = [...counts.entries()]
     .map(([productId, count]) => ({
       productId,
-      name: productMap.get(productId) ?? "Unknown",
+      name: productMap.get(productId) ?? "صنف غير معروف",
       count,
     }))
     .sort((a, b) => b.count - a.count)
@@ -79,11 +99,9 @@ export async function createCustomer(input: {
   notes?: string;
   userId: string;
 }): Promise<Customer> {
-  const phone = normalizeEgyptPhone(input.phone);
-  if (!phone) throw new Error("اكتب رقم الهاتف");
-  if (phone === "+10000000000" || phone === "01000000000" || phone === "10000000000") {
-    throw new Error("أدخل رقم هاتف حقيقي للعميل");
-  }
+  const name = customerNameSchema.parse(input.name);
+  const phone = validateCustomerPhone(input.phone);
+  const email = normalizeOptionalEmail(input.email);
 
   const digits = phoneSearchDigits(phone);
   const candidates = await customerRepo.listCustomers(digits.length >= 3 ? digits : phone);
@@ -91,13 +109,13 @@ export async function createCustomer(input: {
     const existingDigits = phoneSearchDigits(c.phone);
     return c.phone === phone || (existingDigits.length >= 8 && existingDigits === digits);
   });
-  if (existing) throw new Error("Phone number already registered");
+  if (existing) throw new Error("رقم الهاتف مسجل لعميل آخر");
 
   const customer = await customerRepo.createCustomer({
-    name: input.name.trim(),
+    name,
     phone,
-    email: input.email ?? null,
-    notes: input.notes ?? "",
+    email,
+    notes: input.notes?.trim().slice(0, 1000) ?? "",
     credit_limit: 0,
     payment_terms: "",
   });
@@ -121,8 +139,32 @@ export async function updateCustomer(
   userId: string
 ): Promise<Customer | null> {
   const patch = { ...input };
+  if (typeof patch.name === "string") {
+    patch.name = customerNameSchema.parse(patch.name);
+  }
   if (typeof patch.phone === "string") {
-    patch.phone = normalizeEgyptPhone(patch.phone);
+    patch.phone = validateCustomerPhone(patch.phone);
+    const digits = phoneSearchDigits(patch.phone);
+    const candidates = await customerRepo.listCustomers(digits);
+    if (candidates.some((candidate) => candidate.id !== id && phoneSearchDigits(candidate.phone) === digits)) {
+      throw new Error("رقم الهاتف مسجل لعميل آخر");
+    }
+  }
+  if ("email" in patch) {
+    patch.email = normalizeOptionalEmail(patch.email);
+  }
+  if (typeof patch.notes === "string") {
+    patch.notes = patch.notes.trim().slice(0, 1000);
+  }
+  if (typeof patch.payment_terms === "string") {
+    patch.payment_terms = patch.payment_terms.trim().slice(0, 250);
+  }
+  if (patch.credit_limit != null) {
+    const creditLimit = Number(patch.credit_limit);
+    if (!Number.isFinite(creditLimit) || creditLimit < 0) {
+      throw new Error("حد الائتمان يجب أن يكون صفراً أو أكبر");
+    }
+    patch.credit_limit = creditLimit;
   }
   const customer = await customerRepo.updateCustomer(id, patch);
   if (customer) {

@@ -1,7 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 
-const password = process.env.E2E_PASSWORD ?? "demo1234";
+const password = process.env.E2E_PASSWORD ?? "";
+const authenticatedE2E = password.length > 0;
 const fullPos = Boolean(process.env.E2E_FULL_POS);
+const crud = Boolean(process.env.E2E_CRUD);
 
 async function login(page: Page, email: string) {
   await page.goto("/login");
@@ -81,6 +83,7 @@ async function cashSellProduct(page: Page) {
 }
 
 test.describe("Flow 1 — Owner / Users", () => {
+  test.skip(!authenticatedE2E, "Set E2E_PASSWORD for authenticated demo-account flows");
   test("owner can open users page", async ({ page }) => {
     await login(page, "owner@CafeFlow.local");
     await page.goto("/users");
@@ -93,6 +96,7 @@ test.describe("Flow 1 — Owner / Users", () => {
 });
 
 test.describe("P0 security", () => {
+  test.skip(!authenticatedE2E, "Set E2E_PASSWORD for authenticated demo-account flows");
   test("cashier cannot open settings", async ({ page }) => {
     await login(page, "cashier1@CafeFlow.local");
     await page.goto("/settings");
@@ -111,7 +115,10 @@ test.describe("P0 security", () => {
 });
 
 test.describe("Flow 2 — Cashier / POS", () => {
-  test.skip(!fullPos, "Set E2E_FULL_POS=1 for full POS flow");
+  test.skip(
+    !authenticatedE2E || !fullPos,
+    "Set E2E_PASSWORD and E2E_FULL_POS=1 for full POS flow"
+  );
 
   test("cashier checkout path", async ({ page }) => {
     test.setTimeout(180_000);
@@ -128,7 +135,10 @@ test.describe("Flow 2 — Cashier / POS", () => {
  * Requires local/staging with CafeFlow demo seed. Gate: E2E_FULL_POS=1.
  */
 test.describe("S10 — Full cashier day", () => {
-  test.skip(!fullPos, "Set E2E_FULL_POS=1 (and PLAYWRIGHT_BASE_URL) for cashier-day E2E");
+  test.skip(
+    !authenticatedE2E || !fullPos,
+    "Set E2E_PASSWORD and E2E_FULL_POS=1 for cashier-day E2E"
+  );
 
   test("cashier day — pair, open session, cash sale, close", async ({ page }) => {
     test.setTimeout(240_000);
@@ -169,11 +179,72 @@ test.describe("S10 — Full cashier day", () => {
 });
 
 test.describe("Flow 3 — Inventory", () => {
+  test.skip(!authenticatedE2E, "Set E2E_PASSWORD for authenticated demo-account flows");
   test("inventory user can open purchases", async ({ page }) => {
     await login(page, "inventory@CafeFlow.local");
     await page.goto("/inventory/purchases");
     await expect(
       page.getByRole("heading", { name: /purchases|المشتريات/i })
     ).toBeVisible();
+  });
+});
+
+test.describe("Operational route smoke", () => {
+  test.skip(!authenticatedE2E, "Set E2E_PASSWORD for authenticated demo-account flows");
+  test("owner can open core catalog and order workspaces", async ({ page }) => {
+    await login(page, "owner@CafeFlow.local");
+    for (const [path, heading] of [
+      ["/products", /المنتجات|المنيو/],
+      ["/customers", /العملاء/],
+      ["/online-orders", /طلبات الأونلاين|الطلبات الأونلاين/],
+      ["/sales-invoices", /فواتير المبيعات/],
+    ] as const) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
+    }
+  });
+});
+
+test.describe("CRUD regression", () => {
+  test.skip(
+    !authenticatedE2E || !crud,
+    "Set E2E_PASSWORD and E2E_CRUD=1 to allow creating test records"
+  );
+
+  test("owner can create a validated customer", async ({ page }) => {
+    await login(page, "owner@CafeFlow.local");
+    await page.goto("/customers");
+    await page.getByRole("button", { name: /إضافة عميل/ }).click();
+
+    const suffix = String(Date.now()).slice(-7);
+    const customerName = `عميل اختبار ${suffix}`;
+    await page.getByLabel("الاسم", { exact: true }).fill(customerName);
+    await page.getByLabel("الهاتف", { exact: true }).fill(`010${suffix}`);
+    await page.getByRole("button", { name: "إنشاء", exact: true }).click();
+
+    await expect(page.getByText("تم إنشاء العميل")).toBeVisible();
+    await expect(page.getByText(customerName, { exact: true })).toBeVisible();
+  });
+});
+
+test.describe("Public smoke", () => {
+  test("login form has accessible fields", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page.getByLabel("البريد الإلكتروني")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "كلمة المرور", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "تسجيل الدخول" })).toBeVisible();
+  });
+
+  test("onboarding fields expose accessible names", async ({ page }) => {
+    await page.goto("/onboarding");
+    await expect(page.getByLabel("اسم المؤسسة")).toBeVisible();
+    await expect(page.getByLabel("العملة")).toBeVisible();
+    await expect(page.getByLabel("المنطقة الزمنية")).toBeVisible();
+  });
+
+  test("auth callback rejects an external next target without a code", async ({ page }) => {
+    await page.goto("/auth/callback?next=https://evil.example/steal");
+    await expect(page).toHaveURL(/\/login\?error=auth$/);
+    expect(new URL(page.url()).hostname).not.toBe("evil.example");
   });
 });

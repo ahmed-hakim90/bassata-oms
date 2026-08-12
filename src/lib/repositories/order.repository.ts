@@ -297,6 +297,43 @@ export async function completeCheckoutSplitRpc(input: {
   };
 }
 
+export async function invoiceOnlineOrderCheckoutRpc(input: {
+  onlineOrderId: string;
+  sessionId: string;
+  cashierId: string;
+  customerId: string | null;
+  paymentMethod: PaymentMethod;
+  payments: PaymentSplit[];
+  deviceId?: string | null;
+}): Promise<{
+  order_id: string;
+  order_number: string;
+  subtotal: number;
+  tax: number;
+  total: number;
+}> {
+  const { data, error } = await callRpc<Record<string, unknown>>(
+    "invoice_online_order_checkout",
+    {
+      p_online_order_id: input.onlineOrderId,
+      p_session_id: input.sessionId,
+      p_cashier_id: input.cashierId,
+      p_customer_id: input.customerId,
+      p_payment_method: input.paymentMethod,
+      p_payments: input.payments,
+      p_device_id: input.deviceId ?? null,
+    }
+  );
+  if (error || !data) throwDbError(error, "invoiceOnlineOrderCheckout");
+  return {
+    order_id: data.order_id as string,
+    order_number: data.order_number as string,
+    subtotal: Number(data.subtotal),
+    tax: Number(data.tax),
+    total: Number(data.total),
+  };
+}
+
 export async function completeCheckoutExpiredOverrideRpc(input: {
   storeId: string;
   sessionId: string;
@@ -775,4 +812,3 @@ export async function updateDeliveredOrderItemCosts(
     })
   );
 }
-

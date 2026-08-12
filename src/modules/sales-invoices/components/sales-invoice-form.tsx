@@ -725,8 +725,9 @@ export function SalesInvoiceForm({
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
-            <Label>تاريخ الفاتورة</Label>
+            <Label htmlFor={`invoice-date-${invoice.id}`}>تاريخ الفاتورة</Label>
             <Input
+              id={`invoice-date-${invoice.id}`}
               type="date"
               disabled={!editable}
               max={new Date().toISOString().slice(0, 10)}
@@ -741,7 +742,7 @@ export function SalesInvoiceForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>العميل</Label>
+            <Label htmlFor={`invoice-customer-${invoice.id}`}>العميل</Label>
             <Select
               value={invoice.customer_id ?? "__none__"}
               disabled={!editable}
@@ -749,7 +750,7 @@ export function SalesInvoiceForm({
                 commitHeader({ customerId: !v || v === "__none__" ? null : v })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id={`invoice-customer-${invoice.id}`}>
                 <SelectValue placeholder="بدون عميل">
                   {(value) =>
                     value === "__none__"
@@ -771,7 +772,7 @@ export function SalesInvoiceForm({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>المخزن</Label>
+            <Label htmlFor={`invoice-warehouse-${invoice.id}`}>المخزن</Label>
             <Select
               value={invoice.warehouse_id ?? ""}
               disabled={!editable}
@@ -779,7 +780,7 @@ export function SalesInvoiceForm({
                 if (v) commitHeader({ warehouseId: v });
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger id={`invoice-warehouse-${invoice.id}`}>
                 <SelectValue placeholder="المخزن">
                   {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                 </SelectValue>
@@ -794,8 +795,9 @@ export function SalesInvoiceForm({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>خصم</Label>
+            <Label htmlFor={`invoice-discount-${invoice.id}`}>خصم</Label>
             <Input
+              id={`invoice-discount-${invoice.id}`}
               type="text"
               inputMode="decimal"
               disabled={!editable}
@@ -830,8 +832,10 @@ export function SalesInvoiceForm({
                   }
                 }}
                 onSelect={selectProduct}
+                onHighlightChange={setHighlightIndex}
                 selectedProductId={productId}
                 currency={currency}
+                inputRef={productSearchRef}
               />
               {allowAmountEntry ? (
                 <div className="mt-1.5 inline-flex rounded-lg border p-0.5">
@@ -875,8 +879,9 @@ export function SalesInvoiceForm({
             </div>
             {allowAmountEntry && entryMode === "by_amount" ? (
               <div>
-                <Label className="mb-1.5 text-xs text-muted-foreground">مبلغ</Label>
+                <Label htmlFor={`invoice-line-amount-${invoice.id}`} className="mb-1.5 text-xs text-muted-foreground">مبلغ</Label>
                 <Input
+                  id={`invoice-line-amount-${invoice.id}`}
                   ref={amountRef}
                   value={amount}
                   onChange={(e) => setAmount(sanitizeDecimalInput(e.target.value))}
@@ -886,8 +891,9 @@ export function SalesInvoiceForm({
               </div>
             ) : (
               <div>
-                <Label className="mb-1.5 text-xs text-muted-foreground">كمية</Label>
+                <Label htmlFor={`invoice-line-quantity-${invoice.id}`} className="mb-1.5 text-xs text-muted-foreground">كمية</Label>
                 <Input
+                  id={`invoice-line-quantity-${invoice.id}`}
                   ref={qtyRef}
                   value={qty}
                   onChange={(e) => {
@@ -903,8 +909,9 @@ export function SalesInvoiceForm({
               </div>
             )}
             <div>
-              <Label className="mb-1.5 text-xs text-muted-foreground">سعر جملة</Label>
+              <Label htmlFor={`invoice-line-price-${invoice.id}`} className="mb-1.5 text-xs text-muted-foreground">سعر جملة</Label>
               <Input
+                id={`invoice-line-price-${invoice.id}`}
                 value={unitPrice}
                 onChange={(e) => {
                   setUnitPrice(sanitizeDecimalInput(e.target.value));
@@ -947,9 +954,10 @@ export function SalesInvoiceForm({
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">كمية</Label>
+                          <Label htmlFor={`mobile-line-quantity-${line.id}`} className="text-xs text-muted-foreground">كمية</Label>
                           {isDraft ? (
                             <Input
+                              id={`mobile-line-quantity-${line.id}`}
                               className="h-11 min-w-0 tabular-nums"
                               value={String(line.quantity)}
                               disabled={lineLocked}
@@ -1003,9 +1011,10 @@ export function SalesInvoiceForm({
                           )}
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">سعر</Label>
+                          <Label htmlFor={`mobile-line-price-${line.id}`} className="text-xs text-muted-foreground">سعر</Label>
                           {isDraft ? (
                             <Input
+                              id={`mobile-line-price-${line.id}`}
                               className="h-11 min-w-0 tabular-nums"
                               value={String(line.unit_price)}
                               disabled={lineLocked}
@@ -1196,6 +1205,7 @@ export function SalesInvoiceForm({
                               className="size-11"
                               disabled={lifecyclePending}
                               onClick={() => removeLine(line.id)}
+                              aria-label={`حذف ${line.productName} من الفاتورة`}
                             >
                               <Trash2 className="size-4" />
                             </Button>

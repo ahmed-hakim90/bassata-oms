@@ -94,6 +94,24 @@ export async function listPurchases(storeId?: string): Promise<PurchaseInvoice[]
   return (data ?? []).map(mapPurchase);
 }
 
+/** Count purchase invoices on a document_date — for PI numbering. */
+export async function countPurchasesOnDocumentDate(
+  storeId: string,
+  documentDate: string
+): Promise<number> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0 || !storeIds.includes(storeId)) return 0;
+
+  const db = await getDb();
+  const { count, error } = await db
+    .from("purchase_invoices")
+    .select("id", { count: "exact", head: true })
+    .eq("store_id", storeId)
+    .eq("document_date", documentDate);
+  if (error) throwDbError(error, "countPurchasesOnDocumentDate");
+  return count ?? 0;
+}
+
 export async function getPurchase(id: string): Promise<PurchaseInvoice | null> {
   const storeIds = await orgStoreIds();
   if (storeIds.length === 0) return null;
@@ -234,7 +252,19 @@ export async function insertPurchase(
     const { error: lineError } = await db.from("purchase_invoice_lines").insert(
       lines.map((l) => ({ ...l, invoice_id: data.id }))
     );
-    if (lineError) throwDbError(lineError, "insertPurchase.lines");
+    if (lineError) {
+      const { error: cleanupError } = await db
+        .from("purchase_invoices")
+        .delete()
+        .eq("id", data.id)
+        .eq("status", "draft");
+      if (cleanupError) {
+        throw new Error(
+          `فشل إنشاء سطور فاتورة الشراء وتعذر حذف المسودة غير المكتملة: ${lineError.message}`
+        );
+      }
+      throwDbError(lineError, "insertPurchase.lines");
+    }
   }
   return mapPurchase(data);
 }

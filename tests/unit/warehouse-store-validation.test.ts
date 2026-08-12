@@ -51,7 +51,7 @@ describe("warehouse/store validation", () => {
         invoiceNumber: "INV-1",
         createdBy: "user-1",
       })
-    ).rejects.toThrow("Warehouse does not belong to the selected store");
+    ).rejects.toThrow("المخزن لا يتبع الفرع المحدد أو أنه غير نشط");
 
     expect(purchaseRepo.insertPurchase).not.toHaveBeenCalled();
   });
@@ -65,7 +65,7 @@ describe("warehouse/store validation", () => {
         toWarehouseId: "warehouse-3",
         createdBy: "user-1",
       })
-    ).rejects.toThrow("Warehouse does not belong to the selected store");
+    ).rejects.toThrow("المخزن لا يتبع الفرع المحدد أو أنه غير نشط");
 
     expect(transferRepo.insertTransfer).not.toHaveBeenCalled();
   });
@@ -80,7 +80,7 @@ describe("warehouse/store validation", () => {
         movementType: "adjustment",
         createdBy: "user-1",
       })
-    ).rejects.toThrow("Warehouse does not belong to the selected store");
+    ).rejects.toThrow("المخزن لا يتبع الفرع المحدد أو أنه غير نشط");
 
     expect(catalogRepo.getProduct).not.toHaveBeenCalled();
     expect(inventoryRepo.adjustStock).not.toHaveBeenCalled();

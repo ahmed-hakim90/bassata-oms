@@ -169,13 +169,34 @@ export async function replaceJournalLines(
 ): Promise<JournalLine[]> {
   const db = await getDb();
   const orgId = await getOrgId();
+  const previousLines = await getJournalLines(entryId);
   const { error: deleteError } = await db
     .from("journal_lines")
     .delete()
     .eq("entry_id", entryId)
     .eq("org_id", orgId);
   if (deleteError) throwDbError(deleteError, "replaceJournalLines.delete");
-  return insertJournalLines(entryId, lines);
+  try {
+    return await insertJournalLines(entryId, lines);
+  } catch (error) {
+    if (previousLines.length > 0) {
+      const { error: restoreError } = await db.from("journal_lines").insert(
+        previousLines.map((line) => ({
+          org_id: line.org_id,
+          entry_id: line.entry_id,
+          account_id: line.account_id,
+          debit: line.debit,
+          credit: line.credit,
+          memo: line.memo,
+          line_no: line.line_no,
+        }))
+      );
+      if (restoreError) {
+        throw new Error("فشل تحديث القيد وتعذر استعادة سطوره السابقة");
+      }
+    }
+    throw error;
+  }
 }
 
 export async function updateJournalEntry(

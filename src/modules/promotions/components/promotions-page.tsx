@@ -20,6 +20,7 @@ import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { Dialog } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { useConfirmationDialog } from "@/components/Velora/confirmation-dialog";
 import type { PromotionRule, PromotionRuleType, PromotionScopeType } from "@/lib/types";
 import {
   deletePromotionAction,
@@ -149,6 +150,7 @@ function buildConfig(form: FormState): Record<string, number | undefined> {
 }
 
 export function PromotionsPage({ rules, categories, products }: PromotionsPageProps) {
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -219,8 +221,14 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
     });
   };
 
-  const remove = (rule: PromotionRule) => {
-    if (!confirm(`حذف العرض «${rule.name}»؟`)) return;
+  const remove = async (rule: PromotionRule) => {
+    if (
+      !(await requestConfirmation(`حذف العرض «${rule.name}»؟`, {
+        title: "حذف العرض",
+        confirmLabel: "حذف",
+        destructive: true,
+      }))
+    ) return;
     startTransition(async () => {
       try {
         await deletePromotionAction(rule.id);
@@ -588,6 +596,7 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
         </div>
         </StandardModalContent>
       </Dialog>
+      {confirmationDialog}
     </div>
   );
 }

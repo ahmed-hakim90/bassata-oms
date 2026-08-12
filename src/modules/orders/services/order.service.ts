@@ -51,12 +51,12 @@ export async function getOrder(orderId: string): Promise<OrderWithDetails | null
     ...order,
     items: items.map((item) => ({
       ...item,
-      productName: productMap.get(item.product_id) ?? "Unknown",
+      productName: productMap.get(item.product_id) ?? "صنف غير معروف",
     })),
     payments,
     customerName: customer?.name ?? null,
     customerPhone: customer?.phone ?? null,
-    storeName: store?.name ?? "Store",
+    storeName: store?.name ?? "فرع غير معروف",
   };
 }
 

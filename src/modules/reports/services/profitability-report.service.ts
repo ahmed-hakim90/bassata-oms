@@ -87,7 +87,7 @@ export async function getProductProfitabilityReport(options?: {
       const profit = data.revenue - data.cost;
       return {
         productId,
-        name: productMap.get(productId) ?? "Unknown",
+        name: productMap.get(productId) ?? "صنف غير معروف",
         quantitySold: data.quantitySold,
         revenue: data.revenue,
         cost: data.cost,

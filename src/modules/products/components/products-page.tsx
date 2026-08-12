@@ -48,6 +48,7 @@ import {
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useConfirmationDialog } from "@/components/Velora/confirmation-dialog";
 
 type CatalogView = "menu" | "ingredients";
 type LayoutView = "grid" | "table";
@@ -76,6 +77,7 @@ export function ProductsPage({
   availableStockByVariantId = {},
 }: ProductsPageProps) {
   const router = useRouter();
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const useCafeCatalog = usesCafeMenuCatalog(businessActivity);
   const useMenuCopy = isFoodServiceActivity(businessActivity.activity_type);
   const showShelfColumns = !useMenuCopy;
@@ -169,8 +171,14 @@ export function ProductsPage({
     setIngredientDialogOpen(true);
   }
 
-  function handleDelete(product: Product) {
-    if (!confirm(`حذف ${product.name}؟`)) return;
+  async function handleDelete(product: Product) {
+    if (
+      !(await requestConfirmation(`حذف ${product.name}؟`, {
+        title: "حذف المنتج",
+        confirmLabel: "حذف",
+        destructive: true,
+      }))
+    ) return;
     startTransition(async () => {
       const result = await deleteProductAction(product.id);
       if (result.ok) {
@@ -182,13 +190,13 @@ export function ProductsPage({
     });
   }
 
-  function handleBulkDisableTracking() {
+  async function handleBulkDisableTracking() {
     if (
-      !confirm(
+      !(await requestConfirmation(
         useMenuCopy
           ? "سيتم تفعيل كل أصناف المنيو وجعلها غير متتبعة للمخزون. المكونات لن تتأثر. هل تريد المتابعة؟"
           : "سيتم تفعيل كل منتجات البيع وجعلها غير متتبعة للمخزون. هل تريد المتابعة؟"
-      )
+      ))
     ) {
       return;
     }
@@ -209,7 +217,7 @@ export function ProductsPage({
     });
   }
 
-  function handleBulkTracking(trackInventory: boolean, scope: "selection" | "category") {
+  async function handleBulkTracking(trackInventory: boolean, scope: "selection" | "category") {
     if (scope === "category" && !categoryId) {
       toast.error("اختَر تصنيفًا من القائمة الجانبية أولًا");
       return;
@@ -230,7 +238,7 @@ export function ProductsPage({
           ? `تفعيل تتبع المخزون لـ ${selectedIds.length} منتج؟`
           : `إيقاف تتبع المخزون لـ ${selectedIds.length} منتج؟`;
 
-    if (!confirm(confirmMessage)) return;
+    if (!(await requestConfirmation(confirmMessage))) return;
 
     startTransition(async () => {
       try {
@@ -666,6 +674,7 @@ export function ProductsPage({
         onImported={() => router.refresh()}
         activityType={businessActivity.activity_type}
       />
+      {confirmationDialog}
     </div>
   );
 }

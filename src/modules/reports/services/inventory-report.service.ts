@@ -137,7 +137,7 @@ export async function getInventoryReport(storeId?: string): Promise<InventoryKpi
   const topExpiredProducts = [...byExpiredProduct.entries()]
     .map(([productId, data]) => ({
       productId,
-      name: productMap.get(productId)?.name ?? "Unknown",
+      name: productMap.get(productId)?.name ?? "صنف غير معروف",
       quantity: data.quantity,
       value: data.value,
     }))
@@ -147,7 +147,7 @@ export async function getInventoryReport(storeId?: string): Promise<InventoryKpi
   const topNearExpiryProducts = [...byNearProduct.entries()]
     .map(([productId, data]) => ({
       productId,
-      name: productMap.get(productId)?.name ?? "Unknown",
+      name: productMap.get(productId)?.name ?? "صنف غير معروف",
       quantity: data.quantity,
       value: data.value,
     }))

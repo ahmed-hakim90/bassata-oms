@@ -5,6 +5,7 @@ import {
   convertQuantityForPricing,
   productHasPurchasePacking,
   productPurchaseFactor,
+  suggestedPurchaseEntryUnitCost,
 } from "@/lib/units";
 import { buildProductsTemplateWorkbook } from "@/modules/imports-exports/services/export.service";
 import {
@@ -75,6 +76,18 @@ describe("purchase pack conversion", () => {
       unitsPerPurchaseUnit: 24,
     });
     expect(result).toEqual({ quantity: 10, unitCost: 5, lineTotal: 50 });
+  });
+
+  it("suggests carton cost from catalog piece last_unit_cost", () => {
+    const product = {
+      unit: "piece" as const,
+      base_unit: "piece" as const,
+      cost_unit: "carton" as const,
+      units_per_purchase_unit: 24,
+      last_unit_cost: 10,
+    };
+    expect(suggestedPurchaseEntryUnitCost(product, "carton")).toBe(240);
+    expect(suggestedPurchaseEntryUnitCost(product, "piece")).toBe(10);
   });
 
   it("detects packing from product fields", () => {

@@ -272,7 +272,7 @@ export function buildProductProfitRows(
       const profit = data.revenue - data.cost;
       return {
         productId,
-        name: productNameById.get(productId) ?? "Unknown",
+        name: productNameById.get(productId) ?? "صنف غير معروف",
         quantitySold: data.quantitySold,
         revenue: data.revenue,
         cost: data.cost,

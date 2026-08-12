@@ -16,6 +16,7 @@ import {
 } from "@/modules/products/actions/product.actions";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useConfirmationDialog } from "@/components/Velora/confirmation-dialog";
 
 type CategoryFormState = {
   name: string;
@@ -66,6 +67,7 @@ export function CategoryManagerDialog({
   counts,
   onSaved,
 }: CategoryManagerDialogProps) {
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const [form, setForm] = useState<CategoryFormState>(DEFAULT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [localCategories, setLocalCategories] = useState(categories);
@@ -175,13 +177,19 @@ export function CategoryManagerDialog({
     })();
   }
 
-  function removeCategory(category: Category) {
+  async function removeCategory(category: Category) {
     const productCount = counts[category.id] ?? 0;
     const message =
       productCount > 0
         ? `حذف «${category.name}»؟ مستخدم في ${productCount} منتج.`
         : `حذف «${category.name}»؟`;
-    if (!confirm(message)) return;
+    if (
+      !(await requestConfirmation(message, {
+        title: "حذف التصنيف",
+        confirmLabel: "حذف",
+        destructive: true,
+      }))
+    ) return;
 
     snapshotRef.current = localCategories;
     setLocalCategories((prev) => prev.filter((row) => row.id !== category.id));
@@ -270,6 +278,7 @@ export function CategoryManagerDialog({
                   }
                 />
                 <Input
+                  aria-label="قيمة لون التصنيف"
                   value={form.color}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, color: event.target.value }))
@@ -284,7 +293,12 @@ export function CategoryManagerDialog({
                 {isEditing ? "حفظ" : "إضافة"}
               </Button>
               {isEditing ? (
-                <Button variant="outline" size="icon" onClick={resetForm}>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={resetForm}
+                  aria-label="إلغاء تعديل التصنيف"
+                >
                   <X className="size-4" />
                 </Button>
               ) : null}
@@ -322,6 +336,7 @@ export function CategoryManagerDialog({
                     size="icon-sm"
                     onClick={() => editCategory(category)}
                     disabled={category.id.startsWith("temp-")}
+                    aria-label={`تعديل تصنيف ${category.name}`}
                   >
                     <Edit2 className="size-4" />
                   </Button>
@@ -329,6 +344,7 @@ export function CategoryManagerDialog({
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => removeCategory(category)}
+                    aria-label={`حذف تصنيف ${category.name}`}
                   >
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
@@ -337,6 +353,7 @@ export function CategoryManagerDialog({
             )}
           </div>
         </div>
+        {confirmationDialog}
       </StandardModalContent>
     </Dialog>
   );

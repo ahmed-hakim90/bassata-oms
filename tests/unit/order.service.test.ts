@@ -35,6 +35,8 @@ describe("refundOrder", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(assertPeriodOpen).mockResolvedValue(undefined);
+    vi.mocked(orderRepo.getOrderPayments).mockResolvedValue([]);
+    vi.mocked(orderRepo.getOrderItems).mockResolvedValue([]);
   });
 
   it("calls refund RPC and returns restock + partial credit reverse from RPC", async () => {
@@ -84,6 +86,8 @@ describe("voidOrder", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(assertPeriodOpen).mockResolvedValue(undefined);
+    vi.mocked(orderRepo.getOrderPayments).mockResolvedValue([]);
+    vi.mocked(orderRepo.getOrderItems).mockResolvedValue([]);
   });
 
   it("calls void RPC for stock reverse without app-side inventory math", async () => {

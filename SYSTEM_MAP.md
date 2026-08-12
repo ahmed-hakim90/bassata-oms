@@ -1,7 +1,7 @@
 # SYSTEM MAP / BAS-01
 
 > Velora (GitHub `velora` · local `velora` · Vercel `velora`) — multi-location POS + light ERP for cafés, restaurants, and retail  
-> Last updated: 2026-08-08 (brand unify: Velora UI kit)
+> Last updated: 2026-08-12 (menu OG fix + menu open analytics)
 
 ## Core / runtime
 
@@ -77,6 +77,7 @@ MOD / 12 Daily-close / reports
 ## Secondary flows
 
 - QR menu → online order → staff fulfill → track token
+- Public menu opens attributed by `?src=` (qr/whatsapp/…) → branch settings stats
 - Purchase receive → stock in → supplier payment → AP statement
 - POS customer attach → credit / loyalty → aging → receive payment
 - Platform invite/suspend org → onboarding → optional custom domain

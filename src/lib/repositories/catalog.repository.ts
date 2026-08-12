@@ -67,24 +67,41 @@ export async function createProduct(
 ): Promise<Product> {
   const db = await getDb();
   const orgId = await getOrgId();
+  const warehouses = input.track_inventory
+    ? await Promise.all(storeIds.map((storeId) => getDefaultWarehouse(storeId)))
+    : [];
+  if (input.track_inventory && warehouses.some((warehouse) => !warehouse)) {
+    throw new Error("تعذر إنشاء الصنف: يوجد فرع بلا مخزن افتراضي نشط");
+  }
   const { data, error } = await db
     .from("products")
     .insert({ org_id: orgId, ...input } as never)
     .select()
     .single();
   if (error || !data) throwDbError(error, "createProduct");
-  if (input.track_inventory) {
-    for (const storeId of storeIds) {
-      const warehouse = await getDefaultWarehouse(storeId);
-      if (!warehouse) continue;
-      await db.from("stock_levels").insert({
+  if (input.track_inventory && storeIds.length > 0) {
+    const { error: stockError } = await db.from("stock_levels").insert(
+      storeIds.map((storeId, index) => ({
         store_id: storeId,
-        warehouse_id: warehouse.id,
+        warehouse_id: warehouses[index]!.id,
         product_id: data.id,
         variant_id: null,
         quantity: 0,
         reorder_point: 10,
-      });
+      }))
+    );
+    if (stockError) {
+      const { error: cleanupError } = await db
+        .from("products")
+        .delete()
+        .eq("id", data.id)
+        .eq("org_id", orgId);
+      if (cleanupError) {
+        throw new Error(
+          `فشل تهيئة مخزون الصنف وتعذر التراجع عن إنشائه: ${stockError.message}`
+        );
+      }
+      throwDbError(stockError, "createProduct.stockLevels");
     }
   }
   return mapProduct(data);
@@ -260,6 +277,14 @@ export async function createVariant(
   storeIds: string[]
 ): Promise<ProductVariant> {
   const db = await getDb();
+  const product = await getProduct(productId);
+  if (!product) throw new Error("الصنف غير موجود");
+  const warehouses = product.track_inventory
+    ? await Promise.all(storeIds.map((storeId) => getDefaultWarehouse(storeId)))
+    : [];
+  if (product.track_inventory && warehouses.some((warehouse) => !warehouse)) {
+    throw new Error("تعذر إنشاء المتغير: يوجد فرع بلا مخزن افتراضي نشط");
+  }
   const { data, error } = await db
     .from("product_variants")
     .insert(buildVariantInsertPayload(productId, input))
@@ -267,19 +292,29 @@ export async function createVariant(
     .single();
   if (error || !data) throwDbError(error, "createVariant");
 
-  const product = await getProduct(productId);
-  if (product?.track_inventory) {
-    for (const storeId of storeIds) {
-      const warehouse = await getDefaultWarehouse(storeId);
-      if (!warehouse) continue;
-      await db.from("stock_levels").insert({
+  if (product.track_inventory && storeIds.length > 0) {
+    const { error: stockError } = await db.from("stock_levels").insert(
+      storeIds.map((storeId, index) => ({
         store_id: storeId,
-        warehouse_id: warehouse.id,
+        warehouse_id: warehouses[index]!.id,
         product_id: productId,
         variant_id: data.id,
         quantity: 0,
         reorder_point: 10,
-      });
+      }))
+    );
+    if (stockError) {
+      const { error: cleanupError } = await db
+        .from("product_variants")
+        .delete()
+        .eq("id", data.id)
+        .eq("product_id", productId);
+      if (cleanupError) {
+        throw new Error(
+          `فشل تهيئة مخزون المتغير وتعذر التراجع عن إنشائه: ${stockError.message}`
+        );
+      }
+      throwDbError(stockError, "createVariant.stockLevels");
     }
   }
 

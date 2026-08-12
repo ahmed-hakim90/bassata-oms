@@ -207,7 +207,7 @@ export function CustomersPage({
             <Button
               className="shadow-[var(--mds-elevation-1)]"
               onClick={create}
-              disabled={pending}
+              disabled={pending || form.name.trim().length < 2 || form.phone.trim().length < 8}
             >
               إنشاء
             </Button>

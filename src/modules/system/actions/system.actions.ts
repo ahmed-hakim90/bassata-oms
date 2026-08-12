@@ -864,6 +864,9 @@ async function loadSettingsBundle() {
     menuThemeAccess: {
       rows: menuThemeAccess.rows,
     },
+    menuViewStatsByStore: await import(
+      "@/modules/online-menu/services/online-menu-views.service"
+    ).then((m) => m.getOnlineMenuViewStatsByStoreIds(stores.map((store) => store.id), 7)),
   };
 }
 

@@ -1,15 +1,26 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { OnlineMenuHeader } from "@/modules/online-menu/components/online-menu-header";
 import { OnlineMenuOrderingClient } from "@/modules/online-menu/components/online-menu-ordering-client";
 import { getMenuTheme } from "@/modules/online-menu/lib/menu-themes";
+import {
+  isOnlineMenuViewBot,
+  normalizeOnlineMenuViewSource,
+} from "@/modules/online-menu/lib/online-menu-view-source";
 import { getOnlineMenuBySlug } from "@/modules/online-menu/services/online-menu.service";
+import { recordOnlineMenuView } from "@/modules/online-menu/services/online-menu-views.service";
 
 export const dynamic = "force-dynamic";
 
 type MenuPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ token?: string | string[]; theme?: string | string[] }>;
+  searchParams: Promise<{
+    token?: string | string[];
+    theme?: string | string[];
+    src?: string | string[];
+    utm_source?: string | string[];
+  }>;
 };
 
 function firstSearchParam(value: string | string[] | undefined): string | undefined {
@@ -66,8 +77,18 @@ export default async function OnlineMenuPage({ params, searchParams }: MenuPageP
   const query = await searchParams;
   const token = firstSearchParam(query.token);
   const themeOverride = firstSearchParam(query.theme);
+  const sourceHint = firstSearchParam(query.src) ?? firstSearchParam(query.utm_source);
   const menu = await getOnlineMenuBySlug(slug, { token, themeOverride });
   if (!menu) notFound();
+
+  const headerList = await headers();
+  const userAgent = headerList.get("user-agent");
+  if (!isOnlineMenuViewBot(userAgent)) {
+    void recordOnlineMenuView({
+      slug,
+      source: normalizeOnlineMenuViewSource(sourceHint),
+    });
+  }
 
   const theme = getMenuTheme(menu.store.theme);
   const logoUrl = menu.store.logoUrl ?? menu.organization.logoUrl;

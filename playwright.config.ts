@@ -1,8 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3107";
 /** When set, Playwright will not spawn `npm run dev` (expect an already-running app). */
-const skipWebServer = Boolean(process.env.PLAYWRIGHT_SKIP_WEBSERVER || process.env.CI);
+const skipWebServer = Boolean(
+  process.env.PLAYWRIGHT_SKIP_WEBSERVER || process.env.PLAYWRIGHT_BASE_URL || process.env.CI
+);
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -20,9 +22,9 @@ export default defineConfig({
   webServer: skipWebServer
     ? undefined
     : {
-        command: "npm run dev",
+        command: "npm run dev -- --hostname 127.0.0.1 --port 3107",
         url: baseURL,
-        reuseExistingServer: true,
+        reuseExistingServer: false,
         timeout: 120_000,
         // Inherit caller env so local Supabase overrides in the shell win over `.env.local`.
         env: process.env as Record<string, string>,

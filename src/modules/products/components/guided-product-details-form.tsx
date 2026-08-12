@@ -563,7 +563,16 @@ export function GuidedProductDetailsForm({
             <div className="grid gap-3 sm:grid-cols-2">
               <FormField
                 id="last_unit_cost"
-                label="سعر الشراء"
+                label={
+                  isWeightSell ? "سعر الشراء / الكيلو" : "سعر الشراء / القطعة"
+                }
+                hint={
+                  purchasePackUnit
+                    ? isWeightSell
+                      ? `تكلفة الكيلو الواحد (مش سعر ال${formatUnit(purchasePackUnit)})`
+                      : `تكلفة القطعة الواحدة (مش سعر ال${formatUnit(purchasePackUnit)})`
+                    : undefined
+                }
                 error={errors.last_unit_cost?.message}
               >
                 <Input
@@ -578,7 +587,7 @@ export function GuidedProductDetailsForm({
               <FormField
                 id="base_price"
                 label={
-                  values.sales_unit_type === "weight" ? "سعر البيع / الكيلو" : "سعر البيع"
+                  values.sales_unit_type === "weight" ? "سعر البيع / الكيلو" : "سعر البيع / القطعة"
                 }
                 error={errors.base_price?.message}
               >
