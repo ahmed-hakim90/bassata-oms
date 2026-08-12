@@ -112,11 +112,13 @@ function renderBrandProductOrderCard(input: {
   bodyWeight: number;
   buttonWeight: number;
 }) {
-  const titleWords = ogWords(input.title);
+  const titleText = ogLine(input.title);
   const descriptionWords = input.description.trim()
     ? ogWords(input.description, input.description)
     : [];
-  const titleSize = input.title.length > 26 ? 52 : input.title.length > 18 ? 64 : 72;
+  const ctaWords = ogWords(input.cta, DEFAULT_BRAND_OG_CTA);
+  const titleSize =
+    input.title.length > 28 ? 54 : input.title.length > 20 ? 66 : input.title.length > 14 ? 74 : 82;
 
   return new ImageResponse(
     (
@@ -154,21 +156,21 @@ function renderBrandProductOrderCard(input: {
         >
           <div
             style={{
-              width: 520,
+              width: 540,
               height: "100%",
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
               alignItems: "flex-start",
-              gap: 20,
-              padding: "28px 20px 28px 8px",
+              gap: 18,
+              padding: "24px 12px 24px 4px",
             }}
           >
             <div
               style={{
-                width: 96,
-                height: 96,
-                borderRadius: 28,
+                width: 92,
+                height: 92,
+                borderRadius: 26,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -182,16 +184,16 @@ function renderBrandProductOrderCard(input: {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={input.logoDataUrl}
-                  width={96}
-                  height={96}
+                  width={92}
+                  height={92}
                   alt=""
-                  style={{ objectFit: "cover", width: 96, height: 96 }}
+                  style={{ objectFit: "contain", width: 92, height: 92 }}
                 />
               ) : (
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 44,
+                    fontSize: 42,
                     color: "#fdba74",
                     fontFamily: input.headingFamily,
                     fontWeight: input.headingWeight,
@@ -202,22 +204,28 @@ function renderBrandProductOrderCard(input: {
               )}
             </div>
 
-            <WordRow
-              words={titleWords}
-              fontSize={titleSize}
-              color="#fff7ed"
-              gap={14}
-              fontFamily={input.headingFamily}
-              fontWeight={input.headingWeight}
-            />
+            <div
+              style={{
+                display: "flex",
+                maxWidth: 500,
+                fontSize: titleSize,
+                lineHeight: 1.15,
+                color: "#fff7ed",
+                fontFamily: input.headingFamily,
+                fontWeight: input.headingWeight,
+                letterSpacing: -0.5,
+              }}
+            >
+              {titleText}
+            </div>
 
             {descriptionWords.length > 0 ? (
               <WordRow
                 words={descriptionWords}
-                fontSize={26}
+                fontSize={24}
                 color="rgba(255,247,237,0.78)"
-                gap={10}
-                maxWidth={480}
+                gap={8}
+                maxWidth={500}
                 fontFamily={input.bodyFamily}
                 fontWeight={input.bodyWeight}
               />
@@ -226,8 +234,8 @@ function renderBrandProductOrderCard(input: {
             <div
               style={{
                 display: "flex",
-                marginTop: 8,
-                padding: "14px 28px",
+                marginTop: 6,
+                padding: "14px 30px",
                 borderRadius: 999,
                 background: "#f97316",
                 color: "#111827",
@@ -239,7 +247,7 @@ function renderBrandProductOrderCard(input: {
                 fontWeight: input.buttonWeight,
               }}
             >
-              {ogWords(input.cta, DEFAULT_BRAND_OG_CTA).map((word, index) => (
+              {ctaWords.map((word, index) => (
                 <span key={`cta-${index}`}>{word}</span>
               ))}
             </div>
