@@ -1,0 +1,42 @@
+---
+description: Commit messages must explain why clearly — never generic ship spam
+alwaysApply: true
+---
+
+# Clear Commit Messages
+
+Hakimo rule (ثابتة): كل كوميت لازم يكون واضح.
+
+## Required
+
+- Subject explains **why** / outcome in plain language (1 line, ~72 chars).
+- Prefer conventional prefixes used in this repo: `feat:`, `fix:`, `docs:`, `test:`, `chore:`.
+- Body optional; use for scope notes or risk — not a file dump.
+
+## Forbidden
+
+- Generic automation spam: `ship: auto release after agent work`
+- Vague subjects: `update`, `fixes`, `wip`, `changes`
+- Mentions of the agent/tool instead of the product change
+
+## When using ship pipeline
+
+Set a clear message explicitly:
+
+```bash
+SHIP_COMMIT_MESSAGE='fix: improve online menu Open Graph share cards' node ~/.cursor/ship/ship-and-report.mjs
+```
+
+If `SHIP_COMMIT_MESSAGE` is omitted, the ship script must still infer a specific subject from changed paths — never the old generic auto-release line.
+
+## Examples
+
+Good:
+- `fix: stop menu OG share cards from returning 500 on Arabic text`
+- `feat: show menu open counts by QR/WhatsApp source in branch settings`
+- `docs: note menu open analytics on the system map`
+
+Bad:
+- `ship: auto release after agent work`
+- `update stuff`
+- `misc fixes`

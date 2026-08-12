@@ -27,4 +27,4 @@ Prefer clear naming. Comment only intent, constraints, or dangers.
 
 ## Agent rule persistence
 
-When the user says ثبتها / “don’t make me say this again”, encode the correction into `.cursor/rules` — not a chat-only apology.
+When the user says ثبتها / “don’t make me say this again” / بعد كده …, encode the correction into `.cursor/rules` — not a chat-only apology.
