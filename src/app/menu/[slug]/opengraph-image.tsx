@@ -5,10 +5,7 @@ import {
   loadArabicOgFonts,
 } from "@/lib/og/arabic-og-font";
 import { compactArabicOgSpaces } from "@/lib/og/compact-arabic-og-spaces";
-import {
-  orderOgTextForSatori,
-  sanitizeOgText,
-} from "@/lib/og/sanitize-og-text";
+import { sanitizeOgText } from "@/lib/og/sanitize-og-text";
 import { getOnlineMenuOgMetaBySlug } from "@/modules/online-menu/services/online-menu.service";
 
 export const alt = "منيو أونلاين";
@@ -24,7 +21,11 @@ type Props = {
 type OgFonts = Awaited<ReturnType<typeof loadArabicOgFonts>>;
 
 function ogLine(value: string): string {
-  return orderOgTextForSatori(compactArabicOgSpaces(sanitizeOgText(value)));
+  return compactArabicOgSpaces(sanitizeOgText(value));
+}
+
+function ogWords(value: string): string[] {
+  return ogLine(value).split(" ").filter(Boolean);
 }
 
 async function loadLogoDataUrl(url: string | null): Promise<string | null> {
@@ -53,7 +54,8 @@ function buildCard(input: {
   fonts: OgFonts;
 }) {
   const title = ogLine(input.title);
-  const subtitle = input.subtitle ? ogLine(input.subtitle) : null;
+  const titleWords = ogWords(input.title);
+  const subtitleWords = input.subtitle ? ogWords(input.subtitle) : [];
   const titleSize = title.length > 28 ? 52 : title.length > 18 ? 62 : 72;
 
   return new ImageResponse(
@@ -144,37 +146,61 @@ function buildCard(input: {
                 border: "1px solid rgba(251, 146, 60, 0.38)",
                 color: "#fdba74",
                 fontSize: 24,
+                flexDirection: "row-reverse",
+                gap: 8,
               }}
             >
-              {ogLine("منيو إلكتروني")}
+              {ogWords("منيو إلكتروني").map((word, index) => (
+                <span key={`eyebrow-${index}`}>{word}</span>
+              ))}
             </div>
 
             <div
               style={{
                 display: "flex",
+                flexDirection: "row-reverse",
                 justifyContent: "center",
-                textAlign: "center",
-                fontSize: titleSize,
-                lineHeight: 1.25,
+                alignItems: "center",
+                gap: 16,
                 maxWidth: 980,
-                color: "#fff7ed",
+                flexWrap: "wrap",
               }}
             >
-              {title}
+              {titleWords.map((word, index) => (
+                <span
+                  key={`title-${index}`}
+                  style={{
+                    fontSize: titleSize,
+                    lineHeight: 1.2,
+                    color: "#fff7ed",
+                  }}
+                >
+                  {word}
+                </span>
+              ))}
             </div>
 
-            {subtitle ? (
+            {subtitleWords.length > 0 ? (
               <div
                 style={{
                   display: "flex",
+                  flexDirection: "row-reverse",
                   justifyContent: "center",
-                  textAlign: "center",
-                  fontSize: 30,
-                  color: "rgba(255,247,237,0.78)",
+                  gap: 10,
                   maxWidth: 820,
                 }}
               >
-                {subtitle}
+                {subtitleWords.map((word, index) => (
+                  <span
+                    key={`subtitle-${index}`}
+                    style={{
+                      fontSize: 30,
+                      color: "rgba(255,247,237,0.78)",
+                    }}
+                  >
+                    {word}
+                  </span>
+                ))}
               </div>
             ) : null}
 
@@ -188,9 +214,13 @@ function buildCard(input: {
                 color: "#111827",
                 fontSize: 28,
                 boxShadow: "0 12px 30px rgba(249,115,22,0.35)",
+                flexDirection: "row-reverse",
+                gap: 10,
               }}
             >
-              {ogLine("افتح المنيو")}
+              {ogWords("افتح المنيو").map((word, index) => (
+                <span key={`cta-${index}`}>{word}</span>
+              ))}
             </div>
           </div>
         </div>
