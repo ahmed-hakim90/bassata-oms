@@ -159,7 +159,7 @@ function BrandTriptychHeader({
               {menu.store.name}
             </h1>
             {menu.store.description ? (
-              <p className="mt-3 max-w-xl text-sm leading-7 sm:mt-4 sm:text-base" style={{ color: muted }}>
+              <p className="font-body mt-3 max-w-xl text-sm leading-7 sm:mt-4 sm:text-base" style={{ color: muted }}>
                 {menu.store.description}
               </p>
             ) : null}
@@ -270,7 +270,7 @@ function ClassicCoverHeader({
           </div>
 
           {menu.store.description ? (
-            <p className="mb-4 max-w-2xl leading-relaxed text-muted-foreground">
+            <p className="mb-4 max-w-2xl leading-relaxed text-muted-foreground font-body">
               {menu.store.description}
             </p>
           ) : null}

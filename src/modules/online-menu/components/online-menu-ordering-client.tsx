@@ -563,7 +563,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                     <div className="flex min-w-0 items-center gap-3">
                       <CategoryMark group={group} size="lg" />
                       <div className="min-w-0">
-                        <h2 className="truncate text-xl font-semibold">{group.name}</h2>
+                        <h2 className="truncate text-xl font-semibold font-heading">{group.name}</h2>
                         <p className="text-sm text-muted-foreground">{group.items.length} صنف</p>
                       </div>
                     </div>
@@ -634,7 +634,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-[15px] font-semibold sm:text-base">
+                              <p className="truncate text-[15px] font-semibold font-heading sm:text-base">
                                 {item.name}
                                 {item.isPopular ? (
                                   <span className="ms-2 text-xs font-normal text-primary">★</span>
@@ -648,7 +648,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                             </div>
                             {isPremiumRow ? <div className={leaderClass} /> : null}
                             <span
-                              className={`shrink-0 text-base tabular-nums ${priceClass} ${
+                              className={`font-price shrink-0 text-base tabular-nums ${priceClass} ${
                                 theme.slug === "antika"
                                   ? "text-[#b67b31]"
                                   : theme.slug === "soul"
@@ -751,7 +751,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                       <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-2.5 sm:gap-3 sm:p-4">
                         <div className="grid gap-2">
                           <div className="min-w-0">
-                            <h3 className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">{item.name}</h3>
+                            <h3 className="line-clamp-2 text-sm font-semibold leading-snug font-heading sm:text-base">{item.name}</h3>
                             {item.description ? (
                               <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground sm:text-sm">
                                 {item.description}
@@ -762,7 +762,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                             {displayPrice.label ? (
                               <p className="text-xs text-primary/80">{displayPrice.label}</p>
                             ) : null}
-                            <p className="text-sm font-bold tabular-nums text-primary sm:text-base">
+                            <p className="font-price text-sm font-bold tabular-nums text-primary sm:text-base">
                               {formatCurrency(displayPrice.amount, menu.organization.currency)}
                               {displayPrice.range ? (
                                 <span className="ms-1 text-[11px] font-normal text-muted-foreground sm:text-xs">
@@ -792,7 +792,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                                 >
                                   <span className="min-w-0 truncate font-medium">{variant.name}</span>
                                   <span className="flex shrink-0 items-center justify-between gap-1.5 sm:justify-end sm:gap-2">
-                                    <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-semibold tabular-nums sm:px-2.5 sm:text-xs">
+                                    <span className="font-price rounded-full bg-muted px-2 py-1 text-[11px] font-semibold tabular-nums sm:px-2.5 sm:text-xs">
                                       {formatCurrency(variant.price, menu.organization.currency)}
                                     </span>
                                     <span className="inline-flex h-7 items-center gap-1 rounded-full bg-primary px-2 text-xs font-semibold text-primary-foreground sm:px-2.5">
@@ -956,13 +956,13 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                       >
                         <div className="grid grid-cols-[1fr_auto] items-start gap-3">
                           <div className="min-w-0 pe-1">
-                            <p className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">
+                            <p className="line-clamp-2 text-sm font-semibold leading-snug font-heading sm:text-base">
                               {line.name}
                             </p>
                             {line.variantName ? (
                               <p className="mt-0.5 text-xs text-muted-foreground">{line.variantName}</p>
                             ) : null}
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="font-price mt-1 text-xs text-muted-foreground">
                               {formatCurrency(line.unitPrice, menu.organization.currency)}
                             </p>
                           </div>
@@ -1006,7 +1006,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                               <Plus className="size-3.5" />
                             </Button>
                           </div>
-                          <p className="shrink-0 text-base font-bold tabular-nums text-primary">
+                          <p className="font-price shrink-0 text-base font-bold tabular-nums text-primary">
                             {formatCurrency(
                               line.unitPrice * line.quantity,
                               menu.organization.currency
@@ -1108,7 +1108,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                     <span className="block text-sm font-medium text-primary/80">
                       الإجمالي النهائي
                     </span>
-                    <span className="block text-2xl font-bold tabular-nums text-primary">
+                    <span className="font-price block text-2xl font-bold tabular-nums text-primary">
                       {formatCurrency(orderTotal, menu.organization.currency)}
                     </span>
                   </span>
@@ -1169,7 +1169,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
                         {fulfillment.type === "delivery" ? "توصيل" : "استلام من الفرع"}
                       </p>
                     </div>
-                    <p className="text-base font-bold tabular-nums text-primary">
+                    <p className="font-price text-base font-bold tabular-nums text-primary">
                       {formatCurrency(orderTotal, menu.organization.currency)}
                     </p>
                   </div>
@@ -1361,7 +1361,7 @@ export function OnlineMenuOrderingClient({ slug, token, menu }: OnlineMenuOrderi
             {cart.length > 0 ? (
               <p className="truncate text-sm text-muted-foreground">
                 <span className="font-bold tabular-nums text-foreground">{cartItemCount}</span> قطعة ·{" "}
-                <span className="font-bold tabular-nums text-primary">
+                <span className="font-price font-bold tabular-nums text-primary">
                   {formatCurrency(orderTotal, menu.organization.currency)}
                 </span>
               </p>

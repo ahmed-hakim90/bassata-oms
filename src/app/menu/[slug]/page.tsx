@@ -3,6 +3,10 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { OnlineMenuHeader } from "@/modules/online-menu/components/online-menu-header";
 import { OnlineMenuOrderingClient } from "@/modules/online-menu/components/online-menu-ordering-client";
+import {
+  OnlineMenuShell,
+  isPremiumMenuBrand,
+} from "@/modules/online-menu/components/online-menu-shell";
 import { getMenuTheme } from "@/modules/online-menu/lib/menu-themes";
 import {
   isOnlineMenuViewBot,
@@ -34,21 +38,20 @@ export async function generateMetadata({ params, searchParams }: MenuPageProps):
   const menu = await getOnlineMenuBySlug(slug, { token, skipRateLimit: true });
   if (!menu) {
     return {
-      title: { absolute: "منيو أونلاين" },
+      title: { absolute: "اطلب أونلاين" },
       robots: { index: false, follow: false },
     };
   }
 
-  // Public menu must read as the merchant (النشاط), never the Velora product brand.
   const businessName =
-    menu.organization.name.trim() || menu.store.name.trim() || "منيو أونلاين";
+    menu.organization.name.trim() || menu.store.name.trim() || "اطلب أونلاين";
+  const title = menu.store.og.title?.trim() || businessName;
   const description =
-    menu.store.description.trim() ||
-    `منيو ${businessName}${menu.store.name && menu.store.name !== businessName ? ` — ${menu.store.name}` : ""}`;
+    menu.store.og.description?.trim() || menu.store.description.trim() || businessName;
   const noIndex = Boolean(token);
 
   return {
-    title: { absolute: businessName },
+    title: { absolute: title },
     description,
     applicationName: businessName,
     authors: [{ name: businessName }],
@@ -61,12 +64,12 @@ export async function generateMetadata({ params, searchParams }: MenuPageProps):
       type: "website",
       locale: "ar_EG",
       siteName: businessName,
-      title: businessName,
+      title,
       description,
     },
     twitter: {
       card: "summary_large_image",
-      title: businessName,
+      title,
       description,
     },
   };
@@ -93,19 +96,10 @@ export default async function OnlineMenuPage({ params, searchParams }: MenuPageP
   const theme = getMenuTheme(menu.store.theme);
   const logoUrl = menu.store.logoUrl ?? menu.organization.logoUrl;
   const coverUrl = menu.store.coverUrl;
-  const isPremiumBrand = theme.slug === "antika" || theme.slug === "soul";
+  const isPremiumBrand = isPremiumMenuBrand(theme);
 
   return (
-    <main
-      className={[
-        "min-h-screen text-foreground",
-        theme.cssClass ??
-          "bg-[radial-gradient(circle_at_top,_color-mix(in_srgb,var(--primary)_12%,transparent),_transparent_35%),linear-gradient(180deg,_var(--background),_color-mix(in_srgb,var(--muted)_45%,var(--background)))]",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      data-menu-theme={theme.slug}
-    >
+    <OnlineMenuShell theme={theme} typography={menu.store.typography}>
       <OnlineMenuHeader menu={menu} theme={theme} logoUrl={logoUrl} coverUrl={coverUrl} />
 
       <div
@@ -116,6 +110,6 @@ export default async function OnlineMenuPage({ params, searchParams }: MenuPageP
       >
         <OnlineMenuOrderingClient slug={slug} token={token} menu={menu} />
       </div>
-    </main>
+    </OnlineMenuShell>
   );
 }

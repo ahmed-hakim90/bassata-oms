@@ -17,6 +17,8 @@ import {
   type MenuThemeSlug,
 } from "@/modules/online-menu/lib/menu-themes";
 import { resolveEntitledMenuTheme } from "@/modules/online-menu/lib/menu-theme-commerce";
+import { parseBrandTypography, type BrandTypography } from "@/modules/online-menu/lib/brand-typography";
+import { parseBrandOg, resolveBrandOg, type BrandOgConfig, type ResolvedBrandOg } from "@/modules/online-menu/lib/brand-og";
 import {
   getMenuThemeCatalog,
   getOrgMenuThemeEntitlements,
@@ -67,6 +69,10 @@ export type OnlineMenuData = {
     menuSlug: string | null;
     /** Public menu visual theme slug. */
     theme: MenuThemeSlug;
+    /** Store brand typography tokens. */
+    typography: BrandTypography;
+    /** Share-card copy and template. */
+    og: BrandOgConfig;
     /** Feature flag: store allows online ordering at all. */
     orderingEnabled: boolean;
     /** Effective: flag + pause + hours window. */
@@ -197,6 +203,7 @@ export type OnlineMenuOgMeta = {
   tagline: string | null;
   logoUrl: string | null;
   coverUrl: string | null;
+  og: ResolvedBrandOg;
 };
 
 /**
@@ -236,15 +243,19 @@ export async function getOnlineMenuOgMetaBySlug(
 
   const orgName = text(organization.name);
   const storeName = text(store.name);
-  const businessName = orgName || storeName || "منيو أونلاين";
+  const businessName = orgName || storeName || "اطلب أونلاين";
   const branchLabel =
     storeName && storeName !== businessName ? storeName : null;
   const logoUrl =
     text(storeSettings.online_menu_logo_url) || text(organization.logo_url) || null;
-  const coverUrl = text(storeSettings.online_menu_cover_url) || null;
-  const tagline = text(storeSettings.online_menu_description) || null;
+  const og = resolveBrandOg({
+    settings: storeSettings,
+    businessName,
+  });
+  const coverUrl = og.image || text(storeSettings.online_menu_cover_url) || null;
+  const tagline = og.description || text(storeSettings.online_menu_description) || null;
 
-  return { businessName, branchLabel, tagline, logoUrl, coverUrl };
+  return { businessName, branchLabel, tagline, logoUrl, coverUrl, og };
 }
 
 async function buildOnlineMenuForStore(
@@ -348,7 +359,8 @@ async function buildOnlineMenuForStore(
   }
   const theme = themeSlug;
 
-  const coverFromSettings = text(storeSettings.online_menu_cover_url) || null;
+  const coverFromSettings =
+    parseBrandOg(storeSettings).image || text(storeSettings.online_menu_cover_url) || null;
   const coverFromCatalog =
     scopedProducts.find((product) => text(product.image_url))?.image_url ?? null;
 
@@ -365,9 +377,11 @@ async function buildOnlineMenuForStore(
       coverUrl: coverFromSettings || coverFromCatalog,
       address: store.address,
       phone: text(storeSettings.phone) || store.phone,
-      description: text(storeSettings.online_menu_description),
+      description: parseBrandOg(storeSettings).description || text(storeSettings.online_menu_description),
       menuSlug: text(storeSettings.online_menu_slug) || null,
       theme,
+      typography: parseBrandTypography(storeSettings),
+      og: parseBrandOg(storeSettings),
       orderingEnabled: availability.orderingEnabled,
       canOrder: availability.canOrder,
       availability: {

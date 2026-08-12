@@ -1,6 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyOnlineOrderTrackingToken } from "@/modules/online-orders/lib/online-order-tracking";
 import { fulfillmentTypeLabelAr } from "@/modules/online-menu/lib/online-fulfillment";
+import {
+  parseBrandTypography,
+  type BrandTypography,
+} from "@/modules/online-menu/lib/brand-typography";
 import type { OnlineOrderStatus } from "@/lib/types";
 
 export type PublicTrackedOnlineOrder = {
@@ -21,6 +25,8 @@ export type PublicTrackedOnlineOrder = {
   updatedAt: string;
   itemCount: number;
   items: { name: string; quantity: number; lineTotal: number }[];
+  /** Public brand typography for the customer tracking surface. */
+  typography: BrandTypography;
 };
 
 const STATUS_LABELS_AR: Record<OnlineOrderStatus, string> = {
@@ -54,7 +60,11 @@ export async function getPublicOnlineOrderByTrackingToken(
   if (!order) return null;
 
   const [{ data: store }, { data: items }] = await Promise.all([
-    admin.from("stores").select("id, name, org_id").eq("id", order.store_id).maybeSingle(),
+    admin
+      .from("stores")
+      .select("id, name, org_id, settings")
+      .eq("id", order.store_id)
+      .maybeSingle(),
     admin
       .from("online_order_items")
       .select("product_name, variant_name, quantity, line_total")
@@ -98,5 +108,6 @@ export async function getPublicOnlineOrderByTrackingToken(
     updatedAt: order.updated_at,
     itemCount: mappedItems.reduce((sum, item) => sum + item.quantity, 0),
     items: mappedItems,
+    typography: parseBrandTypography(store.settings),
   };
 }

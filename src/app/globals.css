@@ -314,7 +314,7 @@
 .antika-header,
 .soul-menu,
 .soul-header {
-  font-family: var(--font-cairo), sans-serif;
+  font-family: var(--brand-font-body, var(--font-cairo)), sans-serif;
 }
 
 .antika-header::before,
@@ -436,7 +436,7 @@
 }
 
 .antika-price {
-  font-family: Georgia, "Times New Roman", serif;
+  color: #b67b31;
 }
 
 .minimal-menu {
@@ -565,6 +565,46 @@
 }
 
 .soul-price {
-  font-family: Georgia, "Times New Roman", serif;
   color: #d4af37;
+}
+
+/* Brand typography tokens — public menu + settings preview only */
+.brand-type-preview,
+[data-menu-theme] {
+  --font-heading: var(--brand-font-heading, var(--font-cairo));
+  --font-sans: var(--brand-font-body, var(--font-cairo));
+  font-family: var(--brand-font-body, var(--font-cairo)), sans-serif;
+  font-weight: var(--font-weight-body, 400);
+}
+
+.brand-type-preview h1,
+.brand-type-preview h2,
+.brand-type-preview h3,
+[data-menu-theme] h1,
+[data-menu-theme] h2,
+[data-menu-theme] h3,
+.brand-type-preview .font-heading,
+[data-menu-theme] .font-heading {
+  font-family: var(--brand-font-heading, var(--font-cairo)), sans-serif;
+  font-weight: var(--font-weight-heading, 700);
+}
+
+.brand-type-preview .font-body,
+[data-menu-theme] .font-body {
+  font-family: var(--brand-font-body, var(--font-cairo)), sans-serif;
+  font-weight: var(--font-weight-body, 400);
+}
+
+.brand-type-preview button,
+[data-menu-theme] button,
+.brand-type-preview .font-button,
+[data-menu-theme] .font-button {
+  font-family: var(--brand-font-button, var(--font-cairo)), sans-serif;
+  font-weight: var(--font-weight-button, 600);
+}
+
+.brand-type-preview .font-price,
+[data-menu-theme] .font-price {
+  font-family: var(--brand-font-price, var(--font-cairo)), sans-serif;
+  font-weight: var(--font-weight-price, 700);
 }

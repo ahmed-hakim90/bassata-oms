@@ -3,6 +3,10 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { OnlineMenuHeader } from "@/modules/online-menu/components/online-menu-header";
 import { OnlineMenuOrderingClient } from "@/modules/online-menu/components/online-menu-ordering-client";
+import {
+  OnlineMenuShell,
+  isPremiumMenuBrand,
+} from "@/modules/online-menu/components/online-menu-shell";
 import { getMenuTheme } from "@/modules/online-menu/lib/menu-themes";
 import {
   isOnlineMenuViewBot,
@@ -30,17 +34,20 @@ function firstSearchParam(value: string | string[] | undefined): string | undefi
 export async function generateMetadata(): Promise<Metadata> {
   const orgId = await getHostBoundOrgId();
   if (!orgId) {
-    return { title: { absolute: "منيو أونلاين" }, robots: { index: false, follow: false } };
+    return { title: { absolute: "اطلب أونلاين" }, robots: { index: false, follow: false } };
   }
   const menu = await getOnlineMenuForOrg(orgId, { skipRateLimit: true });
   if (!menu) {
-    return { title: { absolute: "منيو أونلاين" }, robots: { index: false, follow: false } };
+    return { title: { absolute: "اطلب أونلاين" }, robots: { index: false, follow: false } };
   }
   const businessName =
-    menu.organization.name.trim() || menu.store.name.trim() || "منيو أونلاين";
+    menu.organization.name.trim() || menu.store.name.trim() || "اطلب أونلاين";
+  const title = menu.store.og.title?.trim() || businessName;
+  const description =
+    menu.store.og.description?.trim() || menu.store.description.trim() || businessName;
   return {
-    title: { absolute: businessName },
-    description: menu.store.description.trim() || `منيو ${businessName}`,
+    title: { absolute: title },
+    description,
     robots: { index: true, follow: true },
   };
 }
@@ -68,21 +75,11 @@ export default async function HostOnlineMenuPage({ searchParams }: HostMenuPageP
   const theme = getMenuTheme(menu.store.theme);
   const logoUrl = menu.store.logoUrl ?? menu.organization.logoUrl;
   const coverUrl = menu.store.coverUrl;
-  const isPremiumBrand = theme.slug === "antika" || theme.slug === "soul";
-  // Ordering client resolves store via slug when present; host path uses store id token.
+  const isPremiumBrand = isPremiumMenuBrand(theme);
   if (!menu.store.menuSlug) notFound();
 
   return (
-    <main
-      className={[
-        "min-h-screen text-foreground",
-        theme.cssClass ??
-          "bg-[radial-gradient(circle_at_top,_color-mix(in_srgb,var(--primary)_12%,transparent),_transparent_35%),linear-gradient(180deg,_var(--background),_color-mix(in_srgb,var(--muted)_45%,var(--background)))]",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      data-menu-theme={theme.slug}
-    >
+    <OnlineMenuShell theme={theme} typography={menu.store.typography}>
       <OnlineMenuHeader menu={menu} theme={theme} logoUrl={logoUrl} coverUrl={coverUrl} />
 
       <div
@@ -93,6 +90,6 @@ export default async function HostOnlineMenuPage({ searchParams }: HostMenuPageP
       >
         <OnlineMenuOrderingClient slug={menu.store.menuSlug} menu={menu} />
       </div>
-    </main>
+    </OnlineMenuShell>
   );
 }

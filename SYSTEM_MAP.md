@@ -1,7 +1,7 @@
 # SYSTEM MAP / BAS-01
 
 > Velora (GitHub `velora` · local `velora` · Vercel `velora`) — multi-location POS + light ERP for cafés, restaurants, and retail  
-> Last updated: 2026-08-12 (menu OG fix + menu open analytics)
+> Last updated: 2026-08-12 (brand typography tokens + generic OG)
 
 ## Core / runtime
 
@@ -16,7 +16,7 @@ Next.js 16 App Router · React 19 · Supabase Auth/Postgres/RLS/Storage · Velor
 | MOD / 03 | Cashier sessions & vault | CASH | `/sessions`, `/sessions/[id]` |
 | MOD / 04 | Kitchen display | FULFILLMENT | `/kitchen` |
 | MOD / 05 | Orders & sales invoices | SALES | `/orders`, `/sales-invoices` |
-| MOD / 06 | Online menu & orders | ONLINE | `/menu/[slug]`, `/online-orders`, `/track/[token]` |
+| MOD / 06 | Online menu & orders | ONLINE | `/menu/[slug]`, `/online-orders`, `/track/[token]`, `/settings?tab=branches` (brand typography + OG) |
 | MOD / 07 | Catalog | CATALOG | `/products` |
 | MOD / 08 | Inventory ops | INVENTORY | `/inventory/*` |
 | MOD / 09 | Suppliers & AP | AP | `/inventory/suppliers` |
@@ -78,6 +78,7 @@ MOD / 12 Daily-close / reports
 
 - QR menu → online order → staff fulfill → track token
 - Public menu opens attributed by `?src=` (qr/whatsapp/…) → branch settings stats
+- Store brand typography + OG (`stores.settings.brand`) → public menu tokens + share card (`brand-product-order`)
 - Purchase receive → stock in → supplier payment → AP statement
 - POS customer attach → credit / loyalty → aging → receive payment
 - Platform invite/suspend org → onboarding → optional custom domain

@@ -2,15 +2,14 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
 import { firstGrapheme } from "@/lib/first-grapheme";
-import {
-  ARABIC_OG_FONT_FAMILY,
-  loadArabicOgFonts,
-} from "@/lib/og/arabic-og-font";
+import { loadBrandOgFonts, type OgFont } from "@/lib/og/arabic-og-font";
 import { compactArabicOgSpaces } from "@/lib/og/compact-arabic-og-spaces";
 import { sanitizeOgText } from "@/lib/og/sanitize-og-text";
+import { DEFAULT_BRAND_OG_CTA } from "@/modules/online-menu/lib/brand-og";
+import { DEFAULT_BRAND_TYPOGRAPHY } from "@/modules/online-menu/lib/brand-typography";
 import { getOnlineMenuOgMetaBySlug } from "@/modules/online-menu/services/online-menu.service";
 
-export const alt = "منيو أونلاين";
+export const alt = DEFAULT_BRAND_OG_CTA;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 /** Cache share cards — crawlers re-fetch aggressively. */
@@ -19,8 +18,6 @@ export const revalidate = 3600;
 type Props = {
   params: Promise<{ slug: string }>;
 };
-
-type OgFonts = Awaited<ReturnType<typeof loadArabicOgFonts>>;
 
 function ogLine(value: string, fallback?: string): string {
   return compactArabicOgSpaces(sanitizeOgText(value, fallback));
@@ -71,6 +68,8 @@ function WordRow(props: {
   words: string[];
   fontSize: number;
   color: string;
+  fontFamily: string;
+  fontWeight?: number;
   gap?: number;
   maxWidth?: number;
 }) {
@@ -79,40 +78,41 @@ function WordRow(props: {
       style={{
         display: "flex",
         flexDirection: "row-reverse",
-        justifyContent: "flex-start",
-        alignItems: "center",
         flexWrap: "wrap",
+        justifyContent: "flex-start",
         gap: props.gap ?? 12,
-        maxWidth: props.maxWidth ?? 520,
+        maxWidth: props.maxWidth,
+        fontSize: props.fontSize,
+        color: props.color,
+        fontFamily: props.fontFamily,
+        fontWeight: props.fontWeight ?? 400,
       }}
     >
       {props.words.map((word, index) => (
-        <span
-          key={`${word}-${index}`}
-          style={{
-            fontSize: props.fontSize,
-            lineHeight: 1.25,
-            color: props.color,
-          }}
-        >
-          {word}
-        </span>
+        <span key={`${word}-${index}`}>{word}</span>
       ))}
     </div>
   );
 }
 
-function buildCard(input: {
+function renderBrandProductOrderCard(input: {
   title: string;
-  tagline: string;
+  description: string;
+  cta: string;
   monogram: string;
   logoDataUrl: string | null;
   heroDataUrl: string | null;
-  fonts: OgFonts;
+  fonts: OgFont[];
+  headingFamily: string;
+  bodyFamily: string;
+  buttonFamily: string;
+  headingWeight: number;
+  bodyWeight: number;
+  buttonWeight: number;
 }) {
   const titleWords = ogWords(input.title);
-  const taglineWords = ogWords(input.tagline, "منيو إلكتروني");
-  const titleSize = input.title.length > 26 ? 46 : input.title.length > 18 ? 54 : 60;
+  const descriptionWords = input.description ? ogWords(input.description, "") : [];
+  const titleSize = input.title.length > 26 ? 52 : input.title.length > 18 ? 64 : 72;
 
   return new ImageResponse(
     (
@@ -123,7 +123,7 @@ function buildCard(input: {
           display: "flex",
           position: "relative",
           background: "#070b14",
-          fontFamily: ARABIC_OG_FONT_FAMILY,
+          fontFamily: input.bodyFamily,
           color: "#fff7ed",
         }}
       >
@@ -148,7 +148,6 @@ function buildCard(input: {
             gap: 24,
           }}
         >
-          {/* Brand panel — visual right in RTL */}
           <div
             style={{
               width: 520,
@@ -157,7 +156,7 @@ function buildCard(input: {
               flexDirection: "column",
               justifyContent: "center",
               alignItems: "flex-start",
-              gap: 22,
+              gap: 20,
               padding: "28px 20px 28px 8px",
             }}
           >
@@ -185,39 +184,40 @@ function buildCard(input: {
                   style={{ objectFit: "cover", width: 96, height: 96 }}
                 />
               ) : (
-                <div style={{ display: "flex", fontSize: 44, color: "#fdba74" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 44,
+                    color: "#fdba74",
+                    fontFamily: input.headingFamily,
+                    fontWeight: input.headingWeight,
+                  }}
+                >
                   {input.monogram}
                 </div>
               )}
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                padding: "8px 16px",
-                borderRadius: 999,
-                background: "rgba(249,115,22,0.14)",
-                border: "1px solid rgba(249,115,22,0.4)",
-                color: "#fdba74",
-                fontSize: 22,
-                flexDirection: "row-reverse",
-                gap: 8,
-              }}
-            >
-              {ogWords("منيو إلكتروني").map((word, index) => (
-                <span key={`badge-${index}`}>{word}</span>
-              ))}
-            </div>
-
-            <WordRow words={titleWords} fontSize={titleSize} color="#fff7ed" gap={14} />
-
             <WordRow
-              words={taglineWords}
-              fontSize={26}
-              color="rgba(255,247,237,0.78)"
-              gap={10}
-              maxWidth={480}
+              words={titleWords}
+              fontSize={titleSize}
+              color="#fff7ed"
+              gap={14}
+              fontFamily={input.headingFamily}
+              fontWeight={input.headingWeight}
             />
+
+            {descriptionWords.length > 0 ? (
+              <WordRow
+                words={descriptionWords}
+                fontSize={26}
+                color="rgba(255,247,237,0.78)"
+                gap={10}
+                maxWidth={480}
+                fontFamily={input.bodyFamily}
+                fontWeight={input.bodyWeight}
+              />
+            ) : null}
 
             <div
               style={{
@@ -231,15 +231,16 @@ function buildCard(input: {
                 boxShadow: "0 14px 36px rgba(249,115,22,0.38)",
                 flexDirection: "row-reverse",
                 gap: 8,
+                fontFamily: input.buttonFamily,
+                fontWeight: input.buttonWeight,
               }}
             >
-              {ogWords("افتح المنيو").map((word, index) => (
+              {ogWords(input.cta, DEFAULT_BRAND_OG_CTA).map((word, index) => (
                 <span key={`cta-${index}`}>{word}</span>
               ))}
             </div>
           </div>
 
-          {/* Food hero — visual left in RTL */}
           <div
             style={{
               flex: 1,
@@ -278,6 +279,8 @@ function buildCard(input: {
                     "radial-gradient(circle at 40% 35%, rgba(249,115,22,0.35), transparent 55%), linear-gradient(145deg, #1c1917, #0f172a)",
                   color: "#fdba74",
                   fontSize: 120,
+                  fontFamily: input.headingFamily,
+                  fontWeight: input.headingWeight,
                 }}
               >
                 {input.monogram}
@@ -304,20 +307,25 @@ export default async function MenuOpenGraphImage({ params }: Props) {
   const { slug } = await params;
 
   try {
-    const fonts = await loadArabicOgFonts();
-    let title = sanitizeOgText("منيو أونلاين");
-    let tagline = "منيو إلكتروني فاخر";
+    let title = sanitizeOgText(DEFAULT_BRAND_OG_CTA);
+    let description = "";
+    let cta = DEFAULT_BRAND_OG_CTA;
     let logoDataUrl: string | null = null;
     let heroDataUrl: string | null = null;
+    let typography = DEFAULT_BRAND_TYPOGRAPHY;
 
     try {
       const meta = await getOnlineMenuOgMetaBySlug(slug);
       if (meta) {
-        title = sanitizeOgText(meta.businessName);
-        if (meta.tagline) tagline = sanitizeOgText(meta.tagline, tagline);
+        typography = meta.og.typography;
+        title = sanitizeOgText(meta.og.title, meta.businessName);
+        description = meta.og.description
+          ? sanitizeOgText(meta.og.description, "")
+          : "";
+        cta = sanitizeOgText(meta.og.cta, DEFAULT_BRAND_OG_CTA);
         logoDataUrl = await loadRemoteImageDataUrl(meta.logoUrl);
         heroDataUrl =
-          (await loadRemoteImageDataUrl(meta.coverUrl)) ??
+          (await loadRemoteImageDataUrl(meta.og.image || meta.coverUrl)) ??
           (await loadLocalHeroDataUrl(slug));
       } else {
         heroDataUrl = await loadLocalHeroDataUrl(slug);
@@ -327,13 +335,22 @@ export default async function MenuOpenGraphImage({ params }: Props) {
       heroDataUrl = await loadLocalHeroDataUrl(slug);
     }
 
-    return buildCard({
+    const fonts = await loadBrandOgFonts(typography);
+
+    return renderBrandProductOrderCard({
       title,
-      tagline,
+      description,
+      cta,
       monogram: firstGrapheme(title, "م"),
       logoDataUrl,
       heroDataUrl,
       fonts,
+      headingFamily: typography.heading.family,
+      bodyFamily: typography.body.family,
+      buttonFamily: typography.button.family,
+      headingWeight: typography.heading.weight,
+      bodyWeight: typography.body.weight,
+      buttonWeight: typography.button.weight,
     });
   } catch (error) {
     console.error("[menu-og] image render failed:", error);
@@ -352,7 +369,7 @@ export default async function MenuOpenGraphImage({ params }: Props) {
             fontFamily: "sans-serif",
           }}
         >
-          Online Menu
+          Order online
         </div>
       ),
       { ...size }

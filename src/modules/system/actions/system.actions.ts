@@ -156,6 +156,58 @@ export async function uploadStoreLogoAction(storeId: string, formData: FormData)
   return publicUrl;
 }
 
+export async function uploadStoreCoverAction(storeId: string, formData: FormData) {
+  const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
+  const store = (await listStores()).find((row) => row.id === storeId);
+  if (!store) throw new Error("Store not found");
+
+  const file = formData.get("cover");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("صورة الغلاف مطلوبة.");
+  }
+  if (file.size > STORE_LOGO_MAX_BYTES) {
+    throw new Error("صورة الغلاف يجب ألا تتجاوز 5 ميجا.");
+  }
+
+  const ext = STORE_LOGO_EXTENSIONS[file.type];
+  if (!ext) {
+    throw new Error("صورة الغلاف يجب أن تكون JPEG أو PNG أو WebP أو GIF.");
+  }
+
+  const orgId = await getOrgId();
+  const path = `${orgId}/public/stores/${storeId}-cover.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { getDb } = await import("@/lib/repositories/client");
+  const db = await getDb();
+  const { error: uploadError } = await db.storage.from("org-assets").upload(path, buffer, {
+    contentType: file.type,
+    cacheControl: "31536000",
+    upsert: true,
+  });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const {
+    data: { publicUrl },
+  } = db.storage.from("org-assets").getPublicUrl(path);
+
+  const { parseBrandOg, mergeStoreBrandSettings } = await import(
+    "@/modules/online-menu/lib/brand-og"
+  );
+  const currentOg = parseBrandOg(store.settings);
+  await updateStore(
+    storeId,
+    {
+      settings: mergeStoreBrandSettings(store.settings, {
+        og: { ...currentOg, image: publicUrl },
+      }),
+    },
+    user.id
+  );
+  revalidatePath("/settings");
+  revalidatePath("/menu", "layout");
+  return publicUrl;
+}
+
 export async function updateReceiptHeaderAction(text: string) {
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   await upsertSetting("receipt_header", { text }, user.id);
@@ -540,6 +592,10 @@ export async function updateStoreAction(
       orderingHours?: unknown;
       fulfillment?: unknown;
       theme?: string;
+      brand?: {
+        typography?: unknown;
+        og?: unknown;
+      };
     };
   }
 ) {
@@ -621,6 +677,24 @@ export async function updateStoreAction(
       const validated = validateOnlineFulfillmentInput(input.onlineMenu.fulfillment);
       settings.online_fulfillment = serializeOnlineFulfillment(validated);
     }
+
+    if (input.onlineMenu.brand) {
+      const { validateBrandTypographyInput } = await import(
+        "@/modules/online-menu/lib/brand-typography"
+      );
+      const { validateBrandOgInput, mergeStoreBrandSettings } = await import(
+        "@/modules/online-menu/lib/brand-og"
+      );
+      const typography =
+        input.onlineMenu.brand.typography !== undefined
+          ? validateBrandTypographyInput(input.onlineMenu.brand.typography)
+          : undefined;
+      const og =
+        input.onlineMenu.brand.og !== undefined
+          ? validateBrandOgInput(input.onlineMenu.brand.og)
+          : undefined;
+      settings = mergeStoreBrandSettings(settings ?? existing.settings, { typography, og });
+    }
   }
 
   try {
@@ -640,6 +714,7 @@ export async function updateStoreAction(
     revalidatePath("/settings");
     revalidatePath("/", "layout");
     revalidatePath("/menu", "layout");
+    revalidatePath("/track", "layout");
     return store;
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

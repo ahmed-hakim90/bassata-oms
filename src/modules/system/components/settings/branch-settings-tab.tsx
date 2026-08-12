@@ -14,6 +14,7 @@ import {
   createWarehouseAction,
   setDefaultWarehouseAction,
   uploadStoreLogoAction,
+  uploadStoreCoverAction,
   updateStoreAction,
   updateWarehouseAction,
 } from "@/modules/system/actions/system.actions";
@@ -22,6 +23,10 @@ import type { BusinessActivityType } from "@/lib/constants";
 import { PosSetupGuide } from "@/modules/system/components/settings/pos-setup-guide";
 import { BranchQrDownloadCard } from "@/modules/system/components/settings/branch-qr-download-card";
 import { MenuViewStatsCard } from "@/modules/online-menu/components/menu-view-stats-card";
+import { BrandTypographySettingsCard } from "@/modules/online-menu/components/brand-typography-settings-card";
+import { BrandOgSettingsCard } from "@/modules/online-menu/components/brand-og-settings-card";
+import { parseBrandTypography } from "@/modules/online-menu/lib/brand-typography";
+import { parseBrandOg } from "@/modules/online-menu/lib/brand-og";
 import { appendOnlineMenuSourceParam } from "@/modules/online-menu/lib/online-menu-view-source";
 import type { OnlineMenuViewStats } from "@/modules/online-menu/services/online-menu-views.service";
 import {
@@ -69,6 +74,8 @@ function storeEditDefaults(store: Store) {
     onlineMenuSlug: getOnlineMenuSlug(store),
     onlineMenuUnlisted: store.settings.online_menu_unlisted === true,
     onlineMenuTheme: parseOnlineMenuTheme(store.settings as Record<string, unknown>),
+    brandTypography: parseBrandTypography(store.settings),
+    brandOg: parseBrandOg(store.settings),
     onlineOrderingPaused: store.settings.online_ordering_paused === true,
     orderingHoursEnforce: hours.enforce,
     orderingHours: seededHours,
@@ -148,6 +155,11 @@ export function BranchSettingsTab({
     }
   }, [stores, selectedStoreId]);
 
+  useEffect(() => {
+    setStoreEdits(Object.fromEntries(stores.map((s) => [s.id, storeEditDefaults(s)])));
+    setStoreLogoUrls(Object.fromEntries(stores.map((s) => [s.id, getOnlineMenuLogoUrl(s)])));
+  }, [stores]);
+
   function refreshSettings() {
     router.refresh();
   }
@@ -173,6 +185,10 @@ export function BranchSettingsTab({
               enforce: edit.orderingHoursEnforce,
             },
             fulfillment: edit.fulfillment as OnlineFulfillmentConfig,
+            brand: {
+              typography: edit.brandTypography,
+              og: edit.brandOg,
+            },
           },
         });
         toast.success("تم تحديث الفرع");
@@ -453,6 +469,50 @@ export function BranchSettingsTab({
                           )}
                         </div>
                       ) : null}
+
+                      <BrandTypographySettingsCard
+                        value={edit.brandTypography}
+                        onChange={(typography) =>
+                          setStoreEdits({
+                            ...storeEdits,
+                            [store.id]: { ...edit, brandTypography: typography },
+                          })
+                        }
+                      />
+                      <BrandOgSettingsCard
+                        value={edit.brandOg}
+                        coverUploading={pending}
+                        onChange={(og) =>
+                          setStoreEdits({
+                            ...storeEdits,
+                            [store.id]: { ...edit, brandOg: og },
+                          })
+                        }
+                        onCoverFile={(file) => {
+                          startTransition(async () => {
+                            try {
+                              const formData = new FormData();
+                              formData.set("cover", file);
+                              const url = await uploadStoreCoverAction(store.id, formData);
+                              setStoreEdits((current) => {
+                                const latest = current[store.id] ?? edit;
+                                return {
+                                  ...current,
+                                  [store.id]: {
+                                    ...latest,
+                                    brandOg: { ...latest.brandOg, image: url },
+                                  },
+                                };
+                              });
+                              toast.success("تم رفع صورة المشاركة");
+                            } catch (error) {
+                              toast.error(
+                                error instanceof Error ? error.message : "فشل رفع صورة المشاركة"
+                              );
+                            }
+                          });
+                        }}
+                      />
 
                       <div className="grid gap-3 rounded-lg border border-border/60 p-3">
                         <p className="text-sm font-medium">منيو الأونلاين</p>
