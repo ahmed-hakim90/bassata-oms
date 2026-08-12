@@ -2,7 +2,7 @@
  * Tighten Arabic conjunction spacing for Satori (avoids a lonely "و" gap).
  */
 export function compactArabicOgSpaces(value: string): string {
-  return value
+  return String(value ?? "")
     .replace(/\s+و\s+/g, " و")
     .replace(/\s+/g, " ")
     .trim();

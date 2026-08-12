@@ -19,11 +19,11 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
-function ogLine(value: string, fallback?: string): string {
+function ogLine(value: string, fallback = DEFAULT_BRAND_OG_CTA): string {
   return compactArabicOgSpaces(sanitizeOgText(value, fallback));
 }
 
-function ogWords(value: string, fallback?: string): string[] {
+function ogWords(value: string, fallback = DEFAULT_BRAND_OG_CTA): string[] {
   return ogLine(value, fallback).split(" ").filter(Boolean);
 }
 
@@ -73,21 +73,23 @@ function WordRow(props: {
   gap?: number;
   maxWidth?: number;
 }) {
+  const style: Record<string, string | number> = {
+    display: "flex",
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+    gap: props.gap ?? 12,
+    fontSize: props.fontSize,
+    color: props.color,
+    fontFamily: props.fontFamily,
+    fontWeight: props.fontWeight ?? 400,
+  };
+  if (typeof props.maxWidth === "number") {
+    style.maxWidth = props.maxWidth;
+  }
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "row-reverse",
-        flexWrap: "wrap",
-        justifyContent: "flex-start",
-        gap: props.gap ?? 12,
-        maxWidth: props.maxWidth,
-        fontSize: props.fontSize,
-        color: props.color,
-        fontFamily: props.fontFamily,
-        fontWeight: props.fontWeight ?? 400,
-      }}
-    >
+    <div style={style}>
       {props.words.map((word, index) => (
         <span key={`${word}-${index}`}>{word}</span>
       ))}
@@ -111,7 +113,9 @@ function renderBrandProductOrderCard(input: {
   buttonWeight: number;
 }) {
   const titleWords = ogWords(input.title);
-  const descriptionWords = input.description ? ogWords(input.description, "") : [];
+  const descriptionWords = input.description.trim()
+    ? ogWords(input.description, input.description)
+    : [];
   const titleSize = input.title.length > 26 ? 52 : input.title.length > 18 ? 64 : 72;
 
   return new ImageResponse(
@@ -319,8 +323,8 @@ export default async function MenuOpenGraphImage({ params }: Props) {
       if (meta) {
         typography = meta.og.typography;
         title = sanitizeOgText(meta.og.title, meta.businessName);
-        description = meta.og.description
-          ? sanitizeOgText(meta.og.description, "")
+        description = meta.og.description?.trim()
+          ? sanitizeOgText(meta.og.description, meta.og.description)
           : "";
         cta = sanitizeOgText(meta.og.cta, DEFAULT_BRAND_OG_CTA);
         logoDataUrl = await loadRemoteImageDataUrl(meta.logoUrl);

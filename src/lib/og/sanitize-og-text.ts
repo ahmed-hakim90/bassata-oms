@@ -20,12 +20,13 @@ function stripEdgePunctuation(value: string): string {
  */
 export function sanitizeOgText(
   value: string | null | undefined,
-  fallback = "منيو أونلاين"
+  fallback = "اطلب أونلاين"
 ): string {
+  const safeFallback = fallback?.trim() || "اطلب أونلاين";
   const raw = collapseSpaces(
     String(value ?? "").replace(/[\u2013\u2014\u2212]/g, " - ")
   );
-  if (!raw) return fallback;
+  if (!raw) return safeFallback;
 
   const hasArabic = ARABIC_RE.test(raw);
   const hasLatin = LATIN_RE.test(raw);
@@ -45,21 +46,21 @@ export function sanitizeOgText(
         raw.replace(/[\u0600-\u06FF]+/g, " ").replace(/[^\w\s.-]/g, " ")
       )
     );
-    return (latinOnly || fallback).slice(0, 80);
+    return (latinOnly || safeFallback).slice(0, 80);
   }
 
   if (hasArabic) {
     return (
       stripEdgePunctuation(
         collapseSpaces(raw.replace(/[^\u0600-\u06FF0-9\s.-]/g, " "))
-      ).slice(0, 80) || fallback
+      ).slice(0, 80) || safeFallback
     );
   }
 
   return (
     stripEdgePunctuation(
       collapseSpaces(raw.replace(/[^\w\s.-]/g, " "))
-    ).slice(0, 80) || fallback
+    ).slice(0, 80) || safeFallback
   );
 }
 
