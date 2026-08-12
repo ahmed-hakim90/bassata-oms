@@ -194,6 +194,7 @@ export async function getOnlineMenuBySlug(
 export type OnlineMenuOgMeta = {
   businessName: string;
   branchLabel: string | null;
+  logoUrl: string | null;
 };
 
 /**
@@ -224,7 +225,7 @@ export async function getOnlineMenuOgMetaBySlug(
 
   const { data: organization, error: orgError } = await admin
     .from("organizations")
-    .select("id, name")
+    .select("id, name, logo_url")
     .eq("id", store.org_id)
     .maybeSingle();
 
@@ -236,8 +237,10 @@ export async function getOnlineMenuOgMetaBySlug(
   const businessName = orgName || storeName || "منيو أونلاين";
   const branchLabel =
     storeName && storeName !== businessName ? storeName : null;
+  const logoUrl =
+    text(storeSettings.online_menu_logo_url) || text(organization.logo_url) || null;
 
-  return { businessName, branchLabel };
+  return { businessName, branchLabel, logoUrl };
 }
 
 async function buildOnlineMenuForStore(

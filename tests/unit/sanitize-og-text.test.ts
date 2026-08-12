@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { compactArabicOgSpaces } from "@/lib/og/compact-arabic-og-spaces";
 import {
   orderOgTextForSatori,
   sanitizeOgText,
@@ -36,5 +37,11 @@ describe("orderOgTextForSatori", () => {
 
   it("leaves Latin text unchanged", () => {
     expect(orderOgTextForSatori("Bassata")).toBe("Bassata");
+  });
+});
+
+describe("compactArabicOgSpaces", () => {
+  it("keeps و attached to the following word", () => {
+    expect(compactArabicOgSpaces("نوتيلا و موتزريلا")).toBe("نوتيلا وموتزريلا");
   });
 });

@@ -1,8 +1,10 @@
 import { ImageResponse } from "next/og";
+import { firstGrapheme } from "@/lib/first-grapheme";
 import {
   ARABIC_OG_FONT_FAMILY,
   loadArabicOgFonts,
 } from "@/lib/og/arabic-og-font";
+import { compactArabicOgSpaces } from "@/lib/og/compact-arabic-og-spaces";
 import {
   orderOgTextForSatori,
   sanitizeOgText,
@@ -19,11 +21,41 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
+type OgFonts = Awaited<ReturnType<typeof loadArabicOgFonts>>;
+
+function ogLine(value: string): string {
+  return orderOgTextForSatori(compactArabicOgSpaces(sanitizeOgText(value)));
+}
+
+async function loadLogoDataUrl(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(2500),
+      cache: "force-cache",
+    });
+    if (!response.ok) return null;
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("image/")) return null;
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength === 0 || buffer.byteLength > 1_200_000) return null;
+    return `data:${contentType};base64,${Buffer.from(buffer).toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 function buildCard(input: {
   title: string;
   subtitle: string | null;
-  fonts: Awaited<ReturnType<typeof loadArabicOgFonts>>;
+  monogram: string;
+  logoDataUrl: string | null;
+  fonts: OgFonts;
 }) {
+  const title = ogLine(input.title);
+  const subtitle = input.subtitle ? ogLine(input.subtitle) : null;
+  const titleSize = title.length > 28 ? 52 : title.length > 18 ? 62 : 72;
+
   return new ImageResponse(
     (
       <div
@@ -31,47 +63,137 @@ function buildCard(input: {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 72,
-          background: "linear-gradient(160deg, #0f172a 0%, #134e4a 55%, #0e7490 100%)",
-          color: "#ffffff",
+          position: "relative",
+          background: "#0b1220",
           fontFamily: ARABIC_OG_FONT_FAMILY,
-          textAlign: "center",
+          color: "#fff7ed",
         }}
       >
         <div
           style={{
-            fontSize: 28,
-            opacity: 0.8,
-            marginBottom: 20,
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            background:
+              "radial-gradient(circle at 18% 20%, rgba(251,146,60,0.35), transparent 42%), radial-gradient(circle at 88% 78%, rgba(14,116,144,0.38), transparent 46%), linear-gradient(160deg, #0f172a 0%, #111827 55%, #1c1917 100%)",
           }}
-        >
-          {orderOgTextForSatori(sanitizeOgText("منيو أونلاين"))}
-        </div>
+        />
+
         <div
           style={{
-            fontSize: 64,
-            fontWeight: 400,
-            lineHeight: 1.2,
-            maxWidth: 980,
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 48,
           }}
         >
-          {orderOgTextForSatori(input.title)}
-        </div>
-        {input.subtitle ? (
           <div
             style={{
-              marginTop: 24,
-              fontSize: 32,
-              opacity: 0.9,
-              maxWidth: 920,
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 18,
+              borderRadius: 40,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(15, 23, 42, 0.78)",
+              padding: "40px 52px",
             }}
           >
-            {orderOgTextForSatori(input.subtitle)}
+            <div
+              style={{
+                width: 148,
+                height: 148,
+                borderRadius: 36,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.16)",
+                overflow: "hidden",
+                boxShadow: "0 18px 40px rgba(0,0,0,0.28)",
+              }}
+            >
+              {input.logoDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={input.logoDataUrl}
+                  width={148}
+                  height={148}
+                  alt=""
+                  style={{ objectFit: "cover", width: 148, height: 148 }}
+                />
+              ) : (
+                <div style={{ display: "flex", fontSize: 64, color: "#fdba74" }}>
+                  {input.monogram}
+                </div>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                padding: "10px 20px",
+                borderRadius: 999,
+                background: "rgba(251, 146, 60, 0.16)",
+                border: "1px solid rgba(251, 146, 60, 0.38)",
+                color: "#fdba74",
+                fontSize: 24,
+              }}
+            >
+              {ogLine("منيو إلكتروني")}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                textAlign: "center",
+                fontSize: titleSize,
+                lineHeight: 1.25,
+                maxWidth: 980,
+                color: "#fff7ed",
+              }}
+            >
+              {title}
+            </div>
+
+            {subtitle ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  fontSize: 30,
+                  color: "rgba(255,247,237,0.78)",
+                  maxWidth: 820,
+                }}
+              >
+                {subtitle}
+              </div>
+            ) : null}
+
+            <div
+              style={{
+                display: "flex",
+                marginTop: 8,
+                padding: "16px 34px",
+                borderRadius: 999,
+                background: "#f97316",
+                color: "#111827",
+                fontSize: 28,
+                boxShadow: "0 12px 30px rgba(249,115,22,0.35)",
+              }}
+            >
+              {ogLine("افتح المنيو")}
+            </div>
           </div>
-        ) : null}
+        </div>
       </div>
     ),
     { ...size, fonts: input.fonts }
@@ -85,6 +207,7 @@ export default async function MenuOpenGraphImage({ params }: Props) {
     const fonts = await loadArabicOgFonts();
     let title = sanitizeOgText("منيو أونلاين");
     let subtitle: string | null = null;
+    let logoDataUrl: string | null = null;
 
     try {
       const meta = await getOnlineMenuOgMetaBySlug(slug);
@@ -94,15 +217,21 @@ export default async function MenuOpenGraphImage({ params }: Props) {
           ? sanitizeOgText(meta.branchLabel, "")
           : null;
         if (!subtitle) subtitle = null;
+        logoDataUrl = await loadLogoDataUrl(meta.logoUrl);
       }
     } catch (error) {
       console.warn("[menu-og] meta lookup failed:", error);
     }
 
-    return buildCard({ title, subtitle, fonts });
+    return buildCard({
+      title,
+      subtitle,
+      monogram: firstGrapheme(title, "م"),
+      logoDataUrl,
+      fonts,
+    });
   } catch (error) {
     console.error("[menu-og] image render failed:", error);
-    // Last-resort Latin-only card so crawlers stop getting 500s.
     return new ImageResponse(
       (
         <div
@@ -112,9 +241,9 @@ export default async function MenuOpenGraphImage({ params }: Props) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "#0f172a",
-            color: "#ffffff",
-            fontSize: 64,
+            background: "#111827",
+            color: "#fff7ed",
+            fontSize: 56,
             fontFamily: "sans-serif",
           }}
         >
