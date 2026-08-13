@@ -20,10 +20,9 @@ import {
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 type ReportLink = {
   href: string;
@@ -191,13 +190,13 @@ export function ReportsHub({
         description="اختَر التقرير من الكارت — يفتح مباشرة"
         action={
           canManageSchedule ? (
-            <Link
-              href="/settings?tab=features#report-schedule"
-              className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
-            >
-              <Mail className="size-4" />
-              جدولة إيميل التقارير
-            </Link>
+            <CompactActions>
+              <CompactAction
+                label="جدولة إيميل التقارير"
+                icon={Mail}
+                href="/settings?tab=features#report-schedule"
+              />
+            </CompactActions>
           ) : null
         }
       />

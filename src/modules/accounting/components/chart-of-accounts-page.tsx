@@ -4,8 +4,9 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BookOpen, Landmark, ScrollText, Sparkles } from "lucide-react";
+import { BookOpen, Landmark, Plus, Power, ScrollText, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/Velora/page-header";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { KpiCard } from "@/components/Velora/kpi-card";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { OperationalCard } from "@/components/Velora/operational-card";
@@ -157,9 +158,13 @@ export function ChartOfAccountsPage({
         description="شجرة الحسابات المستخدمة في القيود والترحيل التلقائي من البيع والمشتريات والمصروفات"
         action={
           canManage ? (
-            <Button type="button" onClick={() => setOpen(true)}>
-              حساب جديد
-            </Button>
+            <CompactAction
+              label="حساب جديد"
+              icon={Plus}
+              variant="default"
+              alwaysLabeled
+              onClick={() => setOpen(true)}
+            />
           ) : undefined
         }
       />
@@ -281,30 +286,26 @@ export function ChartOfAccountsPage({
                   },
                 ]}
                 footer={
-                  <div className="flex flex-wrap items-center gap-2">
+                  <CompactActions className="w-full justify-end">
                     {account.is_postable ? (
-                      <Link
+                      <CompactAction
+                        label="دفتر"
+                        icon={BookOpen}
                         href={`/accounting/ledger?accountId=${account.id}`}
-                        className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-primary"
-                      >
-                        دفتر
-                      </Link>
+                      />
                     ) : (
                       <span className="text-xs text-muted-foreground">مفيش دفتر</span>
                     )}
                     {canManage && !account.is_system ? (
-                      <Button
-                        type="button"
-                        size="sm"
+                      <CompactAction
+                        label={account.is_active ? "تعطيل" : "تفعيل"}
+                        icon={Power}
                         variant="ghost"
-                        className="min-h-11"
                         disabled={pending}
                         onClick={() => onToggleActive(account)}
-                      >
-                        {account.is_active ? "تعطيل" : "تفعيل"}
-                      </Button>
+                      />
                     ) : null}
-                  </div>
+                  </CompactActions>
                 }
               />
             ))}

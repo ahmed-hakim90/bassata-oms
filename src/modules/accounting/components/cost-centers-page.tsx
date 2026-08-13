@@ -6,6 +6,7 @@ import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CompactAction } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { StatusPill } from "@/components/Velora/status-pill";
@@ -98,27 +99,33 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
   return (
     <>
       {embedded ? (
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex flex-row items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="font-medium">مراكز التكلفة</p>
             <p className="text-sm text-muted-foreground">
               المراكز والتصنيفات للفرع المحدد
             </p>
           </div>
-          <Button className="w-full rounded-xl sm:w-auto" onClick={() => setShowCenterForm(true)}>
-            <Plus className="mr-2 size-4" />
-            إضافة مركز
-          </Button>
+          <CompactAction
+            label="إضافة مركز"
+            icon={Plus}
+            variant="default"
+            alwaysLabeled
+            onClick={() => setShowCenterForm(true)}
+          />
         </div>
       ) : (
         <PageHeader
           title="مراكز التكلفة"
           description="تعريف المراكز المحاسبية وتصنيفات المصروفات"
           action={
-            <Button className="rounded-xl" onClick={() => setShowCenterForm(true)}>
-              <Plus className="mr-2 size-4" />
-              إضافة مركز
-            </Button>
+            <CompactAction
+              label="إضافة مركز"
+              icon={Plus}
+              variant="default"
+              alwaysLabeled
+              onClick={() => setShowCenterForm(true)}
+            />
           }
         />
       )}

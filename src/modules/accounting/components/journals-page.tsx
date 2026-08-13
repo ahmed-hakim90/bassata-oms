@@ -3,8 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FilePenLine, ScrollText, Sparkles, XCircle } from "lucide-react";
+import { FilePenLine, ScrollText, Send, Sparkles, XCircle } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { KpiCard } from "@/components/Velora/kpi-card";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
@@ -260,9 +261,13 @@ export function JournalsPage({
         description="إنشاء وترحيل وإلغاء القيود اليدوية — والترحيل الأوتوماتيك من البيع والمشتريات والمصروفات يظهر هنا"
         action={
           canManage ? (
-            <Button type="button" onClick={() => setOpen(true)}>
-              قيد جديد
-            </Button>
+            <CompactAction
+              label="قيد جديد"
+              icon={FilePenLine}
+              variant="default"
+              alwaysLabeled
+              onClick={() => setOpen(true)}
+            />
           ) : undefined
         }
       />
@@ -467,42 +472,32 @@ export function JournalsPage({
                   },
                 ]}
                 footer={
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
+                  <CompactActions className="w-full justify-end">
+                    <CompactAction
+                      label="عرض"
+                      icon={FilePenLine}
                       variant="ghost"
-                      className="min-h-11"
                       disabled={pending}
                       onClick={() => onOpenDetail(entry)}
-                    >
-                      عرض
-                    </Button>
+                    />
                     {canManage && entry.status === "draft" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="min-h-11"
+                      <CompactAction
+                        label="ترحيل"
+                        icon={Send}
                         disabled={pending}
                         onClick={() => onPost(entry.id)}
-                      >
-                        ترحيل
-                      </Button>
+                      />
                     ) : null}
                     {canManage && entry.status === "posted" ? (
-                      <Button
-                        type="button"
-                        size="sm"
+                      <CompactAction
+                        label="إلغاء"
+                        icon={XCircle}
                         variant="ghost"
-                        className="min-h-11"
                         disabled={pending}
                         onClick={() => onVoid(entry.id)}
-                      >
-                        إلغاء
-                      </Button>
+                      />
                     ) : null}
-                  </div>
+                  </CompactActions>
                 }
               />
             ))}

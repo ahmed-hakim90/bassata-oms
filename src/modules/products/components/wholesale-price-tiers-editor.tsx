@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
 import { sanitizeDecimalInput } from "@/lib/digits";
 import { formatUnit } from "@/lib/units";
+import { CompactAction } from "@/components/Velora/compact-actions";
 import {
   deletePriceTiersAction,
   listPriceTiersAction,
@@ -243,15 +244,13 @@ export function WholesalePriceTiersEditor({
           />
         </div>
         <div className="flex items-end">
-          <Button
-            type="button"
-            onClick={handleAdd}
+          <CompactAction
+            label="إضافة شريحة"
+            icon={Plus}
+            variant="default"
             disabled={loading}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="size-4" />
-            إضافة شريحة
-          </Button>
+            onClick={handleAdd}
+          />
         </div>
       </div>
 

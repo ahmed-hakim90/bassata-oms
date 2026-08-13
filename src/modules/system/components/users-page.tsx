@@ -24,6 +24,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { StatusPill } from "@/components/Velora/status-pill";
@@ -312,16 +313,13 @@ export function UsersPage({
                       label={u.is_active ? "نشط" : "غير نشط"}
                       variant={u.is_active ? "success" : "draft"}
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="min-h-10"
-                      onClick={() => openEditor(u)}
-                    >
-                      <Pencil className="size-4" aria-hidden />
-                      تعديل
-                    </Button>
+                    <CompactActions>
+                      <CompactAction
+                        label="تعديل"
+                        icon={Pencil}
+                        onClick={() => openEditor(u)}
+                      />
+                    </CompactActions>
                   </div>
                 </div>
               ))}

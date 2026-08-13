@@ -1041,14 +1041,13 @@ export function PurchaseForm({
                 />
               </div>
               <div className="flex items-end">
-                <Button
+                <CompactAction
+                  label="إضافة"
+                  icon={Plus}
+                  variant="default"
                   type="submit"
-                  className="h-11 w-full sm:h-11 sm:w-auto"
                   disabled={!selectedProductId && !barcode.trim()}
-                >
-                  <Plus className="size-4" />
-                  إضافة
-                </Button>
+                />
               </div>
             </form>
             {entryPreview ? (

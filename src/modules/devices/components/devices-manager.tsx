@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { StatusPill } from "@/components/Velora/status-pill";
 import {
   createDeviceAction,
@@ -204,43 +205,35 @@ export function DevicesManager({ stores, devices }: DevicesManagerProps) {
                           />
                           ميزان مرجعي (سوبر ماركت)
                         </label>
-                        <div className="mt-auto flex flex-wrap gap-[var(--mds-space-2)]">
-                          <Button
-                            size="sm"
-                            className="shadow-[var(--mds-elevation-1)]"
-                            disabled={pending || !device.is_active}
-                            onClick={() => generateCode(device)}
-                          >
-                            {t("Pairing code")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-[var(--mds-radius-md)]"
-                            disabled={pending || !device.is_active}
-                            onClick={() => registerBrowser(device)}
-                          >
-                            {t("Use this browser")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-[var(--mds-radius-md)]"
-                            disabled={pending}
-                            onClick={() => toggleActive(device)}
-                          >
-                            <Power className="size-3.5" />
-                            {device.is_active ? t("Disable") : t("Enable")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="rounded-[var(--mds-radius-md)] text-destructive hover:text-destructive"
-                            disabled={pending}
-                            onClick={() => setDeviceToDelete(device)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
+                        <div className="mt-auto">
+                          <CompactActions className="justify-start">
+                            <CompactAction
+                              label={t("Pairing code")}
+                              icon={MonitorSmartphone}
+                              variant="default"
+                              disabled={pending || !device.is_active}
+                              onClick={() => generateCode(device)}
+                            />
+                            <CompactAction
+                              label={t("Use this browser")}
+                              icon={Copy}
+                              disabled={pending || !device.is_active}
+                              onClick={() => registerBrowser(device)}
+                            />
+                            <CompactAction
+                              label={device.is_active ? t("Disable") : t("Enable")}
+                              icon={Power}
+                              disabled={pending}
+                              onClick={() => toggleActive(device)}
+                            />
+                            <CompactAction
+                              label={t("Delete")}
+                              icon={Trash2}
+                              variant="ghost"
+                              disabled={pending}
+                              onClick={() => setDeviceToDelete(device)}
+                            />
+                          </CompactActions>
                         </div>
                       </div>
                     ))}
@@ -248,7 +241,7 @@ export function DevicesManager({ stores, devices }: DevicesManagerProps) {
                 )}
 
                 <form
-                  className="flex w-full max-w-md flex-col gap-2 sm:flex-row"
+                  className="flex w-full max-w-md flex-row items-center gap-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     addDevice(store.id);
@@ -260,16 +253,17 @@ export function DevicesManager({ stores, devices }: DevicesManagerProps) {
                     onChange={(e) =>
                       setAddNames((current) => ({ ...current, [store.id]: e.target.value }))
                     }
-                    className="min-h-11 rounded-[var(--mds-radius-md)]"
+                    className="min-h-11 min-w-0 flex-1 rounded-[var(--mds-radius-md)]"
                   />
-                  <Button
-                    type="submit"
-                    className="min-h-11 w-full shrink-0 shadow-[var(--mds-elevation-1)] sm:w-auto"
-                    disabled={pending || !(addNames[store.id]?.trim())}
-                  >
-                    <Plus className="size-4" />
-                    {t("Add device")}
-                  </Button>
+                  <CompactActions>
+                    <CompactAction
+                      label={t("Add device")}
+                      icon={Plus}
+                      variant="default"
+                      type="submit"
+                      disabled={pending || !(addNames[store.id]?.trim())}
+                    />
+                  </CompactActions>
                 </form>
               </div>
             </OperationalCard>

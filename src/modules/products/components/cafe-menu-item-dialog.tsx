@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
+import { CompactAction } from "@/components/Velora/compact-actions";
 import { FormField } from "@/components/Velora/form-field";
 import { nextSequentialProductSku } from "@/modules/products/lib/generate-product-sku";
 import {
@@ -413,25 +414,20 @@ function CafeMenuItemDialogContent({
 
           {!isEdit ? (
           <div className="space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-row items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-medium">الأحجام والأسعار والمكونات</h3>
                   <p className="text-xs text-muted-foreground">
                     كل حجم له سعر خاص به. المكونات اختيارية حالياً.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full sm:w-auto"
+                <CompactAction
+                  label="إضافة حجم"
+                  icon={Plus}
                   onClick={() =>
                     setVariantDrafts((current) => [...current, emptyVariant(current.length + 1)])
                   }
-                >
-                  <Plus className="size-4" />
-                  إضافة حجم
-                </Button>
+                />
               </div>
 
               <div className="grid gap-3 rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 sm:grid-cols-2 xl:grid-cols-[1fr_minmax(0,11rem)_minmax(0,8rem)_minmax(0,7.5rem)_auto]">

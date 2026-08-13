@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { PageHeader } from "@/components/Velora/page-header";
 import { StatusPill } from "@/components/Velora/status-pill";
@@ -62,9 +64,14 @@ export function KitchenDisplay({ initialTickets }: { initialTickets: KitchenTick
         title="شاشة المطبخ"
         description="طابور الطلبات: انتظار → تحضير → جاهز"
         action={
-          <Button type="button" variant="outline" disabled={pending} onClick={refresh}>
-            تحديث
-          </Button>
+          <CompactActions>
+            <CompactAction
+              label="تحديث"
+              icon={RefreshCw}
+              disabled={pending}
+              onClick={refresh}
+            />
+          </CompactActions>
         }
       />
       <div className="grid gap-4 lg:grid-cols-3">

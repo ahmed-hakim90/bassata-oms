@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { CompactAction } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
@@ -50,9 +50,13 @@ export function WastePage({ records, summary, products, warehouses }: WastePageP
         title="الهالك"
         description="تتبع الفاقد والتالف"
         action={
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="size-4" /> تسجيل هالك
-          </Button>
+          <CompactAction
+            label="تسجيل هالك"
+            icon={Plus}
+            variant="default"
+            alwaysLabeled
+            onClick={() => setShowForm(true)}
+          />
         }
       />
 
@@ -72,9 +76,13 @@ export function WastePage({ records, summary, products, warehouses }: WastePageP
           title="لا يوجد هالك مسجل بعد"
           description="سجّل الفاقد والتالف لتتبع أسباب الهالك."
           action={
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="size-4" /> تسجيل هالك
-            </Button>
+            <CompactAction
+              label="تسجيل هالك"
+              icon={Plus}
+              variant="default"
+              alwaysLabeled
+              onClick={() => setShowForm(true)}
+            />
           }
         />
       ) : (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Pencil, Power } from "lucide-react";
+import { Plus, Pencil, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/Velora/page-header";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
@@ -255,10 +256,13 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
         title="العروض"
         description="قواعد خصم تلقائية وكوبونات بتشتغل على الكاشير والمنيو وفواتير الجملة"
         action={
-          <Button onClick={openCreate}>
-            <Plus className="size-4" />
-            عرض جديد
-          </Button>
+          <CompactAction
+            label="عرض جديد"
+            icon={Plus}
+            variant="default"
+            alwaysLabeled
+            onClick={openCreate}
+          />
         }
       />
 
@@ -277,10 +281,13 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
             title="مفيش عروض"
             description="إنشئ عرض نسبة أو مبلغ أو كوبون أو اشتري واحصل"
             action={
-              <Button onClick={openCreate}>
-                <Plus className="size-4" />
-                عرض جديد
-              </Button>
+              <CompactAction
+                label="عرض جديد"
+                icon={Plus}
+                variant="default"
+                alwaysLabeled
+                onClick={openCreate}
+              />
             }
           />
         ) : (
@@ -312,17 +319,27 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(rule)} disabled={pending}>
-                    <Pencil className="size-3.5" />
-                    تعديل
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => toggle(rule)} disabled={pending}>
-                    <Power className="size-3.5" />
-                    {rule.is_active ? "إيقاف" : "تفعيل"}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => remove(rule)} disabled={pending}>
-                    حذف
-                  </Button>
+                  <CompactActions>
+                    <CompactAction
+                      label="تعديل"
+                      icon={Pencil}
+                      disabled={pending}
+                      onClick={() => openEdit(rule)}
+                    />
+                    <CompactAction
+                      label={rule.is_active ? "إيقاف" : "تفعيل"}
+                      icon={Power}
+                      disabled={pending}
+                      onClick={() => toggle(rule)}
+                    />
+                    <CompactAction
+                      label="حذف"
+                      icon={Trash2}
+                      variant="ghost"
+                      disabled={pending}
+                      onClick={() => remove(rule)}
+                    />
+                  </CompactActions>
                 </div>
               </li>
             ))}

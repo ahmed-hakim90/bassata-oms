@@ -217,14 +217,14 @@ export function CloseSessionStepper({
 
       <div
         className={cn(
-          "mt-6 flex justify-between gap-3 sm:mt-[var(--mds-space-8)]",
+          "mt-6 flex items-center justify-between gap-3 sm:mt-[var(--mds-space-8)]",
           embedded &&
             "sticky bottom-0 z-10 -mx-1 border-t border-border/60 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
         )}
       >
         <Button
           variant="outline"
-          className="min-h-11 flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
+          className="min-h-11 rounded-[var(--mds-radius-md)]"
           disabled={step === 0 || pending}
           onClick={() => setStep((s) => Math.max(0, s - 1))}
         >
@@ -232,14 +232,14 @@ export function CloseSessionStepper({
         </Button>
         {step < STEPS.length - 1 ? (
           <Button
-            className="min-h-11 flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
+            className="min-h-11 rounded-[var(--mds-radius-md)]"
             onClick={() => setStep(1)}
           >
             متابعة للعدّ
           </Button>
         ) : (
           <Button
-            className="min-h-11 flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
+            className="min-h-11 rounded-[var(--mds-radius-md)]"
             disabled={pending || actualCash.trim() === ""}
             onClick={handleClose}
           >

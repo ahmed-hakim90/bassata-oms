@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog } from "@/components/ui/dialog";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { formatCurrency } from "@/lib/format";
 import { forceCloseSessionAction } from "@/modules/sessions/actions/session.actions";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
@@ -50,15 +52,15 @@ export function ForceCloseSessionDialog({
 
   return (
     <>
-      <Button
-        variant="destructive"
-        size="sm"
-        className="rounded-xl"
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-      >
-        إغلاق إجباري
-      </Button>
+      <CompactActions className="w-full justify-end">
+        <CompactAction
+          label="إغلاق إجباري"
+          icon={Ban}
+          variant="destructive"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+        />
+      </CompactActions>
       <Dialog open={open} onOpenChange={setOpen}>
         <StandardModalContent
           size="sm"

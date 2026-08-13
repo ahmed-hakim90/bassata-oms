@@ -485,7 +485,7 @@ export function TransferForm({
             </div>
             <div className="space-y-2">
               <Label>إلى فرع</Label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+              <div className="flex flex-row flex-wrap items-end gap-2">
                 <Select
                   value={toStoreId}
                   onValueChange={(v) => {
@@ -524,7 +524,7 @@ export function TransferForm({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 w-full sm:h-9 sm:w-auto"
+                  className="h-11 w-auto shrink-0 sm:h-9"
                   onClick={saveStores}
                   disabled={
                     lifecyclePending ||
@@ -541,9 +541,9 @@ export function TransferForm({
           </div>
         )}
         {isDraft && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <div className="flex flex-row flex-wrap items-center gap-2">
             <Select value={productId} onValueChange={(v) => setProductId(v ?? "")}>
-              <SelectTrigger className="h-11 w-full sm:h-9 sm:min-w-48 sm:w-auto">
+              <SelectTrigger className="h-11 min-w-0 flex-1 sm:h-9 sm:min-w-48 sm:flex-none sm:w-auto">
                 <SelectValue placeholder="المنتج">
                   {(value) => selectLabelById(products, value, (p) => p.name)}
                 </SelectValue>
@@ -561,15 +561,15 @@ export function TransferForm({
               min={1}
               value={quantity}
               onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-              className="h-11 w-full sm:h-9 sm:w-24"
+              className="h-11 w-20 sm:h-9 sm:w-24"
             />
-            <Button
-              className="h-11 w-full sm:h-9 sm:w-auto"
-              onClick={addLine}
+            <CompactAction
+              label="إضافة"
+              icon={Plus}
+              variant="default"
               disabled={!productId || !transfer}
-            >
-              <Plus className="size-4" /> إضافة
-            </Button>
+              onClick={addLine}
+            />
           </div>
         )}
         <ul className="mt-4 space-y-2">

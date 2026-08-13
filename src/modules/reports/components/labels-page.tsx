@@ -310,7 +310,7 @@ export function LabelsPage({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-row items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
                 {settings.labelWidthMm}×{settings.labelHeightMm} مم — خط تلقائي
               </p>
@@ -318,7 +318,7 @@ export function LabelsPage({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-9 w-full px-2 text-xs sm:h-7 sm:w-auto"
+                className="h-9 shrink-0 px-2 text-xs"
                 onClick={() => setSettings((prev) => applyPreset("custom", prev))}
               >
                 مقاس مخصص

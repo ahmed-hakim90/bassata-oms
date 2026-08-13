@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Banknote,
@@ -12,7 +11,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import type { SupplierListSummary } from "@/lib/types";
 import { getSuppliersPageDataAction } from "@/modules/suppliers/actions/supplier.actions";
 import { RecordPaymentDialog } from "@/modules/suppliers/components/record-payment-dialog";
@@ -23,30 +22,23 @@ const linkActions = [
     href: "/pos",
     label: "نقطة البيع",
     icon: ShoppingCart,
-    className: "text-[var(--mds-color-feedback-success)]",
   },
   {
     href: "/sessions",
     label: "الجلسات",
     icon: Clock,
-    className: "text-[var(--mds-color-feedback-info)]",
   },
   {
     href: "/orders",
     label: "الطلبات",
     icon: Receipt,
-    className: "text-[var(--mds-color-action-primary)]",
   },
   {
     href: "/expenses",
     label: "المصروفات",
     icon: Wallet,
-    className: "text-[var(--mds-color-feedback-warning)]",
   },
 ];
-
-const chipClassName =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--mds-radius-lg)] bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-[var(--mds-elevation-1)] ring-1 ring-border transition hover:bg-muted hover:shadow-[var(--mds-elevation-2)]";
 
 export function QuickActionsBar({
   enableWholesaleSales = false,
@@ -102,33 +94,24 @@ export function QuickActionsBar({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-        {linkActions.map(({ href, label, icon: Icon, className }) => (
-          <Link key={href} href={href} className={chipClassName}>
-            <Icon className={cn("size-4", className)} />
-            {label}
-          </Link>
+      <CompactActions className="justify-start">
+        {linkActions.map(({ href, label, icon }) => (
+          <CompactAction key={href} label={label} icon={icon} href={href} />
         ))}
         {enableWholesaleSales ? (
-          <button
-            type="button"
-            className={cn(chipClassName, "cursor-pointer disabled:opacity-60")}
-            onClick={quickCreateSalesInvoice}
+          <CompactAction
+            label="فاتورة بيع"
+            icon={FilePlus2}
             disabled={salesPending}
-          >
-            <FilePlus2 className="size-4 text-[var(--mds-color-action-primary)]" />
-            فاتورة بيع
-          </button>
+            onClick={quickCreateSalesInvoice}
+          />
         ) : null}
-        <button
-          type="button"
-          className={cn(chipClassName, "cursor-pointer")}
+        <CompactAction
+          label="دفعة مورد"
+          icon={Banknote}
           onClick={openSupplierPayment}
-        >
-          <Banknote className="size-4 text-[var(--mds-color-feedback-warning)]" />
-          دفعة مورد
-        </button>
-      </div>
+        />
+      </CompactActions>
 
       <RecordPaymentDialog
         open={showPayment}

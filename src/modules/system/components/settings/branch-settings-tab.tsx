@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CompactAction } from "@/components/Velora/compact-actions";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import {
   createStoreAction,
@@ -255,7 +257,7 @@ export function BranchSettingsTab({
             return (
               <TabsContent key={store.id} value={store.id} className="mt-0">
                 <div className="grid gap-[var(--mds-space-4)] rounded-[var(--mds-radius-lg)] border border-border/60 p-[var(--mds-space-4)]">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-row items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       {logoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -277,16 +279,11 @@ export function BranchSettingsTab({
                       </div>
                     </div>
                     {onlineMenuHref && edit.onlineMenuEnabled ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                        nativeButton={false}
-                        render={<a href={onlineMenuLinkHref || onlineMenuHref} target="_blank" rel="noopener noreferrer" />}
-                      >
-                        فتح منيو الأونلاين
-                      </Button>
+                      <CompactAction
+                        label="فتح منيو الأونلاين"
+                        icon={ExternalLink}
+                        href={onlineMenuLinkHref || onlineMenuHref}
+                      />
                     ) : null}
                   </div>
 
@@ -687,17 +684,16 @@ export function BranchSettingsTab({
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">توكن الوصول</Label>
-                          <div className="flex flex-col gap-2 sm:flex-row">
+                          <div className="flex flex-row items-center gap-2">
                             <Input
                               value={onlineMenuToken || "—"}
                               readOnly
                               dir="ltr"
-                              className="font-mono text-xs"
+                              className="min-w-0 flex-1 font-mono text-xs"
                             />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="w-full sm:w-auto"
+                            <CompactAction
+                              label="تجديد التوكن"
+                              icon={RefreshCw}
                               disabled={pending}
                               onClick={() => {
                                 startTransition(async () => {
@@ -728,9 +724,7 @@ export function BranchSettingsTab({
                                   }
                                 });
                               }}
-                            >
-                              تجديد التوكن
-                            </Button>
+                            />
                           </div>
                         </div>
 
@@ -1133,7 +1127,7 @@ export function BranchSettingsTab({
                           </div>
                         ))}
                       </div>
-                      <div className="flex max-w-md flex-col gap-2 sm:flex-row">
+                      <div className="flex max-w-md flex-row items-center gap-2">
                         <Input
                           placeholder="اسم المخزن"
                           value={warehouseAdds[store.id] ?? ""}
@@ -1143,11 +1137,11 @@ export function BranchSettingsTab({
                               [store.id]: e.target.value,
                             })
                           }
+                          className="min-w-0 flex-1"
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full sm:w-auto"
+                        <CompactAction
+                          label="إضافة مخزن"
+                          icon={Plus}
                           disabled={pending || !warehouseAdds[store.id]?.trim()}
                           onClick={() => {
                             const name = warehouseAdds[store.id]?.trim();
@@ -1162,9 +1156,7 @@ export function BranchSettingsTab({
                               }
                             });
                           }}
-                        >
-                          إضافة مخزن
-                        </Button>
+                        />
                       </div>
                     </TabsContent>
                   </Tabs>

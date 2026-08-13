@@ -15,6 +15,7 @@ import {
   Shield,
   UserRoundSearch,
 } from "lucide-react";
+import { CompactAction } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { StatusPill } from "@/components/Velora/status-pill";
@@ -183,9 +184,9 @@ export function PlatformUsersConsole({
       <PageHeader
         title="مستخدمو المنصة"
         action={
-          <Button
-            type="button"
-            variant="outline"
+          <CompactAction
+            label="تصدير Excel"
+            icon={Download}
             disabled={pending || users.length === 0}
             onClick={() => {
               startTransition(async () => {
@@ -198,10 +199,7 @@ export function PlatformUsersConsole({
                 toast.success("تم تنزيل تقرير المستخدمين");
               });
             }}
-          >
-            <Download className="size-3.5" />
-            تصدير Excel
-          </Button>
+          />
         }
       />
 

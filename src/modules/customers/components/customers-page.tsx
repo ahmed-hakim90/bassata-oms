@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/Velora/page-header";
+import { CompactAction } from "@/components/Velora/compact-actions";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { formatCurrency } from "@/lib/format";
@@ -64,12 +65,13 @@ export function CustomersPage({
         title="العملاء"
         description="العلاقات والسجل والولاء"
         action={
-          <Button
-            className="w-full shadow-[var(--mds-elevation-1)] sm:w-auto"
+          <CompactAction
+            label="إضافة عميل"
+            icon={Plus}
+            variant="default"
+            alwaysLabeled
             onClick={() => setShowCreate(true)}
-          >
-            <Plus className="size-4" /> إضافة عميل
-          </Button>
+          />
         }
       />
 

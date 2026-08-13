@@ -1,8 +1,7 @@
 "use client";
 
-import { CheckCircle2, MessageCircle, Printer, Usb } from "lucide-react";
+import { CheckCircle2, MessageCircle, Printer, ShoppingCart, Usb } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { formatCurrency } from "@/lib/format";
 import {
   ReceiptPrint,
@@ -83,44 +83,33 @@ export function PosReceiptSuccessDialog({
             <ReceiptBrandingPreview receipt={receipt} />
           </div>
 
-          <div className="grid gap-2 border-t border-border/70 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
-            <Button
-              type="button"
-              className="h-14 rounded-2xl text-base font-semibold"
-              onClick={handleBrowserPrint}
-            >
-              <Printer className="size-5" />
-              طباعة الإيصال
-            </Button>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 rounded-xl text-sm font-semibold"
+          <div className="border-t border-border/70 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+            <CompactActions className="w-full justify-end">
+              <CompactAction
+                label="طباعة الإيصال"
+                icon={Printer}
+                variant="default"
+                alwaysLabeled
+                onClick={handleBrowserPrint}
+              />
+              <CompactAction
+                label="طباعة USB"
+                icon={Usb}
                 onClick={() => void handleUsbPrint()}
-              >
-                <Usb className="size-4" />
-                طباعة USB
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 rounded-xl text-sm font-semibold"
-                onClick={onWhatsApp}
+              />
+              <CompactAction
+                label="واتساب"
+                icon={MessageCircle}
                 disabled={!receipt.customer?.phone}
-              >
-                <MessageCircle className="size-4" />
-                واتساب
-              </Button>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-12 rounded-xl text-sm font-semibold"
-              onClick={() => onOpenChange(false)}
-            >
-              متابعة البيع
-            </Button>
+                onClick={onWhatsApp}
+              />
+              <CompactAction
+                label="متابعة البيع"
+                icon={ShoppingCart}
+                variant="secondary"
+                onClick={() => onOpenChange(false)}
+              />
+            </CompactActions>
           </div>
         </DialogContent>
       </Dialog>

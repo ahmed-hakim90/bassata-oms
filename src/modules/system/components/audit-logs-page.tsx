@@ -154,18 +154,18 @@ export function AuditLogsPage({
               className="rounded-[var(--mds-radius-md)]"
             />
           </div>
-          <div className="flex flex-col gap-[var(--mds-space-2)] sm:col-span-2 sm:flex-row sm:items-end lg:col-span-5">
+          <div className="flex flex-row flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-5">
             <Button
               type="submit"
               disabled={pending}
-              className="w-full shadow-[var(--mds-elevation-1)] sm:w-auto"
+              className="shadow-[var(--mds-elevation-1)]"
             >
               تطبيق الفلاتر
             </Button>
             <Button
               type="button"
               variant="outline"
-              className="w-full rounded-[var(--mds-radius-md)] sm:w-auto"
+              className="rounded-[var(--mds-radius-md)]"
               onClick={() =>
                 router.push(embedded ? "/settings?tab=audit" : "/audit")
               }

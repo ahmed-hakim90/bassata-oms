@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
@@ -204,18 +205,16 @@ export function SalesInvoicesPage({
                 },
               ]}
               footer={
-                <Button
-                  type="button"
-                  className="h-11 w-full sm:w-auto"
-                  variant="outline"
-                  onClick={() => {
-                    refreshCatalog(true);
-                    setActiveId(invoice.id);
-                  }}
-                >
-                  <Pencil className="size-3.5" />
-                  فتح
-                </Button>
+                <CompactActions className="w-full justify-end">
+                  <CompactAction
+                    label="فتح"
+                    icon={Pencil}
+                    onClick={() => {
+                      refreshCatalog(true);
+                      setActiveId(invoice.id);
+                    }}
+                  />
+                </CompactActions>
               }
             />
           ))}

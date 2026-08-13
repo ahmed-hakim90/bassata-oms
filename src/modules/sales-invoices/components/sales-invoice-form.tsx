@@ -923,10 +923,13 @@ export function SalesInvoiceForm({
               />
             </div>
             <div className="flex items-end">
-              <Button type="submit" className="h-11 w-full sm:h-9 sm:w-auto" disabled={lifecyclePending}>
-                <Plus className="size-4" />
-                إضافة
-              </Button>
+              <CompactAction
+                label="إضافة"
+                icon={Plus}
+                variant="default"
+                type="submit"
+                disabled={lifecyclePending}
+              />
             </div>
           </form>
         ) : null}
@@ -1064,16 +1067,15 @@ export function SalesInvoiceForm({
                         </div>
                       </div>
                       {isDraft ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-11 w-full text-destructive"
-                          disabled={lifecyclePending}
-                          onClick={() => removeLine(line.id)}
-                        >
-                          <Trash2 className="size-4" />
-                          حذف البند
-                        </Button>
+                        <CompactActions className="w-full justify-end">
+                          <CompactAction
+                            label="حذف البند"
+                            icon={Trash2}
+                            variant="destructive"
+                            disabled={lifecyclePending}
+                            onClick={() => removeLine(line.id)}
+                          />
+                        </CompactActions>
                       ) : null}
                     </div>
                   }

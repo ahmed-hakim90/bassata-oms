@@ -459,11 +459,11 @@ export function CartPanel({
                 </p>
                 {canRedeemLoyalty ? (
                   <>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="flex gap-1.5">
                       <Button
                         type="button"
                         size="sm"
-                        className="h-10 rounded-xl"
+                        className="h-10 min-w-0 flex-1 rounded-xl text-xs sm:text-sm"
                         variant={loyaltyRedemption ? "default" : "outline"}
                         onClick={() => applyRedemption(maxRedeemablePoints)}
                       >
@@ -473,7 +473,7 @@ export function CartPanel({
                         type="button"
                         size="sm"
                         variant={!loyaltyRedemption ? "default" : "outline"}
-                        className="h-10 rounded-xl"
+                        className="h-10 min-w-0 flex-1 rounded-xl text-xs sm:text-sm"
                         onClick={() => setLoyaltyRedemption(null)}
                       >
                         بدون نقاط

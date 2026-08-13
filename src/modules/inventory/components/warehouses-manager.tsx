@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Pencil, Plus, Star, Warehouse as WarehouseIcon, X } from "lucide-react";
+import { Check, Pencil, Plus, Power, Star, Warehouse as WarehouseIcon, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { StatusPill } from "@/components/Velora/status-pill";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import {
   createWarehouseAction,
   setDefaultWarehouseAction,
@@ -131,51 +131,49 @@ export function WarehousesManager({ stores, warehouses }: WarehousesManagerProps
                           ) : null}
                         </div>
                       </div>
-                      <div className="mt-auto flex flex-wrap gap-2">
+                      <div className="mt-auto">
                         {editing?.id === warehouse.id ? (
-                          <>
-                            <Button size="sm" disabled={pending} onClick={saveRename}>
-                              <Check className="size-3.5" />
-                              {t("Save")}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
-                              <X className="size-3.5" />
-                              {t("Cancel")}
-                            </Button>
-                          </>
+                          <CompactActions className="justify-start">
+                            <CompactAction
+                              label={t("Save")}
+                              icon={Check}
+                              variant="default"
+                              disabled={pending}
+                              onClick={saveRename}
+                            />
+                            <CompactAction
+                              label={t("Cancel")}
+                              icon={X}
+                              variant="ghost"
+                              onClick={() => setEditing(null)}
+                            />
+                          </CompactActions>
                         ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
+                          <CompactActions className="justify-start">
+                            <CompactAction
+                              label={t("Rename")}
+                              icon={Pencil}
                               disabled={pending}
                               onClick={() => setEditing({ id: warehouse.id, name: warehouse.name })}
-                            >
-                              <Pencil className="size-3.5" />
-                              {t("Rename")}
-                            </Button>
+                            />
                             {!warehouse.is_default ? (
                               <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
+                                <CompactAction
+                                  label={t("Make default")}
+                                  icon={Star}
                                   disabled={pending || !warehouse.is_active}
                                   onClick={() => makeDefault(warehouse)}
-                                >
-                                  <Star className="size-3.5" />
-                                  {t("Make default")}
-                                </Button>
-                                <Button
-                                  size="sm"
+                                />
+                                <CompactAction
+                                  label={warehouse.is_active ? t("Disable") : t("Enable")}
+                                  icon={Power}
                                   variant="ghost"
                                   disabled={pending}
                                   onClick={() => toggleActive(warehouse)}
-                                >
-                                  {warehouse.is_active ? t("Disable") : t("Enable")}
-                                </Button>
+                                />
                               </>
                             ) : null}
-                          </>
+                          </CompactActions>
                         )}
                       </div>
                     </div>
@@ -183,7 +181,7 @@ export function WarehousesManager({ stores, warehouses }: WarehousesManagerProps
                 </div>
 
                 <form
-                  className="flex w-full max-w-md flex-col gap-2 sm:flex-row"
+                  className="flex w-full max-w-md flex-row items-center gap-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     addWarehouse(store.id);
@@ -195,16 +193,15 @@ export function WarehousesManager({ stores, warehouses }: WarehousesManagerProps
                     onChange={(e) =>
                       setAddNames((current) => ({ ...current, [store.id]: e.target.value }))
                     }
-                    className="min-h-11"
+                    className="min-h-11 min-w-0 flex-1"
                   />
-                  <Button
+                  <CompactAction
+                    label={t("Add warehouse")}
+                    icon={Plus}
+                    variant="default"
                     type="submit"
-                    className="min-h-11 w-full shrink-0 sm:w-auto"
                     disabled={pending || !(addNames[store.id]?.trim())}
-                  >
-                    <Plus className="size-4" />
-                    {t("Add warehouse")}
-                  </Button>
+                  />
                 </form>
               </div>
             </OperationalCard>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
@@ -78,9 +78,13 @@ export function TransfersPage({
         title="التحويلات"
         description="حركات مخزون بين الفروع"
         action={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" /> تحويل جديد
-          </Button>
+          <CompactAction
+            label="تحويل جديد"
+            icon={Plus}
+            variant="default"
+            alwaysLabeled
+            onClick={() => setCreating(true)}
+          />
         }
       />
 
@@ -89,9 +93,13 @@ export function TransfersPage({
           title="لا توجد تحويلات بعد"
           description="أنشئ تحويلًا لنقل المخزون بين الفروع."
           action={
-            <Button onClick={() => setCreating(true)}>
-              <Plus className="size-4" /> تحويل جديد
-            </Button>
+            <CompactAction
+              label="تحويل جديد"
+              icon={Plus}
+              variant="default"
+              alwaysLabeled
+              onClick={() => setCreating(true)}
+            />
           }
         />
       ) : (
@@ -112,15 +120,13 @@ export function TransfersPage({
                 { label: "التاريخ", value: formatDateTime(t.created_at) },
               ]}
               footer={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  onClick={() => setEditingId(t.id)}
-                >
-                  <Pencil className="size-4" />
-                  فتح
-                </Button>
+                <CompactActions className="w-full justify-end">
+                  <CompactAction
+                    label="فتح"
+                    icon={Pencil}
+                    onClick={() => setEditingId(t.id)}
+                  />
+                </CompactActions>
               }
             />
           ))}

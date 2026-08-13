@@ -280,11 +280,11 @@ export function PaymentPanel({
             </p>
             {canRedeemLoyalty ? (
               <>
-                <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="mt-2 flex gap-1.5">
                   <Button
                     type="button"
                     size="sm"
-                    className="h-11 rounded-xl"
+                    className="h-10 min-w-0 flex-1 rounded-xl text-xs sm:text-sm"
                     variant={loyaltyRedemption ? "default" : "outline"}
                     onClick={() => applyRedemption(maxRedeemablePoints)}
                   >
@@ -293,7 +293,7 @@ export function PaymentPanel({
                   <Button
                     type="button"
                     size="sm"
-                    className="h-11 rounded-xl"
+                    className="h-10 min-w-0 flex-1 rounded-xl text-xs sm:text-sm"
                     variant={!loyaltyRedemption ? "default" : "outline"}
                     onClick={() => setLoyaltyRedemption(null)}
                   >
@@ -409,31 +409,42 @@ export function PaymentPanel({
         ) : (
           <div className="mb-5 grid gap-2.5">
             {syncedSplits.map((payment, index) => (
-              <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_7.5rem_auto]">
-                <select
-                  value={payment.method}
-                  onChange={(e) => updateSplit(index, { method: e.target.value as PaymentMethod })}
-                  className="h-11 rounded-xl border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                >
-                  {methods.map((method) => (
-                      <option key={method.id} value={method.id}>
-                        {t(method.label)}
-                      </option>
-                    ))}
-                </select>
+              <div key={index} className="flex flex-wrap items-center gap-1.5">
+                <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+                  {methods.map(({ id, label, icon: Icon }) => {
+                    const selected = payment.method === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        aria-label={t(label)}
+                        aria-pressed={selected}
+                        onClick={() => updateSplit(index, { method: id })}
+                        className={cn(
+                          "flex size-11 shrink-0 items-center justify-center rounded-xl border-2 transition active:scale-[0.98]",
+                          selected
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40"
+                        )}
+                      >
+                        <Icon className="size-4" aria-hidden />
+                      </button>
+                    );
+                  })}
+                </div>
                 <Input
                   type="number"
                   min="0"
                   step="0.01"
                   value={payment.amount || ""}
                   onChange={(e) => updateSplit(index, { amount: Number(e.target.value) })}
-                  className="h-11 rounded-xl"
+                  className="h-11 w-24 shrink-0 rounded-xl"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-11 rounded-xl"
+                  className="size-11 shrink-0 rounded-xl"
                   aria-label="حذف الدفعة"
                   onClick={() => setSplits((current) => current.filter((_, i) => i !== index))}
                 >

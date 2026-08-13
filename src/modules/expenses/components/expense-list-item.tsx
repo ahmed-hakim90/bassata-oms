@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { StatusPill } from "@/components/Velora/status-pill";
 import { formatCurrency } from "@/lib/format";
@@ -83,9 +84,15 @@ export function ExpenseListItem({
       ]}
       footer={
         expense.status === "pending" && canApprove ? (
-          <Button size="sm" className="w-full sm:w-auto" disabled={pending} onClick={handleApprove}>
-            اعتماد
-          </Button>
+          <CompactActions className="w-full justify-end">
+            <CompactAction
+              label="اعتماد"
+              icon={Check}
+              variant="default"
+              disabled={pending}
+              onClick={handleApprove}
+            />
+          </CompactActions>
         ) : undefined
       }
     />
