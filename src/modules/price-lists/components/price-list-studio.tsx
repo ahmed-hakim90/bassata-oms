@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import Link from "next/link";
 import {
   Download,
+  Image as ImageIcon,
   Loader2,
   MessageCircle,
   Printer,
@@ -11,7 +12,7 @@ import {
   Share2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { formatCurrency } from "@/lib/format";
@@ -590,69 +592,49 @@ export function PriceListStudio({ initial }: PriceListStudioProps) {
 
           <OperationalCard>
             <h3 className="mb-3 font-semibold">تصدير ومشاركة</h3>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              <Button
-                className="min-h-11 w-full sm:w-auto"
+            <CompactActions className="justify-start">
+              <CompactAction
+                label="PNG"
+                icon={exporting ? Loader2 : Download}
+                variant="default"
+                disabled={exporting || rows.length === 0}
                 onClick={() => runExport("png")}
+                className={exporting ? "[&_svg]:animate-spin" : undefined}
+              />
+              <CompactAction
+                label="JPG"
+                icon={ImageIcon}
                 disabled={exporting || rows.length === 0}
-              >
-                {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                PNG
-              </Button>
-              <Button
-                variant="outline"
-                className="min-h-11 w-full sm:w-auto"
                 onClick={() => runExport("jpg")}
-                disabled={exporting || rows.length === 0}
-              >
-                JPG
-              </Button>
-              <Button
-                variant="outline"
-                className="min-h-11 w-full sm:w-auto"
-                onClick={openPrintPdf}
+              />
+              <CompactAction
+                label="PDF / طباعة"
+                icon={Printer}
                 disabled={rows.length === 0}
-              >
-                <Printer className="size-4" />
-                PDF / طباعة
-              </Button>
-              <Button
-                variant="outline"
-                className="min-h-11 w-full sm:w-auto"
-                onClick={shareNative}
+                onClick={openPrintPdf}
+              />
+              <CompactAction
+                label="مشاركة"
+                icon={Share2}
                 disabled={exporting || rows.length === 0}
-              >
-                <Share2 className="size-4" />
-                مشاركة
-              </Button>
-              <a
+                onClick={shareNative}
+              />
+              <CompactAction
+                label="واتساب"
+                icon={MessageCircle}
                 href={shareLinks.whatsapp}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline" }), "min-h-11 w-full sm:w-auto")}
-              >
-                <MessageCircle className="size-4" />
-                واتساب
-              </a>
-              <a
+              />
+              <CompactAction
+                label="تيليجرام"
+                icon={Send}
                 href={shareLinks.telegram}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline" }), "min-h-11 w-full sm:w-auto")}
-              >
-                <Send className="size-4" />
-                تيليجرام
-              </a>
-              <a
+              />
+              <CompactAction
+                label="فيسبوك"
+                icon={Share2}
                 href={shareLinks.facebook}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline" }), "min-h-11 w-full sm:w-auto")}
-              >
-                <Share2 className="size-4" />
-                فيسبوك
-              </a>
-            </div>
+              />
+            </CompactActions>
           </OperationalCard>
         </div>
 

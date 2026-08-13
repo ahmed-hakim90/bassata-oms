@@ -48,7 +48,7 @@ export function PageHeader({
         {meta}
       </div>
       {action ? (
-        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-[var(--mds-space-2)] [&_button]:min-h-11 sm:[&_button]:min-h-9 [&_a]:min-h-11 sm:[&_a]:min-h-9">
+        <div className="flex w-full shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:gap-[var(--mds-space-2)] [&_a]:min-h-11 sm:[&_a]:min-h-9 [&_button]:min-h-11 sm:[&_button]:min-h-9">
           {action}
         </div>
       ) : null}

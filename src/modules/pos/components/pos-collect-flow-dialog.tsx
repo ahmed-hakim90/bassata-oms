@@ -343,21 +343,22 @@ export function PosCollectFlowDialog({ open, onOpenChange }: PosCollectFlowDialo
               </div>
               <div className="space-y-2">
                 <Label>طريقة التحصيل</Label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-4 gap-1.5">
                   {METHOD_META.filter((m) => PAYMENT_METHODS.includes(m.id)).map(
                     ({ id, label, icon: Icon, className }) => (
                       <button
                         key={id}
                         type="button"
+                        aria-label={label}
                         data-selected={method === id}
                         onClick={() => setMethod(id)}
                         className={cn(
-                          "flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border text-xs font-semibold",
+                          "flex h-11 flex-col items-center justify-center gap-0 rounded-xl border text-xs font-semibold sm:h-12 sm:gap-0.5",
                           className
                         )}
                       >
-                        <Icon className="size-4" />
-                        {label}
+                        <Icon className="size-4" aria-hidden />
+                        <span className="sr-only sm:not-sr-only">{label}</span>
                       </button>
                     )
                   )}

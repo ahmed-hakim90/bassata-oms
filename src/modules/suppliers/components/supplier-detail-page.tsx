@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { KpiCard } from "@/components/Velora/kpi-card";
@@ -146,16 +147,22 @@ export function SupplierDetailPage({
         title={supplier.name}
         description={supplier.contact_info || "كشف حساب المورد"}
         action={
-          <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
+          <CompactActions>
             {canEditSupplier ? (
-              <Button variant="outline" onClick={() => setShowEdit(true)}>
-                <Pencil className="size-4" /> تعديل
-              </Button>
+              <CompactAction
+                label="تعديل"
+                icon={Pencil}
+                onClick={() => setShowEdit(true)}
+              />
             ) : null}
             {canManagePayments ? (
-              <Button onClick={() => setShowPayment(true)}>
-                <Plus className="size-4" /> تسجيل دفعة
-              </Button>
+              <CompactAction
+                label="تسجيل دفعة"
+                icon={Plus}
+                variant="default"
+                alwaysLabeled
+                onClick={() => setShowPayment(true)}
+              />
             ) : null}
             <ExportButtonGroup
               printHref={printHref}
@@ -175,7 +182,7 @@ export function SupplierDetailPage({
                 });
               }}
             />
-          </div>
+          </CompactActions>
         }
       />
 

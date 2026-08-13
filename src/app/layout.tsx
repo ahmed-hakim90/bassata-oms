@@ -23,6 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 const siteUrl = getSiteUrl();
+const facebookAppId = process.env.NEXT_PUBLIC_FB_APP_ID?.trim();
 
 export const viewport: Viewport = {
   themeColor: [
@@ -86,6 +87,8 @@ export const metadata: Metadata = {
     title: `${APP_NAME} — ${APP_TAGLINE_AR}`,
     description: APP_DESCRIPTION_AR,
   },
+  // Optional Meta app — clears Sharing Debugger `fb:app_id` when set.
+  ...(facebookAppId ? { facebook: { appId: facebookAppId } } : {}),
   appleWebApp: {
     capable: true,
     title: APP_NAME,
@@ -110,7 +113,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AppProviders>
-          <div className="flex min-h-screen flex-col">
+          <div className="flex min-h-dvh flex-col">
             <div className="flex min-h-0 flex-1 flex-col">{children}</div>
             <AppFooter />
           </div>

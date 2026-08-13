@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import {
+  ArrowLeft,
   Check,
   ClipboardCheck,
   ClipboardList,
@@ -19,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { DataTableShell } from "@/components/Velora/data-table-shell";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
@@ -212,44 +214,67 @@ export function StockCountWizard({
             </p>
           )}
         </ul>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {count.status === "in_progress" && (
+        <div className="mt-6">
+          <CompactActions className="justify-start">
+          {count.status === "in_progress" ? (
             <>
-              <Button variant="outline" onClick={() => setStep("count")} disabled={pending}>
-                رجوع
-              </Button>
-              <Button onClick={sendForApproval} disabled={pending}>
-                <Send className="size-4" /> إرسال للاعتماد
-              </Button>
+              <CompactAction
+                label="رجوع"
+                icon={ArrowLeft}
+                disabled={pending}
+                onClick={() => setStep("count")}
+              />
+              <CompactAction
+                label="إرسال للاعتماد"
+                icon={Send}
+                variant="default"
+                disabled={pending}
+                onClick={sendForApproval}
+              />
             </>
-          )}
-          {count.status === "pending_approval" && canApprove && (
+          ) : null}
+          {count.status === "pending_approval" && canApprove ? (
             <>
-              <Button variant="outline" onClick={rejectApproval} disabled={pending}>
-                <RotateCcw className="size-4" /> إرجاع للعد
-              </Button>
-              <Button onClick={approveCount} disabled={pending}>
-                <ClipboardCheck className="size-4" /> اعتماد الجرد
-              </Button>
+              <CompactAction
+                label="إرجاع للعد"
+                icon={RotateCcw}
+                disabled={pending}
+                onClick={rejectApproval}
+              />
+              <CompactAction
+                label="اعتماد الجرد"
+                icon={ClipboardCheck}
+                variant="default"
+                disabled={pending}
+                onClick={approveCount}
+              />
             </>
-          )}
-          {count.status === "pending_approval" && !canApprove && (
+          ) : null}
+          {count.status === "pending_approval" && !canApprove ? (
             <p className="text-sm text-muted-foreground">
               بانتظار اعتماد المالك أو المدير قبل ترحيل الفروقات.
             </p>
-          )}
-          {count.status === "approved" && (
+          ) : null}
+          {count.status === "approved" ? (
             <>
-              {canApprove && (
-                <Button variant="outline" onClick={rejectApproval} disabled={pending}>
-                  <RotateCcw className="size-4" /> إرجاع للعد
-                </Button>
-              )}
-              <Button onClick={postAdjustments} disabled={pending}>
-                <Check className="size-4" /> ترحيل الفروقات
-              </Button>
+              {canApprove ? (
+                <CompactAction
+                  label="إرجاع للعد"
+                  icon={RotateCcw}
+                  disabled={pending}
+                  onClick={rejectApproval}
+                />
+              ) : null}
+              <CompactAction
+                label="ترحيل الفروقات"
+                icon={Check}
+                variant="default"
+                disabled={pending}
+                onClick={postAdjustments}
+              />
             </>
-          )}
+          ) : null}
+          </CompactActions>
         </div>
       </OperationalCard>
     );

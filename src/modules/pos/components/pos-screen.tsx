@@ -842,15 +842,15 @@ export function PosScreen({
   return (
     <>
     <div className="print:hidden flex h-dvh max-h-dvh flex-col gap-2 overflow-hidden p-2 pt-[max(0.5rem,env(safe-area-inset-top))] max-[390px]:gap-1.5 max-[390px]:p-1.5 sm:gap-3 sm:p-3 lg:gap-4 lg:p-4">
-      <div className="flex min-w-0 shrink-0 items-center gap-1.5 max-[390px]:gap-1 sm:gap-2">
-        <div className="flex min-w-0 shrink-0 items-center gap-2">
-          <PosReadinessBanner state={readinessState} action={sessionBannerAction} />
+      <div className="flex shrink-0 flex-col gap-1.5 max-[390px]:gap-1 sm:gap-2">
+        <PosReadinessBanner state={readinessState} action={sessionBannerAction} />
+
+        <div className="flex min-w-0 items-center gap-1.5 max-[390px]:gap-1 sm:gap-2">
           {currentUserName ? (
             <span className="hidden max-w-40 truncate rounded-full border border-border/70 bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground lg:inline-flex">
               {currentUserName}
             </span>
           ) : null}
-        </div>
 
         {hasActiveSession ? (
           <div className="flex min-w-0 flex-1 items-stretch gap-1.5 max-[390px]:gap-1">
@@ -1013,6 +1013,7 @@ export function PosScreen({
             />
           ) : null}
           <PosPinSwitch returnTo={posPath} />
+        </div>
         </div>
       </div>
       <div className="flex min-h-0 flex-1 gap-2 max-[390px]:gap-1.5 sm:gap-3 lg:gap-4">

@@ -159,7 +159,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               </select>
             </div>
           </div>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <div className="mt-4 flex flex-row flex-wrap gap-2">
             <Button className="rounded-xl" disabled={pending} onClick={saveCenter}>
               حفظ
             </Button>
@@ -208,7 +208,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
               </select>
             </div>
           </div>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <div className="mt-4 flex flex-row flex-wrap gap-2">
             <Button className="rounded-xl" disabled={pending} onClick={saveEdit}>
               حفظ
             </Button>

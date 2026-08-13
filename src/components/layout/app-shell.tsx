@@ -37,10 +37,11 @@ export function AppShell({
   posReadinessState,
 }: AppShellProps) {
   return (
-    <div className="flex h-dvh max-h-dvh overflow-hidden overscroll-none bg-[var(--mds-color-bg-canvas)]">
+    <div className="flex min-h-dvh bg-[var(--mds-color-bg-canvas)]">
       {posReadinessState ? <ImplicitPosDeviceBinder state={posReadinessState} /> : null}
-      <div className="hidden h-full min-h-0 shrink-0 overflow-hidden md:flex">
+      <div className="hidden shrink-0 md:block">
         <AppSidebar
+          className="sticky top-0 h-dvh"
           userRole={userRole}
           featureFlags={featureFlags}
           enableWholesaleSales={enableWholesaleSales}
@@ -50,7 +51,7 @@ export function AppShell({
         />
       </div>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col">
         <AppShellHeader
           userName={userName}
           userRole={userRole}
@@ -64,7 +65,7 @@ export function AppShell({
           permissions={permissions}
         />
         <SessionBar />
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-[var(--mds-color-bg-canvas)] p-[var(--mds-space-3)] pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-[var(--mds-space-4)] md:p-[var(--mds-space-6)] md:pb-[var(--mds-space-8)]">
+        <main className="flex-1 bg-[var(--mds-color-bg-canvas)] p-[var(--mds-space-3)] pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-[var(--mds-space-4)] md:p-[var(--mds-space-6)] md:pb-[var(--mds-space-8)]">
           <div className="mx-auto w-full max-w-[1600px] pb-2 md:pb-0">{children}</div>
         </main>
       </div>

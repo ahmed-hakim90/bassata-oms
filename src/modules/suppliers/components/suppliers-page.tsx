@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
@@ -106,16 +107,22 @@ export function SuppliersPage({
         title="الموردون"
         description="أرصدة الموردين وكشوف الحساب"
         action={
-          <div className="flex flex-wrap gap-2">
+          <CompactActions>
             {canManagePayments && summaries.length > 0 ? (
-              <Button variant="outline" onClick={() => openPayment()}>
-                <Banknote className="size-4" /> تسجيل دفعة
-              </Button>
+              <CompactAction
+                label="تسجيل دفعة"
+                icon={Banknote}
+                onClick={() => openPayment()}
+              />
             ) : null}
-            <Button onClick={() => setShowCreate(true)}>
-              <Plus className="size-4" /> إضافة مورد
-            </Button>
-          </div>
+            <CompactAction
+              label="إضافة مورد"
+              icon={Plus}
+              variant="default"
+              alwaysLabeled
+              onClick={() => setShowCreate(true)}
+            />
+          </CompactActions>
         }
       />
 

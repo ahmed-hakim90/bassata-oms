@@ -1,13 +1,13 @@
 "use client";
 
-import { Printer } from "lucide-react";
+import { Ban, Printer, RotateCcw } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { APP_NAME } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n/use-translation";
@@ -83,32 +83,28 @@ export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailP
   }
 
   const actions = (
-    <div className={cn("flex flex-wrap gap-2 print:hidden", embedded ? "justify-start" : "justify-end")}>
-      <Button variant="outline" size="sm" onClick={handlePrint}>
-        <Printer className="size-4" />
-        طباعة
-      </Button>
-      {order.status === "completed" && (
+    <CompactActions
+      className={cn("print:hidden", embedded ? "justify-start" : "justify-end")}
+    >
+      <CompactAction label="طباعة" icon={Printer} onClick={handlePrint} />
+      {order.status === "completed" ? (
         <>
-          <Button
-            variant="outline"
-            size="sm"
+          <CompactAction
+            label="رد"
+            icon={RotateCcw}
             disabled={pending}
             onClick={() => setConfirm("refund")}
-          >
-            رد
-          </Button>
-          <Button
+          />
+          <CompactAction
+            label="إلغاء"
+            icon={Ban}
             variant="destructive"
-            size="sm"
             disabled={pending}
             onClick={() => setConfirm("void")}
-          >
-            إلغاء
-          </Button>
+          />
         </>
-      )}
-    </div>
+      ) : null}
+    </CompactActions>
   );
 
   return (
@@ -129,7 +125,7 @@ export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailP
               })}
             </p>
           </div>
-          <div className="w-full sm:w-auto sm:justify-end">{actions}</div>
+          <div className="min-w-0 sm:justify-end">{actions}</div>
         </div>
       )}
 

@@ -363,7 +363,18 @@ export function PaymentPanel({
           </p>
         ) : null}
         {!splitMode ? (
-        <div className="mb-5 grid grid-cols-2 gap-2 max-[390px]:gap-1.5 sm:gap-3">
+        <div
+          className={cn(
+            "mb-5 grid gap-2 max-[390px]:gap-1.5 sm:gap-3",
+            methods.length <= 2
+              ? "grid-cols-2"
+              : methods.length === 3
+                ? "grid-cols-3"
+                : methods.length === 4
+                  ? "grid-cols-4"
+                  : "grid-cols-3 sm:grid-cols-5"
+          )}
+        >
           {methods.map(({ id, label, icon: Icon }) => {
             const selected = paymentMethod === id;
             const tone =
@@ -376,19 +387,21 @@ export function PaymentPanel({
                     : id === "credit"
                       ? "border-amber-300 bg-amber-500 text-amber-950 hover:bg-amber-400"
                       : "border-slate-300 bg-slate-700 text-white hover:bg-slate-800";
+            const methodLabel = t(label);
             return (
               <button
                 key={id}
                 type="button"
+                aria-label={methodLabel}
                 onClick={() => setPaymentMethod(id)}
                 className={cn(
-                  "flex min-h-[5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-sm font-semibold transition active:scale-[0.98] max-[390px]:min-h-[4.5rem] max-[390px]:rounded-xl sm:min-h-28 sm:gap-2 sm:py-5 sm:text-base",
+                  "flex h-12 min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl border-2 py-2 text-xs font-semibold transition active:scale-[0.98] sm:h-auto sm:min-h-24 sm:gap-1.5 sm:rounded-2xl sm:py-4 sm:text-sm",
                   tone,
                   selected && "ring-2 ring-offset-2 ring-foreground/30"
                 )}
               >
-                <Icon className="size-7 sm:size-8" />
-                <span>{t(label)}</span>
+                <Icon className="size-5 sm:size-7" aria-hidden />
+                <span className="sr-only sm:not-sr-only">{methodLabel}</span>
               </button>
             );
           })}

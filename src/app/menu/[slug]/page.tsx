@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { getSiteUrl } from "@/lib/site-url";
 import { OnlineMenuHeader } from "@/modules/online-menu/components/online-menu-header";
 import { OnlineMenuOrderingClient } from "@/modules/online-menu/components/online-menu-ordering-client";
 import {
@@ -49,6 +50,8 @@ export async function generateMetadata({ params, searchParams }: MenuPageProps):
   const description =
     menu.store.og.description?.trim() || menu.store.description.trim() || businessName;
   const noIndex = Boolean(token);
+  // Canonical share URL without tracking/query params (?src=, token, utm_…).
+  const menuUrl = `${getSiteUrl()}/menu/${encodeURIComponent(slug)}`;
 
   return {
     title: { absolute: title },
@@ -57,12 +60,14 @@ export async function generateMetadata({ params, searchParams }: MenuPageProps):
     authors: [{ name: businessName }],
     creator: businessName,
     publisher: businessName,
+    alternates: { canonical: menuUrl },
     robots: noIndex
       ? { index: false, follow: false }
       : { index: true, follow: true },
     openGraph: {
       type: "website",
       locale: "ar_EG",
+      url: menuUrl,
       siteName: businessName,
       title,
       description,

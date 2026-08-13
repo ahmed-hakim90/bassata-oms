@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Landmark, Plus, ShoppingBag, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { KpiCard } from "@/components/Velora/kpi-card";
 import { OperationalCard } from "@/components/Velora/operational-card";
@@ -64,45 +64,41 @@ export function CustomerDetailPage({
         title={profile.name}
         description={descriptionParts.join(" · ") || undefined}
         action={
-          <div className="flex w-full flex-col gap-[var(--mds-space-2)] sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+          <CompactActions>
             {canCollect && (creditSalesEnabled || hasBalance) ? (
-              <Button
-                className="w-full sm:w-auto"
-                onClick={() => setShowCollect(true)}
+              <CompactAction
+                label="تحصيل دفعة"
+                icon={Plus}
+                variant="default"
+                alwaysLabeled
                 disabled={!hasBalance}
-                title={hasBalance ? undefined : "مفيش مستحقات على العميل"}
-              >
-                <Plus className="size-4" /> تحصيل دفعة
-              </Button>
+                onClick={() => setShowCollect(true)}
+              />
             ) : null}
-            <div className="flex flex-wrap items-center gap-[var(--mds-space-2)]">
-              {canEdit && creditSalesEnabled ? (
-                <Button
-                  variant="outline"
-                  className="min-w-0 flex-1 sm:flex-none"
-                  onClick={() => setShowCredit(true)}
-                >
-                  <Wallet className="size-4" /> حد الائتمان
-                </Button>
-              ) : null}
-              {statement ? (
-                <ExportButtonGroup
-                  printHref={`/print/statements/customers/${profile.id}`}
-                  onExportExcel={() => {
-                    startTransition(async () => {
-                      try {
-                        const result = await exportCustomerStatementExcel(profile.id);
-                        downloadBase64Excel(result.base64, result.filename);
-                        toast.success("تم تصدير Excel");
-                      } catch {
-                        toast.error("فشل التصدير");
-                      }
-                    });
-                  }}
-                />
-              ) : null}
-            </div>
-          </div>
+            {canEdit && creditSalesEnabled ? (
+              <CompactAction
+                label="حد الائتمان"
+                icon={Wallet}
+                onClick={() => setShowCredit(true)}
+              />
+            ) : null}
+            {statement ? (
+              <ExportButtonGroup
+                printHref={`/print/statements/customers/${profile.id}`}
+                onExportExcel={() => {
+                  startTransition(async () => {
+                    try {
+                      const result = await exportCustomerStatementExcel(profile.id);
+                      downloadBase64Excel(result.base64, result.filename);
+                      toast.success("تم تصدير Excel");
+                    } catch {
+                      toast.error("فشل التصدير");
+                    }
+                  });
+                }}
+              />
+            ) : null}
+          </CompactActions>
         }
       />
 

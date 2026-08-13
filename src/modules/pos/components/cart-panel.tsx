@@ -589,7 +589,7 @@ export function CartPanel({
           </Button>
         </div>
 
-        {/* Primary — payment methods */}
+        {/* Primary — payment methods: icon row on mobile sheet, labeled cards on desktop aside */}
         <div
           className={cn(
             "grid gap-1.5",
@@ -598,8 +598,8 @@ export function CartPanel({
               : methods.length === 3
                 ? "grid-cols-3"
                 : methods.length === 4
-                  ? "grid-cols-2"
-                  : "grid-cols-3"
+                  ? "grid-cols-4 lg:grid-cols-2"
+                  : "grid-cols-5 lg:grid-cols-3"
           )}
         >
           {methods.map((method) => {
@@ -610,14 +610,15 @@ export function CartPanel({
                 key={method}
                 type="button"
                 disabled={payDisabled}
+                aria-label={meta.label}
                 className={cn(
-                  "h-16 min-h-16 flex-col gap-0.5 rounded-2xl border font-bold shadow-none transition active:scale-[0.98] max-[390px]:rounded-xl sm:gap-1",
+                  "h-12 min-h-12 flex-col gap-0 rounded-xl border font-bold shadow-none transition active:scale-[0.98] lg:h-16 lg:min-h-16 lg:gap-0.5 lg:rounded-2xl",
                   meta.className
                 )}
                 onClick={() => handlePay(method)}
               >
-                <Icon className="size-5" />
-                <span className="text-sm">{meta.label}</span>
+                <Icon className="size-5" aria-hidden />
+                <span className="sr-only text-sm lg:not-sr-only">{meta.label}</span>
               </Button>
             );
           })}

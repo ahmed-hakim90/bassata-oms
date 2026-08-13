@@ -45,10 +45,25 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = menu.store.og.title?.trim() || businessName;
   const description =
     menu.store.og.description?.trim() || menu.store.description.trim() || businessName;
+  const menuUrl = `${getSiteUrl()}/menu`;
   return {
     title: { absolute: title },
     description,
+    alternates: { canonical: menuUrl },
     robots: { index: true, follow: true },
+    openGraph: {
+      type: "website",
+      locale: "ar_EG",
+      url: menuUrl,
+      siteName: businessName,
+      title,
+      description,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 

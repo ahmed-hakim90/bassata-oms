@@ -42,7 +42,7 @@ export function CashierVaultPanel({
           </p>
         </div>
         {canManage ? (
-          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:w-full sm:[&_button]:min-h-9 sm:[&_button]:w-auto">
+          <div className="shrink-0">
             <CashierVaultBatchWithdrawDialog
               storeId={storeId}
               storeName={storeName}

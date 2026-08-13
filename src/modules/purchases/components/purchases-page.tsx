@@ -1,12 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Pencil, Plus, Tags } from "lucide-react";
+import { Pencil, Plus, Tags, Truck, Receipt } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
@@ -108,38 +106,30 @@ function PurchaseInvoiceCard({
           : []),
       ]}
       footer={
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+        <CompactActions className="w-full justify-end">
           {purchase.lines.length > 0 ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11 w-full border-primary text-primary sm:w-auto"
+            <CompactAction
+              label="ريسيت"
+              icon={Receipt}
+              className="border-primary text-primary"
               onClick={() => onPrintReceipt(purchase)}
-            >
-              ريسيت
-            </Button>
+            />
           ) : null}
           {isReceived ? (
-            <Link
+            <CompactAction
+              label="قائمة أسعار البيع"
+              icon={Tags}
+              variant="default"
               href={`/inventory/purchases/price-list?invoice=${purchase.id}`}
-              className={cn(
-                buttonVariants({ variant: "default" }),
-                "min-h-11 w-full justify-center sm:w-auto"
-              )}
-            >
-              <Tags className="size-4" />
-              قائمة أسعار البيع
-            </Link>
+            />
           ) : null}
-          <Button
+          <CompactAction
+            label={isDraft ? "متابعة" : "فتح"}
+            icon={Pencil}
             variant={isDraft ? "default" : "outline"}
-            className="min-h-11 w-full sm:w-auto"
             onClick={() => onOpen(purchase.id)}
-          >
-            <Pencil className="size-4" />
-            {isDraft ? "متابعة" : "فتح"}
-          </Button>
-        </div>
+          />
+        </CompactActions>
       }
     />
   );
@@ -270,9 +260,13 @@ export function PurchasesPage({
   }
 
   const newPurchaseButton = (
-    <Button className="min-h-11" onClick={() => setCreating(true)}>
-      <Plus className="size-4" /> شراء جديد
-    </Button>
+    <CompactAction
+      label="شراء جديد"
+      icon={Plus}
+      variant="default"
+      alwaysLabeled
+      onClick={() => setCreating(true)}
+    />
   );
 
   return (
@@ -281,28 +275,19 @@ export function PurchasesPage({
         title="المشتريات"
         description="مسودات مؤقتة، فواتير مستلمة، وسجل الأسعار والإلغاءات"
         action={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-            <Link
+          <CompactActions>
+            <CompactAction
+              label="قائمة أسعار من منتجات"
+              icon={Tags}
               href="/inventory/purchases/price-list"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "min-h-11 justify-center"
-              )}
-            >
-              <Tags className="size-4" />
-              قائمة أسعار من منتجات
-            </Link>
-            <Link
+            />
+            <CompactAction
+              label="إدارة الموردين"
+              icon={Truck}
               href="/inventory/suppliers"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "min-h-11 justify-center"
-              )}
-            >
-              إدارة الموردين
-            </Link>
+            />
             {newPurchaseButton}
-          </div>
+          </CompactActions>
         }
       />
 

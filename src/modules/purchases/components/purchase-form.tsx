@@ -1,12 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, Plus, Tags, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Tags, Trash2, X, Save, PackageCheck, FileText, Receipt, Undo2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { LoadingStateBlock } from "@/components/Velora/state-blocks";
 import { DocumentPrintPreviewModal } from "@/components/print/document-print-preview-modal";
@@ -836,7 +835,7 @@ export function PurchaseForm({
   };
 
   return (
-    <div className="flex flex-col gap-4 pb-[calc(12rem+env(safe-area-inset-bottom))] md:pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
+    <div className="flex flex-col gap-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
       <OperationalCard
         title={`فاتورة ${invoice.invoice_number}`}
         description={
@@ -1218,105 +1217,93 @@ export function PurchaseForm({
         </OperationalCard>
       )}
 
-      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 px-3 py-3 backdrop-blur-xl md:bottom-0 md:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pt-3 lg:ps-64">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-baseline justify-between gap-3 sm:block">
-            <p className="text-sm text-muted-foreground">{invoice.lines.length} بند</p>
-            <p className="text-2xl font-semibold tabular-nums">
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 px-3 py-2.5 backdrop-blur-xl md:bottom-0 md:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pt-3 lg:ps-64">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="min-w-0 shrink">
+            <p className="text-xs text-muted-foreground sm:text-sm">{invoice.lines.length} بند</p>
+            <p className="truncate text-lg font-semibold tabular-nums sm:text-2xl">
               {formatCurrency(invoice.total || subtotal, currency)}
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-            <Button
-              variant="outline"
-              className="min-h-11 w-full sm:w-auto"
+          <CompactActions>
+            <CompactAction
+              label={
+                invoice.status === "cancelled"
+                  ? "رجوع"
+                  : isDraft
+                    ? "حفظ مؤقت"
+                    : "إغلاق"
+              }
+              icon={isDraft ? Save : X}
               onClick={() => {
                 if (isDraft) {
                   toast.success("تم الحفظ المؤقت — تابع لاحقًا من القائمة");
                 }
                 onComplete();
               }}
-            >
-              {invoice.status === "cancelled"
-                ? "رجوع"
-                : isDraft
-                  ? "حفظ مؤقت"
-                  : "إغلاق"}
-            </Button>
-            {isDraft && (
+            />
+            {isDraft ? (
               <>
-                <Button
+                <CompactAction
+                  label="حذف"
+                  icon={Trash2}
                   variant="destructive"
-                  className="min-h-11 w-full sm:w-auto"
                   onClick={() => setConfirmDelete(true)}
-                >
-                  حذف
-                </Button>
-                <Button
-                  className="min-h-12 w-full text-base sm:min-w-40 sm:w-auto"
+                />
+                <CompactAction
+                  label="حفظ نهائي وتحديث المخزون"
+                  icon={PackageCheck}
+                  variant="default"
+                  disabled={invoice.lines.length === 0}
                   onClick={() => {
                     setAmountPaidNow("0");
                     setReceivePaymentMethod("cash");
                     setConfirmReceive(true);
                   }}
-                  disabled={invoice.lines.length === 0}
-                >
-                  حفظ نهائي وتحديث المخزون
-                </Button>
+                />
               </>
-            )}
+            ) : null}
             {(isDraft || isReceived) && invoice.lines.length > 0 ? (
               <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11 w-full justify-center sm:w-auto"
+                <CompactAction
+                  label="فاتورة"
+                  icon={FileText}
                   onClick={() =>
                     setPrintPreview({
                       href: `/print/purchases/${invoice.id}?embed=1`,
                       title: isDraft ? "فاتورة شراء مؤقتة" : "فاتورة شراء",
                     })
                   }
-                >
-                  فاتورة
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11 w-full justify-center border-primary text-primary sm:w-auto"
+                />
+                <CompactAction
+                  label="ريسيت"
+                  icon={Receipt}
+                  className="border-primary text-primary"
                   onClick={() =>
                     setPrintPreview({
                       href: `/print/purchases/${invoice.id}/receipt?embed=1`,
                       title: isDraft ? "ريسيت مشتريات مؤقت" : "ريسيت مشتريات",
                     })
                   }
-                >
-                  ريسيت
-                </Button>
+                />
               </>
             ) : null}
-            {isReceived && (
+            {isReceived ? (
               <>
-                <Link
+                <CompactAction
+                  label="إنشاء قائمة أسعار البيع"
+                  icon={Tags}
+                  variant="default"
                   href={`/inventory/purchases/price-list?invoice=${invoice.id}`}
-                  className={cn(
-                    buttonVariants({ variant: "default" }),
-                    "min-h-11 w-full justify-center sm:w-auto"
-                  )}
-                >
-                  <Tags className="size-4" />
-                  إنشاء قائمة أسعار البيع
-                </Link>
-                <Button
-                  variant="outline"
-                  className="min-h-11 w-full sm:w-auto"
+                />
+                <CompactAction
+                  label="إلغاء الاستلام"
+                  icon={Undo2}
                   onClick={() => setConfirmVoid(true)}
-                >
-                  إلغاء الاستلام
-                </Button>
+                />
               </>
-            )}
-          </div>
+            ) : null}
+          </CompactActions>
         </div>
       </div>
 

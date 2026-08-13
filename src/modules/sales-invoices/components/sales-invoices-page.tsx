@@ -231,11 +231,11 @@ export function SalesInvoicesPage({
         title="فواتير المبيعات"
         description="مسودة → إصدار → تسليم (خصم المخزون عند التسليم — مستقلة عن جلسة الكاشير)"
         action={
-          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-end">
+          <div className="flex w-full flex-row flex-wrap items-end gap-2 sm:w-auto">
             <div className="space-y-1">
               <Label htmlFor="new-invoice-warehouse" className="text-xs">المخزن</Label>
               <Select value={warehouseId || undefined} onValueChange={(v) => setWarehouseId(v ?? "")}>
-                <SelectTrigger id="new-invoice-warehouse" className="h-11 w-full sm:h-9 sm:w-44">
+                <SelectTrigger id="new-invoice-warehouse" className="h-11 w-[min(100%,11rem)] sm:h-9 sm:w-44">
                   <SelectValue placeholder="المخزن">
                     {(value) => selectLabelById(warehouses, value, (w) => w.name)}
                   </SelectValue>
@@ -252,7 +252,7 @@ export function SalesInvoicesPage({
             <div className="space-y-1">
               <Label htmlFor="new-invoice-customer" className="text-xs">عميل</Label>
               <Select value={customerId || undefined} onValueChange={(v) => setCustomerId(v ?? "__none__")}>
-                <SelectTrigger id="new-invoice-customer" className="h-11 w-full sm:h-9 sm:w-44">
+                <SelectTrigger id="new-invoice-customer" className="h-11 w-[min(100%,11rem)] sm:h-9 sm:w-44">
                   <SelectValue placeholder="عميل">
                     {(value) =>
                       value === "__none__"
@@ -275,8 +275,9 @@ export function SalesInvoicesPage({
             </div>
             <Button
               type="button"
-              className="h-11 w-full sm:h-9 sm:w-auto"
+              className="h-11 shrink-0 sm:h-9"
               disabled={pending || !warehouseId}
+              aria-label="مسودة جديدة"
               onClick={() =>
                 startTransition(async () => {
                   refreshCatalog(true);
@@ -298,7 +299,7 @@ export function SalesInvoicesPage({
               }
             >
               <Plus className="size-4" />
-              مسودة جديدة
+              <span className="sr-only sm:not-sr-only">مسودة جديدة</span>
             </Button>
           </div>
         }

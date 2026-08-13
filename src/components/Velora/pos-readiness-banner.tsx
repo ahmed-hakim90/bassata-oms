@@ -39,7 +39,7 @@ export function PosReadinessBanner({ state, action }: PosReadinessBannerProps) {
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-1 items-center justify-between gap-3 rounded-2xl border px-4 py-3 max-[390px]:gap-2 max-[390px]:rounded-xl max-[390px]:px-2.5 max-[390px]:py-2",
+        "flex w-full shrink-0 items-center justify-between gap-3 rounded-2xl border px-4 py-3 max-[390px]:gap-2 max-[390px]:rounded-xl max-[390px]:px-2.5 max-[390px]:py-2",
         isExpired
           ? "border-destructive/40 bg-destructive/10"
           : "border-amber-500/30 bg-amber-500/10"

@@ -8,7 +8,7 @@ import {
   useTransition,
   type FormEvent,
 } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Save, Send, FileText, Receipt, PackageCheck, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { OperationalCard } from "@/components/Velora/operational-card";
@@ -1227,24 +1228,24 @@ export function SalesInvoiceForm({
           <span className="font-semibold">الإجمالي: {formatCurrency(invoice.total, currency)}</span>
         </div>
 
-        <div className="flex flex-wrap gap-2 [&_button]:min-h-11 sm:[&_button]:min-h-9">
+        <div className="flex flex-wrap items-center gap-2">
+          <CompactActions className="justify-start">
           {isDraft ? (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full sm:w-auto"
+              <CompactAction
+                label="حفظ مؤقت"
+                icon={Save}
                 disabled={lifecyclePending}
                 onClick={() => {
                   toast.success("تم الحفظ المؤقت — تابع لاحقًا من القائمة");
                   onChanged(invoice, { refresh: true });
                   onClose();
                 }}
-              >
-                حفظ مؤقت
-              </Button>
-              <Button
-                type="button"
+              />
+              <CompactAction
+                label="إصدار"
+                icon={Send}
+                variant="default"
                 disabled={
                   lifecyclePending ||
                   invoice.lines.length === 0 ||
@@ -1262,17 +1263,14 @@ export function SalesInvoiceForm({
                     onChanged(result.data, { refresh: true });
                   })
                 }
-              >
-                إصدار
-              </Button>
-              <Button
-                type="button"
+              />
+              <CompactAction
+                label="حذف المسودة"
+                icon={Trash2}
                 variant="destructive"
                 disabled={lifecyclePending}
                 onClick={() => setConfirmDelete(true)}
-              >
-                حذف المسودة
-              </Button>
+              />
             </>
           ) : null}
 
@@ -1293,7 +1291,7 @@ export function SalesInvoiceForm({
                   }
                 }}
               >
-                <SelectTrigger className="h-11 w-full sm:h-9 sm:w-40">
+                <SelectTrigger className="h-11 w-[min(100%,11rem)] sm:h-9 sm:w-40">
                   <SelectValue placeholder="الدفع">
                     {(value) =>
                       value === "unpaid"
@@ -1313,8 +1311,10 @@ export function SalesInvoiceForm({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <Button
-                type="button"
+              <CompactAction
+                label="تسليم وخصم مخزون"
+                icon={PackageCheck}
+                variant="default"
                 disabled={lifecyclePending}
                 onClick={() => {
                   if (paymentMethod === "credit") {
@@ -1327,21 +1327,17 @@ export function SalesInvoiceForm({
                   }
                   setConfirmDeliver(true);
                 }}
-              >
-                تسليم وخصم مخزون
-              </Button>
+              />
             </>
           ) : null}
 
           {isDelivered && canCorrectCosts ? (
-            <Button
-              type="button"
-              variant="outline"
+            <CompactAction
+              label="تصحيح التكلفة"
+              icon={Wrench}
               disabled={lifecyclePending || invoice.lines.length === 0}
               onClick={() => setConfirmCorrectCosts(true)}
-            >
-              تصحيح التكلفة
-            </Button>
+            />
           ) : null}
 
           {isDelivered ? (
@@ -1355,11 +1351,9 @@ export function SalesInvoiceForm({
             invoice.document_status === "issued" ||
             invoice.document_status === "delivered") ? (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8"
+              <CompactAction
+                label="فاتورة"
+                icon={FileText}
                 onClick={() =>
                   setPrintPreview({
                     href: `/print/orders/${invoice.id}?embed=1`,
@@ -1369,14 +1363,11 @@ export function SalesInvoiceForm({
                         : "فاتورة مبيعات",
                   })
                 }
-              >
-                فاتورة
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 border-primary bg-primary/5 font-medium text-primary"
+              />
+              <CompactAction
+                label="ريسيت"
+                icon={Receipt}
+                className="border-primary text-primary"
                 onClick={() =>
                   setPrintPreview({
                     href: `/print/receipts/${invoice.id}?embed=1`,
@@ -1386,11 +1377,10 @@ export function SalesInvoiceForm({
                         : "ريسيت مبيعات",
                   })
                 }
-              >
-                ريسيت
-              </Button>
+              />
             </>
           ) : null}
+          </CompactActions>
         </div>
       </div>
 

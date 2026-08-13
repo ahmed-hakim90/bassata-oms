@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ArrowRight, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, Check, PackageCheck, Plus, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import type { Product, Store, TransferOrderLine, Warehouse } from "@/lib/types";
 import { selectLabelById } from "@/lib/select-label";
@@ -606,43 +607,57 @@ export function TransferForm({
             </li>
           ))}
         </ul>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {isDraft && (
+        <div className="mt-6">
+          <CompactActions className="justify-start">
+          {isDraft ? (
             <>
-              <Button onClick={send} disabled={lifecyclePending || transfer.lines.length === 0}>
-                إرسال التحويل <ArrowRight className="size-4" />
-              </Button>
-              <Button
+              <CompactAction
+                label="إرسال التحويل"
+                icon={ArrowRight}
+                variant="default"
+                disabled={lifecyclePending || transfer.lines.length === 0}
+                onClick={send}
+              />
+              <CompactAction
+                label="حذف المسودة"
+                icon={Trash2}
                 variant="destructive"
+                disabled={lifecyclePending}
                 onClick={() => setConfirmDelete(true)}
-                disabled={lifecyclePending}
-              >
-                حذف المسودة
-              </Button>
+              />
             </>
-          )}
-          {isSent && (
+          ) : null}
+          {isSent ? (
             <>
-              <Button onClick={receive} disabled={lifecyclePending}>
-                الاستلام في الوجهة
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setConfirmVoid(true)}
+              <CompactAction
+                label="الاستلام في الوجهة"
+                icon={PackageCheck}
+                variant="default"
                 disabled={lifecyclePending}
-              >
-                إلغاء الإرسال
-              </Button>
+                onClick={receive}
+              />
+              <CompactAction
+                label="إلغاء الإرسال"
+                icon={Undo2}
+                disabled={lifecyclePending}
+                onClick={() => setConfirmVoid(true)}
+              />
             </>
-          )}
-          {canVoid && isReceived && (
-            <Button variant="outline" onClick={() => setConfirmVoid(true)} disabled={lifecyclePending}>
-              إلغاء التحويل
-            </Button>
-          )}
-          <Button variant="outline" onClick={onComplete}>
-            {isCancelled ? "رجوع" : "تم"}
-          </Button>
+          ) : null}
+          {canVoid && isReceived ? (
+            <CompactAction
+              label="إلغاء التحويل"
+              icon={Undo2}
+              disabled={lifecyclePending}
+              onClick={() => setConfirmVoid(true)}
+            />
+          ) : null}
+          <CompactAction
+            label={isCancelled ? "رجوع" : "تم"}
+            icon={isCancelled ? X : Check}
+            onClick={onComplete}
+          />
+          </CompactActions>
         </div>
       </OperationalCard>
 

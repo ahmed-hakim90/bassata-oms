@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
 interface ExportButtonGroupProps {
@@ -28,37 +28,29 @@ export function ExportButtonGroup({
   if (!canPrint && !canExcel && !canPdf) return null;
 
   return (
-    <div className="flex flex-wrap gap-[var(--mds-space-2)] print:hidden">
+    <CompactActions className="justify-start print:hidden">
       {canPrint && printHref ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-[var(--mds-radius-md)]"
-          nativeButton={false}
-          render={<a href={printHref} target="_blank" rel="noopener noreferrer" />}
-        >
-          <Printer className="me-2 size-4" />
-          {t("Print")}
-        </Button>
+        <CompactAction label={t("Print")} icon={Printer} href={printHref} />
       ) : null}
       {canPdf && onExportPdf ? (
-        <Button variant="outline" size="sm" className="rounded-[var(--mds-radius-md)]" onClick={onExportPdf} disabled={pending}>
-          <FileText className="me-2 size-4" />
-          {t("PDF")}
-        </Button>
+        <CompactAction
+          label={t("PDF")}
+          icon={FileText}
+          disabled={pending}
+          onClick={onExportPdf}
+        />
       ) : null}
       {canExcel && onExportExcel ? (
-        <Button variant="outline" size="sm" className="rounded-[var(--mds-radius-md)]" onClick={onExportExcel} disabled={pending}>
-          <FileSpreadsheet className="me-2 size-4" />
-          {t("Excel")}
-        </Button>
+        <CompactAction
+          label={t("Excel")}
+          icon={FileSpreadsheet}
+          disabled={pending}
+          onClick={onExportExcel}
+        />
       ) : null}
       {!onExportExcel && !onExportPdf && !printHref ? (
-        <Button variant="outline" size="sm" className="rounded-[var(--mds-radius-md)]" disabled>
-          <Download className="me-2 size-4" />
-          {t("Export")}
-        </Button>
+        <CompactAction label={t("Export")} icon={Download} disabled />
       ) : null}
-    </div>
+    </CompactActions>
   );
 }

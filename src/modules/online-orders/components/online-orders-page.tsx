@@ -712,12 +712,12 @@ function OnlineOrderCard({
           </p>
         ) : null}
 
-        <div className={cn("mt-3 flex flex-wrap items-center gap-2", compact && "gap-1.5")}>
+        <div className={cn("mt-3 flex flex-wrap items-center gap-1.5", compact && "gap-1")}>
           {!isLocked && nextStatus ? (
             <Button
               type="button"
               size={compact ? "sm" : "default"}
-              className="min-h-10 flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
+              className="min-h-10 rounded-[var(--mds-radius-md)]"
               onClick={() => changeStatus(nextStatus)}
             >
               {nextActionLabel ?? STATUS_LABELS[nextStatus]}
@@ -727,23 +727,25 @@ function OnlineOrderCard({
             type="button"
             size={compact ? "sm" : "default"}
             variant={order.status === "ready" ? "default" : "outline"}
-            className="min-h-10 flex-1 rounded-[var(--mds-radius-md)] sm:flex-none"
+            className="min-h-10 size-10 shrink-0 rounded-[var(--mds-radius-md)] px-0 sm:h-auto sm:w-auto sm:px-3 sm:gap-1.5"
             disabled={invoicePending || isLocked}
             onClick={openPayment}
+            aria-label="ريسيت"
           >
-            <ReceiptText className="size-4" />
-            ريسيت
+            <ReceiptText className="size-4" aria-hidden />
+            <span className="sr-only sm:not-sr-only">ريسيت</span>
           </Button>
           {order.order_id ? (
             <Button
               type="button"
               variant="outline"
               size={compact ? "sm" : "default"}
-              className="min-h-10 rounded-[var(--mds-radius-md)]"
+              className="min-h-10 size-10 shrink-0 rounded-[var(--mds-radius-md)] px-0 sm:h-auto sm:w-auto sm:px-3 sm:gap-1.5"
               disabled={receiptPending}
               onClick={viewReceipt}
+              aria-label="الريسيت"
             >
-              <FileText className="size-4" />
+              <FileText className="size-4" aria-hidden />
               <span className="sr-only sm:not-sr-only">الريسيت</span>
             </Button>
           ) : null}
@@ -751,14 +753,16 @@ function OnlineOrderCard({
             type="button"
             variant="ghost"
             size={compact ? "sm" : "default"}
-            className="min-h-10 rounded-[var(--mds-radius-md)] text-muted-foreground"
+            className="min-h-10 size-10 shrink-0 rounded-[var(--mds-radius-md)] px-0 text-muted-foreground sm:h-auto sm:w-auto sm:px-3 sm:gap-1.5"
             aria-expanded={expanded}
+            aria-label={expanded ? "إخفاء" : "تفاصيل"}
             onClick={onToggleExpand}
           >
             <ChevronDown
               className={cn("size-4 transition-transform", expanded && "rotate-180")}
+              aria-hidden
             />
-            {expanded ? "إخفاء" : "تفاصيل"}
+            <span className="sr-only sm:not-sr-only">{expanded ? "إخفاء" : "تفاصيل"}</span>
           </Button>
         </div>
 
