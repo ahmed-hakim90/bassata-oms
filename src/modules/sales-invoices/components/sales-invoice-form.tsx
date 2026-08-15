@@ -8,7 +8,7 @@ import {
   useTransition,
   type FormEvent,
 } from "react";
-import { Plus, Trash2, Save, Send, FileText, Receipt, PackageCheck, Wrench } from "lucide-react";
+import { Plus, Trash2, Save, Send, FileText, Receipt, PackageCheck, Wrench, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +84,8 @@ const paymentLabels: Record<PaymentMethod, string> = {
 };
 
 interface SalesInvoiceFormProps {
-  invoice: SalesInvoiceWithDetails;
+  invoice?: SalesInvoiceWithDetails | null;
+  draftDefaults?: { warehouseId: string; customerId: string | null };
   customers: Customer[];
   products: Product[];
   warehouses: Warehouse[];
@@ -95,6 +96,10 @@ interface SalesInvoiceFormProps {
   onChanged: (invoice: SalesInvoiceWithDetails | null, options?: { refresh?: boolean }) => void;
   onClose: () => void;
 }
+
+type SalesInvoiceFormEditorProps = Omit<SalesInvoiceFormProps, "invoice" | "draftDefaults"> & {
+  invoice: SalesInvoiceWithDetails;
+};
 
 function wholesalePriceFor(
   product: Product,
@@ -169,7 +174,7 @@ function withInvoiceTotals(
   };
 }
 
-export function SalesInvoiceForm({
+function SalesInvoiceFormEditor({
   invoice: initial,
   customers,
   products,
@@ -180,7 +185,7 @@ export function SalesInvoiceForm({
   canCorrectCosts = false,
   onChanged,
   onClose,
-}: SalesInvoiceFormProps) {
+}: SalesInvoiceFormEditorProps) {
   const [invoice, setInvoice] = useState(initial);
   const [productQuery, setProductQuery] = useState("");
   const [productId, setProductId] = useState("");
@@ -705,23 +710,22 @@ export function SalesInvoiceForm({
   }
 
   return (
-    <OperationalCard accent="var(--mds-color-action-primary)">
+    <>
+    <OperationalCard
+      accent="var(--mds-color-action-primary)"
+      className="pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
+    >
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">{invoice.order_number}</h2>
-            <p className="text-sm text-muted-foreground">
-              فاتورة جملة ·{" "}
-              {invoice.document_status === "draft"
-                ? "مسودة"
-                : invoice.document_status === "issued"
-                  ? "صادرة"
-                  : "مُسلَّمة"}
-            </p>
-          </div>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            إغلاق
-          </Button>
+        <div>
+          <h2 className="text-lg font-semibold">{invoice.order_number}</h2>
+          <p className="text-sm text-muted-foreground">
+            فاتورة جملة ·{" "}
+            {invoice.document_status === "draft"
+              ? "مسودة"
+              : invoice.document_status === "issued"
+                ? "صادرة"
+                : "مُسلَّمة"}
+          </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1223,15 +1227,28 @@ export function SalesInvoiceForm({
           />
         )}
 
-        <div className="flex flex-wrap gap-4 text-sm">
+        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <span>الجزئي: {formatCurrency(invoice.subtotal, currency)}</span>
           <span>الخصم: {formatCurrency(invoice.discount, currency)}</span>
           <span>الضريبة: {formatCurrency(invoice.tax, currency)}</span>
-          <span className="font-semibold">الإجمالي: {formatCurrency(invoice.total, currency)}</span>
         </div>
+      </div>
+    </OperationalCard>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <CompactActions className="justify-start">
+    <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 px-3 py-2.5 backdrop-blur-xl md:bottom-0 md:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pt-3 lg:ps-64">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+        <div className="min-w-0 shrink">
+          <p className="text-xs text-muted-foreground sm:text-sm">{invoice.lines.length} بند</p>
+          <p className="truncate text-lg font-semibold tabular-nums sm:text-2xl">
+            {formatCurrency(invoice.total, currency)}
+          </p>
+          {isDelivered ? (
+            <p className="text-xs text-muted-foreground">
+              تكلفة مسجّلة: {formatCurrency(recordedCost, currency)}
+            </p>
+          ) : null}
+        </div>
+        <CompactActions>
           {isDraft ? (
             <>
               <CompactAction
@@ -1274,7 +1291,14 @@ export function SalesInvoiceForm({
                 onClick={() => setConfirmDelete(true)}
               />
             </>
-          ) : null}
+          ) : (
+            <CompactAction
+              label="إغلاق"
+              icon={X}
+              disabled={lifecyclePending}
+              onClick={onClose}
+            />
+          )}
 
           {isIssued ? (
             <>
@@ -1342,12 +1366,6 @@ export function SalesInvoiceForm({
             />
           ) : null}
 
-          {isDelivered ? (
-            <p className="text-muted-foreground text-xs">
-              تكلفة مسجّلة: {formatCurrency(recordedCost, currency)}
-            </p>
-          ) : null}
-
           {invoice.lines.length > 0 &&
           (invoice.document_status === "draft" ||
             invoice.document_status === "issued" ||
@@ -1382,9 +1400,9 @@ export function SalesInvoiceForm({
               />
             </>
           ) : null}
-          </CompactActions>
-        </div>
+        </CompactActions>
       </div>
+    </div>
 
       <DocumentPrintPreviewModal
         open={Boolean(printPreview)}
@@ -1470,6 +1488,98 @@ export function SalesInvoiceForm({
           });
         }}
       />
-    </OperationalCard>
+    </>
+  );
+}
+
+function CreatingInvoiceShell({
+  warehouseName,
+  customerName,
+  onClose,
+}: {
+  warehouseName: string;
+  customerName: string;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <OperationalCard
+        accent="var(--mds-color-action-primary)"
+        className="pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
+            <div>
+              <h2 className="text-lg font-semibold">مسودة جديدة</h2>
+              <p className="text-sm text-muted-foreground">جاري حفظ المسودة — تقدر تتابع من هنا فور ما الرقم يظهر</p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>المخزن</Label>
+              <p className="text-sm">{warehouseName}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>العميل</Label>
+              <p className="text-sm">{customerName}</p>
+            </div>
+          </div>
+        </div>
+      </OperationalCard>
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 px-3 py-2.5 backdrop-blur-xl md:bottom-0 md:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pt-3 lg:ps-64">
+        <div className="mx-auto flex max-w-7xl items-center justify-end">
+          <CompactActions>
+            <CompactAction label="إغلاق" icon={X} onClick={onClose} />
+          </CompactActions>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function SalesInvoiceForm({
+  invoice,
+  draftDefaults,
+  customers,
+  products,
+  warehouses,
+  wholesaleTiersByProductId,
+  currency,
+  enabledPaymentMethods,
+  canCorrectCosts = false,
+  onChanged,
+  onClose,
+}: SalesInvoiceFormProps) {
+  if (!invoice) {
+    return (
+      <CreatingInvoiceShell
+        warehouseName={
+          warehouses.find((warehouse) => warehouse.id === draftDefaults?.warehouseId)?.name ?? "—"
+        }
+        customerName={
+          draftDefaults?.customerId
+            ? customers.find((customer) => customer.id === draftDefaults.customerId)?.name ??
+              "بدون عميل"
+            : "بدون عميل"
+        }
+        onClose={onClose}
+      />
+    );
+  }
+
+  return (
+    <SalesInvoiceFormEditor
+      invoice={invoice}
+      customers={customers}
+      products={products}
+      warehouses={warehouses}
+      wholesaleTiersByProductId={wholesaleTiersByProductId}
+      currency={currency}
+      enabledPaymentMethods={enabledPaymentMethods}
+      canCorrectCosts={canCorrectCosts}
+      onChanged={onChanged}
+      onClose={onClose}
+    />
   );
 }

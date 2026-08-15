@@ -112,10 +112,14 @@ export async function createSalesInvoiceAction(input: {
       createdBy: user.id,
       documentDate: input.documentDate,
     });
-    const invoice = await getSalesInvoice(created.id);
-    if (!invoice) throw new Error("تعذر فتح المسودة بعد الإنشاء");
-    revalidatePath("/sales-invoices");
-    return invoice;
+    // Return the insert row immediately — extra getSalesInvoice + revalidatePath
+    // blocked the form from opening. List refreshes when the operator closes.
+    return {
+      ...created,
+      lines: [],
+      customerName: null,
+      warehouseName: null,
+    };
   });
 }
 
@@ -136,29 +140,6 @@ export async function getSalesInvoiceCatalogAction(): Promise<
       products,
       wholesaleTiersByProductId: Object.fromEntries(tiersMap.entries()),
     };
-  });
-}
-
-/** Dashboard / one-click: draft on default warehouse, then open `/sales-invoices?open=…`. */
-export async function quickCreateSalesInvoiceAction(): Promise<
-  SalesInvoiceActionResult<{ id: string }>
-> {
-  return runAction(async () => {
-    const user = await requireSalesInvoiceUser();
-    const storeId = await getValidatedActiveStoreId();
-    const warehouse = await warehouseRepo.getDefaultWarehouse(storeId);
-    if (!warehouse?.is_active) {
-      throw new Error("مفيش مخزن افتراضي نشط — اختار مخزن من فواتير المبيعات");
-    }
-    const invoice = await createDraftSalesInvoice({
-      storeId,
-      warehouseId: warehouse.id,
-      customerId: null,
-      createdBy: user.id,
-    });
-    revalidatePath("/sales-invoices");
-    revalidatePath("/");
-    return { id: invoice.id };
   });
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Banknote,
@@ -15,7 +15,6 @@ import { CompactAction, CompactActions } from "@/components/Velora/compact-actio
 import type { SupplierListSummary } from "@/lib/types";
 import { getSuppliersPageDataAction } from "@/modules/suppliers/actions/supplier.actions";
 import { RecordPaymentDialog } from "@/modules/suppliers/components/record-payment-dialog";
-import { quickCreateSalesInvoiceAction } from "@/modules/sales-invoices/actions/sales-invoice.actions";
 
 const linkActions = [
   {
@@ -46,7 +45,6 @@ export function QuickActionsBar({
   enableWholesaleSales?: boolean;
 }) {
   const router = useRouter();
-  const [salesPending, startSales] = useTransition();
   const [showPayment, setShowPayment] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [summaries, setSummaries] = useState<SupplierListSummary[]>([]);
@@ -80,16 +78,8 @@ export function QuickActionsBar({
     })();
   };
 
-  const quickCreateSalesInvoice = () => {
-    startSales(async () => {
-      const result = await quickCreateSalesInvoiceAction();
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("اتعملت مسودة فاتورة جملة");
-      router.push(`/sales-invoices?open=${result.data.id}`);
-    });
+  const openNewSalesInvoice = () => {
+    router.push("/sales-invoices?create=1");
   };
 
   return (
@@ -102,8 +92,7 @@ export function QuickActionsBar({
           <CompactAction
             label="فاتورة بيع"
             icon={FilePlus2}
-            disabled={salesPending}
-            onClick={quickCreateSalesInvoice}
+            onClick={openNewSalesInvoice}
           />
         ) : null}
         <CompactAction

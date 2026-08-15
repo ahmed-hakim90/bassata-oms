@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
-import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { EmptyStateBlock, LoadingStateBlock } from "@/components/Velora/state-blocks";
 import { DataTableShell } from "@/components/Velora/data-table-shell";
 import { StatusPill } from "@/components/Velora/status-pill";
 import {
@@ -73,16 +73,23 @@ export function SalesInvoicesPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const openFromQuery = searchParams.get("open");
-  const [pending, startTransition] = useTransition();
+  const createFromQuery = searchParams.get("create") === "1";
+  const [, startTransition] = useTransition();
   const [invoices, setInvoices] = useState(initial);
   const [products, setProducts] = useState(initialProducts);
   const [wholesaleTiersByProductId, setWholesaleTiersByProductId] = useState(initialTiers);
   const [activeId, setActiveId] = useState<string | null>(openFromQuery);
+  const [creating, setCreating] = useState(false);
   const [openBootstrapped, setOpenBootstrapped] = useState(false);
+  const [createBootstrapped, setCreateBootstrapped] = useState(false);
   const [warehouseId, setWarehouseId] = useState(
     warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? ""
   );
   const [customerId, setCustomerId] = useState<string>("__none__");
+  const [draftDefaults, setDraftDefaults] = useState<{
+    warehouseId: string;
+    customerId: string | null;
+  } | null>(null);
 
   useEffect(() => {
     setInvoices(initial);
@@ -94,6 +101,7 @@ export function SalesInvoicesPage({
   }, [initialProducts, initialTiers]);
 
   const catalogFetchedAtRef = useRef(0);
+  const formOpenRef = useRef(Boolean(openFromQuery));
   const refreshCatalog = useCallback((force = false) => {
     const now = Date.now();
     // Avoid hammering: focus + visibility + open were firing 3× (~2–3s each).
@@ -105,6 +113,40 @@ export function SalesInvoicesPage({
       setWholesaleTiersByProductId(result.data.wholesaleTiersByProductId);
     });
   }, []);
+
+  const startDraftCreate = useCallback(
+    (defaults: { warehouseId: string; customerId: string | null }) => {
+      formOpenRef.current = true;
+      setDraftDefaults(defaults);
+      setCreating(true);
+      refreshCatalog(true);
+      void createSalesInvoiceAction(defaults).then((result) => {
+        if (!result.ok) {
+          toast.error(result.error);
+          if (formOpenRef.current) {
+            formOpenRef.current = false;
+            setCreating(false);
+            setActiveId(null);
+            setDraftDefaults(null);
+          }
+          return;
+        }
+        const next: SalesInvoiceWithDetails = {
+          ...result.data,
+          warehouseName:
+            warehouses.find((warehouse) => warehouse.id === defaults.warehouseId)?.name ??
+            result.data.warehouseName,
+          customerName: defaults.customerId
+            ? customers.find((customer) => customer.id === defaults.customerId)?.name ??
+              result.data.customerName
+            : result.data.customerName,
+        };
+        setInvoices((prev) => [next, ...prev.filter((invoice) => invoice.id !== next.id)]);
+        if (formOpenRef.current) setActiveId(next.id);
+      });
+    },
+    [refreshCatalog, warehouses, customers]
+  );
 
   // Pick up product/tier price edits after leaving the tab (throttled).
   useEffect(() => {
@@ -118,6 +160,7 @@ export function SalesInvoicesPage({
   useEffect(() => {
     if (!openFromQuery || openBootstrapped) return;
     setOpenBootstrapped(true);
+    formOpenRef.current = true;
     setActiveId(openFromQuery);
     const inList = initial.some((inv) => inv.id === openFromQuery);
     if (inList) {
@@ -137,6 +180,28 @@ export function SalesInvoicesPage({
     });
   }, [openFromQuery, openBootstrapped, initial, router, startTransition]);
 
+  useEffect(() => {
+    if (!createFromQuery || createBootstrapped || openFromQuery) return;
+    setCreateBootstrapped(true);
+    const nextWarehouseId =
+      warehouseId || warehouses.find((w) => w.is_default)?.id || warehouses[0]?.id || "";
+    if (!nextWarehouseId) {
+      toast.error("اختار المخزن أولاً");
+      router.replace("/sales-invoices", { scroll: false });
+      return;
+    }
+    startDraftCreate({ warehouseId: nextWarehouseId, customerId: null });
+    router.replace("/sales-invoices", { scroll: false });
+  }, [
+    createFromQuery,
+    createBootstrapped,
+    openFromQuery,
+    warehouseId,
+    warehouses,
+    router,
+    startDraftCreate,
+  ]);
+
   const active = useMemo(
     () => invoices.find((inv) => inv.id === activeId) ?? null,
     [invoices, activeId]
@@ -146,6 +211,24 @@ export function SalesInvoicesPage({
   const issued = invoices.filter((i) => i.document_status === "issued");
   const delivered = invoices.filter((i) => i.document_status === "delivered");
 
+  function closeForm() {
+    formOpenRef.current = false;
+    setCreating(false);
+    setActiveId(null);
+    setDraftDefaults(null);
+  }
+
+  function openNewDraft() {
+    if (!warehouseId) {
+      toast.error("اختار المخزن");
+      return;
+    }
+    startDraftCreate({
+      warehouseId,
+      customerId: customerId === "__none__" ? null : customerId,
+    });
+  }
+
   function upsertInvoice(
     next: SalesInvoiceWithDetails | null,
     options?: { removedId?: string; refresh?: boolean }
@@ -153,8 +236,8 @@ export function SalesInvoicesPage({
     if (next === null) {
       if (options?.removedId) {
         setInvoices((prev) => prev.filter((i) => i.id !== options.removedId));
-        setActiveId(null);
       }
+      closeForm();
       if (options?.refresh !== false) router.refresh();
       return;
     }
@@ -165,6 +248,7 @@ export function SalesInvoicesPage({
       copy[idx] = next;
       return copy;
     });
+    if (formOpenRef.current) setActiveId(next.id);
     if (options?.refresh) router.refresh();
   }
 
@@ -210,8 +294,9 @@ export function SalesInvoicesPage({
                     label="فتح"
                     icon={Pencil}
                     onClick={() => {
-                      refreshCatalog(true);
+                      formOpenRef.current = true;
                       setActiveId(invoice.id);
+                      refreshCatalog(true);
                     }}
                   />
                 </CompactActions>
@@ -220,6 +305,60 @@ export function SalesInvoicesPage({
           ))}
         </div>
       </DataTableShell>
+    );
+  }
+
+  if (creating || active) {
+    return (
+      <div className="flex flex-col gap-[var(--mds-space-6)]">
+        <PageHeader
+          breadcrumb={<span>المبيعات · فواتير الجملة</span>}
+          title={active ? "فاتورة بيع" : "فاتورة بيع جديدة"}
+          description={
+            active
+              ? "أكمل المسودة ثم أصدرها أو سلّمها"
+              : "المسودة بتتحفظ في الخلفية — أضف الأصناف فور ما يظهر رقم الفاتورة"
+          }
+        />
+        <SalesInvoiceForm
+          invoice={active}
+          draftDefaults={draftDefaults ?? undefined}
+          customers={customers}
+          products={products}
+          warehouses={warehouses}
+          wholesaleTiersByProductId={wholesaleTiersByProductId}
+          currency={currency}
+          enabledPaymentMethods={enabledPaymentMethods}
+          canCorrectCosts={canCorrectCosts}
+          onClose={() => {
+            closeForm();
+            router.refresh();
+          }}
+          onChanged={(next, options) => {
+            if (next === null) {
+              upsertInvoice(null, {
+                removedId: active?.id,
+                refresh: options?.refresh ?? true,
+              });
+              return;
+            }
+            upsertInvoice(next, { refresh: options?.refresh ?? false });
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (activeId && !active) {
+    return (
+      <div className="flex flex-col gap-[var(--mds-space-6)]">
+        <PageHeader
+          breadcrumb={<span>المبيعات · فواتير الجملة</span>}
+          title="فاتورة بيع"
+          description="جاري فتح الفاتورة"
+        />
+        <LoadingStateBlock label="جاري فتح الفاتورة" />
+      </div>
     );
   }
 
@@ -275,27 +414,9 @@ export function SalesInvoicesPage({
             <Button
               type="button"
               className="h-11 shrink-0 sm:h-9"
-              disabled={pending || !warehouseId}
+              disabled={!warehouseId}
               aria-label="مسودة جديدة"
-              onClick={() =>
-                startTransition(async () => {
-                  refreshCatalog(true);
-                  const result = await createSalesInvoiceAction({
-                    warehouseId,
-                    customerId: customerId === "__none__" ? null : customerId,
-                  });
-                  if (!result.ok) {
-                    toast.error(result.error);
-                    return;
-                  }
-                  toast.success("اتعملت مسودة");
-                  setInvoices((prev) => [
-                    result.data,
-                    ...prev.filter((i) => i.id !== result.data.id),
-                  ]);
-                  setActiveId(result.data.id);
-                })
-              }
+              onClick={openNewDraft}
             >
               <Plus className="size-4" />
               <span className="sr-only sm:not-sr-only">مسودة جديدة</span>
@@ -303,27 +424,6 @@ export function SalesInvoicesPage({
           </div>
         }
       />
-
-      {active ? (
-        <SalesInvoiceForm
-          invoice={active}
-          customers={customers}
-          products={products}
-          warehouses={warehouses}
-          wholesaleTiersByProductId={wholesaleTiersByProductId}
-          currency={currency}
-          enabledPaymentMethods={enabledPaymentMethods}
-          canCorrectCosts={canCorrectCosts}
-          onClose={() => setActiveId(null)}
-          onChanged={(next, options) => {
-            if (next === null) {
-              upsertInvoice(null, { removedId: active.id, refresh: options?.refresh ?? true });
-              return;
-            }
-            upsertInvoice(next, { refresh: options?.refresh ?? false });
-          }}
-        />
-      ) : null}
 
       <Tabs defaultValue="drafts">
         <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1 sm:inline-flex sm:w-fit">
