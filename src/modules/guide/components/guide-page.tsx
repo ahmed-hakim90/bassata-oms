@@ -88,7 +88,7 @@ export function GuidePage() {
       <OperationalCard
         title="الإعداد لأول مرة"
         description="أربع خطوات وتكون جاهز للبيع"
-        className="mb-6"
+        className="mb-3"
       >
         <div className="grid gap-4 md:grid-cols-2">
           {SETUP_STEPS.map(({ title, body, href, linkLabel, icon: Icon }, index) => (
@@ -116,7 +116,7 @@ export function GuidePage() {
       <OperationalCard
         title="يوم العمل على الكاشير"
         description="الدورة اليومية من فتح الوردية لإغلاقها"
-        className="mb-6"
+        className="mb-3"
       >
         <ol className="grid gap-3 lg:grid-cols-4">
           {DAILY_STEPS.map(({ step, title, body }) => (
@@ -152,7 +152,7 @@ export function GuidePage() {
       <OperationalCard
         title="إدارة المخزون"
         description="إزاي البضاعة بتتحرك جوه النظام"
-        className="mb-6"
+        className="mb-3"
       >
         <div className="grid gap-4 md:grid-cols-3">
           {INVENTORY_TIPS.map(({ icon: Icon, title, body }) => (

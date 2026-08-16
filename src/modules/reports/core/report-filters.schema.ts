@@ -18,6 +18,8 @@ export const reportFiltersSchema = z.object({
   productId: z.string().optional(),
   customerId: z.string().optional(),
   supplierId: z.string().optional(),
+  /** Cashier / employee user id for sales mini-reports. */
+  cashierId: z.string().optional(),
   paymentMethod: z.enum(PAYMENT_METHODS).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -90,7 +90,7 @@ export function PlatformOrgDetail({
   }
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         breadcrumb={
           <Link

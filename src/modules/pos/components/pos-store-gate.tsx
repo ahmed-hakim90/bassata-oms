@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Store } from "lucide-react";
 import { toast } from "sonner";
 import { setActiveStoreAction } from "@/modules/auth/actions/set-store.action";

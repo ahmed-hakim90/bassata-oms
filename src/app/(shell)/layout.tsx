@@ -1,11 +1,11 @@
 export const dynamic = "force-dynamic";
 
-import { headers } from "next/headers";
+import { Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
-import { AccessDenied } from "@/components/Velora/access-denied";
+import { PageAccessGate } from "@/components/layout/page-access-gate";
+import { PageLoadingSkeleton } from "@/components/Velora/page-loading-skeleton";
 import { getActiveStoreId, getCurrentUser } from "@/lib/auth/session";
 import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
-import { getPageAccessDenial } from "@/lib/auth/page-access";
 import { requireStoreAccess } from "@/lib/auth/guards";
 import { redirectOnAuthFailure } from "@/lib/auth/redirect-on-auth-failure";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
@@ -67,20 +67,12 @@ export default async function ShellLayout({
       activeStoreId = null;
     }
   }
-  const pathname = (await headers()).get("x-pathname") ?? "/";
   const enableKitchenDisplay = isFoodServiceActivity(businessActivity.activity_type);
   const navAccess = {
     enableWholesaleSales: businessActivity.enable_wholesale_sales,
     allowCashierWholesale: businessActivity.allow_cashier_wholesale,
     enableKitchenDisplay,
   };
-  const denial = getPageAccessDenial(
-    pathname,
-    user.role,
-    featureFlags,
-    permissions,
-    navAccess
-  );
 
   return (
     <AppShell
@@ -95,11 +87,16 @@ export default async function ShellLayout({
       permissions={[...permissions]}
       posReadinessState={posReadiness.state}
     >
-      {denial ? (
-        <AccessDenied title={denial.title} description={denial.description} />
-      ) : (
-        children
-      )}
+      <Suspense fallback={<PageLoadingSkeleton />}>
+        <PageAccessGate
+          role={user.role}
+          featureFlags={featureFlags}
+          permissions={permissions}
+          navAccess={navAccess}
+        >
+          {children}
+        </PageAccessGate>
+      </Suspense>
     </AppShell>
   );
 }

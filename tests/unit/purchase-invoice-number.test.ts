@@ -39,7 +39,7 @@ describe("createDraftPurchase invoice numbering", () => {
   });
 
   it("auto-generates invoice number when omitted", async () => {
-    vi.mocked(purchaseRepo.countPurchasesOnDocumentDate).mockResolvedValue(2);
+    vi.mocked(purchaseRepo.nextPurchaseDocumentNumber).mockResolvedValue("PI-20260812-0003");
     vi.mocked(purchaseRepo.insertPurchase).mockResolvedValue({
       id: "pi1",
       store_id: "store1",
@@ -66,8 +66,9 @@ describe("createDraftPurchase invoice numbering", () => {
       documentDate: "2026-08-12",
     });
 
-    expect(purchaseRepo.countPurchasesOnDocumentDate).toHaveBeenCalledWith(
+    expect(purchaseRepo.nextPurchaseDocumentNumber).toHaveBeenCalledWith(
       "store1",
+      "purchase_invoice",
       "2026-08-12"
     );
     expect(purchaseRepo.insertPurchase).toHaveBeenCalledWith(
@@ -104,7 +105,7 @@ describe("createDraftPurchase invoice numbering", () => {
       documentDate: "2026-08-12",
     });
 
-    expect(purchaseRepo.countPurchasesOnDocumentDate).not.toHaveBeenCalled();
+    expect(purchaseRepo.nextPurchaseDocumentNumber).not.toHaveBeenCalled();
     expect(purchaseRepo.insertPurchase).toHaveBeenCalledWith(
       expect.objectContaining({ invoice_number: "SUP-99" }),
       []

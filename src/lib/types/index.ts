@@ -8,6 +8,9 @@ import type {
   ONLINE_ORDER_STATUSES,
   ORDER_STATUSES,
   SALES_DOCUMENT_STATUSES,
+  SALES_DOCUMENT_KINDS,
+  PURCHASE_DOCUMENT_KINDS,
+  PURCHASE_DOCUMENT_STATUSES,
   PAYMENT_METHODS,
   PERMISSIONS,
   PRODUCT_TYPES,
@@ -47,6 +50,9 @@ export type ProductType = (typeof PRODUCT_TYPES)[number];
 export type MeasurementUnit = (typeof MEASUREMENT_UNITS)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type SalesDocumentStatus = (typeof SALES_DOCUMENT_STATUSES)[number];
+export type SalesDocumentKind = (typeof SALES_DOCUMENT_KINDS)[number];
+export type PurchaseDocumentKind = (typeof PURCHASE_DOCUMENT_KINDS)[number];
+export type PurchaseDocumentStatus = (typeof PURCHASE_DOCUMENT_STATUSES)[number];
 export type OnlineOrderStatus = (typeof ONLINE_ORDER_STATUSES)[number];
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export interface PaymentSplit {
@@ -258,6 +264,8 @@ export interface Supplier {
   org_id: string;
   name: string;
   contact_info: string;
+  address: string;
+  tax_id: string;
   /** Prior AP owed to supplier before tracked purchases (org-level). */
   opening_balance: number;
 }
@@ -282,6 +290,7 @@ export interface SupplierPayment {
 export type SupplierStatementTransactionType =
   | "purchase"
   | "purchase_void"
+  | "purchase_return"
   | "payment"
   | "payment_void";
 
@@ -317,13 +326,22 @@ export interface PurchaseInvoice {
   id: string;
   store_id: string;
   warehouse_id: string;
-  supplier_id: string;
+  supplier_id: string | null;
   invoice_number: string;
-  status: "draft" | "received" | "cancelled";
+  status: PurchaseDocumentStatus;
+  document_kind?: PurchaseDocumentKind;
+  source_document_id?: string | null;
+  document_notes?: string;
   subtotal: number;
   extra_cost: number;
   tax: number;
   total: number;
+  /** Document currency; books use org currency via fx_rate. */
+  currency?: string;
+  /** Multiply foreign amounts to org currency. Default 1. */
+  fx_rate?: number;
+  /** When set, this invoice received a shipping container. */
+  container_id?: string | null;
   /** Business calendar date (YYYY-MM-DD); editable on drafts. */
   document_date: string;
   received_at: string | null;
@@ -340,11 +358,16 @@ export interface PurchaseInvoiceLine {
   quantity: number;
   unit_cost: number;
   line_total: number;
+  /** Money discount on the line (before extra/landed allocation). */
+  discount_amount?: number;
+  foreign_unit_cost?: number | null;
+  foreign_line_total?: number | null;
   landed_unit_cost: number | null;
   landed_line_total: number | null;
   batch_number?: string | null;
   production_date?: string | null;
   expiry_date?: string | null;
+  source_line_id?: string | null;
 }
 
 export interface TransferOrder {
@@ -494,6 +517,10 @@ export interface Order {
   sales_mode?: SalesMode;
   activity_type?: BusinessActivityType;
   document_status?: SalesDocumentStatus | null;
+  document_kind?: SalesDocumentKind | null;
+  source_document_id?: string | null;
+  valid_until?: string | null;
+  document_notes?: string;
   /** Business calendar date (YYYY-MM-DD); editable on sales-invoice drafts. */
   document_date?: string;
   issued_at?: string | null;
@@ -739,6 +766,8 @@ export interface Customer {
   credit_limit: number;
   payment_terms: string;
   notes: string;
+  address: string;
+  tax_id: string;
   created_at: string;
 }
 
@@ -878,7 +907,8 @@ export type JournalSource =
   | "customer_payment"
   | "supplier_payment"
   | "refund"
-  | "adjustment";
+  | "adjustment"
+  | "customs_certificate";
 
 export type GlSystemKey =
   | "cash"

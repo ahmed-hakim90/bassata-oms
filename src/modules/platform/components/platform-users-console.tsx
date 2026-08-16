@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import {
   Ban,
@@ -180,7 +180,7 @@ export function PlatformUsersConsole({
   }
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         title="مستخدمو المنصة"
         action={

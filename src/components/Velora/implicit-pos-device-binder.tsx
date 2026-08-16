@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import type { PosReadinessState } from "@/lib/auth/pos-readiness-copy";
 import { ensureImplicitPosDeviceBindingAction } from "@/modules/auth/actions/device.actions";
 

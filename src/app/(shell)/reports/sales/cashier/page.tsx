@@ -1,0 +1,16 @@
+import { getCashierSalesMiniPageData } from "@/modules/reports/actions/sales-entity-report.actions";
+import { getReportCapabilities } from "@/modules/reports/actions/report-access.actions";
+import { CashierSalesMiniView } from "@/modules/reports/components/cashier-sales-mini-view";
+
+export default async function CashierSalesMiniPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
+  const [data, caps] = await Promise.all([
+    getCashierSalesMiniPageData(params),
+    getReportCapabilities(),
+  ]);
+  return <CashierSalesMiniView {...data} canExcel={caps.canExcel} />;
+}

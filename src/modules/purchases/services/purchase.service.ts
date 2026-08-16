@@ -11,16 +11,20 @@ import {
 } from "@/lib/document-date";
 import { adjustStock, getStockLevel } from "@/lib/services/inventory-movement.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
-import { calculateExpiryDate, toIsoDate } from "@/lib/inventory/expiry";
 import { convertPurchaseEntryToBase, productPurchaseFactor } from "@/lib/units";
+import { lineTotalAfterDiscount } from "@/lib/line-discount";
 import type { MeasurementUnit, PaymentMethod, PurchaseInvoice, PurchaseInvoiceLine } from "@/lib/types";
-import { createSupplierPayment } from "@/modules/suppliers/services/supplier.service";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
+import { remainingPurchaseLineQty } from "@/modules/purchases/lib/remaining-qty";
+import { after } from "next/server";
 
 export interface PurchaseWithLines extends PurchaseInvoice {
   lines: PurchaseInvoiceLine[];
   supplierName: string;
   warehouseName: string;
+  supplierAddress: string | null;
+  supplierTaxId: string | null;
+  supplierContact: string | null;
 }
 
 export function allocateLandedCosts(
@@ -55,7 +59,7 @@ function enrichPurchasesInMemory(
   suppliers: Awaited<ReturnType<typeof purchaseRepo.listSuppliers>>,
   warehouses: Awaited<ReturnType<typeof warehouseRepo.listWarehouses>>
 ): PurchaseWithLines[] {
-  const supplierMap = new Map(suppliers.map((s) => [s.id, s.name]));
+  const supplierMap = new Map(suppliers.map((s) => [s.id, s]));
   const warehouseMap = new Map(warehouses.map((w) => [w.id, w.name]));
   const linesByInvoice = new Map<string, PurchaseInvoiceLine[]>();
   for (const line of lines) {
@@ -63,12 +67,18 @@ function enrichPurchasesInMemory(
     list.push(line);
     linesByInvoice.set(line.invoice_id, list);
   }
-  return invoices.map((invoice) => ({
-    ...invoice,
-    lines: linesByInvoice.get(invoice.id) ?? [],
-    supplierName: supplierMap.get(invoice.supplier_id) ?? "مورد غير معروف",
-    warehouseName: warehouseMap.get(invoice.warehouse_id) ?? "مخزن غير معروف",
-  }));
+  return invoices.map((invoice) => {
+    const supplier = invoice.supplier_id ? supplierMap.get(invoice.supplier_id) : undefined;
+    return {
+      ...invoice,
+      lines: linesByInvoice.get(invoice.id) ?? [],
+      supplierName: supplier?.name ?? (invoice.supplier_id ? "مورد غير معروف" : "بدون مورد"),
+      warehouseName: warehouseMap.get(invoice.warehouse_id) ?? "مخزن غير معروف",
+      supplierAddress: supplier?.address ?? null,
+      supplierTaxId: supplier?.tax_id ?? null,
+      supplierContact: supplier?.contact_info ?? null,
+    };
+  });
 }
 
 async function enrichPurchase(invoice: PurchaseInvoice): Promise<PurchaseWithLines> {
@@ -115,7 +125,15 @@ async function assertWarehouseBelongsToStore(
 }
 
 export async function listPurchases(storeId?: string): Promise<PurchaseWithLines[]> {
-  const invoices = await purchaseRepo.listPurchases(storeId);
+  const invoices = await purchaseRepo.listPurchases(storeId, "purchase_invoice");
+  return enrichPurchases(invoices);
+}
+
+export async function listPurchaseDocuments(
+  storeId: string | undefined,
+  kind: NonNullable<PurchaseInvoice["document_kind"]>
+): Promise<PurchaseWithLines[]> {
+  const invoices = await purchaseRepo.listPurchases(storeId, kind);
   return enrichPurchases(invoices);
 }
 
@@ -137,23 +155,36 @@ export function nextPurchaseInvoiceNumber(
 export async function createDraftPurchase(input: {
   storeId: string;
   warehouseId: string;
-  supplierId: string;
-  /** When omitted/blank, server generates PI-YYYYMMDD-NNNN. */
+  supplierId: string | null;
+  /** When omitted/blank, server generates numbered document. */
   invoiceNumber?: string;
   extraCost?: number;
   createdBy: string;
   documentDate?: string;
+  documentKind?: NonNullable<PurchaseInvoice["document_kind"]>;
+  sourceDocumentId?: string | null;
+  documentNotes?: string;
+  currency?: string;
+  fxRate?: number;
+  containerId?: string | null;
 }): Promise<PurchaseInvoice> {
   const documentDate = normalizeDocumentDate(input.documentDate ?? todayDocumentDate());
   await assertPeriodOpen(input.storeId, documentDateToOccurredAt(documentDate));
   await assertWarehouseBelongsToStore(input.warehouseId, input.storeId);
+  const kind = input.documentKind ?? "purchase_invoice";
+  if (kind !== "purchase_request" && !input.supplierId) {
+    throw new Error("اختار المورد");
+  }
+  const currency = (input.currency ?? "EGP").trim().toUpperCase() || "EGP";
+  const fxRate = input.fxRate ?? 1;
+  if (!(fxRate > 0)) throw new Error("سعر التحويل لازم يكون أكبر من صفر");
+  if (currency !== "EGP" && fxRate === 1) {
+    // Allow 1 only when operator explicitly set it; imports usually need a real rate.
+  }
   const trimmedNumber = input.invoiceNumber?.trim() ?? "";
   const invoiceNumber =
     trimmedNumber ||
-    nextPurchaseInvoiceNumber(
-      documentDate,
-      await purchaseRepo.countPurchasesOnDocumentDate(input.storeId, documentDate)
-    );
+    (await purchaseRepo.nextPurchaseDocumentNumber(input.storeId, kind, documentDate));
   const invoice = await purchaseRepo.insertPurchase(
     {
       store_id: input.storeId,
@@ -161,10 +192,16 @@ export async function createDraftPurchase(input: {
       supplier_id: input.supplierId,
       invoice_number: invoiceNumber,
       status: "draft",
+      document_kind: kind,
+      source_document_id: input.sourceDocumentId ?? null,
+      document_notes: input.documentNotes ?? "",
       subtotal: 0,
       extra_cost: Math.max(0, input.extraCost ?? 0),
       tax: 0,
       total: Math.max(0, input.extraCost ?? 0),
+      currency,
+      fx_rate: fxRate,
+      container_id: input.containerId ?? null,
       document_date: documentDate,
       received_at: null,
       cancelled_at: null,
@@ -409,6 +446,10 @@ export async function addPurchaseLine(input: {
   batchNumber?: string | null;
   productionDate?: string | null;
   expiryDate?: string | null;
+  foreignUnitCost?: number | null;
+  sourceLineId?: string | null;
+  /** Money discount on the line (after qty×unit). */
+  discountAmount?: number;
 }): Promise<PurchaseInvoiceLine> {
   const invoice = await purchaseRepo.getPurchase(input.invoiceId);
   if (!invoice) throw new Error("Purchase not found");
@@ -416,6 +457,7 @@ export async function addPurchaseLine(input: {
 
   const product = await catalogRepo.getProduct(input.productId);
   if (!product) throw new Error("Product not found");
+  if (input.unitCost < 0) throw new Error("Invalid unit cost");
 
   const baseUnit = product.base_unit ?? product.unit;
   const purchaseUnit = product.cost_unit ?? baseUnit;
@@ -429,15 +471,31 @@ export async function addPurchaseLine(input: {
     unitsPerPurchaseUnit: factor,
   });
 
+  const foreignUnitCost =
+    input.foreignUnitCost != null && Number.isFinite(input.foreignUnitCost)
+      ? Number(input.foreignUnitCost)
+      : null;
+  const discountAmount = Math.max(0, input.discountAmount ?? 0);
+  const lineTotal = lineTotalAfterDiscount(
+    converted.quantity,
+    converted.unitCost,
+    discountAmount
+  );
+  const foreignLineTotal =
+    foreignUnitCost != null
+      ? lineTotalAfterDiscount(converted.quantity, foreignUnitCost, 0)
+      : null;
+
   const lines = await purchaseRepo.getPurchaseLines(input.invoiceId);
   const existing = lines.find(
     (l) =>
       l.product_id === input.productId &&
-      l.variant_id === (input.variantId ?? null)
+      l.variant_id === (input.variantId ?? null) &&
+      (input.sourceLineId == null || l.source_line_id === input.sourceLineId)
   );
 
   let line: PurchaseInvoiceLine;
-  if (existing) {
+  if (existing && input.sourceLineId == null) {
     const qty = existing.quantity + converted.quantity;
     const blendedCost =
       qty > 0
@@ -445,15 +503,25 @@ export async function addPurchaseLine(input: {
             ((existing.quantity * existing.unit_cost + converted.quantity * converted.unitCost) / qty).toFixed(4)
           )
         : converted.unitCost;
+    const mergedDiscount = Number(
+      ((existing.discount_amount ?? 0) + discountAmount).toFixed(2)
+    );
     line = (await purchaseRepo.updatePurchaseLine(existing.id, {
       quantity: qty,
       unit_cost: blendedCost,
-      line_total: Number((qty * blendedCost).toFixed(2)),
+      discount_amount: mergedDiscount,
+      line_total: lineTotalAfterDiscount(qty, blendedCost, mergedDiscount),
       landed_unit_cost: null,
       landed_line_total: null,
       batch_number: input.batchNumber ?? null,
       production_date: input.productionDate ?? null,
       expiry_date: input.expiryDate ?? null,
+      ...(foreignUnitCost != null
+        ? {
+            foreign_unit_cost: foreignUnitCost,
+            foreign_line_total: Number((foreignUnitCost * qty).toFixed(2)),
+          }
+        : {}),
     }))!;
   } else {
     line = await purchaseRepo.addPurchaseLine({
@@ -462,12 +530,16 @@ export async function addPurchaseLine(input: {
       variant_id: input.variantId ?? null,
       quantity: converted.quantity,
       unit_cost: converted.unitCost,
-      line_total: converted.lineTotal,
+      discount_amount: discountAmount,
+      line_total: lineTotal,
       landed_unit_cost: null,
       landed_line_total: null,
       batch_number: input.batchNumber ?? null,
       production_date: input.productionDate ?? null,
       expiry_date: input.expiryDate ?? null,
+      source_line_id: input.sourceLineId ?? null,
+      foreign_unit_cost: foreignUnitCost,
+      foreign_line_total: foreignLineTotal,
     });
   }
   await purchaseRepo.recalcPurchaseTotals(input.invoiceId);
@@ -483,6 +555,19 @@ export async function removePurchaseLine(lineId: string): Promise<void> {
   await purchaseRepo.recalcPurchaseTotals(line.invoice_id);
 }
 
+/** Slim receive result for the hot path — UI refreshes list separately. */
+export type ReceivePurchaseResult = {
+  id: string;
+  invoice_number: string;
+  status: "received";
+  total: number;
+  store_id: string;
+  supplier_id: string;
+  document_date: string;
+  amountPaid: number;
+  paymentMethod: PaymentMethod;
+};
+
 export async function receivePurchase(
   invoiceId: string,
   userId: string,
@@ -490,21 +575,10 @@ export async function receivePurchase(
     amountPaid?: number;
     paymentMethod?: PaymentMethod;
   }
-): Promise<PurchaseWithLines> {
-  const invoice = await purchaseRepo.getPurchase(invoiceId);
-  if (!invoice) throw new Error("Purchase not found");
-  if (invoice.status === "received") throw new Error("Already received");
-  if (invoice.status !== "draft") throw new Error("Only draft purchases can be received");
-  const documentDate = normalizeDocumentDate(invoice.document_date ?? todayDocumentDate());
-  const occurredAt = documentDateToOccurredAt(documentDate);
-  await assertPeriodOpen(invoice.store_id, occurredAt);
-
+): Promise<ReceivePurchaseResult> {
   const amountPaid = options?.amountPaid ?? 0;
   if (!Number.isFinite(amountPaid) || amountPaid < 0) {
     throw new Error("مبلغ الدفعة لازم يكون صفر أو أكبر");
-  }
-  if (amountPaid > invoice.total) {
-    throw new Error("مبلغ الدفعة لا يمكن أن يتجاوز إجمالي الفاتورة");
   }
   if (amountPaid > 0) {
     const method = options?.paymentMethod ?? "cash";
@@ -513,153 +587,61 @@ export async function receivePurchase(
     }
   }
 
-  const lines = await purchaseRepo.getPurchaseLines(invoiceId);
-  if (lines.length === 0) throw new Error("Add at least one line");
-
-  const productIds = [...new Set(lines.map((line) => line.product_id))];
-  const [warehouse, products, orgId, preventNegativeStock] = await Promise.all([
-    warehouseRepo.getWarehouse(invoice.warehouse_id),
-    catalogRepo.getProductsByIds(productIds),
-    getOrgId(),
-    isFeatureEnabled("prevent_negative_stock"),
-  ]);
-  if (!warehouse || warehouse.store_id !== invoice.store_id || !warehouse.is_active) {
-    throw new Error("المخزن لا يتبع الفرع المحدد أو أنه غير نشط");
-  }
-
-  const allocations = allocateLandedCosts(lines, invoice.extra_cost);
-  const receivedDate = documentDate;
-
-  // Landed-cost row updates are independent — run together.
-  await Promise.all(
-    lines.map((line) => {
-      const landed = allocations.get(line.id) ?? {
-        landedUnitCost: line.unit_cost,
-        landedLineTotal: line.line_total,
-      };
-      return purchaseRepo.updatePurchaseLine(line.id, {
-        landed_unit_cost: landed.landedUnitCost,
-        landed_line_total: landed.landedLineTotal,
-      });
-    })
-  );
-
-  // Stock movements stay sequential (same warehouse / batches can collide).
-  for (const line of lines) {
-    const product = products.get(line.product_id) ?? null;
-    await adjustStock({
-      storeId: invoice.store_id,
-      warehouseId: invoice.warehouse_id,
-      productId: line.product_id,
-      variantId: line.variant_id,
-      quantityDelta: line.quantity,
-      movementType: "purchase",
-      referenceType: "purchase_invoice",
-      referenceId: invoiceId,
-      createdBy: userId,
-      periodChecked: true,
-      warehouseChecked: true,
-      product,
-      orgId,
-      preventNegativeStock,
-      createdAt: occurredAt,
-      batch: {
-        batchNumber:
-          line.batch_number ??
-          `${invoice.invoice_number}-${line.product_id.slice(0, 6)}-${line.id.slice(0, 6)}`,
-        productionDate: toIsoDate(line.production_date),
-        expiryDate:
-          toIsoDate(line.expiry_date) ??
-          calculateExpiryDate(
-            toIsoDate(line.production_date),
-            product?.shelf_life_value ?? 0,
-            product?.shelf_life_unit ?? "days"
-          ),
-        shelfLifeValue: product?.shelf_life_value ?? 0,
-        shelfLifeUnit: product?.shelf_life_unit ?? "days",
-        receivedDate,
-        supplierId: invoice.supplier_id,
-        purchaseInvoiceId: invoice.id,
-        sourceType: "purchase",
-        sourceDocumentId: invoice.id,
-      },
-    });
-  }
-
-  // Cost updates are independent of each other after stock posts.
-  const costUpdates = new Map<string, number>();
-  for (const line of lines) {
-    const landed = allocations.get(line.id);
-    if (landed) costUpdates.set(line.product_id, landed.landedUnitCost);
-  }
-  await Promise.all(
-    [...costUpdates.entries()].map(async ([productId, landedUnitCost]) => {
-      const product = products.get(productId);
-      if (!product) return;
-      await catalogRepo.updateProduct(productId, {
-        last_unit_cost: landedUnitCost,
-        cost_unit: product.cost_unit ?? product.unit,
-      });
-    })
-  );
-
-  const updated = await purchaseRepo.updatePurchase(invoiceId, {
-    status: "received",
-    document_date: documentDate,
-    received_at: occurredAt,
-  });
-  if (!updated) throw new Error("Failed to update purchase");
-
-  if (amountPaid > 0) {
-    await createSupplierPayment({
-      storeId: invoice.store_id,
-      supplierId: invoice.supplier_id,
-      amount: amountPaid,
-      paymentMethod: options?.paymentMethod ?? "cash",
-      reference: invoice.invoice_number,
-      notes: `دفعة مع استلام فاتورة ${invoice.invoice_number}`,
-      createdBy: userId,
-      paidAt: occurredAt,
-      // Paid portion is included in the purchase journal below.
-      skipGlPost: true,
-    });
-  }
-
-  await writeAuditLog({
-    orgId,
-    storeId: invoice.store_id,
+  const preventNegativeStock = await isFeatureEnabled("prevent_negative_stock");
+  const received = await purchaseRepo.receivePurchaseAtomic({
+    invoiceId,
     userId,
-    action: "purchase.received",
-    entityType: "purchase_invoice",
-    entityId: invoiceId,
-    metadata: {
-      total: updated.total,
-      lineCount: lines.length,
-      amountPaid,
-    },
-  });
-
-  const { safePostPurchaseJournal } = await import(
-    "@/modules/accounting/services/gl-posting.service"
-  );
-  await safePostPurchaseJournal({
-    purchaseId: invoiceId,
-    storeId: invoice.store_id,
-    total: updated.total,
     amountPaid,
-    paymentMethod: options?.paymentMethod ?? "cash",
-    entryDate: documentDate,
-    createdBy: userId,
-    memo: `استلام شراء ${updated.invoice_number}`,
+    paymentMethod: amountPaid > 0 ? options?.paymentMethod ?? "cash" : undefined,
+    preventNegativeStock,
   });
 
-  return enrichPurchase(updated);
+  const paymentMethod = (options?.paymentMethod ?? "cash") as PaymentMethod;
+  const documentDate = normalizeDocumentDate(
+    received.document_date ?? todayDocumentDate()
+  );
+
+  // Soft-fail GL — never block the operator on journal posting.
+  after(() => {
+    void (async () => {
+      try {
+        const { safePostPurchaseJournal } = await import(
+          "@/modules/accounting/services/gl-posting.service"
+        );
+        await safePostPurchaseJournal({
+          purchaseId: invoiceId,
+          storeId: received.store_id,
+          total: received.total,
+          amountPaid,
+          paymentMethod,
+          entryDate: documentDate,
+          createdBy: userId,
+          memo: `استلام شراء ${received.invoice_number}`,
+        });
+      } catch (error) {
+        console.error("[purchase] deferred GL post failed", error);
+      }
+    })();
+  });
+
+  return {
+    id: received.id,
+    invoice_number: received.invoice_number,
+    status: "received",
+    total: received.total,
+    store_id: received.store_id,
+    supplier_id: received.supplier_id ?? "",
+    document_date: documentDate,
+    amountPaid,
+    paymentMethod,
+  };
 }
 
 export async function updatePurchaseLine(input: {
   lineId: string;
   quantity: number;
   unitCost: number;
+  discountAmount?: number;
   batchNumber?: string | null;
   productionDate?: string | null;
   expiryDate?: string | null;
@@ -672,10 +654,15 @@ export async function updatePurchaseLine(input: {
   if (!invoice || invoice.status !== "draft") {
     throw new Error("Cannot edit received purchase");
   }
+  const discountAmount = Math.max(
+    0,
+    input.discountAmount !== undefined ? input.discountAmount : (line.discount_amount ?? 0)
+  );
   const updated = await purchaseRepo.updatePurchaseLine(input.lineId, {
     quantity: input.quantity,
     unit_cost: input.unitCost,
-    line_total: input.quantity * input.unitCost,
+    discount_amount: discountAmount,
+    line_total: lineTotalAfterDiscount(input.quantity, input.unitCost, discountAmount),
     landed_unit_cost: null,
     landed_line_total: null,
     batch_number: input.batchNumber ?? null,
@@ -690,15 +677,38 @@ export async function updatePurchaseLine(input: {
 export async function updateDraftPurchase(
   invoiceId: string,
   input: {
-    supplierId?: string;
+    supplierId?: string | null;
     invoiceNumber?: string;
     extraCost?: number;
     documentDate?: string;
+    documentNotes?: string;
+    currency?: string;
+    fxRate?: number;
   }
 ): Promise<PurchaseInvoice> {
   const invoice = await purchaseRepo.getPurchase(invoiceId);
   if (!invoice) throw new Error("Purchase not found");
-  if (invoice.status !== "draft") throw new Error("Cannot edit received purchase");
+  const kind = invoice.document_kind ?? "purchase_invoice";
+  const prOpen =
+    kind === "purchase_request" &&
+    (invoice.status === "draft" ||
+      invoice.status === "submitted" ||
+      invoice.status === "approved");
+  if (invoice.status !== "draft" && !prOpen) {
+    throw new Error("Cannot edit received purchase");
+  }
+  if (invoice.status !== "draft" && prOpen) {
+    if (
+      input.invoiceNumber !== undefined ||
+      input.extraCost !== undefined ||
+      input.documentDate !== undefined ||
+      input.documentNotes !== undefined ||
+      input.currency !== undefined ||
+      input.fxRate !== undefined
+    ) {
+      throw new Error("Cannot edit received purchase");
+    }
+  }
   const documentDate =
     input.documentDate !== undefined
       ? normalizeDocumentDate(input.documentDate)
@@ -706,11 +716,27 @@ export async function updateDraftPurchase(
   if (documentDate) {
     await assertPeriodOpen(invoice.store_id, documentDateToOccurredAt(documentDate));
   }
+  if (kind !== "purchase_request" && input.supplierId === null) {
+    throw new Error("اختار المورد");
+  }
+  const currency =
+    input.currency !== undefined
+      ? input.currency.trim().toUpperCase() || "EGP"
+      : undefined;
+  const fxRate = input.fxRate !== undefined ? Number(input.fxRate) : undefined;
+  if (fxRate !== undefined && !(fxRate > 0)) {
+    throw new Error("سعر التحويل لازم يكون أكبر من صفر");
+  }
   const updated = await purchaseRepo.updatePurchase(invoiceId, {
     ...(input.supplierId !== undefined ? { supplier_id: input.supplierId } : {}),
     ...(input.invoiceNumber !== undefined ? { invoice_number: input.invoiceNumber } : {}),
     ...(input.extraCost !== undefined ? { extra_cost: Math.max(0, input.extraCost) } : {}),
     ...(documentDate !== undefined ? { document_date: documentDate } : {}),
+    ...(input.documentNotes !== undefined
+      ? { document_notes: input.documentNotes.trim().slice(0, 500) }
+      : {}),
+    ...(currency !== undefined ? { currency } : {}),
+    ...(fxRate !== undefined ? { fx_rate: fxRate } : {}),
   });
   if (!updated) throw new Error("Failed to update purchase");
   await purchaseRepo.recalcPurchaseTotals(invoiceId);
@@ -844,4 +870,190 @@ export async function voidReceivedPurchase(
 
 export async function listSuppliers() {
   return purchaseRepo.listSuppliers();
+}
+
+export async function transitionPurchaseDocument(input: {
+  invoiceId: string;
+  from: PurchaseInvoice["status"];
+  to: PurchaseInvoice["status"];
+}): Promise<PurchaseWithLines> {
+  const current = await getPurchase(input.invoiceId);
+  if (!current) throw new Error("المستند غير موجود");
+  if (current.status !== input.from) throw new Error("حالة المستند لا تسمح بهذا الإجراء");
+  const kind = current.document_kind ?? "purchase_invoice";
+  const allowed: Partial<
+    Record<
+      NonNullable<PurchaseInvoice["document_kind"]>,
+      Partial<Record<PurchaseInvoice["status"], PurchaseInvoice["status"][]>>
+    >
+  > = {
+    purchase_request: { draft: ["submitted"], submitted: ["approved", "rejected"] },
+    purchase_order: { draft: ["sent"] },
+  };
+  const next = allowed[kind]?.[input.from] ?? [];
+  if (!next.includes(input.to)) {
+    throw new Error("حالة المستند لا تسمح بهذا الإجراء");
+  }
+  const updated = await purchaseRepo.updatePurchase(input.invoiceId, { status: input.to });
+  if (!updated) throw new Error("تعذر تحديث المستند");
+  const detail = await getPurchase(updated.id);
+  if (!detail) throw new Error("المستند غير موجود");
+  return detail;
+}
+
+export { remainingPurchaseLineQty } from "@/modules/purchases/lib/remaining-qty";
+
+export async function allocatedPurchaseLineQty(poLineId: string): Promise<number> {
+  const db = await (await import("@/lib/repositories/client")).getDb();
+  const { data, error } = await db
+    .from("purchase_invoice_lines")
+    .select("quantity, purchase_invoices!inner(status, document_kind)")
+    .eq("source_line_id" as never, poLineId);
+  if (error) throw new Error(error.message);
+  let sum = 0;
+  for (const row of data ?? []) {
+    const parent = row.purchase_invoices as
+      | { status: string; document_kind: string }
+      | { status: string; document_kind: string }[]
+      | null;
+    const doc = Array.isArray(parent) ? parent[0] : parent;
+    if (!doc || doc.status === "cancelled") continue;
+    if (doc.document_kind !== "purchase_invoice") continue;
+    sum += Number(row.quantity ?? 0);
+  }
+  return sum;
+}
+
+export async function convertPurchaseDocument(input: {
+  sourceId: string;
+  createdBy: string;
+  targetKind: "purchase_order" | "purchase_invoice" | "purchase_return";
+  fromStatus: PurchaseInvoice["status"];
+  lockStatus?: PurchaseInvoice["status"];
+  supplierId?: string | null;
+  lines?: Array<{ sourceLineId: string; quantity: number }>;
+}): Promise<PurchaseWithLines> {
+  const source = await getPurchase(input.sourceId);
+  if (!source) throw new Error("المستند غير موجود");
+  if (source.status !== input.fromStatus) throw new Error("حالة المستند لا تسمح بالتحويل");
+
+  const supplierId = input.supplierId ?? source.supplier_id;
+  if (!supplierId) {
+    throw new Error("اختار المورد");
+  }
+
+  const draft = await createDraftPurchase({
+    storeId: source.store_id,
+    warehouseId: source.warehouse_id,
+    supplierId,
+    createdBy: input.createdBy,
+    documentKind: input.targetKind,
+    sourceDocumentId: source.id,
+    currency: source.currency,
+    fxRate: source.fx_rate,
+  });
+
+  const requested = input.lines?.length
+    ? input.lines
+    : source.lines.map((line) => ({ sourceLineId: line.id, quantity: line.quantity }));
+
+  for (const req of requested) {
+    const sourceLine = source.lines.find((line) => line.id === req.sourceLineId);
+    if (!sourceLine) throw new Error("سطر غير موجود على المستند المصدر");
+    if (input.targetKind === "purchase_invoice") {
+      const allocated = await allocatedPurchaseLineQty(sourceLine.id);
+      const remaining = remainingPurchaseLineQty(sourceLine.quantity, allocated);
+      if (req.quantity > remaining) {
+        throw new Error("الكمية أكبر من المتبقي على أمر التوريد");
+      }
+    }
+    if (req.quantity <= 0) continue;
+    const sourceDiscount = sourceLine.discount_amount ?? 0;
+    const discountAmount =
+      sourceLine.quantity > 0
+        ? Number(((sourceDiscount * req.quantity) / sourceLine.quantity).toFixed(2))
+        : 0;
+    await purchaseRepo.addPurchaseLine({
+      invoice_id: draft.id,
+      product_id: sourceLine.product_id,
+      variant_id: sourceLine.variant_id,
+      quantity: req.quantity,
+      unit_cost: sourceLine.unit_cost,
+      discount_amount: discountAmount,
+      line_total: lineTotalAfterDiscount(
+        req.quantity,
+        sourceLine.unit_cost,
+        discountAmount
+      ),
+      source_line_id: sourceLine.id,
+      foreign_unit_cost: sourceLine.foreign_unit_cost ?? null,
+      foreign_line_total:
+        sourceLine.foreign_unit_cost != null
+          ? Number((req.quantity * sourceLine.foreign_unit_cost).toFixed(2))
+          : null,
+    });
+  }
+
+  if (input.lockStatus) {
+    if (input.targetKind === "purchase_invoice") {
+      let remainingTotal = 0;
+      for (const line of source.lines) {
+        const allocated = await allocatedPurchaseLineQty(line.id);
+        remainingTotal += remainingPurchaseLineQty(line.quantity, allocated);
+      }
+      await purchaseRepo.updatePurchase(source.id, {
+        status: remainingTotal <= 0 ? "invoiced" : "partial_invoiced",
+      });
+    } else {
+      await purchaseRepo.updatePurchase(source.id, { status: input.lockStatus });
+    }
+  }
+
+  const detail = await getPurchase(draft.id);
+  if (!detail) throw new Error("تعذر إنشاء المستند");
+  return detail;
+}
+
+export async function postPurchaseReturn(invoiceId: string, userId: string): Promise<PurchaseWithLines> {
+  const current = await getPurchase(invoiceId);
+  if (!current || current.document_kind !== "purchase_return") {
+    throw new Error("مرتجع غير موجود");
+  }
+  const flags = await isFeatureEnabled("prevent_negative_stock");
+  const { error } = await (await import("@/lib/repositories/client")).callRpc(
+    "post_purchase_return",
+    {
+      p_invoice_id: invoiceId,
+      p_user_id: userId,
+      p_prevent_negative: flags,
+    }
+  );
+  if (error) throw new Error(error.message);
+  const posted = await getPurchase(invoiceId);
+  if (!posted) throw new Error("تعذر ترحيل المرتجع");
+
+  const documentDate = normalizeDocumentDate(
+    posted.document_date ?? todayDocumentDate()
+  );
+  after(() => {
+    void (async () => {
+      try {
+        const { safePostPurchaseReturnJournal } = await import(
+          "@/modules/accounting/services/gl-posting.service"
+        );
+        await safePostPurchaseReturnJournal({
+          purchaseReturnId: posted.id,
+          storeId: posted.store_id,
+          total: posted.total,
+          entryDate: documentDate,
+          createdBy: userId,
+          memo: `مرتجع مشتريات ${posted.invoice_number}`,
+        });
+      } catch (error) {
+        console.error("[purchase-return] deferred GL post failed", error);
+      }
+    })();
+  });
+
+  return posted;
 }

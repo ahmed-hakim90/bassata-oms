@@ -43,17 +43,43 @@ export async function getSuppliersPageDataAction(): Promise<{
   storeId: string;
   currency: string;
   canManagePayments: boolean;
+  glance: {
+    paid30d: number;
+    agingBuckets: import("@/modules/reports/lib/aging-buckets").AgingBuckets;
+    partiesWithBalance: number;
+  };
 }> {
   await requireFeature("purchases");
   const user = await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
   const storeId = await getValidatedActiveStoreId();
   const org = await orgRepo.getOrganization();
-  const summaries = await listSupplierSummaries(storeId);
+
+  const [{ listPaymentsForStore }, { getSupplierAgingSide }] = await Promise.all([
+    import("@/lib/repositories/supplier-payment.repository"),
+    import("@/modules/reports/services/aging-report.service"),
+  ]);
+
+  const [summaries, payments, aging] = await Promise.all([
+    listSupplierSummaries(storeId),
+    listPaymentsForStore(storeId),
+    getSupplierAgingSide(storeId),
+  ]);
+
+  const fromMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const paid30d = payments
+    .filter((p) => !p.voided_at && new Date(p.paid_at).getTime() >= fromMs)
+    .reduce((sum, p) => sum + p.amount, 0);
+
   return {
     summaries,
     storeId,
     currency: org.currency,
     canManagePayments: user.role === "owner" || user.role === "manager",
+    glance: {
+      paid30d,
+      agingBuckets: aging.buckets,
+      partiesWithBalance: aging.rows.length,
+    },
   };
 }
 
@@ -171,6 +197,8 @@ export async function createSupplierFromSuppliersAction(input: {
   name: string;
   contact_info?: string;
   opening_balance?: number;
+  address?: string;
+  tax_id?: string;
 }): Promise<SupplierActionResult<Supplier>> {
   return runSupplierAction(async () => {
     await requireFeature("purchases");
@@ -184,6 +212,8 @@ export async function createSupplierFromSuppliersAction(input: {
         name: input.name,
         contact_info: input.contact_info ?? "",
         opening_balance: opening,
+        address: input.address?.trim() ?? "",
+        tax_id: input.tax_id?.trim() ?? "",
       },
       user.id
     );
@@ -198,6 +228,8 @@ export async function updateSupplierAction(input: {
   name?: string;
   contact_info?: string;
   opening_balance?: number;
+  address?: string;
+  tax_id?: string;
 }): Promise<SupplierActionResult<Supplier>> {
   return runSupplierAction(async () => {
     await requireFeature("purchases");
@@ -215,6 +247,8 @@ export async function updateSupplierAction(input: {
         ...(input.opening_balance !== undefined
           ? { opening_balance: input.opening_balance }
           : {}),
+        ...(input.address !== undefined ? { address: input.address.trim() } : {}),
+        ...(input.tax_id !== undefined ? { tax_id: input.tax_id.trim() } : {}),
       },
       user.id
     );

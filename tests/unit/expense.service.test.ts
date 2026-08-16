@@ -104,6 +104,41 @@ describe("createExpense", () => {
     });
   });
 
+  it("records owner operational expenses as the signed-in user, not a POS cashier", async () => {
+    const owner: AppUser = {
+      ...cashier,
+      id: "owner-1",
+      auth_user_id: "auth-owner",
+      name: "Owner",
+      email: "owner@test.com",
+      role: "owner",
+    };
+
+    await createExpense(
+      {
+        ...baseInput,
+        session_id: "session-spoof",
+        created_by: "spoofed-cashier",
+        expense_source: "external",
+        payment_method: "card",
+      },
+      owner,
+      { isSessionExpense: false }
+    );
+
+    expect(expenseRepo.createExpense).toHaveBeenCalledWith(
+      expect.objectContaining({
+        created_by: "owner-1",
+        session_id: null,
+        expense_source: "external",
+        payment_method: "card",
+      })
+    );
+    expect(writeAuditLog).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "session.expense_recorded" })
+    );
+  });
+
   it("creates a valid cashier session expense", async () => {
     const expense = await createExpense(baseInput, cashier, { isSessionExpense: true });
 

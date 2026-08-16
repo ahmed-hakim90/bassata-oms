@@ -15,10 +15,14 @@ const LABEL_AR: Record<string, string> = {
   postSaleJournal: "ترحيل بيع",
   postExpenseJournal: "ترحيل مصروف",
   postPurchaseJournal: "ترحيل مشتريات",
+  postCustomsCertificateJournal: "ترحيل مصاريف شهادة جمركية",
   postCustomerPaymentJournal: "ترحيل تحصيل عميل",
   postSupplierPaymentJournal: "ترحيل دفعة مورد",
   postSaleReversalJournal: "ترحيل مرتجع / إلغاء",
   postWasteJournal: "ترحيل هالك",
+  postCreditNoteJournal: "ترحيل إشعار دائن",
+  postPurchaseReturnJournal: "ترحيل مرتجع مشتريات",
+  postStockCountJournal: "ترحيل فروقات جرد",
   reversePostedBySource: "عكس قيد مرحّل",
 };
 

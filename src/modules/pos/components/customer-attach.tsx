@@ -224,6 +224,8 @@ export function CustomerAttach({
           className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-2.5 text-start transition-colors hover:border-primary/40 hover:bg-primary/5 max-[390px]:gap-2 max-[390px]:px-2.5 max-[390px]:py-2"
           onClick={() => setExpanded(true)}
           aria-label="إضافة عميل للفاتورة"
+          aria-keyshortcuts="F6"
+          title="إضافة عميل (F6)"
         >
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground max-[390px]:size-9">
             <UserRound className="size-4" aria-hidden />

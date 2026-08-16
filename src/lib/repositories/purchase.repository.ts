@@ -1,8 +1,9 @@
-import { getDb, throwDbError } from "@/lib/repositories/client";
+import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { mapPurchase, mapPurchaseLine, mapSupplier } from "@/lib/repositories/mappers";
-import type { PurchaseInvoice, PurchaseInvoiceLine, Supplier } from "@/lib/types";
+import type { PaymentMethod, PurchaseInvoice, PurchaseInvoiceLine, Supplier } from "@/lib/types";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { listStores } from "@/lib/repositories/store.repository";
+import { chunkIds } from "@/lib/query-chunks";
 
 async function orgStoreIds(): Promise<string[]> {
   return (await listStores()).map((store) => store.id);
@@ -41,11 +42,57 @@ export async function listPurchaseInvoicesForStore(
     .from("purchase_invoices")
     .select("*")
     .eq("store_id", storeId)
-    .in("status", ["received", "cancelled"]);
+    .in("status", ["received", "cancelled", "posted"]);
   if (options?.supplierId) q = q.eq("supplier_id", options.supplierId);
   const { data, error } = await q;
   if (error) throwDbError(error, "listPurchaseInvoicesForStore");
   return (data ?? []).map(mapPurchase);
+}
+
+/**
+ * Received purchase invoices for AP aging — one (chunked) query across stores.
+ * Selects only aging fields to keep the payload small.
+ */
+export async function listReceivedPurchasesForAging(
+  storeIds: string[]
+): Promise<
+  { id: string; supplier_id: string; store_id: string; total: number; received_at: string }[]
+> {
+  const allowed = await orgStoreIds();
+  const allowedSet = new Set(allowed);
+  const scoped = storeIds.filter((id) => allowedSet.has(id));
+  if (scoped.length === 0) return [];
+
+  const db = await getDb();
+  const rows: {
+    id: string;
+    supplier_id: string;
+    store_id: string;
+    total: number;
+    received_at: string;
+  }[] = [];
+
+  for (const chunk of chunkIds(scoped)) {
+    const { data, error } = await db
+      .from("purchase_invoices")
+      .select("id, supplier_id, store_id, total, received_at")
+      .in("store_id", chunk)
+      .eq("status", "received")
+      .not("received_at", "is", null);
+    if (error) throwDbError(error, "listReceivedPurchasesForAging");
+    for (const row of data ?? []) {
+      if (!row.received_at) continue;
+      rows.push({
+        id: row.id as string,
+        supplier_id: row.supplier_id as string,
+        store_id: row.store_id as string,
+        total: Number(row.total),
+        received_at: row.received_at as string,
+      });
+    }
+  }
+
+  return rows;
 }
 
 export async function createSupplier(input: Omit<Supplier, "id" | "org_id">): Promise<Supplier> {
@@ -77,7 +124,10 @@ export async function deleteSupplier(id: string): Promise<boolean> {
   return true;
 }
 
-export async function listPurchases(storeId?: string): Promise<PurchaseInvoice[]> {
+export async function listPurchases(
+  storeId?: string,
+  kind: PurchaseInvoice["document_kind"] = "purchase_invoice"
+): Promise<PurchaseInvoice[]> {
   const storeIds = await orgStoreIds();
   if (storeIds.length === 0) return [];
   if (storeId && !storeIds.includes(storeId)) return [];
@@ -87,6 +137,7 @@ export async function listPurchases(storeId?: string): Promise<PurchaseInvoice[]
     .from("purchase_invoices")
     .select("*")
     .in("store_id", storeIds)
+    .eq("document_kind", kind as never)
     .order("created_at", { ascending: false });
   if (storeId) q = q.eq("store_id", storeId);
   const { data, error } = await q;
@@ -110,6 +161,24 @@ export async function countPurchasesOnDocumentDate(
     .eq("document_date", documentDate);
   if (error) throwDbError(error, "countPurchasesOnDocumentDate");
   return count ?? 0;
+}
+
+export async function nextPurchaseDocumentNumber(
+  storeId: string,
+  kind: string,
+  documentDate: string
+): Promise<string> {
+  const storeIds = await orgStoreIds();
+  if (storeIds.length === 0 || !storeIds.includes(storeId)) {
+    throw new Error("Store scope empty");
+  }
+  const { data, error } = await callRpc<string>("next_document_number", {
+    p_store_id: storeId,
+    p_kind: kind,
+    p_business_date: documentDate,
+  });
+  if (error || !data) throwDbError(error, "nextPurchaseDocumentNumber");
+  return data;
 }
 
 export async function getPurchase(id: string): Promise<PurchaseInvoice | null> {
@@ -246,11 +315,11 @@ export async function insertPurchase(
   lines: Omit<PurchaseInvoiceLine, "id" | "invoice_id">[]
 ): Promise<PurchaseInvoice> {
   const db = await getDb();
-  const { data, error } = await db.from("purchase_invoices").insert(invoice).select().single();
+  const { data, error } = await db.from("purchase_invoices").insert(invoice as never).select().single();
   if (error || !data) throwDbError(error, "insertPurchase");
   if (lines.length > 0) {
     const { error: lineError } = await db.from("purchase_invoice_lines").insert(
-      lines.map((l) => ({ ...l, invoice_id: data.id }))
+      lines.map((l) => ({ ...l, invoice_id: data.id })) as never
     );
     if (lineError) {
       const { error: cleanupError } = await db
@@ -289,7 +358,7 @@ export async function addPurchaseLine(
     Partial<Pick<PurchaseInvoiceLine, "landed_unit_cost" | "landed_line_total">>
 ): Promise<PurchaseInvoiceLine> {
   const db = await getDb();
-  const { data, error } = await db.from("purchase_invoice_lines").insert(line).select().single();
+  const { data, error } = await db.from("purchase_invoice_lines").insert(line as never).select().single();
   if (error || !data) throwDbError(error, "addPurchaseLine");
   return mapPurchaseLine(data);
 }
@@ -301,7 +370,7 @@ export async function updatePurchaseLine(
   const db = await getDb();
   const { data, error } = await db
     .from("purchase_invoice_lines")
-    .update(patch)
+    .update(patch as never)
     .eq("id", id)
     .select()
     .maybeSingle();
@@ -333,4 +402,35 @@ export async function deletePurchase(id: string): Promise<void> {
   const db = await getDb();
   const { error } = await db.from("purchase_invoices").delete().eq("id", id);
   if (error) throwDbError(error, "deletePurchase");
+}
+
+export type ReceivePurchaseRpcResult = PurchaseInvoice & {
+  amount_paid: number;
+  payment_method: string | null;
+  line_count: number;
+};
+
+/** Atomic receive: landed costs + stock + status + optional supplier payment. */
+export async function receivePurchaseAtomic(input: {
+  invoiceId: string;
+  userId: string;
+  amountPaid: number;
+  paymentMethod?: PaymentMethod;
+  preventNegativeStock: boolean;
+}): Promise<ReceivePurchaseRpcResult> {
+  const { data, error } = await callRpc<Record<string, unknown>>("receive_purchase_invoice", {
+    p_invoice_id: input.invoiceId,
+    p_user_id: input.userId,
+    p_amount_paid: input.amountPaid,
+    p_payment_method: input.paymentMethod ?? null,
+    p_prevent_negative: input.preventNegativeStock,
+  });
+  if (error || !data) throwDbError(error, "receive_purchase_invoice");
+  const mapped = mapPurchase(data as Parameters<typeof mapPurchase>[0]);
+  return {
+    ...mapped,
+    amount_paid: Number(data.amount_paid ?? 0),
+    payment_method: (data.payment_method as string | null) ?? null,
+    line_count: Number(data.line_count ?? 0),
+  };
 }

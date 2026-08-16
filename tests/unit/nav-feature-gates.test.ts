@@ -12,6 +12,18 @@ function hrefs(
   );
 }
 
+function groupHrefs(
+  role: "owner" | "manager" | "cashier" | "inventory",
+  groupLabel: string,
+  flags?: Partial<Record<FeatureFlag, boolean>>,
+  permissions: PermissionKey[] = []
+) {
+  const group = filterNavByAccess(role, new Set(permissions), flags).find(
+    (g) => g.label === groupLabel
+  );
+  return group?.items.map((i) => i.href) ?? [];
+}
+
 describe("S08 nav feature gates", () => {
   it("hides purchases/suppliers when purchases flag is false", () => {
     const items = hrefs("owner", { purchases: false });
@@ -66,5 +78,89 @@ describe("S08 nav feature gates", () => {
     expect(hrefs("manager")).toContain("/sales-invoices");
     expect(hrefs("cashier")).toContain("/sales-invoices");
     expect(hrefs("inventory")).not.toContain("/sales-invoices");
+  });
+});
+
+describe("sidebar IA regroup", () => {
+  it("keeps POS in Operations and sales documents in their own group", () => {
+    expect(groupHrefs("owner", "Operations")).toEqual(
+      expect.arrayContaining([
+        "/operations",
+        "/pos",
+        "/orders",
+        "/online-orders",
+        "/sessions",
+      ])
+    );
+    expect(groupHrefs("owner", "Operations")).not.toContain("/sales-invoices");
+    expect(groupHrefs("owner", "Sales Documents")).toEqual([
+      "/sales-documents",
+      "/quotations",
+      "/sales-orders",
+      "/sales-invoices",
+      "/credit-notes",
+    ]);
+  });
+
+  it("splits purchasing from inventory and puts products/labels together", () => {
+    const inventory = groupHrefs("owner", "Inventory");
+    expect(inventory).toEqual(
+      expect.arrayContaining([
+        "/inventory",
+        "/inventory/warehouses",
+        "/inventory/movements",
+        "/inventory/transfers",
+        "/inventory/waste",
+        "/inventory/stock-count",
+      ])
+    );
+    expect(inventory).not.toContain("/inventory/purchases");
+    expect(inventory).not.toContain("/products");
+
+    expect(groupHrefs("owner", "Purchasing")).toEqual([
+      "/purchasing",
+      "/inventory/purchase-requests",
+      "/inventory/purchase-orders",
+      "/inventory/purchases",
+      "/inventory/purchase-returns",
+      "/inventory/suppliers",
+    ]);
+
+    expect(groupHrefs("owner", "Products")).toEqual([
+      "/catalog",
+      "/products",
+      "/labels",
+    ]);
+    expect(groupHrefs("owner", "Reports")).not.toContain("/labels");
+  });
+
+  it("moves promotions under Customers and guide under Administration", () => {
+    expect(groupHrefs("owner", "Customers")).toEqual([
+      "/customers",
+      "/customers/directory",
+      "/customers/loyalty",
+      "/promotions",
+    ]);
+    expect(groupHrefs("owner", "Dashboard")).toEqual(["/"]);
+    expect(groupHrefs("owner", "Administration")).toEqual(
+      expect.arrayContaining(["/admin", "/guide", "/settings"])
+    );
+    expect(groupHrefs("owner", "Accounting")[0]).toBe("/accounting");
+    expect(groupHrefs("owner", "Accounting")).toContain("/accounting/accounts");
+  });
+
+  it("hides purchase cycle and stock movements from cashier legacy nav", () => {
+    const items = hrefs("cashier");
+    expect(items).not.toContain("/inventory/purchase-requests");
+    expect(items).not.toContain("/inventory/purchase-orders");
+    expect(items).not.toContain("/inventory/purchase-returns");
+    expect(items).not.toContain("/inventory/purchases");
+    expect(items).not.toContain("/inventory/movements");
+    expect(items).not.toContain("/purchasing");
+    expect(items).not.toContain("/catalog");
+    expect(items).not.toContain("/admin");
+    expect(items).toContain("/operations");
+    expect(items).toContain("/pos");
+    expect(items).toContain("/sales-invoices");
   });
 });

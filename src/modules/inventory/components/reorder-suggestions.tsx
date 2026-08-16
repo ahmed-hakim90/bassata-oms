@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { ShoppingBasket } from "lucide-react";
 import { toast } from "sonner";
 import { GlassPanel } from "@/components/Velora/glass-panel";

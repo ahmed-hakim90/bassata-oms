@@ -12,6 +12,7 @@ export interface SalesKpi {
   orderCount: number;
   avgOrderValue: number;
   topProducts: {
+    id: string;
     name: string;
     quantity: number;
     revenue: number;
@@ -137,8 +138,9 @@ export async function getSalesReport(options?: {
     productStats.set(item.product_id, existing);
   }
 
-  const topProducts = [...productStats.values()]
-    .map((p) => ({
+  const topProducts = [...productStats.entries()]
+    .map(([id, p]) => ({
+      id,
       ...p,
       profit: p.revenue - p.cost,
       margin: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue) * 100 : 0,

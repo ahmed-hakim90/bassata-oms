@@ -92,8 +92,11 @@ export async function createExpense(
   const approvedAt = status === "approved" ? new Date().toISOString() : null;
   const approvedBy = status === "approved" ? user.id : null;
 
+  const sessionId = isSessionExpense ? input.session_id : null;
   const expense = await expenseRepo.createExpense({
     ...input,
+    created_by: user.id,
+    session_id: sessionId,
     cost_center_id: category.cost_center_id,
     inventory_item_id: null,
     quantity: null,
@@ -115,19 +118,19 @@ export async function createExpense(
       cost_center_id: category.cost_center_id,
       expense_category_id: input.expense_category_id,
       expense_source: input.expense_source,
-      session_id: input.session_id,
+      session_id: sessionId,
       amount: input.amount,
     },
   });
 
-  if (input.session_id) {
+  if (sessionId) {
     await writeAuditLog({
       orgId,
       storeId: input.store_id,
       userId: user.id,
       action: "session.expense_recorded",
       entityType: "cashier_session",
-      entityId: input.session_id,
+      entityId: sessionId,
       metadata: { expenseId: expense.id, amount: input.amount },
     });
   }

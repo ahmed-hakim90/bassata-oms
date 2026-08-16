@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Dialog } from "@/components/ui/dialog";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import { PackageMinus, PackagePlus, ShoppingCart, CalendarRange } from "lucide-react";

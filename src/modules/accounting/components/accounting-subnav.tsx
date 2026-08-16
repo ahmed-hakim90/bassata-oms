@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useDisplayPathname } from "@/hooks/use-display-pathname";
 import {
   BarChart3,
   BookOpen,
@@ -17,11 +17,12 @@ import { GlPostingFailureBanner } from "@/modules/accounting/components/gl-posti
 
 const LINKS = [
   {
-    href: "/accounting",
+    href: "/accounting/accounts",
     label: "دليل الحسابات",
     hint: "الشجرة",
     icon: Landmark,
-    match: (path: string) => path === "/accounting",
+    match: (path: string) =>
+      path === "/accounting/accounts" || path.startsWith("/accounting/accounts/"),
   },
   {
     href: "/accounting/journals",
@@ -75,7 +76,7 @@ const LINKS = [
 ] as const;
 
 export function AccountingSubnav() {
-  const pathname = usePathname();
+  const pathname = useDisplayPathname();
 
   return (
     <div className="space-y-4" dir="rtl">

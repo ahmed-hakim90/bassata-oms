@@ -29,6 +29,7 @@ Shared UI primitives live in [`src/components/Velora/`](../src/components/Velora
 ## Typography & density
 
 - Headings: `font-semibold tracking-tight`
+- **Page headers are operational, not marketing.** `PageHeader` is two lines: title + actions, then breadcrumb/description. Do not add hero-sized titles, extra wrappers with `gap-6`, or large vertical chrome above tables and forms. Page stacks after the header use `gap-3`.
 - Money: `tabular-nums` + `formatCurrency`
 - POS: large tap targets, `rounded-2xl` cards, minimal chrome
 

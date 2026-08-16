@@ -17,7 +17,7 @@ export default async function MovementsPage() {
   const movements = await getMovementTimeline(storeId, undefined, 50);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <PageHeader
         title="الحركات"
         description={`سجل المخزون - ${store?.name ?? "الفرع"}`}

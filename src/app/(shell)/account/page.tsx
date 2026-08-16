@@ -3,7 +3,7 @@ import { ChangePasswordForm } from "@/modules/auth/components/change-password-fo
 
 export default function AccountPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <PageHeader title="الحساب" description="إدارة بيانات تسجيل الدخول" />
       <ChangePasswordForm />
     </div>

@@ -27,6 +27,7 @@ alwaysApply: false
 | Auth | `useActionState` + form action |
 | Complex multi-field | RHF + Zod |
 | Multi-step | Wizard with explicit steps + back/next |
+| **Invoice / operational document** | **Not a wizard** — follow `DOCUMENT-INVOICE.mdc` (one page, visible header, sticky bottom actions) |
 
 ## Mobile
 

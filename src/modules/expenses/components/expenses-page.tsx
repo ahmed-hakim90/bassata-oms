@@ -5,13 +5,14 @@ import {
   requirePermission,
 } from "@/lib/auth/guards";
 import { runPageAuth } from "@/lib/auth/page-guard";
-import { getPosReadiness } from "@/lib/auth/pos-readiness";
 import { PageHeader } from "@/components/Velora/page-header";
-import { PosReadinessStatus } from "@/components/Velora/pos-readiness-status";
 import { ExpenseWizard } from "@/modules/expenses/components/expense-wizard";
 import { ExpenseFiltersBar } from "@/modules/expenses/components/expense-filters-bar";
 import { ExpenseListItem } from "@/modules/expenses/components/expense-list-item";
+import { ExpensesAnalyticsGlance } from "@/modules/expenses/components/expenses-analytics-glance";
+import { buildExpensesGlance } from "@/modules/expenses/lib/expenses-glance";
 import * as expenseRepo from "@/lib/repositories/expense.repository";
+import * as orgRepo from "@/lib/repositories/organization.repository";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import { Button } from "@/components/ui/button";
@@ -31,14 +32,18 @@ interface ExpensesPageProps {
 
 export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
   const boot = await runPageAuth(async () => {
-    await requireAnyPermission(["expense_view_all", "expense_create", "session_expense_create"]);
-    return getValidatedActiveStoreId();
+    const user = await requireAnyPermission([
+      "expense_view_all",
+      "expense_create",
+      "session_expense_create",
+    ]);
+    const storeId = await getValidatedActiveStoreId();
+    return { user, storeId };
   }, "/expenses");
   if (!boot.ok) {
     return <AccessDenied title={boot.denial.title} description={boot.denial.description} />;
   }
-  const storeId = boot.data;
-  const readiness = await getPosReadiness();
+  const { user, storeId } = boot.data;
 
   const listFilters = {
     storeId,
@@ -50,10 +55,11 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
     to: filters.to,
   };
 
-  const [expenses, costCenters, categories] = await Promise.all([
+  const [expenses, costCenters, categories, org] = await Promise.all([
     expenseRepo.listExpenses(listFilters),
     listCostCenters(storeId),
     listExpenseCategories(),
+    orgRepo.getOrganization(),
   ]);
 
   let canApprove = false;
@@ -66,10 +72,12 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
 
   const centerMap = new Map(costCenters.map((c) => [c.id, c.name]));
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+  const categoryNames = Object.fromEntries(categoryMap);
   const pendingCount = expenses.filter((e) => e.status === "pending").length;
+  const glance = buildExpensesGlance({ expenses, categoryNames });
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         title="إدارة المصروفات"
         description={
@@ -80,15 +88,16 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
         action={
           <ExpenseWizard
             storeId={storeId}
-            sessionId={readiness.sessionId}
-            userId={readiness.cashierId ?? ""}
+            sessionId={null}
+            userId={user.id}
             costCenters={costCenters}
             categories={categories}
-            sessionMode={Boolean(readiness.sessionId)}
             trigger={<Button className="shadow-[var(--mds-elevation-1)]">إضافة مصروف</Button>}
           />
         }
       />
+
+      <ExpensesAnalyticsGlance glance={glance} currency={org.currency} />
 
       <ExpenseFiltersBar
         costCenters={costCenters}
@@ -103,8 +112,6 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
         }}
       />
 
-      {readiness.state !== "ready" ? <PosReadinessStatus readiness={readiness} /> : null}
-
       {expenses.length === 0 ? (
         <EmptyStateBlock
           title="مفيش مصروفات مطابقة للفلاتر"
@@ -112,11 +119,10 @@ export async function ExpensesPage({ filters = {} }: ExpensesPageProps) {
           action={
             <ExpenseWizard
               storeId={storeId}
-              sessionId={readiness.sessionId}
-              userId={readiness.cashierId ?? ""}
+              sessionId={null}
+              userId={user.id}
               costCenters={costCenters}
               categories={categories}
-              sessionMode={Boolean(readiness.sessionId)}
               trigger={<Button>إضافة مصروف</Button>}
             />
           }

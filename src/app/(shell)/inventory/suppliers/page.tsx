@@ -8,6 +8,7 @@ export default async function SuppliersRoute() {
       summaries={data.summaries}
       currency={data.currency}
       canManagePayments={data.canManagePayments}
+      glance={data.glance}
     />
   );
 }

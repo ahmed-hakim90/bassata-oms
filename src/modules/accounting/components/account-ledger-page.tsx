@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import { ArrowLeftRight, BookOpen, CircleDot } from "lucide-react";
 import { PageHeader } from "@/components/Velora/page-header";
@@ -112,12 +112,12 @@ export function AccountLedgerPage({
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-3">
         <AccountingSubnav />
       </div>
 
       {result ? (
-        <div className="mb-4 grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
             label="رصيد افتتاحي"
             value={formatCurrency(result.openingBalance, currency)}

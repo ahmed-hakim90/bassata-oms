@@ -1,12 +1,13 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  BarChart3,
   Package,
   Scale,
   Warehouse,
@@ -21,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CompactAction } from "@/components/Velora/compact-actions";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { ReportPage } from "@/modules/reports/components/report-page";
 import { ReportKpiGrid } from "@/modules/reports/components/report-kpi-grid";
@@ -85,6 +87,18 @@ export function ProductStockCardView({
   const [pending, startTransition] = useTransition();
   const printQs = reportFiltersToSearchParams(filters);
   const printHref = `/print/reports/product-card${printQs ? `?${printQs}` : ""}`;
+  const salesProductQs = report
+    ? reportFiltersToSearchParams({
+        ...filters,
+        productId: report.product.id,
+        page: 1,
+      })
+    : "";
+  const salesProductHref = report
+    ? salesProductQs
+      ? `/reports/sales/product?${salesProductQs}`
+      : `/reports/sales/product?productId=${report.product.id}`
+    : null;
 
   const apply = (next: Partial<ReportFilters>) => {
     const qs = reportFiltersToSearchParams({ ...filters, ...next, page: 1 });
@@ -186,31 +200,38 @@ export function ProductStockCardView({
       description="رصيد افتتاحي، وارد، منصرف، تسوية، ومتاح — على الفترة اللي تختارها"
       actions={
         report ? (
-          <ExportButtonGroup
-            printHref={canPrint ? printHref : undefined}
-            canPrint={canPrint}
-            canExcel={canExcel}
-            canPdf={canPdf}
-            pending={pending}
-            onExportExcel={() => {
-              startTransition(async () => {
-                try {
-                  const result = await exportProductStockCardExcel(
-                    Object.fromEntries(
-                      Object.entries(filters).map(([k, v]) => [
-                        k,
-                        v === undefined ? undefined : String(v),
-                      ])
-                    ) as Record<string, string>
-                  );
-                  downloadBase64Excel(result.base64, result.filename);
-                  toast.success("تم تصدير Excel");
-                } catch {
-                  toast.error("فشل التصدير");
-                }
-              });
-            }}
-          />
+          <div className="flex flex-wrap items-center gap-[var(--mds-space-2)] print:hidden">
+            <CompactAction
+              label="مبيعات المنتج"
+              icon={BarChart3}
+              href={salesProductHref!}
+            />
+            <ExportButtonGroup
+              printHref={canPrint ? printHref : undefined}
+              canPrint={canPrint}
+              canExcel={canExcel}
+              canPdf={canPdf}
+              pending={pending}
+              onExportExcel={() => {
+                startTransition(async () => {
+                  try {
+                    const result = await exportProductStockCardExcel(
+                      Object.fromEntries(
+                        Object.entries(filters).map(([k, v]) => [
+                          k,
+                          v === undefined ? undefined : String(v),
+                        ])
+                      ) as Record<string, string>
+                    );
+                    downloadBase64Excel(result.base64, result.filename);
+                    toast.success("تم تصدير Excel");
+                  } catch {
+                    toast.error("فشل التصدير");
+                  }
+                });
+              }}
+            />
+          </div>
         ) : undefined
       }
       filters={

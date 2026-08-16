@@ -32,6 +32,7 @@ const EVENT_SORT: Record<SupplierStatementTransactionType, number> = {
   payment: 2,
   purchase_void: 3,
   payment_void: 4,
+  purchase_return: 5,
 };
 
 function startOfDay(dateStr: string): number {
@@ -49,6 +50,22 @@ function eventImpact(e: RawEvent): number {
 function buildEventsFromInvoices(invoices: PurchaseInvoice[]): RawEvent[] {
   const events: RawEvent[] = [];
   for (const inv of invoices) {
+    const kind = inv.document_kind ?? "purchase_invoice";
+    if (kind === "purchase_return" && inv.status === "posted" && inv.received_at) {
+      events.push({
+        at: inv.received_at,
+        sortOrder: EVENT_SORT.purchase_return,
+        type: "purchase_return",
+        id: inv.id,
+        reference: inv.invoice_number,
+        description: `مرتجع مشتريات ${inv.invoice_number}`,
+        debit: 0,
+        credit: inv.total,
+        purchaseInvoiceId: inv.id,
+      });
+      continue;
+    }
+    if (kind !== "purchase_invoice") continue;
     if (inv.received_at) {
       events.push({
         at: inv.received_at,
@@ -152,7 +169,11 @@ export async function listSupplierSummaries(storeId: string): Promise<SupplierLi
     const supplierPayments = payments.filter((p) => p.supplier_id === supplier.id);
 
     const totalPurchased = supplierInvoices
-      .filter((i) => i.status === "received")
+      .filter((i) => (i.document_kind ?? "purchase_invoice") === "purchase_invoice" && i.status === "received")
+      .reduce((s, i) => s + i.total, 0);
+
+    const totalReturned = supplierInvoices
+      .filter((i) => i.document_kind === "purchase_return" && i.status === "posted")
       .reduce((s, i) => s + i.total, 0);
 
     const totalPaid = supplierPayments
@@ -178,8 +199,10 @@ export async function listSupplierSummaries(storeId: string): Promise<SupplierLi
       ...supplier,
       totalPurchased,
       totalPaid,
-      balanceDue: supplier.opening_balance + totalPurchased - totalPaid,
-      invoiceCount: supplierInvoices.filter((i) => i.status === "received").length,
+      balanceDue: supplier.opening_balance + totalPurchased - totalReturned - totalPaid,
+      invoiceCount: supplierInvoices.filter(
+        (i) => (i.document_kind ?? "purchase_invoice") === "purchase_invoice" && i.status === "received"
+      ).length,
       lastActivityAt,
     };
   });

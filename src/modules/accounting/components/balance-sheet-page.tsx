@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import {
   Building2,
@@ -202,11 +202,11 @@ export function BalanceSheetPage({
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-3">
         <AccountingSubnav />
       </div>
 
-      <div className="mb-4 grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="الأصول"
           value={formatCurrency(result.totalAssets, currency)}

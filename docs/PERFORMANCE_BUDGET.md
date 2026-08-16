@@ -9,10 +9,29 @@ Measure on a mid-tier laptop / tablet on local or staging with a warm cache unle
 | Interaction | Budget | Notes |
 |-------------|--------|--------|
 | Shell page open (route transition to usable content) | **&lt; 1s** | First meaningful paint of header + primary content; excludes cold SSR first visit if documented |
+| Module glance (customers / suppliers / sessions / inventory / module hubs) | **&lt; 1s** | Batch SQL (chunked `.in`) — no N+1 ledgers; prefer aggregates from already-loaded rows |
 | POS product search (filter already-loaded catalog) | **&lt; 150ms** | Keystroke → filtered tiles visible |
 | Add product to cart | **&lt; 100ms** | Tap → cart line + totals update |
 | Open drawer / sheet (cart, filters, detail) | **&lt; 200ms** | Gesture → interactive |
 | Receipt print start (browser or USB handoff) | **&lt; 2s** | Click print → print dialog or device job accepted |
+| POS checkout UI unlock (cart clear / next sale) | **&lt; 100ms** | Confirm pay → cart free for next customer; server save continues in background |
+| Purchase receive UI unlock | **&lt; 100ms** | Confirm receive → return to list; stock RPC runs in background |
+| Purchase receive server (atomic RPC) | **≤ 1s** | Typical invoice (~30 lines), warm DB; one `receive_purchase_invoice` round-trip |
+
+## Data loading rules (glance / reports)
+
+- Prefer **one query (or chunked `.in`)** over per-row / per-party fetches.
+- AR aging: `listCreditSaleDebitsForCustomers` (batch) — not `listCustomerLedger` in a loop.
+- AP aging: `listReceivedPurchasesForAging` + `listPaymentsForStores` — not per-store loops.
+- Session report: filter `opened_at` in SQL via `listSessions(..., { openedSince })`.
+- Session board glance: aggregate from rows already loaded for the page — no second round-trip.
+- Online orders glance: status/AOV from loaded orders + one `get_online_menu_view_stats` RPC (not per-order).
+- Expenses glance: aggregate from the filtered list already loaded for `/expenses` — no second sum query.
+- Kitchen glance: from loaded queue tickets only; do not invent prep duration without KDS timing events.
+- Devices glance: from `listDevices()` already loaded for `/devices`.
+- Module hubs: KPIs/charts from existing domain loaders (live sales, documents, inventory summary, purchases/suppliers, customers aging, GL overview, devices) — fail-soft per hub; no demo KPIs.
+- Platform org glance: from `listOrganizationHealthSummaries()` + pending invite count already loaded for `/platform` — no billing invent.
+- Platform usage glance: from `listPlatformUsageMatrix()` rows already loaded for `/platform/usage`.
 
 ## How to measure
 
@@ -25,7 +44,7 @@ Measure on a mid-tier laptop / tablet on local or staging with a warm cache unle
 
 - Full Lighthouse CI gates (add in Stabilization if needed)
 - Offline cache timing
-- Server action round-trip budgets (track separately; UI must still show pending state immediately)
+- Full end-to-end network budgets on cold connections (track separately; UI must unlock immediately and show background pending)
 
 ## Failure policy
 

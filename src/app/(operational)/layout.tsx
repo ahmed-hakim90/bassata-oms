@@ -10,6 +10,7 @@ import {
   isRbacSeeded,
 } from "@/lib/repositories/permission.repository";
 import { isSlugPosPath } from "@/lib/tenancy/pos-store-slug";
+import { RouteTransitionMain } from "@/components/layout/route-transition";
 
 export default async function OperationalLayout({
   children,
@@ -23,7 +24,7 @@ export default async function OperationalLayout({
   const rawUser = await getCurrentUser();
   if (!rawUser) {
     if (isPublicPosEntry) {
-      return <>{children}</>;
+      return <RouteTransitionMain>{children}</RouteTransitionMain>;
     }
     const { redirect } = await import("next/navigation");
     redirect(`/login?from=${encodeURIComponent(pathname || "/pos")}`);
@@ -65,5 +66,5 @@ export default async function OperationalLayout({
       </div>
     );
   }
-  return <>{children}</>;
+  return <RouteTransitionMain>{children}</RouteTransitionMain>;
 }

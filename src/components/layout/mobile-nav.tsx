@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useDisplayPathname } from "@/hooks/use-display-pathname";
 import {
   ArrowLeftRight,
   BarChart3,
@@ -97,7 +97,7 @@ export function MobileNav({
   permissions?: PermissionKey[];
 }) {
   const { t } = useTranslation();
-  const pathname = usePathname();
+  const pathname = useDisplayPathname();
   const openMobileNavSheet = useUiStore((s) => s.openMobileNavSheet);
   const mobileNavSheetOpen = useUiStore((s) => s.mobileNavSheetOpen);
 

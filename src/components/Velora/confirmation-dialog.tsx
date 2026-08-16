@@ -1,15 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ConfirmActionDialog,
+  type ConfirmIntent,
+} from "@/components/Velora/confirm-action-dialog";
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -18,6 +13,7 @@ interface ConfirmationDialogProps {
   description: string;
   confirmLabel?: string;
   destructive?: boolean;
+  intent?: ConfirmIntent;
   onConfirm: () => void | Promise<void>;
 }
 
@@ -28,42 +24,20 @@ export function ConfirmationDialog({
   description,
   confirmLabel = "تأكيد",
   destructive = false,
+  intent,
   onConfirm,
 }: ConfirmationDialogProps) {
-  const [pending, setPending] = useState(false);
-
-  async function confirmAction() {
-    setPending(true);
-    try {
-      await onConfirm();
-      onOpenChange(false);
-    } finally {
-      setPending(false);
-    }
-  }
-
   return (
-    <Dialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)}>
-      <DialogContent dir="rtl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant={destructive ? "destructive" : "default"}
-            disabled={pending}
-            onClick={confirmAction}
-          >
-            {pending ? "جارٍ التنفيذ..." : confirmLabel}
-          </Button>
-          <Button type="button" variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>
-            إلغاء
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmActionDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={description}
+      confirmLabel={confirmLabel}
+      destructive={destructive}
+      intent={intent}
+      onConfirm={onConfirm}
+    />
   );
 }
 
@@ -71,6 +45,7 @@ type ConfirmationOptions = {
   title?: string;
   confirmLabel?: string;
   destructive?: boolean;
+  intent?: ConfirmIntent;
 };
 
 /** Promise-based replacement for the blocking browser confirm dialog. */
@@ -104,6 +79,7 @@ export function useConfirmationDialog() {
         description={request?.description ?? ""}
         confirmLabel={request?.confirmLabel}
         destructive={request?.destructive}
+        intent={request?.intent}
         onConfirm={() => settle(true)}
       />
     ),

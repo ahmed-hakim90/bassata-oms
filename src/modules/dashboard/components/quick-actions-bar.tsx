@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import {
   Banknote,
   Clock,
@@ -89,11 +89,18 @@ export function QuickActionsBar({
           <CompactAction key={href} label={label} icon={icon} href={href} />
         ))}
         {enableWholesaleSales ? (
-          <CompactAction
-            label="فاتورة بيع"
-            icon={FilePlus2}
-            onClick={openNewSalesInvoice}
-          />
+          <>
+            <CompactAction
+              label="فاتورة بيع"
+              icon={FilePlus2}
+              onClick={openNewSalesInvoice}
+            />
+            <CompactAction
+              label="عرض سعر"
+              icon={Receipt}
+              href="/quotations?create=1"
+            />
+          </>
         ) : null}
         <CompactAction
           label="دفعة مورد"

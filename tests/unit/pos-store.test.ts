@@ -20,6 +20,7 @@ describe("pos store cart controls", () => {
       paymentMethod: "cash",
       paymentSplits: [],
       discountAmount: 0,
+      undoStack: [],
     });
   });
 

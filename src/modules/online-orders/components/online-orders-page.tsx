@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ChevronDown,
@@ -28,6 +28,7 @@ import {
   canCancelOnlineOrder,
   primaryNextOnlineOrderStatus,
 } from "@/modules/online-orders/lib/online-order-status";
+import { ONLINE_ORDER_STATUS_LABELS_AR } from "@/modules/online-orders/lib/online-orders-glance";
 import {
   getOnlineOrderReceiptPayloadAction,
   invoiceOnlineOrderAction,
@@ -70,14 +71,7 @@ type Draft = {
   lines: DraftLine[];
 };
 
-const STATUS_LABELS: Record<OnlineOrderStatus, string> = {
-  pending: "معلق",
-  accepted: "مقبول",
-  preparing: "قيد التحضير",
-  ready: "جاهز",
-  cancelled: "ملغي",
-  invoiced: "تم الريسيت",
-};
+const STATUS_LABELS = ONLINE_ORDER_STATUS_LABELS_AR;
 
 const STATUS_PILL: Record<
   OnlineOrderStatus,

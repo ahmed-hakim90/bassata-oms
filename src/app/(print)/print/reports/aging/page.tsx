@@ -8,5 +8,13 @@ export default async function PrintAgingReportPage({
 }) {
   const params = await searchParams;
   const data = await getAgingReportPageData(params);
-  return <AgingReportPrintView {...data} />;
+  return (
+    <AgingReportPrintView
+      report={data.report}
+      context={data.context}
+      currency={data.currency}
+      side={data.side}
+      creditSalesEnabled={data.creditSalesEnabled}
+    />
+  );
 }

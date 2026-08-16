@@ -21,7 +21,7 @@ export function OwnerFinanceOverview({
   finance,
 }: OwnerFinanceOverviewProps) {
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <OperationalCard>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -95,7 +95,7 @@ export function OwnerFinanceOverview({
 
       <div className="flex flex-wrap gap-3 text-sm">
         <Link
-          href="/customers"
+          href="/customers/directory"
           className="rounded-[var(--mds-radius-lg)] bg-card px-3 py-2 font-medium ring-1 ring-border hover:bg-muted"
         >
           العملاء والمستحقات

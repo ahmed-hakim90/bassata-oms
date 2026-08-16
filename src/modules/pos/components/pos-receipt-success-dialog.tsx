@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircle2, MessageCircle, Printer, ShoppingCart, Usb } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, FileText, MessageCircle, Printer, ShoppingCart, Usb } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -17,6 +18,7 @@ import {
 } from "@/modules/pos/components/receipt-print";
 import { ReceiptBrandingPreview } from "@/modules/pos/components/receipt-branding-preview";
 import { type ReceiptPayload } from "@/modules/pos/services/receipt-format.service";
+import { DocumentPrintPreviewModal } from "@/components/print/document-print-preview-modal";
 
 interface PosReceiptSuccessDialogProps {
   open: boolean;
@@ -35,6 +37,7 @@ export function PosReceiptSuccessDialog({
   onBrowserPrint,
   onWhatsApp,
 }: PosReceiptSuccessDialogProps) {
+  const [a4Open, setA4Open] = useState(false);
   if (!receipt) return null;
 
   const currency = receipt.branding.currency;
@@ -92,6 +95,13 @@ export function PosReceiptSuccessDialog({
                 alwaysLabeled
                 onClick={handleBrowserPrint}
               />
+              {receipt.orderId ? (
+                <CompactAction
+                  label="فاتورة A4"
+                  icon={FileText}
+                  onClick={() => setA4Open(true)}
+                />
+              ) : null}
               <CompactAction
                 label="طباعة USB"
                 icon={Usb}
@@ -113,6 +123,12 @@ export function PosReceiptSuccessDialog({
           </div>
         </DialogContent>
       </Dialog>
+      <DocumentPrintPreviewModal
+        open={a4Open}
+        onOpenChange={setA4Open}
+        href={receipt.orderId ? `/print/orders/${receipt.orderId}?embed=1` : null}
+        title="فاتورة كاشير"
+      />
       <ReceiptPrint receipt={receipt} />
     </>
   );

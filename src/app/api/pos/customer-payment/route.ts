@@ -55,6 +55,7 @@ export async function POST(request: Request) {
 
     after(() => {
       revalidatePath("/customers");
+      revalidatePath("/customers/directory");
       revalidatePath(`/customers/${body.customerId}`);
     });
 

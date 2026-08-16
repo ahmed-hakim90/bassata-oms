@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Check, Pencil, Plus, Power, Star, Warehouse as WarehouseIcon, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -90,7 +90,7 @@ export function WarehousesManager({ stores, warehouses }: WarehousesManagerProps
         description={t("Each branch has a default warehouse that POS sales deduct from. Add more warehouses for storage or production")}
       />
 
-      <div className="grid gap-6">
+      <div className="grid gap-3">
         {stores.map((store) => {
           const storeWarehouses = warehouses.filter((w) => w.store_id === store.id);
           return (

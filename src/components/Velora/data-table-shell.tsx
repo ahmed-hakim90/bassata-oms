@@ -29,7 +29,7 @@ export function DataTableShell({
   return (
     <section
       className={cn(
-        "space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-3 shadow-[var(--mds-elevation-1)] sm:p-4",
+        "space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-3 shadow-[var(--mds-elevation-1)]",
         className
       )}
     >

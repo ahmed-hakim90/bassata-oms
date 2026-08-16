@@ -131,7 +131,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
       )}
 
       {showCenterForm && (
-        <OperationalCard title="مركز تكلفة جديد" className="mb-6">
+        <OperationalCard title="مركز تكلفة جديد" className="mb-3">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label>الاسم</Label>
@@ -178,7 +178,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
       )}
 
       {editCenter && (
-        <OperationalCard title={`تعديل ${editCenter.name}`} className="mb-6">
+        <OperationalCard title={`تعديل ${editCenter.name}`} className="mb-3">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label>الاسم</Label>

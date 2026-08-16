@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Label } from "@/components/ui/label";
 import type { Store } from "@/lib/types";
 

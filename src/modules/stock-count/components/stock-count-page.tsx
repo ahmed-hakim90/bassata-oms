@@ -1,27 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Play } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Printer } from "lucide-react";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { StatusPill } from "@/components/Velora/status-pill";
+import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { formatDateTime } from "@/lib/format";
-import type { Product, Warehouse } from "@/lib/types";
-import { selectLabelById } from "@/lib/select-label";
+import type { Category, Product, Store, Warehouse } from "@/lib/types";
 import type { StockCountWithLines } from "@/modules/stock-count/services/count.service";
-import { startCountAction } from "@/modules/stock-count/actions/count.actions";
 import { StockCountWizard } from "./stock-count-wizard";
+import { StockCountSheetForm } from "./stock-count-sheet-form";
+import { StockCountStartForm } from "./stock-count-start-form";
 
 function statusLabel(status: StockCountWithLines["status"]) {
   switch (status) {
@@ -41,8 +32,13 @@ interface StockCountPageProps {
   activeCount: StockCountWithLines | null;
   products: Product[];
   warehouses: Warehouse[];
+  printWarehouses: Warehouse[];
+  stores: Store[];
+  categories: Category[];
+  storeId: string;
   canApprove: boolean;
   trackedProductCount: number;
+  barcodeScannerEnabled: boolean;
 }
 
 export function StockCountPage({
@@ -50,109 +46,95 @@ export function StockCountPage({
   activeCount,
   products,
   warehouses,
+  printWarehouses,
+  stores,
+  categories,
+  storeId,
   canApprove,
   trackedProductCount,
+  barcodeScannerEnabled,
 }: StockCountPageProps) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [warehouseId, setWarehouseId] = useState(
-    activeCount?.warehouse_id ??
-      warehouses.find((w) => w.is_default)?.id ??
-      warehouses[0]?.id ??
-      ""
-  );
-
-  const startCount = () => {
-    startTransition(async () => {
-      try {
-        await startCountAction(warehouseId);
-        toast.success("تم بدء الجرد");
-        router.refresh();
-      } catch {
-        toast.error("فشل بدء الجرد");
-      }
-    });
-  };
+  const warehouseNameById = new Map(printWarehouses.map((w) => [w.id, w.name]));
 
   return (
     <>
       <PageHeader
         title="جرد المخزون"
-        description="جرد دوري مع اعتماد قبل ترحيل الفروقات"
-        action={
-          !activeCount && (
-            <div className="flex w-full flex-row flex-wrap items-center gap-2 sm:w-auto">
-              <Select value={warehouseId} onValueChange={(v) => setWarehouseId(v ?? "")}>
-                <SelectTrigger className="h-11 w-[min(100%,12rem)] sm:h-9 sm:w-48">
-                  <SelectValue placeholder="المخزن">
-                    {(value) => selectLabelById(warehouses, value, (w) => w.name)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {warehouses.map((w) => (
-                    <SelectItem key={w.id} value={w.id} label={w.name}>
-                      {w.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                className="h-11 shrink-0 sm:h-9"
-                onClick={startCount}
-                disabled={pending || !warehouseId}
-                aria-label="بدء الجرد"
-              >
-                <Play className="size-4" />
-                <span className="sr-only sm:not-sr-only">بدء الجرد</span>
-              </Button>
-            </div>
-          )
-        }
+        description="جرد مخزن أو قسم أو منتج — بالسكانر من صفر، أو ورقة جرد للطباعة"
       />
 
       {activeCount ? (
         <StockCountWizard
           count={activeCount}
           products={products}
+          categories={categories}
           canApprove={canApprove}
           trackedProductCount={trackedProductCount}
+          barcodeScannerEnabled={barcodeScannerEnabled}
           onComplete={() => router.refresh()}
         />
-      ) : counts.length === 0 ? (
-        <EmptyStateBlock
-          title="لا توجد جردات بعد"
-          description="ابدأ جردًا دوريًا لتسوية فروقات المخزون."
-          action={
-            <Button onClick={startCount} disabled={pending || !warehouseId}>
-              <Play className="size-4" /> بدء أول جرد
-            </Button>
-          }
-        />
       ) : (
-        <OperationalCard title="الجردات السابقة" description={`${counts.length} جردة`}>
-          <ul className="divide-y divide-border/60">
-            {counts.map((c) => {
-              const status = statusLabel(c.status);
-              return (
-                <li
-                  key={c.id}
-                  className="flex items-center justify-between gap-[var(--mds-space-4)] py-[var(--mds-space-3)]"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      جرد #{c.id.slice(-6).toUpperCase()}
-                    </p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      بدأ {formatDateTime(c.started_at)}
-                      {c.completed_at && ` · اكتمل ${formatDateTime(c.completed_at)}`}
-                    </p>
-                  </div>
-                  <StatusPill label={status.label} variant={status.variant} />
-                </li>
-              );
-            })}
-          </ul>
-        </OperationalCard>
+        <div className="space-y-4">
+          <StockCountStartForm
+            warehouses={warehouses}
+            categories={categories}
+            products={products}
+            barcodeScannerEnabled={barcodeScannerEnabled}
+            onStarted={() => router.refresh()}
+          />
+          <StockCountSheetForm
+            stores={stores}
+            warehouses={printWarehouses}
+            categories={categories}
+            products={products}
+            defaultStoreId={storeId}
+          />
+          {counts.length === 0 ? (
+            <EmptyStateBlock
+              title="لا توجد جردات سابقة"
+              description="ابدأ جرد من الكارت فوق، أو اطبع ورقة وتعدّ على الأرض."
+            />
+          ) : (
+            <OperationalCard title="الجردات السابقة" description={`${counts.length} جردة`}>
+              <ul className="divide-y divide-border/60">
+                {counts.map((c) => {
+                  const status = statusLabel(c.status);
+                  return (
+                    <li
+                      key={c.id}
+                      className="flex items-center justify-between gap-[var(--mds-space-4)] py-[var(--mds-space-3)]"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          جرد #{c.id.slice(-6).toUpperCase()}
+                        </p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                          {warehouseNameById.get(c.warehouse_id) ?? "مخزن"}
+                          {" · "}
+                          {c.lines.length} صنف
+                          {" · "}
+                          بدأ {formatDateTime(c.started_at)}
+                          {c.completed_at && ` · اكتمل ${formatDateTime(c.completed_at)}`}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <StatusPill label={status.label} variant={status.variant} />
+                        <CompactActions>
+                          <CompactAction
+                            label="طباعة"
+                            icon={Printer}
+                            href={`/print/stock-count/${c.id}`}
+                          />
+                        </CompactActions>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </OperationalCard>
+          )}
+        </div>
       )}
     </>
   );

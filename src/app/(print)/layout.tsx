@@ -6,7 +6,12 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { ensureTenantUser } from "@/lib/auth/ensure-tenant-user";
 import { redirectOnAuthFailure } from "@/lib/auth/redirect-on-auth-failure";
 import { getEffectivePermissions } from "@/lib/repositories/permission.repository";
-import { canPrintBarcodeLabels, canPrintReports } from "@/lib/constants";
+import {
+  canPrintBarcodeLabels,
+  canPrintCommercialDocuments,
+  canPrintReports,
+  canPrintStockCount,
+} from "@/lib/constants";
 import { PrintToolbar } from "@/modules/reports/components/print-toolbar";
 
 export default async function PrintLayout({
@@ -28,12 +33,30 @@ export default async function PrintLayout({
   const search = headerList.get("x-search") ?? "";
   const embed = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get("embed") === "1";
   const isLabelPrint = pathname === "/print/labels" || pathname.startsWith("/print/labels/");
+  const isStockCountPrint =
+    pathname === "/print/stock-count" || pathname.startsWith("/print/stock-count/");
+  const isCommercialPrint =
+    pathname.startsWith("/print/orders") ||
+    pathname.startsWith("/print/receipts") ||
+    pathname.startsWith("/print/purchases");
   const allowed = isLabelPrint
     ? canPrintBarcodeLabels(user.role, permissions)
-    : canPrintReports(user.role, permissions);
+    : isStockCountPrint
+      ? canPrintStockCount(user.role, permissions)
+      : isCommercialPrint
+        ? canPrintCommercialDocuments(user.role, permissions)
+        : canPrintReports(user.role, permissions);
 
   if (!allowed) {
-    redirect(isLabelPrint ? "/labels" : "/reports");
+    redirect(
+      isLabelPrint
+        ? "/labels"
+        : isStockCountPrint
+          ? "/inventory/stock-count"
+          : isCommercialPrint
+            ? "/pos"
+            : "/reports"
+    );
   }
 
   return (

@@ -28,6 +28,8 @@ export function EditSupplierDialog({
     name: supplier.name,
     contact_info: supplier.contact_info,
     opening_balance: String(supplier.opening_balance ?? 0),
+    address: supplier.address ?? "",
+    tax_id: supplier.tax_id ?? "",
   });
 
   const submit = () => {
@@ -46,6 +48,8 @@ export function EditSupplierDialog({
         name: form.name.trim(),
         contact_info: form.contact_info.trim(),
         opening_balance: opening,
+        address: form.address.trim(),
+        tax_id: form.tax_id.trim(),
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -66,6 +70,8 @@ export function EditSupplierDialog({
             name: supplier.name,
             contact_info: supplier.contact_info,
             opening_balance: String(supplier.opening_balance ?? 0),
+            address: supplier.address ?? "",
+            tax_id: supplier.tax_id ?? "",
           });
         }
         onOpenChange(next);
@@ -112,6 +118,22 @@ export function EditSupplierDialog({
               className="h-11"
               value={form.contact_info}
               onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>العنوان</Label>
+            <Input
+              className="h-11"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>الرقم الضريبي</Label>
+            <Input
+              className="h-11"
+              value={form.tax_id}
+              onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
             />
           </div>
           <div className="space-y-2">

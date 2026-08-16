@@ -29,6 +29,7 @@ export function buildReceiptPayloadFromOrder(
       : [{ method: "cash" as PaymentMethod, amount: order.total }];
 
   return {
+    orderId: order.id,
     orderNumber: order.order_number,
     createdAt: order.created_at,
     lines,

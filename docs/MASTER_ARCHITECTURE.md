@@ -101,7 +101,7 @@ Ownership rule: **every operational row belongs to exactly one Organization**, e
 | Kitchen / KDS | **MISSING** | Phase 7 |
 | Delivery (first-party zones/fees) | Partial (online fulfillment fields; Souqna dropped) | Phase 6 first-party only |
 | Tips | **MISSING** | Phase 7 if market requires |
-| Exchange (FX) | **MISSING** | Out of Egypt MVP; single currency (EGP) locked in UI |
+| Exchange (FX) | Partial | Org books stay single currency (EGP). Document FX on purchase imports only (`purchase_imports` flag: currency + fx_rate on PO/invoice; customs certificate costs in EGP). No multi-currency AP ledger. |
 | Table reservations | **MISSING** | Phase 8 restaurant pack |
 | Accounting integration (external GL) | **MISSING** (internal cost centers only) | Phase 9 export adapters |
 | Reports | Exists (sales/inventory/expenses/profit hubs) | Keep; deepen in Phase 5 |
@@ -965,12 +965,12 @@ flowchart TD
 - **Decision:** First-party online ordering only unless product reopens marketplace scope.  
 - **Consequences:** Simpler public attack surface.
 
-## ADR-010 — API = Server Actions + POS REST + RPC
+## ADR-011 — Commercial documents on orders/purchases + settings print engine
 
 - **Status:** Accepted  
-- **Context:** Temptation to add separate API gateway.  
-- **Decision:** Keep Next.js as BFF; RPC for money; REST only for POS hot paths.  
-- **Consequences:** One deployable; clearer auth story.
+- **Context:** Wholesale A4 invoices, quotations/SO, PR/PO/returns, and per-company print branding were missing; operators needed a structured studio, not HTML/Canva.  
+- **Decision:** Sales docs live on `orders.document_kind`; purchase docs on `purchase_invoices.document_kind`; print templates in `app_settings.key = print_engine` as a named-template catalog (layout, block order, per-kind assignment). Structured studio — not HTML/Canva drag-drop. Stock/money stay in Postgres RPC. WhatsApp share is operator-initiated `wa.me`.  
+- **Consequences:** POS rows stay `document_kind IS NULL`. Credit notes and purchase returns are wholesale/purchase-gated. No new permission keys.
 
 ---
 

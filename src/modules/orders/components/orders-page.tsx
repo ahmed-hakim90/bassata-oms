@@ -33,7 +33,7 @@ export async function OrdersPage() {
   const salesTotal = completed.reduce((sum, o) => sum + o.total, 0);
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         breadcrumb={<span>المبيعات · الطلبات</span>}
         title="الطلبات"

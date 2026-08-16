@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import type { CostCenter, ExpenseCategory } from "@/lib/types";
 import { EXPENSE_SOURCES, EXPENSE_STATUSES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";

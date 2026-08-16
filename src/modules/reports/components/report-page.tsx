@@ -22,7 +22,7 @@ export function ReportPage({
   className,
 }: ReportPageProps) {
   return (
-    <div className={cn("flex flex-col gap-[var(--mds-space-6)]", className)} dir="rtl">
+    <div className={cn("flex flex-col gap-3", className)} dir="rtl">
       <PageHeader
         breadcrumb={
           <Link href="/reports" className="text-primary hover:underline">

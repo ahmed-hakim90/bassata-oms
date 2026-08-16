@@ -42,7 +42,20 @@ export function CashiersReportView({
   const totalVariance = rows.reduce((s, r) => s + r.totalVariance, 0);
 
   const columns: ColumnDef<CashierPerformanceRow>[] = [
-    { header: "الكاشير", accessorKey: "cashierName" },
+    {
+      id: "cashier",
+      header: "الكاشير",
+      cell: ({ row }) => (
+        <a
+          href={`/reports/sales/cashier?cashierId=${row.original.cashierId}${
+            filters.storeId ? `&storeId=${filters.storeId}` : ""
+          }`}
+          className="font-medium hover:underline"
+        >
+          {row.original.cashierName}
+        </a>
+      ),
+    },
     { header: "الطلبات", accessorKey: "orderCount" },
     {
       id: "revenue",

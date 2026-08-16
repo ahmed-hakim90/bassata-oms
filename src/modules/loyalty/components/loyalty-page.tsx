@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Heart } from "lucide-react";
+import { BookOpen, Heart, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { formatRelativeTime } from "@/lib/format";
 import { selectLabelById } from "@/lib/select-label";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { Customer, LoyaltyLedgerEntry, LoyaltyRule } from "@/lib/types";
+import { ModuleAnalyticsQuickLinks } from "@/modules/reports/components/module-analytics-quick-links";
 import { redeemPointsAction } from "@/modules/loyalty/actions/loyalty.actions";
 import { LoyaltyRulesForm } from "./loyalty-rules-form";
 
@@ -48,7 +49,7 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
   };
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+    <div className="flex flex-col gap-3" dir="rtl">
       <PageHeader
         title={t("Loyalty")}
         description={t("Customers earn points on every sale and redeem them as a discount at the POS")}
@@ -63,6 +64,25 @@ export function LoyaltyPage({ rule, stats, ledger, customers }: LoyaltyPageProps
         <KpiCard label={t("Points Issued")} value={String(stats.totalIssued)} />
         <KpiCard label={t("Points Redeemed")} value={String(stats.totalRedeemed)} />
       </div>
+
+      <ModuleAnalyticsQuickLinks
+        title="تحليل الولاء"
+        description="من بيانات النقاط الحالية — بدون اختراع جداول"
+        links={[
+          {
+            href: "/customers/directory",
+            label: "العملاء",
+            description: "قائمة الأعضاء والأرصدة",
+            icon: Users,
+          },
+          {
+            href: "/reports/statement?party=customer",
+            label: "كشف حساب عميل",
+            description: "حركات مالية منفصلة عن النقاط",
+            icon: BookOpen,
+          },
+        ]}
+      />
 
       <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-2">
         <LoyaltyRulesForm rule={rule} />

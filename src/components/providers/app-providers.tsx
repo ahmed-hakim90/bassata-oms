@@ -5,6 +5,7 @@ import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { ThemeProvider, useTheme } from "@teispace/next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { LanguageSync } from "@/components/providers/language-sync";
+import { RouteTransitionListener } from "@/components/layout/route-transition";
 import { useUiStore } from "@/stores/ui-store";
 
 function StoreHydration() {
@@ -35,6 +36,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         <StoreHydration />
         <ThemeSync />
         <LanguageSync />
+        <RouteTransitionListener />
         {children}
         <Toaster position="top-right" richColors closeButton />
       </DirectionProvider>

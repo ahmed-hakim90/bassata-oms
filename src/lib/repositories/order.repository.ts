@@ -533,7 +533,10 @@ export async function voidOrderRpc(input: {
   return mapOrderReverseRpc((data ?? {}) as Record<string, unknown>);
 }
 
-export async function listSalesInvoices(storeId: string): Promise<Order[]> {
+export async function listSalesInvoices(
+  storeId: string,
+  kind: Order["document_kind"] = "sales_invoice"
+): Promise<Order[]> {
   const db = await getDb();
   const storeIds = (await listStores()).map((store) => store.id);
   if (storeIds.length === 0 || !storeIds.includes(storeId)) return [];
@@ -541,29 +544,25 @@ export async function listSalesInvoices(storeId: string): Promise<Order[]> {
     .from("orders")
     .select("*")
     .eq("store_id", storeId)
-    .not("document_status", "is", null)
+    .eq("document_kind", kind as "sales_invoice")
     .order("document_date", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throwDbError(error, "listSalesInvoices");
   return (data ?? []).map(mapOrder);
 }
 
-/** Count SI drafts/issued/delivered on a document_date — for numbering. */
-export async function countSalesInvoicesOnDocumentDate(
+export async function nextSalesDocumentNumber(
   storeId: string,
+  kind: NonNullable<Order["document_kind"]>,
   documentDate: string
-): Promise<number> {
-  const db = await getDb();
-  const storeIds = (await listStores()).map((store) => store.id);
-  if (storeIds.length === 0 || !storeIds.includes(storeId)) return 0;
-  const { count, error } = await db
-    .from("orders")
-    .select("id", { count: "exact", head: true })
-    .eq("store_id", storeId)
-    .not("document_status", "is", null)
-    .eq("document_date", documentDate);
-  if (error) throwDbError(error, "countSalesInvoicesOnDocumentDate");
-  return count ?? 0;
+): Promise<string> {
+  const { data, error } = await callRpc<string>("next_document_number", {
+    p_store_id: storeId,
+    p_kind: kind,
+    p_business_date: documentDate,
+  });
+  if (error || !data) throwDbError(error, "nextSalesDocumentNumber");
+  return data;
 }
 
 export async function insertSalesInvoiceDraft(input: {
@@ -575,10 +574,10 @@ export async function insertSalesInvoiceDraft(input: {
   salesMode: SalesMode;
   activityType: string;
   documentDate: string;
-  discount?: number;
-  subtotal?: number;
-  tax?: number;
-  total?: number;
+  documentKind?: NonNullable<Order["document_kind"]>;
+  sourceDocumentId?: string | null;
+  validUntil?: string | null;
+  documentNotes?: string;
 }): Promise<Order> {
   const db = await getDb();
   const { data, error } = await db
@@ -590,17 +589,21 @@ export async function insertSalesInvoiceDraft(input: {
       customer_id: input.customerId,
       status: "open",
       document_status: "draft",
+      document_kind: input.documentKind ?? "sales_invoice",
       document_date: input.documentDate,
       warehouse_id: input.warehouseId,
-      subtotal: input.subtotal ?? 0,
-      discount: input.discount ?? 0,
-      tax: input.tax ?? 0,
-      total: input.total ?? 0,
+      source_document_id: input.sourceDocumentId ?? null,
+      valid_until: input.validUntil ?? null,
+      document_notes: input.documentNotes ?? "",
+      subtotal: 0,
+      discount: 0,
+      tax: 0,
+      total: 0,
       payment_status: "unpaid",
       created_by: input.createdBy,
       sales_mode: input.salesMode,
       activity_type: input.activityType as Order["activity_type"],
-    })
+    } as never)
     .select("*")
     .single();
   if (error || !data) throwDbError(error, "insertSalesInvoiceDraft");
@@ -617,6 +620,8 @@ export async function updateSalesInvoiceDraft(
     tax?: number;
     total?: number;
     documentDate?: string;
+    documentNotes?: string;
+    validUntil?: string | null;
   }
 ): Promise<Order> {
   const db = await getDb();
@@ -632,13 +637,35 @@ export async function updateSalesInvoiceDraft(
       ...(patch.tax !== undefined ? { tax: patch.tax } : {}),
       ...(patch.total !== undefined ? { total: patch.total } : {}),
       ...(patch.documentDate !== undefined ? { document_date: patch.documentDate } : {}),
-    })
+      ...(patch.documentNotes !== undefined ? { document_notes: patch.documentNotes } : {}),
+      ...(patch.validUntil !== undefined ? { valid_until: patch.validUntil } : {}),
+    } as never)
     .eq("id", orderId)
     .eq("document_status", "draft")
     .in("store_id", storeIds)
     .select("*")
     .single();
   if (error || !data) throwDbError(error, "updateSalesInvoiceDraft");
+  return mapOrder(data);
+}
+
+export async function updateSalesDocumentStatus(
+  orderId: string,
+  fromStatus: Order["document_status"],
+  toStatus: NonNullable<Order["document_status"]>
+): Promise<Order> {
+  const db = await getDb();
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) throw new Error("Store scope empty");
+  const { data, error } = await db
+    .from("orders")
+    .update({ document_status: toStatus } as never)
+    .eq("id", orderId)
+    .eq("document_status", fromStatus as never)
+    .in("store_id", storeIds)
+    .select("*")
+    .single();
+  if (error || !data) throwDbError(error, "updateSalesDocumentStatus");
   return mapOrder(data);
 }
 
@@ -654,6 +681,7 @@ export async function insertSalesInvoiceLine(input: {
   tierId?: string | null;
   wholesaleApplied?: boolean;
   listUnitPrice?: number;
+  discountAmount?: number;
 }): Promise<OrderItem> {
   const db = await getDb();
   // list_unit_price / promotion columns may exist beyond generated Insert types.
@@ -677,7 +705,7 @@ export async function insertSalesInvoiceLine(input: {
       wholesale_applied: input.wholesaleApplied ?? true,
       line_note: null,
       list_unit_price: input.listUnitPrice ?? input.unitPrice,
-      discount_amount: 0,
+      discount_amount: Math.max(0, input.discountAmount ?? 0),
       promotion_rule_id: null,
     })
     .select("*")

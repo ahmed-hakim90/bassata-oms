@@ -87,6 +87,20 @@ export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailP
       className={cn("print:hidden", embedded ? "justify-start" : "justify-end")}
     >
       <CompactAction label="طباعة" icon={Printer} onClick={handlePrint} />
+      {order.status === "completed" &&
+      (!order.document_kind || order.document_kind === "sales_invoice") ? (
+        <CompactAction
+          label="إذن تسليم"
+          icon={Printer}
+          onClick={() =>
+            window.open(
+              `/print/orders/${order.id}?variant=delivery`,
+              "_blank",
+              "noopener,noreferrer"
+            )
+          }
+        />
+      ) : null}
       {order.status === "completed" ? (
         <>
           <CompactAction

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Landmark, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import { EditSupplierDialog } from "./edit-supplier-dialog";
 const TYPE_LABELS: Record<SupplierStatementTransactionType, string> = {
   purchase: "شراء",
   purchase_void: "إلغاء فاتورة",
+  purchase_return: "مرتجع شراء",
   payment: "دفعة",
   payment_void: "إلغاء دفعة",
 };
@@ -52,6 +53,8 @@ interface SupplierDetailPageProps {
   canManagePayments: boolean;
   canEditSupplier: boolean;
   storeId: string;
+  /** Open payment dialog from aging deep-link `?pay=1`. */
+  initialPayOpen?: boolean;
 }
 
 export function SupplierDetailPage({
@@ -60,12 +63,15 @@ export function SupplierDetailPage({
   canManagePayments,
   canEditSupplier,
   storeId,
+  initialPayOpen = false,
 }: SupplierDetailPageProps) {
   const router = useRouter();
   const [statement, setStatement] = useState(initialStatement);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [showPayment, setShowPayment] = useState(false);
+  const [showPayment, setShowPayment] = useState(
+    Boolean(initialPayOpen && canManagePayments && initialStatement.closingBalance > 0)
+  );
   const [showEdit, setShowEdit] = useState(false);
   const [voidPaymentId, setVoidPaymentId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -131,7 +137,7 @@ export function SupplierDetailPage({
   const periodLabel = hasDateFilter ? "الفترة" : "الكشف";
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+    <div className="flex flex-col gap-3" dir="rtl">
       <PageHeader
         breadcrumb={
           <span className="flex flex-wrap items-center gap-1">

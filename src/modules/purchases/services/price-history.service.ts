@@ -41,7 +41,7 @@ export function buildSupplierPriceHistory(
   const byProduct = new Map<string, SupplierPriceHistoryEntry[]>();
 
   for (const purchase of purchases) {
-    if (purchase.status !== "received") continue;
+    if (purchase.status !== "received" || !purchase.supplier_id) continue;
     const purchasedAt = purchase.received_at ?? purchase.created_at;
     for (const line of purchase.lines) {
       const entry: SupplierPriceHistoryEntry = {

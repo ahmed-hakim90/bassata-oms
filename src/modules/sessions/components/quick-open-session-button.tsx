@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import { Play } from "lucide-react";
 import { quickOpenSessionAction } from "@/modules/sessions/actions/session.actions";

@@ -44,7 +44,7 @@ export function PlatformMenuThemesConsole({
   const [draft, setDraft] = useState(() => toDraft(initialCatalog));
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         title="ثيمات المنيو"
         description="أسعار التفعيل وحالة التوفر العامة. التفعيل لكل شركة من صفحة تفاصيل الشركة."

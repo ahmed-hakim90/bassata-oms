@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import {
   advanceKitchenStatusAction,
   listKitchenTicketsAction,
 } from "@/modules/kitchen/actions/kitchen.actions";
+import { KitchenAnalyticsGlance } from "@/modules/kitchen/components/kitchen-analytics-glance";
+import { buildKitchenGlance } from "@/modules/kitchen/lib/kitchen-glance";
 import type {
   KitchenStatus,
   KitchenTicket,
@@ -40,6 +42,7 @@ const VARIANT: Record<KitchenStatus, "default" | "warning" | "success" | "danger
 export function KitchenDisplay({ initialTickets }: { initialTickets: KitchenTicket[] }) {
   const [tickets, setTickets] = useState(initialTickets);
   const [pending, startTransition] = useTransition();
+  const glance = useMemo(() => buildKitchenGlance(tickets), [tickets]);
 
   function refresh() {
     startTransition(async () => {
@@ -59,7 +62,7 @@ export function KitchenDisplay({ initialTickets }: { initialTickets: KitchenTick
   const columns: KitchenStatus[] = ["queued", "preparing", "ready"];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
       <PageHeader
         title="شاشة المطبخ"
         description="طابور الطلبات: انتظار → تحضير → جاهز"
@@ -74,6 +77,9 @@ export function KitchenDisplay({ initialTickets }: { initialTickets: KitchenTick
           </CompactActions>
         }
       />
+
+      <KitchenAnalyticsGlance glance={glance} />
+
       <div className="grid gap-4 lg:grid-cols-3">
         {columns.map((status) => {
           const columnTickets = tickets.filter((t) => t.kitchenStatus === status);

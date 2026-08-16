@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
@@ -89,7 +89,7 @@ export function ReportsDashboard({
   const PIE_COLORS = ["#2563EB", "#7C3AED", "#059669", "#D97706", "#DC2626", "#64748B"];
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+    <div className="flex flex-col gap-3" dir="rtl">
       <div>
         <h2 className="text-lg font-semibold">نظرة تنفيذية</h2>
         <p className="text-sm text-muted-foreground">{`مؤشرات الأداء خلال ${days} يوم`}</p>

@@ -15,7 +15,16 @@ import {
 } from "@/components/ui/select";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
+import { OperatorShortcutHint } from "@/components/Velora/operator-shortcut-hint";
 import { OperationalCard } from "@/components/Velora/operational-card";
+import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import {
+  backgroundMutationKey,
+  useBackgroundMutation,
+} from "@/hooks/use-background-mutation";
+import { useOperatorShortcuts } from "@/hooks/use-operator-shortcuts";
+import { useUndoStack } from "@/hooks/use-undo-stack";
+import { OPERATOR_SHORTCUTS } from "@/lib/keyboard";
 import type { Product, Store, TransferOrderLine, Warehouse } from "@/lib/types";
 import { selectLabelById } from "@/lib/select-label";
 import {
@@ -50,6 +59,7 @@ export function TransferForm({
   onComplete,
 }: TransferFormProps) {
   const [lifecyclePending, startLifecycle] = useTransition();
+  const { run: runBackground } = useBackgroundMutation();
   const [loading, setLoading] = useState(!!initialTransferId);
   const [transfer, setTransfer] = useState<TransferWithLines | null>(null);
   const [fromStoreId, setFromStoreId] = useState(defaultFromStoreId);
@@ -74,6 +84,12 @@ export function TransferForm({
   const [confirmVoid, setConfirmVoid] = useState(false);
   const snapshotRef = useRef<TransferWithLines | null>(null);
   const cancelledTempIdsRef = useRef(new Set<string>());
+  const transferRef = useRef<TransferWithLines | null>(null);
+  const isUndoingRef = useRef(false);
+  const removeLineRef = useRef<(lineId: string) => void>(() => {});
+  const updateLineQtyRef = useRef<(lineId: string, qty: number) => void>(() => {});
+  const { push: pushUndo, undo: undoLast, clear: clearUndo } = useUndoStack();
+  transferRef.current = transfer;
 
   useEffect(() => {
     if (!initialTransferId) return;
@@ -159,6 +175,29 @@ export function TransferForm({
     setProductId("");
     setQuantity(1);
 
+    if (!isUndoingRef.current) {
+      const merged = Boolean(existing);
+      const priorQty = existing?.quantity_sent ?? 0;
+      const productIdForUndo = productId;
+      pushUndo({
+        undo: () => {
+          const current = transferRef.current;
+          if (!current) return;
+          const line = current.lines.find(
+            (l) => l.product_id === productIdForUndo && l.variant_id == null
+          );
+          if (!line) return;
+          isUndoingRef.current = true;
+          if (!merged || priorQty <= 0) {
+            removeLineRef.current(line.id);
+          } else {
+            updateLineQtyRef.current(line.id, priorQty);
+          }
+          isUndoingRef.current = false;
+        },
+      });
+    }
+
     void (async () => {
       const result = await addTransferLineAction({
         transferId: transfer.id,
@@ -201,11 +240,48 @@ export function TransferForm({
 
   const removeLine = (lineId: string) => {
     if (!transfer) return;
+    const removed = transfer.lines.find((l) => l.id === lineId);
     snapshotRef.current = transfer;
     setTransfer({
       ...transfer,
       lines: transfer.lines.filter((l) => l.id !== lineId),
     });
+
+    if (!isUndoingRef.current && removed) {
+      const productIdForUndo = removed.product_id;
+      const qtyForUndo = removed.quantity_sent;
+      pushUndo({
+        undo: () => {
+          const current = transferRef.current;
+          if (!current) return;
+          isUndoingRef.current = true;
+          void (async () => {
+            const result = await addTransferLineAction({
+              transferId: current.id,
+              productId: productIdForUndo,
+              quantity: qtyForUndo,
+            });
+            isUndoingRef.current = false;
+            if (!result.ok) {
+              toast.error(result.error);
+              return;
+            }
+            setTransfer((prev) => {
+              if (!prev) return prev;
+              const others = prev.lines.filter(
+                (l) =>
+                  !(
+                    l.product_id === result.data.product_id &&
+                    (l.variant_id ?? null) === (result.data.variant_id ?? null)
+                  )
+              );
+              return { ...prev, lines: [...others, result.data] };
+            });
+          })();
+        },
+      });
+    }
+
     if (lineId.startsWith("temp-")) {
       cancelledTempIdsRef.current.add(lineId);
       return;
@@ -247,29 +323,57 @@ export function TransferForm({
     })();
   };
 
+  removeLineRef.current = removeLine;
+  updateLineQtyRef.current = updateLineQty;
+
+  useOperatorShortcuts({
+    enabled: transfer?.status === "draft",
+    onSave: () => {
+      if (!transfer || transfer.status !== "draft") return;
+      toast.success("المسودة محفوظة — البنود بتتسجل تلقائي");
+      onComplete();
+    },
+    onDelete: () => {
+      if (!transfer || transfer.status !== "draft" || transfer.lines.length === 0) return;
+      const last = transfer.lines[transfer.lines.length - 1];
+      if (last) removeLine(last.id);
+    },
+    onUndo: () => {
+      if (!undoLast()) toast.message("مفيش خطوة للتراجع");
+    },
+  });
+
   const send = () => {
     if (!transfer) return;
-    startLifecycle(async () => {
-      const result = await sendTransferAction(transfer.id);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      refreshTransfer(transfer.id);
-      toast.success("تم إرسال التحويل");
+    const transferId = transfer.id;
+    runBackground({
+      key: backgroundMutationKey("transfer", "send", transferId),
+      label: "جاري إرسال التحويل…",
+      execute: async () => {
+        const result = await sendTransferAction(transferId);
+        if (!result.ok) throw new Error(result.error);
+        return result;
+      },
+      successMessage: "تم إرسال التحويل",
+      onSuccess: () => {
+        refreshTransfer(transferId);
+      },
     });
   };
 
   const receive = () => {
     if (!transfer) return;
-    startLifecycle(async () => {
-      const result = await receiveTransferAction(transfer.id);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("تم استلام التحويل");
-      onComplete();
+    const transferId = transfer.id;
+    onComplete();
+    runBackground({
+      key: backgroundMutationKey("transfer", "receive", transferId),
+      label: "جاري استلام التحويل…",
+      execute: async () => {
+        const result = await receiveTransferAction(transferId);
+        if (!result.ok) throw new Error(result.error);
+        return result;
+      },
+      successMessage: "تم استلام التحويل",
     });
   };
 
@@ -281,6 +385,7 @@ export function TransferForm({
       throw new Error(result.error);
     }
     toast.success("تم حذف التحويل");
+    clearUndo();
     onComplete();
   };
 
@@ -341,93 +446,117 @@ export function TransferForm({
 
   if (!transfer) {
     return (
-      <OperationalCard title="تحويل جديد">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>من فرع</Label>
-            <Select
-              value={fromStoreId}
-              onValueChange={(v) => {
-                const next = v ?? "";
-                setFromStoreId(next);
-                setFromWarehouseId(defaultWarehouseForStore(next));
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value) => selectLabelById(stores, value, (s) => s.name)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {stores.map((s) => (
-                  <SelectItem key={s.id} value={s.id} label={s.name}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={fromWarehouseId} onValueChange={(v) => setFromWarehouseId(v ?? "")}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="من مخزن">
-                  {(value) => selectLabelById(warehouses, value, (w) => w.name)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {warehousesForStore(fromStoreId).map((w) => (
-                  <SelectItem key={w.id} value={w.id} label={w.name}>
-                    {w.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="flex flex-col gap-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
+        <OperationalCard
+          accent="var(--mds-color-action-primary)"
+          title="تحويل جديد"
+          description="حدد الفروع والمخازن — الأزرار ثابتة تحت"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>من فرع</Label>
+              <Select
+                value={fromStoreId}
+                onValueChange={(v) => {
+                  const next = v ?? "";
+                  setFromStoreId(next);
+                  setFromWarehouseId(defaultWarehouseForStore(next));
+                }}
+              >
+                <SelectTrigger className="min-h-11 w-full">
+                  <SelectValue>
+                    {(value) => selectLabelById(stores, value, (s) => s.name)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map((s) => (
+                    <SelectItem key={s.id} value={s.id} label={s.name}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={fromWarehouseId} onValueChange={(v) => setFromWarehouseId(v ?? "")}>
+                <SelectTrigger className="min-h-11 w-full">
+                  <SelectValue placeholder="من مخزن">
+                    {(value) => selectLabelById(warehouses, value, (w) => w.name)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {warehousesForStore(fromStoreId).map((w) => (
+                    <SelectItem key={w.id} value={w.id} label={w.name}>
+                      {w.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>إلى فرع</Label>
+              <Select
+                value={toStoreId}
+                onValueChange={(v) => {
+                  const next = v ?? "";
+                  setToStoreId(next);
+                  setToWarehouseId(defaultWarehouseForStore(next));
+                }}
+              >
+                <SelectTrigger className="min-h-11 w-full">
+                  <SelectValue>
+                    {(value) => selectLabelById(stores, value, (s) => s.name)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map((s) => (
+                    <SelectItem key={s.id} value={s.id} label={s.name}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={toWarehouseId} onValueChange={(v) => setToWarehouseId(v ?? "")}>
+                <SelectTrigger className="min-h-11 w-full">
+                  <SelectValue placeholder="إلى مخزن">
+                    {(value) => selectLabelById(warehouses, value, (w) => w.name)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {warehousesForStore(toStoreId).map((w) => (
+                    <SelectItem key={w.id} value={w.id} label={w.name}>
+                      {w.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>إلى فرع</Label>
-            <Select
-              value={toStoreId}
-              onValueChange={(v) => {
-                const next = v ?? "";
-                setToStoreId(next);
-                setToWarehouseId(defaultWarehouseForStore(next));
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value) => selectLabelById(stores, value, (s) => s.name)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {stores.map((s) => (
-                  <SelectItem key={s.id} value={s.id} label={s.name}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={toWarehouseId} onValueChange={(v) => setToWarehouseId(v ?? "")}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="إلى مخزن">
-                  {(value) => selectLabelById(warehouses, value, (w) => w.name)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {warehousesForStore(toStoreId).map((w) => (
-                  <SelectItem key={w.id} value={w.id} label={w.name}>
-                    {w.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <EmptyStateBlock
+            className="mt-6"
+            title="لسه مفيش أصناف"
+            description="بعد فتح المسودة هتقدر تضيف الأصناف في نفس الشاشة"
+          />
+        </OperationalCard>
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 px-3 py-2.5 backdrop-blur-xl md:bottom-0 md:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pt-3 lg:ps-64">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">تحويل جديد</p>
+            <CompactActions>
+              <CompactAction label="إلغاء" icon={X} onClick={onComplete} />
+              <CompactAction
+                label="فتح التحويل"
+                icon={Plus}
+                variant="default"
+                disabled={
+                  lifecyclePending ||
+                  !fromWarehouseId ||
+                  !toWarehouseId ||
+                  fromWarehouseId === toWarehouseId
+                }
+                onClick={createDraft}
+              />
+            </CompactActions>
           </div>
         </div>
-        <Button
-          className="mt-6"
-          onClick={createDraft}
-          disabled={lifecyclePending || !fromWarehouseId || !toWarehouseId || fromWarehouseId === toWarehouseId}
-        >
-          إنشاء تحويل
-        </Button>
-      </OperationalCard>
+      </div>
     );
   }
 
@@ -438,10 +567,15 @@ export function TransferForm({
   const canVoid = isSent || isReceived;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
       <OperationalCard
-        title={`${transfer.fromStoreName} / ${transfer.fromWarehouseName} → ${transfer.toStoreName} / ${transfer.toWarehouseName}`}
-        description={`الحالة: ${transfer.status}`}
+        accent="var(--mds-color-action-primary)"
+        title={`${transfer.fromStoreName} → ${transfer.toStoreName}`}
+        description={
+          isDraft
+            ? "مسودة تحويل — الرأس والأصناف ظاهرة · الأزرار ثابتة تحت"
+            : `الحالة: ${transfer.status} · ${transfer.fromWarehouseName} → ${transfer.toWarehouseName}`
+        }
       >
         {isDraft && (
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
@@ -572,45 +706,78 @@ export function TransferForm({
             />
           </div>
         )}
-        <ul className="mt-4 space-y-2">
-          {transfer.lines.map((line) => (
-            <li
-              key={line.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted/50 px-4 py-2"
-            >
-              <span>{products.find((p) => p.id === line.product_id)?.name}</span>
-              <div className="flex items-center gap-2">
-                {isDraft ? (
-                  <Input
-                    type="number"
-                    min={1}
-                    className="w-20"
-                    defaultValue={line.quantity_sent}
-                    onBlur={(e) => {
-                      const qty = parseInt(e.target.value) || 1;
-                      if (qty !== line.quantity_sent) updateLineQty(line.id, qty);
-                    }}
-                  />
-                ) : (
-                  <span className="font-medium">{line.quantity_sent} وحدة</span>
-                )}
-                {isDraft && (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => removeLine(line.id)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-6">
-          <CompactActions className="justify-start">
+        <div className="mt-4 space-y-2 border-t border-border/60 pt-4">
+          <h3 className="text-sm font-semibold">الأصناف ({transfer.lines.length})</h3>
+          {transfer.lines.length === 0 ? (
+            <EmptyStateBlock
+              title="مفيش أصناف في التحويل"
+              description={
+                isDraft
+                  ? "اختَر منتج وكمية من فوق عشان تضيف بند."
+                  : "التحويل بدون بنود."
+              }
+            />
+          ) : (
+            <ul className="space-y-2">
+              {transfer.lines.map((line) => (
+                <li
+                  key={line.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted/50 px-4 py-2"
+                >
+                  <span>{products.find((p) => p.id === line.product_id)?.name}</span>
+                  <div className="flex items-center gap-2">
+                    {isDraft ? (
+                      <Input
+                        type="number"
+                        min={1}
+                        className="w-20"
+                        defaultValue={line.quantity_sent}
+                        onBlur={(e) => {
+                          const qty = parseInt(e.target.value) || 1;
+                          if (qty !== line.quantity_sent) updateLineQty(line.id, qty);
+                        }}
+                      />
+                    ) : (
+                      <span className="font-medium">{line.quantity_sent} وحدة</span>
+                    )}
+                    {isDraft && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeLine(line.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </OperationalCard>
+
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 px-3 py-2.5 backdrop-blur-xl md:bottom-0 md:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pt-3 lg:ps-64">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="min-w-0 shrink">
+            <p className="text-xs text-muted-foreground sm:text-sm">{transfer.lines.length} بند</p>
+            <p className="truncate text-sm text-muted-foreground">
+              {transfer.fromWarehouseName} → {transfer.toWarehouseName}
+            </p>
+            {isDraft ? <OperatorShortcutHint className="mt-0.5" /> : null}
+          </div>
+          <CompactActions>
           {isDraft ? (
             <>
+              <CompactAction
+                label="حفظ مؤقت"
+                icon={Check}
+                shortcut={OPERATOR_SHORTCUTS.save}
+                onClick={() => {
+                  toast.success("المسودة محفوظة — البنود بتتسجل تلقائي");
+                  onComplete();
+                }}
+              />
               <CompactAction
                 label="إرسال التحويل"
                 icon={ArrowRight}
@@ -659,7 +826,7 @@ export function TransferForm({
           />
           </CompactActions>
         </div>
-      </OperationalCard>
+      </div>
 
       <ConfirmActionDialog
         open={confirmDelete}

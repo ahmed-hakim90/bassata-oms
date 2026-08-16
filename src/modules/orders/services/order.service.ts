@@ -7,6 +7,7 @@ import type { Order, OrderItem, OrderPayment } from "@/lib/types";
 
 export interface OrderItemWithName extends OrderItem {
   productName: string;
+  sku: string | null;
 }
 
 export interface OrderWithDetails extends Order {
@@ -14,6 +15,9 @@ export interface OrderWithDetails extends Order {
   payments: OrderPayment[];
   customerName: string | null;
   customerPhone: string | null;
+  customerEmail: string | null;
+  customerAddress: string | null;
+  customerTaxId: string | null;
   storeName: string;
 }
 
@@ -45,17 +49,24 @@ export async function getOrder(orderId: string): Promise<OrderWithDetails | null
     catalogRepo.listProducts(),
   ]);
 
-  const productMap = new Map(products.map((p) => [p.id, p.name]));
+  const productById = new Map(products.map((product) => [product.id, product]));
 
   return {
     ...order,
-    items: items.map((item) => ({
-      ...item,
-      productName: productMap.get(item.product_id) ?? "صنف غير معروف",
-    })),
+    items: items.map((item) => {
+      const product = productById.get(item.product_id);
+      return {
+        ...item,
+        productName: product?.name ?? "صنف غير معروف",
+        sku: product?.sku ?? null,
+      };
+    }),
     payments,
     customerName: customer?.name ?? null,
     customerPhone: customer?.phone ?? null,
+    customerEmail: customer?.email ?? null,
+    customerAddress: customer?.address ?? null,
+    customerTaxId: customer?.tax_id ?? null,
     storeName: store?.name ?? "فرع غير معروف",
   };
 }

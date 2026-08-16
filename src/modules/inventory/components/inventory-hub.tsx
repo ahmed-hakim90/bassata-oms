@@ -3,30 +3,49 @@
 import Link from "next/link";
 import {
   ArrowLeftRight,
+  BarChart3,
   ClipboardList,
+  FileSpreadsheet,
   Landmark,
   Package,
+  ScrollText,
   Trash2,
   Truck,
   Warehouse,
 } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { PageHeader } from "@/components/Velora/page-header";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
+import { ReportChartSection } from "@/modules/reports/components/report-chart-section";
+import { ModuleAnalyticsQuickLinks } from "@/modules/reports/components/module-analytics-quick-links";
 import { StockCards, type StockCategoryGroup } from "./stock-cards";
 import { MovementTimeline } from "./movement-timeline";
 import { LowStockStrip } from "./low-stock-strip";
 import { ExpiryAlertStrip } from "./expiry-alert-strip";
 import { ReorderSuggestions } from "./reorder-suggestions";
+import { aggregateMovementTypeCounts } from "@/modules/inventory/lib/movement-type-labels";
 import type { MovementTimelineItem } from "../services/movement.service";
 import type { InventoryAlert } from "../services/alert.service";
 import type { ExpiryBatchAlert } from "../services/expiry.service";
 import type { ReorderSuggestion } from "../services/reorder.service";
 import type { Warehouse as WarehouseType, ProductType } from "@/lib/types";
+import { useMemo } from "react";
 
 const quickLinks = [
   { label: "مشتريات", subtitle: "فواتير الموردين", href: "/inventory/purchases", icon: Truck, accent: "var(--mds-color-action-primary)" },
+  { label: "طلب شراء", subtitle: "اعتماد داخلي", href: "/inventory/purchase-requests", icon: ClipboardList, accent: "var(--mds-color-action-primary-hover)" },
+  { label: "أمر توريد", subtitle: "طلب من المورد", href: "/inventory/purchase-orders", icon: FileSpreadsheet, accent: "var(--mds-color-feedback-info)" },
+  { label: "مرتجع شراء", subtitle: "إرجاع للمورد", href: "/inventory/purchase-returns", icon: ScrollText, accent: "var(--mds-color-feedback-danger)" },
   { label: "موردين", subtitle: "كشوف الحساب", href: "/inventory/suppliers", icon: Landmark, accent: "var(--mds-color-feedback-info)" },
   { label: "تحويلات", subtitle: "نقل بين الفروع", href: "/inventory/transfers", icon: ArrowLeftRight, accent: "var(--mds-color-action-primary-hover)" },
   { label: "هالك", subtitle: "الفاقد والتالف", href: "/inventory/waste", icon: Trash2, accent: "var(--mds-color-feedback-danger)" },
@@ -80,9 +99,17 @@ export function InventoryHub({
 }: InventoryHubProps) {
   const activeWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
   const hasStock = stockGroups.some((group) => group.items.length > 0);
+  const movementChart = useMemo(
+    () =>
+      aggregateMovementTypeCounts(movements).map((row) => ({
+        label: row.label,
+        count: row.count,
+      })),
+    [movements]
+  );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
       <PageHeader
         breadcrumb={<span>المخزون</span>}
         title="المخزون"
@@ -189,13 +216,64 @@ export function InventoryHub({
         />
       </div>
 
+      {movementChart.length > 0 ? (
+        <ReportChartSection title="أحدث الحركات حسب النوع" height={200}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={movementChart}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#0F766E" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ReportChartSection>
+      ) : null}
+
+      <ModuleAnalyticsQuickLinks
+        title="تحليل المخزون"
+        description="تقارير وتفاصيل سريعة"
+        links={[
+          {
+            href: "/reports/inventory",
+            label: "تقرير المخزون",
+            description: "تقييم وتشغيلات وانتهاء",
+            icon: Warehouse,
+          },
+          {
+            href: "/reports/product-card",
+            label: "كارت صنف",
+            description: "جه وطلع والمتاح على فترة",
+            icon: ClipboardList,
+          },
+          {
+            href: "/reports/sales/product",
+            label: "مبيعات منتج",
+            description: "إيراد وكمية لصنف واحد",
+            icon: BarChart3,
+          },
+          {
+            href: "/reports/replenishment",
+            label: "إعادة الطلب",
+            description: "قد إيه تشتري حسب الاستهلاك",
+            icon: Package,
+          },
+          {
+            href: "/inventory/suppliers",
+            label: "الموردين",
+            description: "مستحقات وكشف حساب",
+            icon: Landmark,
+          },
+        ]}
+      />
+
       <LowStockStrip alerts={alerts} />
 
       <ExpiryAlertStrip alerts={expiryAlerts} />
 
       <ReorderSuggestions suggestions={reorderSuggestions} />
 
-      <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-[var(--mds-space-3)] sm:grid-cols-2 lg:grid-cols-4">
         {quickLinks.map((link) => (
           <OperationalCard
             key={link.href}

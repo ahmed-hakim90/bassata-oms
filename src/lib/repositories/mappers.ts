@@ -257,6 +257,8 @@ export function mapSupplier(row: SupplierRow): Supplier {
     org_id: row.org_id,
     name: row.name,
     contact_info: row.contact_info,
+    address: (row as { address?: string }).address ?? "",
+    tax_id: (row as { tax_id?: string }).tax_id ?? "",
     opening_balance: num(row.opening_balance ?? 0),
   };
 }
@@ -280,6 +282,14 @@ export function mapSupplierPayment(row: SupplierPaymentRow): SupplierPayment {
 }
 
 export function mapPurchase(row: PurchaseRow): PurchaseInvoice {
+  const extra = row as PurchaseRow & {
+    document_kind?: PurchaseInvoice["document_kind"];
+    source_document_id?: string | null;
+    document_notes?: string;
+    currency?: string;
+    fx_rate?: number;
+    container_id?: string | null;
+  };
   return {
     id: row.id,
     store_id: row.store_id,
@@ -287,10 +297,16 @@ export function mapPurchase(row: PurchaseRow): PurchaseInvoice {
     supplier_id: row.supplier_id,
     invoice_number: row.invoice_number,
     status: row.status as PurchaseInvoice["status"],
+    document_kind: extra.document_kind ?? "purchase_invoice",
+    source_document_id: extra.source_document_id ?? null,
+    document_notes: extra.document_notes ?? "",
     subtotal: num(row.subtotal),
     extra_cost: num(row.extra_cost ?? 0),
     tax: num(row.tax),
     total: num(row.total),
+    currency: extra.currency ?? "EGP",
+    fx_rate: extra.fx_rate == null ? 1 : num(extra.fx_rate),
+    container_id: extra.container_id ?? null,
     document_date:
       row.document_date ??
       (row.received_at ?? row.created_at).slice(0, 10),
@@ -302,6 +318,12 @@ export function mapPurchase(row: PurchaseRow): PurchaseInvoice {
 }
 
 export function mapPurchaseLine(row: PurchaseLineRow): PurchaseInvoiceLine {
+  const extra = row as PurchaseLineRow & {
+    source_line_id?: string | null;
+    foreign_unit_cost?: number | null;
+    foreign_line_total?: number | null;
+    discount_amount?: number | null;
+  };
   return {
     id: row.id,
     invoice_id: row.invoice_id,
@@ -310,11 +332,17 @@ export function mapPurchaseLine(row: PurchaseLineRow): PurchaseInvoiceLine {
     quantity: row.quantity,
     unit_cost: num(row.unit_cost),
     line_total: num(row.line_total),
+    discount_amount: num(extra.discount_amount ?? 0),
+    foreign_unit_cost:
+      extra.foreign_unit_cost == null ? null : num(extra.foreign_unit_cost),
+    foreign_line_total:
+      extra.foreign_line_total == null ? null : num(extra.foreign_line_total),
     landed_unit_cost: row.landed_unit_cost == null ? null : num(row.landed_unit_cost),
     landed_line_total: row.landed_line_total == null ? null : num(row.landed_line_total),
     batch_number: row.batch_number ?? null,
     production_date: row.production_date ?? null,
     expiry_date: row.expiry_date ?? null,
+    source_line_id: extra.source_line_id ?? null,
   };
 }
 
@@ -422,12 +450,15 @@ export function mapCashierVaultLedger(row: CashierVaultLedgerRow): CashierVaultL
 }
 
 export function mapCustomer(row: CustomerRow): Customer {
+  const extra = row as CustomerRow & { address?: string; tax_id?: string };
   return {
     ...row,
     total_spent: num(row.total_spent),
     account_balance: num(row.account_balance ?? 0),
     credit_limit: num(row.credit_limit ?? 0),
     payment_terms: row.payment_terms ?? "",
+    address: extra.address ?? "",
+    tax_id: extra.tax_id ?? "",
   };
 }
 
@@ -448,6 +479,10 @@ export function mapOrder(row: OrderRow): Order {
     sales_mode: (row.sales_mode ?? "retail") as Order["sales_mode"],
     activity_type: (row.activity_type ?? "retail") as Order["activity_type"],
     document_status: (row.document_status ?? null) as Order["document_status"],
+    document_kind: ((row as { document_kind?: Order["document_kind"] }).document_kind ?? null) as Order["document_kind"],
+    source_document_id: (row as { source_document_id?: string | null }).source_document_id ?? null,
+    valid_until: (row as { valid_until?: string | null }).valid_until ?? null,
+    document_notes: (row as { document_notes?: string }).document_notes ?? "",
     document_date: row.document_date ?? row.created_at.slice(0, 10),
     issued_at: row.issued_at ?? null,
     delivered_at: row.delivered_at ?? null,

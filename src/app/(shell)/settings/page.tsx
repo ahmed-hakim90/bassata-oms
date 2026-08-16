@@ -58,6 +58,8 @@ export default async function SettingsRoute({
       costCentersBundle={data.costCentersBundle}
       auditBundle={data.auditBundle}
       reportSchedule={data.reportSchedule}
+      printEngineBundle={data.printEngineBundle}
+      canUploadLogo={isOwner}
     />
   );
 }

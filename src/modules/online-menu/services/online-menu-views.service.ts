@@ -77,6 +77,8 @@ export async function getOnlineMenuViewStatsByStoreIds(
   days = 7
 ): Promise<Record<string, OnlineMenuViewStats>> {
   const unique = [...new Set(storeIds.filter(Boolean))];
+  // Parallel RPCs (one per store) — no sequential N+1 waterfall.
+  // There is no org-wide batch RPC for menu view stats yet.
   const entries = await Promise.all(
     unique.map(async (storeId) => [storeId, await getOnlineMenuViewStats(storeId, days)] as const)
   );

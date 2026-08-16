@@ -9,6 +9,8 @@ const supplier: Supplier = {
   name: "Fresh Co",
   contact_info: "",
   opening_balance: 0,
+  address: "",
+  tax_id: "",
 };
 
 const product: Product = {
@@ -66,6 +68,9 @@ function purchase(id: string, date: string, unitCost: number): PurchaseWithLines
     lines: [line(id, unitCost)],
     supplierName: supplier.name,
     warehouseName: "Main",
+    supplierAddress: null,
+    supplierTaxId: null,
+    supplierContact: null,
   };
 }
 

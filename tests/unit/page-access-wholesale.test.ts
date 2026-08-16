@@ -12,6 +12,7 @@ describe("wholesale sales-invoices access", () => {
     ).flatMap((g) => g.items.map((i) => i.href));
 
     expect(items).not.toContain("/sales-invoices");
+    expect(items).not.toContain("/sales-documents");
   });
 
   it("shows sales-invoices when wholesale is enabled", () => {
@@ -23,6 +24,7 @@ describe("wholesale sales-invoices access", () => {
     ).flatMap((g) => g.items.map((i) => i.href));
 
     expect(items).toContain("/sales-invoices");
+    expect(items).toContain("/sales-documents");
   });
 
   it("denies page access when wholesale is disabled even with checkout_create", () => {

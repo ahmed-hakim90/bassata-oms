@@ -110,10 +110,23 @@ export async function updateGlAccount(
     if (patch.code && patch.code.trim() !== existing.code) {
       throw new Error("مفيش تعديل لكود حساب النظام");
     }
+    if (patch.is_postable != null && patch.is_postable !== existing.is_postable) {
+      throw new Error("مفيش تعديل لقابلية ترحيل حساب النظام");
+    }
   }
 
   if (patch.parent_id === id) {
     throw new Error("الحساب مش ممكن يبقى أب لنفسه");
+  }
+
+  const nextParentId = patch.parent_id !== undefined ? patch.parent_id : existing.parent_id;
+  if (nextParentId) {
+    const parent = await glRepo.getGlAccount(nextParentId);
+    if (!parent) throw new Error("الحساب الأب غير موجود");
+    const nextType = patch.account_type ?? existing.account_type;
+    if (parent.account_type !== nextType) {
+      throw new Error("نوع الحساب لازم يطابق الحساب الأب");
+    }
   }
 
   const updated = await glRepo.updateGlAccount(id, patch);

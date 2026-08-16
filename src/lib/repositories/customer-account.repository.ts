@@ -1,5 +1,6 @@
 import { callRpc, getDb, throwDbError } from "@/lib/repositories/client";
 import { getOrgId } from "@/lib/repositories/organization.repository";
+import { chunkIds } from "@/lib/query-chunks";
 import type {
   CustomerLedgerEntry,
   CustomerLedgerEntryType,
@@ -53,6 +54,41 @@ export async function listCustomerLedger(customerId: string): Promise<CustomerLe
     .order("created_at", { ascending: true });
   if (error) throwDbError(error, "listCustomerLedger");
   return (data ?? []).map((row) => mapLedger(row as Record<string, unknown>));
+}
+
+/**
+ * Batch credit-sale debit events for AR aging — one (chunked) query, not N ledgers.
+ * Returns only the fields aging needs.
+ */
+export async function listCreditSaleDebitsForCustomers(
+  customerIds: string[]
+): Promise<{ customerId: string; at: string; amount: number }[]> {
+  if (customerIds.length === 0) return [];
+
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const events: { customerId: string; at: string; amount: number }[] = [];
+
+  for (const chunk of chunkIds(customerIds)) {
+    const { data, error } = await db
+      .from("customer_ledger")
+      .select("customer_id, created_at, debit")
+      .eq("org_id", orgId)
+      .in("customer_id", chunk)
+      .eq("entry_type", "credit_sale")
+      .gt("debit", 0)
+      .order("created_at", { ascending: true });
+    if (error) throwDbError(error, "listCreditSaleDebitsForCustomers");
+    for (const row of data ?? []) {
+      events.push({
+        customerId: row.customer_id as string,
+        at: row.created_at as string,
+        amount: Number(row.debit),
+      });
+    }
+  }
+
+  return events;
 }
 
 export async function listCustomerPayments(customerId: string): Promise<CustomerPayment[]> {

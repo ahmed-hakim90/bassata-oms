@@ -14,7 +14,7 @@ interface CustomerProfileViewProps {
 
 export function CustomerProfileView({ profile, ledger }: CustomerProfileViewProps) {
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-2">
         <OperationalCard title="المنتجات المفضلة">
           {profile.favoriteProducts.length === 0 ? (
@@ -92,6 +92,25 @@ export function CustomerProfileView({ profile, ledger }: CustomerProfileViewProp
           </ul>
         )}
       </OperationalCard>
+
+      {profile.address || profile.tax_id ? (
+        <OperationalCard title="بيانات الفاتورة">
+          <dl className="grid gap-2 text-sm sm:grid-cols-2">
+            {profile.address ? (
+              <div>
+                <dt className="text-xs text-muted-foreground">العنوان</dt>
+                <dd className="whitespace-pre-wrap">{profile.address}</dd>
+              </div>
+            ) : null}
+            {profile.tax_id ? (
+              <div>
+                <dt className="text-xs text-muted-foreground">الرقم الضريبي</dt>
+                <dd className="tabular-nums">{profile.tax_id}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </OperationalCard>
+      ) : null}
 
       {profile.notes ? (
         <OperationalCard title="ملاحظات">

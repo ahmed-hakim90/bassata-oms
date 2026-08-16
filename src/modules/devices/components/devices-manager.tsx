@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Copy, MonitorSmartphone, Plus, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,13 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { formatRelativeTime } from "@/lib/format";
 import type { Store } from "@/lib/types";
 import type { Device } from "@/lib/repositories/device.repository";
+import { DevicesAnalyticsGlance } from "@/modules/devices/components/devices-analytics-glance";
+import type { DevicesGlance } from "@/modules/devices/lib/devices-glance";
 
 interface DevicesManagerProps {
   stores: Store[];
   devices: Device[];
+  glance?: DevicesGlance | null;
 }
 
 interface PairingInfo {
@@ -37,7 +40,7 @@ interface PairingInfo {
 
 const PAIR_PATH = "/device/pair";
 
-export function DevicesManager({ stores, devices }: DevicesManagerProps) {
+export function DevicesManager({ stores, devices, glance = null }: DevicesManagerProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -112,11 +115,13 @@ export function DevicesManager({ stores, devices }: DevicesManagerProps) {
   }
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+    <div className="flex flex-col gap-3" dir="rtl">
       <PageHeader
         title={t("POS Devices")}
         description={t("Register each cashier device once, then pair it with a one-time code")}
       />
+
+      {glance ? <DevicesAnalyticsGlance glance={glance} /> : null}
 
       <OperationalCard title={t("How do I connect a new device?")}>
         <ol className="grid gap-[var(--mds-space-2)] text-sm text-muted-foreground sm:grid-cols-3">

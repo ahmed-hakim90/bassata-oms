@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Banknote, Landmark, Plus, Search } from "lucide-react";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
+import { Banknote, BookOpen, Landmark, Plus, Search, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,9 @@ import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { KpiCard } from "@/components/Velora/kpi-card";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import type { SupplierListSummary } from "@/lib/types";
+import type { AgingBuckets } from "@/modules/reports/lib/aging-buckets";
+import { AgingBucketsChart } from "@/modules/reports/components/aging-buckets-chart";
+import { ModuleAnalyticsQuickLinks } from "@/modules/reports/components/module-analytics-quick-links";
 import {
   createSupplierFromSuppliersAction,
   getSuppliersPageDataAction,
@@ -31,21 +34,38 @@ interface SuppliersPageProps {
   summaries: SupplierListSummary[];
   currency: string;
   canManagePayments?: boolean;
+  glance?: {
+    paid30d: number;
+    agingBuckets: AgingBuckets;
+    partiesWithBalance: number;
+  } | null;
 }
 
 export function SuppliersPage({
   summaries: initial,
   currency,
   canManagePayments = false,
+  glance = null,
 }: SuppliersPageProps) {
   const router = useRouter();
   const [summaries, setSummaries] = useState(initial);
+  const [paid30d, setPaid30d] = useState(glance?.paid30d ?? 0);
+  const [agingBuckets, setAgingBuckets] = useState(glance?.agingBuckets ?? null);
+  const [partiesWithBalance, setPartiesWithBalance] = useState(
+    glance?.partiesWithBalance ?? 0
+  );
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [paymentSupplierId, setPaymentSupplierId] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState({ name: "", contact_info: "", opening_balance: "0" });
+  const [form, setForm] = useState({
+    name: "",
+    contact_info: "",
+    opening_balance: "0",
+    address: "",
+    tax_id: "",
+  });
 
   const filtered = summaries.filter(
     (s) =>
@@ -78,6 +98,8 @@ export function SuppliersPage({
         name: form.name.trim(),
         contact_info: form.contact_info.trim(),
         opening_balance: opening,
+        address: form.address.trim(),
+        tax_id: form.tax_id.trim(),
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -96,7 +118,7 @@ export function SuppliersPage({
         ...summaries,
       ]);
       setShowCreate(false);
-      setForm({ name: "", contact_info: "", opening_balance: "0" });
+      setForm({ name: "", contact_info: "", opening_balance: "0", address: "", tax_id: "" });
       toast.success("تم إنشاء المورد");
     });
   };
@@ -126,16 +148,71 @@ export function SuppliersPage({
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="إجمالي المستحقات"
           value={formatCurrency(totalPayables, currency)}
+          change={
+            agingBuckets
+              ? `${partiesWithBalance} مورد عليهم رصيد`
+              : undefined
+          }
+          trend="neutral"
           icon={<Landmark className="size-5" />}
         />
         <KpiCard label="الموردون" value={String(summaries.length)} />
+        <KpiCard
+          label="سداد (30 يوم)"
+          value={formatCurrency(paid30d, currency)}
+          icon={<Banknote className="size-5" />}
+        />
+        <KpiCard
+          label="نتائج البحث"
+          value={String(filtered.length)}
+          change={search.trim() ? "مطابقة للفلتر" : "كل الموردين"}
+          trend="neutral"
+        />
       </div>
 
-      <div className="relative mb-6 max-w-md">
+      {agingBuckets ? (
+        <div className="mb-3">
+          <AgingBucketsChart
+            title="أعمار ذمم الموردين"
+            buckets={agingBuckets}
+            currency={currency}
+            barColor="#2563EB"
+          />
+        </div>
+      ) : null}
+
+      <div className="mb-3">
+        <ModuleAnalyticsQuickLinks
+          title="تحليل الموردين"
+          description="مديونية وكشف حساب ومشتريات"
+          links={[
+            {
+              href: "/reports/aging?side=suppliers",
+              label: "مديونية الموردين",
+              description: "أعمار الذمم والمستحقات",
+              icon: Landmark,
+            },
+            {
+              href: "/reports/statement?party=supplier",
+              label: "كشف حساب مورد",
+              description: "حركات مفصّلة على فترة",
+              icon: BookOpen,
+            },
+            {
+              href: "/inventory/purchases",
+              label: "المشتريات",
+              description: "فواتير الاستلام",
+              icon: Truck,
+            },
+          ]}
+        />
+      </div>
+
+      <div className="relative mb-3 max-w-md">
         <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
@@ -227,6 +304,20 @@ export function SuppliersPage({
               />
             </div>
             <div className="space-y-2">
+              <Label>العنوان</Label>
+              <Input
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>الرقم الضريبي</Label>
+              <Input
+                value={form.tax_id}
+                onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>رصيد مستحق سابق</Label>
               <Input
                 type="number"
@@ -262,6 +353,9 @@ export function SuppliersPage({
               try {
                 const data = await getSuppliersPageDataAction();
                 setSummaries(data.summaries);
+                setPaid30d(data.glance.paid30d);
+                setAgingBuckets(data.glance.agingBuckets);
+                setPartiesWithBalance(data.glance.partiesWithBalance);
               } catch {
                 router.refresh();
               }

@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/session";
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
+import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { listDevices } from "@/modules/system/services/users.service";
 import { PageHeader } from "@/components/Velora/page-header";
@@ -16,7 +17,7 @@ import { OpenSessionsTable } from "@/modules/sessions/components/open-sessions-t
 import { ClosedSessionsTable } from "@/modules/sessions/components/closed-sessions-table";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";
 import { CashierVaultPanel } from "@/modules/sessions/components/cashier-vault-panel";
-import { OperationalCard } from "@/components/Velora/operational-card";
+import { SessionsAnalyticsGlance } from "@/modules/sessions/components/sessions-analytics-glance";
 import { calcExpectedCash } from "@/modules/sessions/services/reconciliation.service";
 import { getOpenSessionSummaries } from "@/modules/sessions/services/open-session-summary.service";
 import {
@@ -30,6 +31,7 @@ import { computeSessionLifecycle } from "@/modules/sessions/services/session-lif
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
 import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
 import { SessionsStoreFilter } from "@/modules/sessions/components/sessions-store-filter";
+import { buildSessionsGlance } from "@/modules/sessions/lib/sessions-glance";
 
 interface SessionsPageProps {
   filterStoreId?: string;
@@ -66,6 +68,7 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
     costCenters,
     categories,
     vaultRows,
+    org,
   ] = await Promise.all([
     listSessions(canViewAll ? undefined : storeId),
     cashierId ? getActiveSession(storeId, cashierId) : null,
@@ -78,6 +81,7 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
     canManageVault || user?.role === "cashier"
       ? listStoreCashierVaults(vaultStoreId)
       : Promise.resolve([]),
+    orgRepo.getOrganization(),
   ]);
 
   const filteredStoreId =
@@ -126,12 +130,18 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
     ? computeSessionLifecycle(active, sessionSettings)
     : null;
 
+  const glance = buildSessionsGlance({
+    openSummaries,
+    closedSessions,
+    userMap,
+  });
+
   const visibleVaultRows = canManageVault
     ? vaultRows
     : vaultRows.filter((row) => row.cashierId === (cashierId ?? user?.id));
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         breadcrumb={<span>المبيعات · ورديات الكاشير</span>}
         title="ورديات الكاشير"
@@ -149,29 +159,21 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
         }
       />
 
-      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">
-        <OperationalCard
-          title="مفتوحة الآن"
-          value={String(openSummaries.length)}
-          subtitle={canViewAll ? "كل الفروع أو الفلتر الحالي" : "فرعك"}
-          accent="var(--mds-color-feedback-success)"
-        />
-        <OperationalCard
-          title="جلسة الكاشير"
-          value={active ? "نشطة" : "لا توجد"}
-          subtitle={
-            active
-              ? (userMap[active.cashier_id] ?? "الكاشير")
-              : "افتح جلسة للبيع"
-          }
-        />
-        <OperationalCard
-          title="مقفولة"
-          value={String(closedRows.length)}
-          subtitle="سجل الجلسات المغلقة"
-          accent="var(--mds-color-feedback-info)"
-        />
-      </div>
+      <SessionsAnalyticsGlance
+        openCount={glance.openCount}
+        openSalesTotal={glance.openSalesTotal}
+        closed30dCount={glance.closed30dCount}
+        variance30d={glance.variance30d}
+        currency={org.currency}
+        varianceChart={glance.varianceChart}
+        scopeLabel={
+          canViewAll
+            ? filteredStoreId
+              ? storeMap[filteredStoreId] ?? "الفرع المختار"
+              : "كل الفروع أو الفلتر الحالي"
+            : "فرعك"
+        }
+      />
 
       {(canManageVault || visibleVaultRows.length > 0) && (
         <CashierVaultPanel

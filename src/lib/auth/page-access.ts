@@ -1,5 +1,5 @@
 import type { FeatureFlag, PermissionKey, UserRole } from "@/lib/constants";
-import { filterNavByAccess, type NavAccessOptions } from "@/lib/auth/nav";
+import { filterNavByAccess, navItemAllowed, type NavAccessOptions } from "@/lib/auth/nav";
 import { permissionAllowsPath } from "@/lib/repositories/permission.repository";
 
 export interface PageAccessDenial {
@@ -9,33 +9,68 @@ export interface PageAccessDenial {
 
 const PATH_LABELS: Record<string, string> = {
   "/settings": "الإعدادات",
+  "/admin": "الإدارة",
   "/users": "الإعدادات",
   "/audit": "الإعدادات",
+  "/operations": "التشغيل",
+  "/sales-documents": "مستندات البيع",
+  "/catalog": "المنتجات",
+  "/purchasing": "المشتريات",
   "/reports": "التقارير",
   "/expenses": "إدارة المصروفات",
   "/reports/expenses": "تقرير المصروفات",
   "/reports/sales": "تقرير المبيعات",
+  "/reports/sales/product": "مبيعات منتج",
+  "/reports/sales/branch": "ملخص فرع",
+  "/reports/sales/cashier": "ملخص موظف",
   "/reports/sessions": "تقرير الجلسات",
   "/reports/profit": "تقرير الربح",
   "/reports/inventory": "تقرير المخزون",
   "/reports/daily-close": "تقرير الإقفال اليومي",
-  "/reports/aging": "تقرير أعمار الذمم",
+  "/reports/aging": "مديونية العملاء والموردين",
+  "/reports/statement": "كشف حساب عميل / مورد",
   "/reports/tax": "تقرير الضريبة",
   "/reports/replenishment": "تقرير إعادة الطلب",
   "/reports/product-card": "كارت صنف",
   "/orders": "الطلبات",
   "/kitchen": "شاشة المطبخ",
+  "/quotations": "عروض الأسعار",
+  "/sales-orders": "أوامر البيع",
   "/sales-invoices": "فواتير المبيعات",
+  "/credit-notes": "إشعارات دائنة",
   "/sessions": "ورديات الكاشير",
+  "/inventory/stock-count": "جرد المخزون",
   "/inventory": "المخزون",
+  "/inventory/purchases": "المشتريات",
+  "/inventory/purchase-requests": "طلبات الشراء",
+  "/inventory/purchase-orders": "أوامر التوريد",
+  "/inventory/purchase-returns": "مرتجعات المشتريات",
+  "/inventory/containers": "الحاويات",
+  "/inventory/customs-certificates": "الشهادات الجمركية",
   "/products": "المنتجات",
   "/customers": "العملاء",
+  "/customers/directory": "دليل العملاء",
   "/promotions": "العروض",
+  "/accounting": "الحسابات",
+  "/accounting/accounts": "دليل الحسابات",
   "/purchases": "المشتريات",
+  "/devices": "الأجهزة",
+  "/inventory/movements": "سجل حركة المخزون",
 };
 
-function isSalesInvoicesPath(pathname: string): boolean {
-  return pathname === "/sales-invoices" || pathname.startsWith("/sales-invoices/");
+function isSalesDocumentsPath(pathname: string): boolean {
+  return (
+    pathname === "/sales-documents" ||
+    pathname.startsWith("/sales-documents/") ||
+    pathname === "/sales-invoices" ||
+    pathname.startsWith("/sales-invoices/") ||
+    pathname === "/quotations" ||
+    pathname.startsWith("/quotations/") ||
+    pathname === "/sales-orders" ||
+    pathname.startsWith("/sales-orders/") ||
+    pathname === "/credit-notes" ||
+    pathname.startsWith("/credit-notes/")
+  );
 }
 
 function isKitchenPath(pathname: string): boolean {
@@ -68,7 +103,7 @@ export function getPageAccessDenial(
 ): PageAccessDenial | null {
   if (pathname === "/" || pathname === "/login") return null;
 
-  if (isSalesInvoicesPath(pathname)) {
+  if (isSalesDocumentsPath(pathname)) {
     if (options?.enableWholesaleSales === false) {
       return {
         title: "فواتير المبيعات",
@@ -91,18 +126,11 @@ export function getPageAccessDenial(
     };
   }
 
-  if (
-    (pathname === "/reports/aging" || pathname.startsWith("/reports/aging/")) &&
-    flags?.credit_sales === false
-  ) {
-    return {
-      title: "تقرير أعمار الذمم",
-      description:
-        "تقرير أعمار الذمم للبيع الآجل — فعّل البيع الآجل من الخصائص عشان تفتح الصفحة دي.",
-    };
-  }
-
   if (navAllowsPath(role, pathname, permissions, flags, options)) return null;
+
+  // Sidebar matching misses real screens like /account and /devices.
+  // navItemAllowed still honors feature flags, role legacy, and PATH_PERMISSIONS.
+  if (navItemAllowed(pathname, role, permissions, flags, options)) return null;
 
   if (role !== "owner" && permissionAllowsPath(pathname, permissions)) return null;
 

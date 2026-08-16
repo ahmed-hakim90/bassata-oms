@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Pencil, Power, Trash2 } from "lucide-react";
+import { Plus, Pencil, Power, Tag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/Velora/page-header";
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
+import { KpiCard } from "@/components/Velora/kpi-card";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
@@ -168,6 +169,15 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
     );
   }, [rules, query]);
 
+  const activeCount = useMemo(
+    () => rules.filter((r) => r.is_active).length,
+    [rules]
+  );
+  const totalUsage = useMemo(
+    () => rules.reduce((sum, r) => sum + (r.usage_count ?? 0), 0),
+    [rules]
+  );
+
   const openCreate = () => {
     setForm(emptyForm());
     setOpen(true);
@@ -251,7 +261,7 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
     form.ruleType === "cart_percent" || form.ruleType === "cart_fixed";
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+    <div className="flex flex-col gap-3" dir="rtl">
       <PageHeader
         title="العروض"
         description="قواعد خصم تلقائية وكوبونات بتشتغل على الكاشير والمنيو وفواتير الجملة"
@@ -265,6 +275,21 @@ export function PromotionsPage({ rules, categories, products }: PromotionsPagePr
           />
         }
       />
+
+      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-3">
+        <KpiCard
+          label="إجمالي العروض"
+          value={String(rules.length)}
+          icon={<Tag className="size-5" />}
+        />
+        <KpiCard label="مفعّلة" value={String(activeCount)} />
+        <KpiCard
+          label="مرات الاستخدام"
+          value={String(totalUsage)}
+          change="عداد التشغيل — مش أثر إيراد محسوب"
+          trend="neutral"
+        />
+      </div>
 
       <OperationalCard title="قائمة العروض">
         <div className="mb-4">

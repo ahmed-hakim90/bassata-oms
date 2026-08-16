@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LogOut, Menu, Shield } from "lucide-react";
+import { LogOut, Menu, Search, Shield } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { RouteTransitionMain } from "@/components/layout/route-transition";
+import { useDisplayPathname } from "@/hooks/use-display-pathname";
+import { useModShortcutLabel } from "@/lib/keyboard";
+import { useUiStore } from "@/stores/ui-store";
 import { logoutAction } from "@/modules/auth/actions/logout.action";
+import { PlatformCommandPalette } from "@/modules/platform/components/platform-command-palette";
 import {
   PLATFORM_NAV_GROUPS,
   getPlatformPageTitle,
@@ -29,7 +33,7 @@ function NavLink({
   item: PlatformNavItem;
   onNavigate?: () => void;
 }) {
-  const pathname = usePathname();
+  const pathname = useDisplayPathname();
   const active = isPlatformNavActive(pathname, item);
   const Icon = item.icon;
 
@@ -105,9 +109,11 @@ export function PlatformShell({
   adminName: string;
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
+  const pathname = useDisplayPathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pageTitle = getPlatformPageTitle(pathname);
+  const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen);
+  const shortcutLabel = useModShortcutLabel("k");
 
   return (
     <div className="min-h-dvh bg-[var(--mds-color-bg-canvas)]" dir="rtl">
@@ -178,6 +184,35 @@ export function PlatformShell({
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="hidden gap-2 text-muted-foreground sm:inline-flex"
+                  onClick={() => setCommandPaletteOpen(true)}
+                  aria-label="فتح بحث المنصة"
+                  aria-keyshortcuts="Meta+K Control+K"
+                >
+                  <Search className="size-3.5" />
+                  <span className="text-xs">بحث</span>
+                  <kbd
+                    className="ms-1 hidden rounded-[var(--mds-radius-sm)] border border-border bg-muted px-[var(--mds-space-1)] py-0.5 font-mono text-[10px] text-muted-foreground lg:inline"
+                    suppressHydrationWarning
+                  >
+                    {shortcutLabel}
+                  </kbd>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-10 touch-manipulation sm:hidden"
+                  onClick={() => setCommandPaletteOpen(true)}
+                  aria-label="فتح بحث المنصة"
+                  aria-keyshortcuts="Meta+K Control+K"
+                >
+                  <Search className="size-5" />
+                </Button>
                 <span
                   className="hidden max-w-[220px] truncate text-xs text-muted-foreground sm:inline"
                   dir="ltr"
@@ -194,11 +229,12 @@ export function PlatformShell({
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-6">
-            {children}
+          <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-4 md:px-5">
+            <RouteTransitionMain>{children}</RouteTransitionMain>
           </main>
         </div>
       </div>
+      <PlatformCommandPalette />
     </div>
   );
 }

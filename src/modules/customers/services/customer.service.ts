@@ -97,6 +97,8 @@ export async function createCustomer(input: {
   phone: string;
   email?: string | null;
   notes?: string;
+  address?: string;
+  tax_id?: string;
   userId: string;
 }): Promise<Customer> {
   const name = customerNameSchema.parse(input.name);
@@ -116,6 +118,8 @@ export async function createCustomer(input: {
     phone,
     email,
     notes: input.notes?.trim().slice(0, 1000) ?? "",
+    address: input.address?.trim().slice(0, 240) ?? "",
+    tax_id: input.tax_id?.trim().slice(0, 40) ?? "",
     credit_limit: 0,
     payment_terms: "",
   });
@@ -134,7 +138,7 @@ export async function createCustomer(input: {
 export async function updateCustomer(
   id: string,
   input: Partial<
-    Pick<Customer, "name" | "phone" | "email" | "notes" | "credit_limit" | "payment_terms">
+    Pick<Customer, "name" | "phone" | "email" | "notes" | "credit_limit" | "payment_terms" | "address" | "tax_id">
   >,
   userId: string
 ): Promise<Customer | null> {
@@ -158,6 +162,12 @@ export async function updateCustomer(
   }
   if (typeof patch.payment_terms === "string") {
     patch.payment_terms = patch.payment_terms.trim().slice(0, 250);
+  }
+  if (typeof patch.address === "string") {
+    patch.address = patch.address.trim().slice(0, 240);
+  }
+  if (typeof patch.tax_id === "string") {
+    patch.tax_id = patch.tax_id.trim().slice(0, 40);
   }
   if (patch.credit_limit != null) {
     const creditLimit = Number(patch.credit_limit);

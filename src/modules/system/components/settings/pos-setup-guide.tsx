@@ -37,11 +37,11 @@ const ACTIVITY_EXTRA_STEPS: Partial<
   ],
   wholesale: [
     { text: "اضبط شرائح أسعار الجملة على المنتجات", href: "/products" },
-    { text: "فعّل البيع الآجل وحدود ائتمان العملاء", href: "/customers" },
+    { text: "فعّل البيع الآجل وحدود ائتمان العملاء", href: "/customers/directory" },
   ],
   mixed: [
     { text: "راجع صلاحية الجملة للكاشير (تحتاج مدير عادةً)" },
-    { text: "فعّل البيع الآجل وحدود الائتمان", href: "/customers" },
+    { text: "فعّل البيع الآجل وحدود الائتمان", href: "/customers/directory" },
   ],
   bakery: [
     { text: "فعّل الوصفات للإنتاج وتتبع الصلاحية", href: "/settings?tab=activity" },

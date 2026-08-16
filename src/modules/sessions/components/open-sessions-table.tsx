@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SessionLifecycleBadge } from "@/modules/sessions/components/session-lifecycle-badge";

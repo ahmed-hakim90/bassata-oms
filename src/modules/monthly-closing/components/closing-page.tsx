@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { PageHeader } from "@/components/Velora/page-header";
 import type { MonthlyClose, Store } from "@/lib/types";
 import { AccountingSubnav } from "@/modules/accounting/components/accounting-subnav";
@@ -21,7 +21,7 @@ export function ClosingPage(props: ClosingPageProps) {
         title="الإقفال الشهري"
         description="ولّد ملخص الفترة، راجع الأرقام، وقفّل الفترة عشان تمنع التعديل على البيع والمخزون والقيود"
       />
-      <div className="mb-4">
+      <div className="mb-3">
         <AccountingSubnav />
       </div>
       <ClosingWizard

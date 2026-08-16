@@ -35,8 +35,20 @@ export function PosHeldCartsBar() {
     const state = usePosStore.getState();
     const target = state.heldCarts.find((held) => held.id === id);
     if (!target) return;
-    if (target.id.startsWith("temp-hold-")) {
+    if (target.id.startsWith("temp-hold-") && !target.failedCheckout) {
       toast.error("لسه بنحفظ الفاتورة المعلّقة… حاول تاني لحظات");
+      return;
+    }
+
+    // Failed checkout holds are local-only — restore cart without server resume.
+    if (target.failedCheckout) {
+      const ok = resumeHeldCart(id, null);
+      if (!ok) {
+        toast.error("الفاتورة المعلّقة غير موجودة");
+        return;
+      }
+      setPickerOpen(false);
+      toast.success("اترجعت الفاتورة — راجع وادفع تاني");
       return;
     }
 
@@ -164,10 +176,17 @@ export function PosHeldCartsBar() {
             {heldCarts.map((held) => {
               const itemCount = held.cart.length;
               const subtotal = getCartSubtotal(held.cart);
-              const saving = held.id.startsWith("temp-hold-");
+              const saving = held.id.startsWith("temp-hold-") && !held.failedCheckout;
+              const failed = Boolean(held.failedCheckout);
               return (
                 <li key={held.id}>
-                  <div className="flex items-stretch gap-1.5 rounded-xl border border-border/70 bg-background p-1.5">
+                  <div
+                    className={
+                      failed
+                        ? "flex items-stretch gap-1.5 rounded-xl border border-destructive/40 bg-destructive/5 p-1.5"
+                        : "flex items-stretch gap-1.5 rounded-xl border border-border/70 bg-background p-1.5"
+                    }
+                  >
                     <button
                       type="button"
                       className="min-w-0 flex-1 rounded-lg px-2.5 py-2.5 text-start transition-colors hover:bg-muted/60 disabled:opacity-60"
@@ -178,13 +197,15 @@ export function PosHeldCartsBar() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {saving
                           ? "جاري الحفظ…"
-                          : [
-                              held.customer?.name,
-                              `${itemCount} صنف`,
-                              formatCurrency(subtotal),
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
+                          : failed
+                            ? held.failureMessage || "اضغط للاستعادة وإعادة المحاولة"
+                            : [
+                                held.customer?.name,
+                                `${itemCount} صنف`,
+                                formatCurrency(subtotal),
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
                       </p>
                       {!saving && held.createdAt ? (
                         <p className="mt-0.5 text-[11px] text-muted-foreground/80">

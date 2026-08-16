@@ -24,6 +24,8 @@ describe("getCustomerStatement", () => {
       credit_limit: 200,
       payment_terms: "Net 30",
       notes: "",
+      address: "",
+      tax_id: "",
       created_at: new Date().toISOString(),
     });
     vi.mocked(accountRepo.listCustomerLedger).mockResolvedValue([
@@ -79,6 +81,8 @@ describe("getCustomerStatement", () => {
       credit_limit: 200,
       payment_terms: "Net 30",
       notes: "",
+      address: "",
+      tax_id: "",
       created_at: new Date().toISOString(),
     });
     vi.mocked(accountRepo.listCustomerLedger).mockResolvedValue([

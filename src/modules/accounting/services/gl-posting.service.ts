@@ -4,9 +4,12 @@ import * as journalRepo from "@/lib/repositories/journal.repository";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import {
   buildCustomerPaymentJournalLines,
+  buildCustomsCertificateJournalLines,
   buildExpenseJournalLines,
   buildPurchaseJournalLines,
+  buildPurchaseReturnJournalLines,
   buildSaleJournalLines,
+  buildStockCountJournalLines,
   buildSupplierPaymentJournalLines,
   buildWasteJournalLines,
   reverseBuiltLines,
@@ -151,6 +154,34 @@ export async function postPurchaseJournal(input: {
     memo: input.memo ?? `شراء ${input.purchaseId.slice(0, 8)}`,
     source: "purchase",
     sourceId: input.purchaseId,
+    lines,
+    createdBy: input.createdBy,
+  });
+}
+
+export async function postCustomsCertificateJournal(input: {
+  certificateId: string;
+  costId: string;
+  storeId: string;
+  amount: number;
+  paymentMethod?: PaymentMethod | null;
+  entryDate?: string;
+  createdBy: string;
+  memo?: string;
+}): Promise<JournalEntryWithLines | null> {
+  if (!(await glEnabled())) return null;
+  const built = buildCustomsCertificateJournalLines({
+    amount: input.amount,
+    paymentMethod: input.paymentMethod,
+  });
+  if (built.length === 0) return null;
+  const lines = await linesFromBuilt(built);
+  return createAndPostAutoJournal({
+    storeId: input.storeId,
+    entryDate: entryDateFrom(input.entryDate),
+    memo: input.memo ?? `شهادة جمركية ${input.certificateId.slice(0, 8)}`,
+    source: "customs_certificate",
+    sourceId: input.costId,
     lines,
     createdBy: input.createdBy,
   });
@@ -321,6 +352,89 @@ export async function postWasteJournal(input: {
   });
 }
 
+/** Credit note: reverse sale amounts onto AR + restock COGS. */
+export async function postCreditNoteJournal(input: {
+  creditNoteId: string;
+  storeId: string;
+  total: number;
+  tax: number;
+  discount: number;
+  cogs?: number;
+  entryDate?: string;
+  createdBy: string;
+  memo?: string;
+}): Promise<JournalEntryWithLines | null> {
+  if (!(await glEnabled())) return null;
+  const built = reverseBuiltLines(
+    buildSaleJournalLines({
+      total: input.total,
+      tax: input.tax,
+      discount: input.discount,
+      payments: [{ method: "credit", amount: input.total }],
+      cogs: input.cogs,
+    })
+  );
+  if (built.length === 0) return null;
+  const lines = await linesFromBuilt(built);
+  return createAndPostAutoJournal({
+    storeId: input.storeId,
+    entryDate: entryDateFrom(input.entryDate),
+    memo: input.memo ?? `إشعار دائن ${input.creditNoteId.slice(0, 8)}`,
+    source: "refund",
+    sourceId: input.creditNoteId,
+    lines,
+    createdBy: input.createdBy,
+  });
+}
+
+export async function postPurchaseReturnJournal(input: {
+  purchaseReturnId: string;
+  storeId: string;
+  total: number;
+  entryDate?: string;
+  createdBy: string;
+  memo?: string;
+}): Promise<JournalEntryWithLines | null> {
+  if (!(await glEnabled())) return null;
+  const built = buildPurchaseReturnJournalLines({ total: input.total });
+  if (built.length === 0) return null;
+  const lines = await linesFromBuilt(built);
+  return createAndPostAutoJournal({
+    storeId: input.storeId,
+    entryDate: entryDateFrom(input.entryDate),
+    memo: input.memo ?? `مرتجع مشتريات ${input.purchaseReturnId.slice(0, 8)}`,
+    source: "adjustment",
+    sourceId: `purchase_return:${input.purchaseReturnId}`,
+    lines,
+    createdBy: input.createdBy,
+  });
+}
+
+export async function postStockCountJournal(input: {
+  countId: string;
+  storeId: string;
+  inventoryDeltaValue: number;
+  entryDate?: string;
+  createdBy: string;
+  memo?: string;
+}): Promise<JournalEntryWithLines | null> {
+  if (!(await glEnabled())) return null;
+  const built = buildStockCountJournalLines({
+    inventoryDeltaValue: input.inventoryDeltaValue,
+  });
+  if (built.length === 0) return null;
+  const lines = await linesFromBuilt(built);
+  return createAndPostAutoJournal({
+    storeId: input.storeId,
+    entryDate: entryDateFrom(input.entryDate),
+    memo: input.memo ?? `فروقات جرد ${input.countId.slice(0, 8)}`,
+    source: "adjustment",
+    sourceId: `stock_count:${input.countId}`,
+    lines,
+    createdBy: input.createdBy,
+  });
+}
+
 async function softFail<T>(
   label: string,
   fn: () => Promise<T>,
@@ -381,6 +495,20 @@ export function safePostPurchaseJournal(
   });
 }
 
+export function safePostCustomsCertificateJournal(
+  input: Parameters<typeof postCustomsCertificateJournal>[0]
+): Promise<JournalEntryWithLines | null> {
+  return softFail(
+    "postCustomsCertificateJournal",
+    () => postCustomsCertificateJournal(input),
+    {
+      storeId: input.storeId,
+      entityId: input.costId,
+      source: "customs_certificate",
+    }
+  );
+}
+
 export function safePostCustomerPaymentJournal(
   input: Parameters<typeof postCustomerPaymentJournal>[0]
 ): Promise<JournalEntryWithLines | null> {
@@ -429,6 +557,40 @@ export function safePostWasteJournal(
   return softFail("postWasteJournal", () => postWasteJournal(input), {
     storeId: input.storeId,
     entityId: input.wasteId,
+    source: "adjustment",
+  });
+}
+
+export function safePostCreditNoteJournal(
+  input: Parameters<typeof postCreditNoteJournal>[0]
+): Promise<JournalEntryWithLines | null> {
+  return softFail("postCreditNoteJournal", () => postCreditNoteJournal(input), {
+    storeId: input.storeId,
+    entityId: input.creditNoteId,
+    source: "refund",
+  });
+}
+
+export function safePostPurchaseReturnJournal(
+  input: Parameters<typeof postPurchaseReturnJournal>[0]
+): Promise<JournalEntryWithLines | null> {
+  return softFail(
+    "postPurchaseReturnJournal",
+    () => postPurchaseReturnJournal(input),
+    {
+      storeId: input.storeId,
+      entityId: input.purchaseReturnId,
+      source: "adjustment",
+    }
+  );
+}
+
+export function safePostStockCountJournal(
+  input: Parameters<typeof postStockCountJournal>[0]
+): Promise<JournalEntryWithLines | null> {
+  return softFail("postStockCountJournal", () => postStockCountJournal(input), {
+    storeId: input.storeId,
+    entityId: input.countId,
     source: "adjustment",
   });
 }

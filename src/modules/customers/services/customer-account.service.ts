@@ -42,10 +42,14 @@ export async function getCustomerStatement(
       description:
         e.notes ||
         (e.entry_type === "credit_sale"
-          ? "Credit sale"
+          ? "بيع آجل"
           : e.entry_type === "payment_received"
-            ? "Payment received"
-            : e.entry_type),
+            ? "تحصيل"
+            : e.entry_type === "refund"
+              ? "مرتجع"
+              : e.entry_type === "adjustment"
+                ? "تسوية"
+                : e.entry_type),
       debit: e.debit,
       credit: e.credit,
       balance,
@@ -114,21 +118,34 @@ export async function getAgingReport() {
   const { allocateBalanceToAgedDebits, emptyAgingBuckets, mergeBuckets, sumBuckets } =
     await import("@/modules/reports/lib/aging-buckets");
   const buckets = emptyAgingBuckets();
-  const ledgerByCustomer = await Promise.all(
-    customers.map(async (c) => {
-      const entries = await accountRepo.listCustomerLedger(c.id);
-      const debitEvents = entries
-        .filter((e) => e.entry_type === "credit_sale" && e.debit > 0)
-        .map((e) => ({ at: e.created_at, amount: e.debit }));
-      const allocated = allocateBalanceToAgedDebits(c.account_balance, debitEvents);
-      mergeBuckets(buckets, allocated.buckets);
-      return {
-        ...c,
-        oldestCreditAt: allocated.oldestAt,
-        daysOutstanding: allocated.daysOutstanding,
-      };
-    })
+
+  if (customers.length === 0) {
+    return { customers: [], buckets, total: 0 };
+  }
+
+  const debitEvents = await accountRepo.listCreditSaleDebitsForCustomers(
+    customers.map((c) => c.id)
   );
+  const eventsByCustomer = new Map<string, { at: string; amount: number }[]>();
+  for (const event of debitEvents) {
+    const list = eventsByCustomer.get(event.customerId) ?? [];
+    list.push({ at: event.at, amount: event.amount });
+    eventsByCustomer.set(event.customerId, list);
+  }
+
+  const ledgerByCustomer = customers.map((c) => {
+    const allocated = allocateBalanceToAgedDebits(
+      c.account_balance,
+      eventsByCustomer.get(c.id) ?? []
+    );
+    mergeBuckets(buckets, allocated.buckets);
+    return {
+      ...c,
+      oldestCreditAt: allocated.oldestAt,
+      daysOutstanding: allocated.daysOutstanding,
+    };
+  });
+
   return {
     customers: ledgerByCustomer,
     buckets,

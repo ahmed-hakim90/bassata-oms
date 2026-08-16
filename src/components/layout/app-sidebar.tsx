@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useDisplayPathname } from "@/hooks/use-display-pathname";
 import {
   ArrowLeftRight,
   BarChart3,
@@ -97,6 +97,25 @@ const ROLE_SUBTITLE: Record<UserRole, string> = {
   inventory: "مخزون ومشتريات",
 };
 
+/** Keep dense groups closed until the operator opens them (or lands inside). */
+const DEFAULT_COLLAPSED_NAV_GROUPS = new Set([
+  "Accounting",
+  "Reports",
+  "Administration",
+]);
+
+function isNavGroupCollapsed(
+  label: string,
+  collapsedGroups: Record<string, boolean>,
+  hasActiveItem: boolean
+): boolean {
+  if (hasActiveItem) return false;
+  if (Object.prototype.hasOwnProperty.call(collapsedGroups, label)) {
+    return Boolean(collapsedGroups[label]);
+  }
+  return DEFAULT_COLLAPSED_NAV_GROUPS.has(label);
+}
+
 export function AppSidebar({
   userRole,
   featureFlags,
@@ -117,8 +136,8 @@ export function AppSidebar({
   forceExpanded?: boolean;
 }) {
   const { t } = useTranslation();
-  const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar, collapsedGroups, toggleGroup } =
+  const pathname = useDisplayPathname();
+  const { sidebarCollapsed, toggleSidebar, collapsedGroups, setGroupCollapsed } =
     useUiStore();
   const collapsed = forceExpanded ? false : sidebarCollapsed;
   const navGroups = filterNavByAccess(
@@ -187,16 +206,20 @@ export function AppSidebar({
                 isNavHrefActive(pathname, item.href, allHrefs)
               );
               // Keep the section open when it contains the current page.
-              const groupCollapsed = hasActiveItem
-                ? false
-                : Boolean(collapsedGroups[group.label]);
+              const groupCollapsed = isNavGroupCollapsed(
+                group.label,
+                collapsedGroups,
+                hasActiveItem
+              );
               const GroupIcon = iconMap[group.icon] ?? LayoutDashboard;
               return (
                 <div key={group.label}>
                   {!collapsed && (
                     <button
                       type="button"
-                      onClick={() => toggleGroup(group.label)}
+                      onClick={() =>
+                        setGroupCollapsed(group.label, !groupCollapsed)
+                      }
                       aria-expanded={!groupCollapsed}
                       className={cn(
                         "mb-1.5 flex w-full items-center justify-between gap-2 rounded-[var(--mds-radius-sm)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors hover:bg-[var(--mds-sidebar-hover)]",

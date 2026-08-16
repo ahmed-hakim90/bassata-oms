@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ const FLAG_LABELS: Partial<Record<FeatureFlag, string>> = {
   stock_count: "جرد",
   transfers: "تحويلات",
   purchases: "مشتريات",
+  purchase_imports: "استيراد حاويات",
   waste: "هالك",
   recipes: "وصفات",
   credit_sales: "بيع آجل",

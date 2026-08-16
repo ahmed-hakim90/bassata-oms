@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   ONLINE_MENU_VIEW_SOURCE_LABELS_AR,
   type OnlineMenuViewSource,
@@ -6,13 +7,18 @@ import type { OnlineMenuViewStats } from "@/modules/online-menu/services/online-
 
 type MenuViewStatsCardProps = {
   stats: OnlineMenuViewStats;
+  /** Optional deep-link to the online orders analytics board. */
+  ordersHref?: string;
 };
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat("ar-EG").format(value);
 }
 
-export function MenuViewStatsCard({ stats }: MenuViewStatsCardProps) {
+export function MenuViewStatsCard({
+  stats,
+  ordersHref = "/online-orders",
+}: MenuViewStatsCardProps) {
   return (
     <div className="grid gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -47,6 +53,14 @@ export function MenuViewStatsCard({ stats }: MenuViewStatsCardProps) {
         المصدر بيتحدد من الرابط: QR يستخدم <span className="font-mono">src=qr</span>، ولو هتشارك
         واتساب ضيف <span className="font-mono">src=whatsapp</span>.
       </p>
+      {ordersHref ? (
+        <Link
+          href={ordersHref}
+          className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+        >
+          افتح لوحة طلبات الأونلاين والتحليل
+        </Link>
+      ) : null}
     </div>
   );
 }

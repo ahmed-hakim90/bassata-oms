@@ -4,6 +4,7 @@ import type { ReportBranding } from "@/modules/reports/core/report-context";
 
 export interface ReceiptPayload {
   orderNumber: string;
+  orderId?: string;
   createdAt: string;
   lines: CartLine[];
   paymentMethod: PaymentMethod;
@@ -62,6 +63,38 @@ export function buildWhatsAppReceiptUrl(payload: ReceiptPayload): string | null 
   if (!phone) return null;
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(formatReceiptForWhatsApp(payload))}`;
+}
+
+export function buildWhatsAppDocumentUrl(
+  phone: string | null | undefined,
+  text: string
+): string | null {
+  const normalized = normalizeWhatsAppPhone(phone);
+  if (!normalized || !text.trim()) return null;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(text)}`;
+}
+
+export function formatCommercialDocumentForWhatsApp(input: {
+  title: string;
+  number: string;
+  partyName?: string | null;
+  total: number;
+  currency: string;
+  lines: Array<{ name: string; quantity: number; lineTotal: number }>;
+}): string {
+  const lines = [
+    input.title,
+    input.number,
+    input.partyName ? `الطرف: ${input.partyName}` : null,
+    divider(),
+    ...input.lines.map(
+      (line) =>
+        `${line.name} × ${line.quantity}  ${money(line.lineTotal, input.currency)}`
+    ),
+    divider(),
+    `الإجمالي: ${money(input.total, input.currency)}`,
+  ].filter((line): line is string => Boolean(line));
+  return lines.join("\n");
 }
 
 export function formatReceiptForWhatsApp(payload: ReceiptPayload) {

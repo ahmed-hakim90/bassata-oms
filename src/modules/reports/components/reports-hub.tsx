@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   Barcode,
+  BookOpen,
   Building2,
   Calendar,
   CalendarCheck2,
@@ -11,7 +12,9 @@ import {
   Clock,
   FileSpreadsheet,
   Flame,
+  Landmark,
   Mail,
+  Package,
   PackagePlus,
   Percent,
   TrendingUp,
@@ -23,167 +26,46 @@ import {
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
+import { filterReportHubGroups } from "@/modules/reports/lib/report-hub-links";
 
-type ReportLink = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  description: string;
-  requiresProfit?: boolean;
-  requiresFinancial?: boolean;
+const REPORT_HUB_ICONS: Record<string, LucideIcon> = {
+  Barcode,
+  BookOpen,
+  Building2,
+  Calendar,
+  CalendarCheck2,
+  CircleDollarSign,
+  ClipboardList,
+  Clock,
+  FileSpreadsheet,
+  Flame,
+  Landmark,
+  Package,
+  PackagePlus,
+  Percent,
+  TrendingUp,
+  Users,
+  Wallet,
+  Warehouse,
 };
-
-const REPORT_GROUPS: { title: string; links: ReportLink[] }[] = [
-  {
-    title: "المبيعات والتشغيل",
-    links: [
-      {
-        href: "/reports/sales",
-        label: "تقرير المبيعات",
-        icon: TrendingUp,
-        description: "الإيراد والطلبات والاتجاهات",
-      },
-      {
-        href: "/reports/sessions",
-        label: "تقرير الجلسات",
-        icon: Clock,
-        description: "تسوية الدرج والفروقات",
-      },
-      {
-        href: "/reports/cashiers",
-        label: "أداء الكاشير",
-        icon: Users,
-        description: "إيراد وطلبات وفرق الجلسات لكل كاشير",
-      },
-      {
-        href: "/reports/branches",
-        label: "مقارنة الفروع",
-        icon: Building2,
-        description: "إيراد وربح وهالك حسب الفرع",
-      },
-      {
-        href: "/reports/periods",
-        label: "مقارنة الفترات",
-        icon: Calendar,
-        description: "الفترة الحالية مقابل السابقة بنفس المدة",
-      },
-      {
-        href: "/reports/heatmap",
-        label: "خريطة المبيعات الساعية",
-        icon: Flame,
-        description: "كثافة الإيراد حسب الساعة واليوم",
-      },
-      {
-        href: "/reports/daily-close",
-        label: "تقرير الإقفال اليومي",
-        icon: CalendarCheck2,
-        description: "نقدية اليوم: المتوقع والفعلي والفرق",
-      },
-    ],
-  },
-  {
-    title: "المالية والربحية",
-    links: [
-      {
-        href: "/reports/aging",
-        label: "تقرير أعمار الذمم",
-        icon: Users,
-        description: "أرصدة العملاء والموردين حسب العمر",
-      },
-      {
-        href: "/reports/tax",
-        label: "تقرير الضريبة",
-        icon: Percent,
-        description: "ضريبة المبيعات وتصدير Excel",
-      },
-      {
-        href: "/reports/profit",
-        label: "تقرير الأرباح",
-        icon: CircleDollarSign,
-        description: "الهوامش وتكلفة البضاعة وصافي الربح",
-        requiresProfit: true,
-      },
-      {
-        href: "/reports/margins",
-        label: "ترتيب الهوامش",
-        icon: Percent,
-        description: "أصناف وتصنيفات حسب الهامش الإجمالي",
-        requiresProfit: true,
-      },
-      {
-        href: "/reports/pnl",
-        label: "قائمة الدخل",
-        icon: FileSpreadsheet,
-        description: "إيراد وتكلفة ومصروفات وصافي تقديري",
-        requiresProfit: true,
-      },
-      {
-        href: "/reports/expenses",
-        label: "تقرير المصروفات",
-        icon: Wallet,
-        description: "تجميع المصروفات حسب التصنيف والمركز — مش شاشة التسجيل",
-        requiresFinancial: true,
-      },
-    ],
-  },
-  {
-    title: "المخزون",
-    links: [
-      {
-        href: "/reports/inventory",
-        label: "تقرير المخزون",
-        icon: Warehouse,
-        description: "التقييم والتشغيلات والانتهاء",
-      },
-      {
-        href: "/reports/replenishment",
-        label: "تقرير إعادة الطلب",
-        icon: PackagePlus,
-        description: "محتاج تشتري قد إيه حسب مبيعات الشهر",
-      },
-      {
-        href: "/reports/product-card",
-        label: "كارت صنف",
-        icon: ClipboardList,
-        description: "جه وطلع واتساوى والمتاح على أي فترة",
-      },
-    ],
-  },
-  {
-    title: "أدوات",
-    links: [
-      {
-        href: "/labels",
-        label: "ملصقات الباركود",
-        icon: Barcode,
-        description: "اطبع ملصقات المنتجات",
-      },
-    ],
-  },
-];
 
 interface ReportsHubProps {
   showProfit: boolean;
   showFinancial: boolean;
+  showCustomerDebt?: boolean;
   canManageSchedule?: boolean;
 }
 
 export function ReportsHub({
   showProfit,
   showFinancial,
+  showCustomerDebt = true,
   canManageSchedule = false,
 }: ReportsHubProps) {
-  const groups = REPORT_GROUPS.map((group) => ({
-    ...group,
-    links: group.links.filter((link) => {
-      if (link.requiresProfit && !showProfit) return false;
-      if (link.requiresFinancial && !showFinancial) return false;
-      return true;
-    }),
-  })).filter((group) => group.links.length > 0);
+  const groups = filterReportHubGroups(showProfit, showFinancial, showCustomerDebt);
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]" dir="rtl">
+    <div className="flex flex-col gap-3" dir="rtl">
       <PageHeader
         breadcrumb={<span>التقارير</span>}
         title="التقارير"
@@ -206,7 +88,7 @@ export function ReportsHub({
           <h2 className="text-sm font-semibold text-muted-foreground">{group.title}</h2>
           <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 xl:grid-cols-3">
             {group.links.map((link) => {
-              const Icon = link.icon;
+              const Icon = REPORT_HUB_ICONS[link.icon] ?? ClipboardList;
               return (
                 <Link
                   key={link.href}

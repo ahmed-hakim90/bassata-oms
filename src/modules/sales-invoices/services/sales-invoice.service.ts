@@ -13,6 +13,8 @@ import {
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import { productPackingForPricing } from "@/lib/units";
+import { lineTotalAfterDiscount } from "@/lib/line-discount";
+import { roundMoney } from "@/lib/money";
 import { listPriceTiers, resolveUnitPrice } from "@/modules/products/services/pricing-tier.service";
 import {
   getBusinessActivitySettings,
@@ -37,6 +39,7 @@ import type {
   SalesDocumentStatus,
   Warehouse,
 } from "@/lib/types";
+import { after } from "next/server";
 
 export interface SalesInvoiceLineWithName extends OrderItem {
   productName: string;
@@ -150,13 +153,15 @@ async function requireEditableDraft(orderId: string): Promise<Order> {
   return order;
 }
 
-function nextOrderNumber(documentDate: string, existingOnDateCount: number): string {
-  const day = documentDate.replace(/-/g, "");
-  return `SI-${day}-${String(existingOnDateCount + 1).padStart(4, "0")}`;
+export async function listSalesInvoices(storeId: string): Promise<SalesInvoiceWithDetails[]> {
+  return listSalesDocuments(storeId, "sales_invoice");
 }
 
-export async function listSalesInvoices(storeId: string): Promise<SalesInvoiceWithDetails[]> {
-  const invoices = await orderRepo.listSalesInvoices(storeId);
+export async function listSalesDocuments(
+  storeId: string,
+  kind: NonNullable<Order["document_kind"]>
+): Promise<SalesInvoiceWithDetails[]> {
+  const invoices = await orderRepo.listSalesInvoices(storeId, kind);
   if (invoices.length === 0) return [];
 
   const [customers, warehouses, allLines] = await Promise.all([
@@ -212,13 +217,17 @@ export async function createDraftSalesInvoice(input: {
   customerId?: string | null;
   createdBy: string;
   documentDate?: string;
+  documentKind?: NonNullable<Order["document_kind"]>;
+  sourceDocumentId?: string | null;
+  validUntil?: string | null;
 }): Promise<Order> {
   const documentDate = normalizeDocumentDate(input.documentDate ?? todayDocumentDate());
   await assertPeriodOpen(input.storeId, documentDateToOccurredAt(documentDate));
-  const [activity, warehouses, dayCount] = await Promise.all([
+  const kind = input.documentKind ?? "sales_invoice";
+  const [activity, warehouses, orderNumber] = await Promise.all([
     getBusinessActivitySettings(),
     warehouseRepo.listWarehouses(input.storeId),
-    orderRepo.countSalesInvoicesOnDocumentDate(input.storeId, documentDate),
+    orderRepo.nextSalesDocumentNumber(input.storeId, kind, documentDate),
   ]);
   const warehouse = warehouses.find((w) => w.id === input.warehouseId && w.is_active);
   if (!warehouse) throw new Error("المخزن غير صالح");
@@ -227,11 +236,14 @@ export async function createDraftSalesInvoice(input: {
     storeId: input.storeId,
     warehouseId: input.warehouseId,
     customerId: input.customerId ?? null,
-    orderNumber: nextOrderNumber(documentDate, dayCount),
+    orderNumber,
     createdBy: input.createdBy,
     salesMode: "wholesale",
     activityType: activity.activity_type,
     documentDate,
+    documentKind: kind,
+    sourceDocumentId: input.sourceDocumentId,
+    validUntil: input.validUntil,
   });
 }
 
@@ -241,6 +253,8 @@ export async function updateDraftSalesInvoiceHeader(input: {
   warehouseId?: string;
   discount?: number;
   documentDate?: string;
+  documentNotes?: string;
+  validUntil?: string | null;
 }): Promise<Order> {
   const order = await requireEditableDraft(input.orderId);
   const documentDate =
@@ -263,6 +277,10 @@ export async function updateDraftSalesInvoiceHeader(input: {
     warehouseId: input.warehouseId,
     discount: input.discount,
     ...(input.documentDate !== undefined ? { documentDate } : {}),
+    ...(input.documentNotes !== undefined ? { documentNotes: input.documentNotes.trim().slice(0, 500) } : {}),
+    ...(input.validUntil !== undefined
+      ? { validUntil: input.validUntil ? normalizeDocumentDate(input.validUntil) : null }
+      : {}),
   });
   const taxRate = await getTaxRate();
   return orderRepo.recalcSalesInvoiceTotals(input.orderId, taxRate);
@@ -294,6 +312,8 @@ export async function addSalesInvoiceLine(input: {
   /** When set, lock this unit price (manual / by-amount). Otherwise price is resolved for the final qty. */
   unitPrice?: number;
   tierId?: string | null;
+  /** Money discount on the line (qty × unit − discount). */
+  discountAmount?: number;
 }): Promise<SalesInvoiceLineMutationResult> {
   const order = await requireEditableDraft(input.orderId);
   await assertPeriodOpen(order.store_id);
@@ -312,7 +332,10 @@ export async function addSalesInvoiceLine(input: {
   const keep = sameProduct[0] ?? null;
   const priorQty = sameProduct.reduce((sum, line) => sum + line.quantity, 0);
   const priorLineTotal = sameProduct.reduce((sum, line) => sum + line.line_total, 0);
+  const priorDiscount = sameProduct.reduce((sum, line) => sum + (line.discount_amount ?? 0), 0);
   const quantity = Number(((keep ? priorQty : 0) + input.quantity).toFixed(4));
+  const addDiscount = Math.max(0, input.discountAmount ?? 0);
+  const discountAmount = Number((priorDiscount + addDiscount).toFixed(2));
 
   const lockPrice = input.unitPrice != null && Number.isFinite(input.unitPrice);
   let unitPrice = lockPrice ? (input.unitPrice as number) : undefined;
@@ -336,14 +359,13 @@ export async function addSalesInvoiceLine(input: {
     tierId = resolved.tierId;
   }
 
-  if (unitPrice == null || !Number.isFinite(unitPrice)) {
+  if (unitPrice == null || !Number.isFinite(unitPrice) || unitPrice < 0) {
     throw new Error("السعر غير صالح");
   }
 
-  const lineTotal = Number((unitPrice * quantity).toFixed(2));
+  const lineTotal = lineTotalAfterDiscount(quantity, unitPrice, discountAmount);
 
   if (keep) {
-    // Collapse any prior duplicate rows for this product into one line.
     await Promise.all(
       sameProduct.slice(1).map((dup) => orderRepo.deleteSalesInvoiceLine(dup.id))
     );
@@ -362,7 +384,7 @@ export async function addSalesInvoiceLine(input: {
       .from("order_items")
       .update({
         list_unit_price: unitPrice,
-        discount_amount: 0,
+        discount_amount: discountAmount,
         promotion_rule_id: null,
       })
       .eq("id", keep.id);
@@ -373,7 +395,12 @@ export async function addSalesInvoiceLine(input: {
     });
 
     return {
-      line: { ...line, productName: product.name },
+      line: {
+        ...line,
+        list_unit_price: unitPrice,
+        discount_amount: discountAmount,
+        productName: product.name,
+      },
       subtotal: updated.subtotal,
       discount: updated.discount,
       tax: updated.tax,
@@ -392,6 +419,7 @@ export async function addSalesInvoiceLine(input: {
     tierId,
     wholesaleApplied: true,
     listUnitPrice: unitPrice,
+    discountAmount,
   });
 
   const updated = await orderRepo.recalcSalesInvoiceTotals(input.orderId, taxRate, {
@@ -400,7 +428,12 @@ export async function addSalesInvoiceLine(input: {
   });
 
   return {
-    line: { ...line, productName: product.name },
+    line: {
+      ...line,
+      list_unit_price: unitPrice,
+      discount_amount: discountAmount,
+      productName: product.name,
+    },
     subtotal: updated.subtotal,
     discount: updated.discount,
     tax: updated.tax,
@@ -414,6 +447,7 @@ export async function updateSalesInvoiceLine(input: {
   unitPrice?: number;
   /** When true (default on qty change), refresh unit price from wholesale tiers. */
   repriceFromTiers?: boolean;
+  discountAmount?: number;
 }): Promise<SalesInvoiceLineMutationResult> {
   if (input.quantity <= 0) throw new Error("الكمية لازم تكون أكبر من صفر");
 
@@ -455,7 +489,13 @@ export async function updateSalesInvoiceLine(input: {
     throw new Error("السعر غير صالح");
   }
 
-  const lineTotal = Number((unitPrice * input.quantity).toFixed(2));
+  const discountAmount = Math.max(
+    0,
+    input.discountAmount !== undefined
+      ? input.discountAmount
+      : (existing.discount_amount ?? 0)
+  );
+  const lineTotal = lineTotalAfterDiscount(input.quantity, unitPrice, discountAmount);
   const [line, taxRate] = await Promise.all([
     orderRepo.updateSalesInvoiceLine(input.lineId, {
       quantity: input.quantity,
@@ -467,14 +507,13 @@ export async function updateSalesInvoiceLine(input: {
     resolveTaxRateFromCache(),
   ]);
 
-  // Keep list price in sync without a second promo pass (promos run at issue).
   const db = await getDb();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (db as any)
     .from("order_items")
     .update({
       list_unit_price: unitPrice,
-      discount_amount: 0,
+      discount_amount: discountAmount,
       promotion_rule_id: null,
     })
     .eq("id", input.lineId);
@@ -485,7 +524,12 @@ export async function updateSalesInvoiceLine(input: {
   });
 
   return {
-    line: { ...line, productName },
+    line: {
+      ...line,
+      list_unit_price: unitPrice,
+      discount_amount: discountAmount,
+      productName,
+    },
     subtotal: updated.subtotal,
     discount: updated.discount,
     tax: updated.tax,
@@ -558,36 +602,44 @@ export async function deliverSalesInvoice(input: {
     payments: payments && payments.length > 0 ? payments : undefined,
   });
 
-  const delivered = await orderRepo.getOrder(input.orderId);
-  if (delivered) {
-    const [orderPayments, items] = await Promise.all([
-      orderRepo.getOrderPayments(input.orderId),
-      orderRepo.getOrderItems(input.orderId),
-    ]);
-    const glPayments =
-      orderPayments.length > 0
-        ? orderPayments.map((p) => ({ method: p.method, amount: p.amount }))
-        : payments && payments.length > 0
-          ? payments
-          : input.paymentMethod
-            ? [{ method: input.paymentMethod, amount: delivered.total }]
-            : [{ method: "cash" as const, amount: delivered.total }];
-    const { safePostSaleJournal } = await import(
-      "@/modules/accounting/services/gl-posting.service"
-    );
-    await safePostSaleJournal({
-      orderId: delivered.id,
-      storeId: delivered.store_id,
-      total: delivered.total,
-      tax: delivered.tax,
-      discount: delivered.discount,
-      payments: glPayments,
-      cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
-      entryDate: documentDate,
-      createdBy: delivered.created_by,
-      memo: `تسليم فاتورة ${delivered.order_number}`,
-    });
-  }
+  // Soft-fail GL after response — same policy as POS checkout.
+  after(() => {
+    void (async () => {
+      try {
+        const delivered = await orderRepo.getOrder(input.orderId);
+        if (!delivered) return;
+        const [orderPayments, items] = await Promise.all([
+          orderRepo.getOrderPayments(input.orderId),
+          orderRepo.getOrderItems(input.orderId),
+        ]);
+        const glPayments =
+          orderPayments.length > 0
+            ? orderPayments.map((p) => ({ method: p.method, amount: p.amount }))
+            : payments && payments.length > 0
+              ? payments
+              : input.paymentMethod
+                ? [{ method: input.paymentMethod, amount: delivered.total }]
+                : [{ method: "cash" as const, amount: delivered.total }];
+        const { safePostSaleJournal } = await import(
+          "@/modules/accounting/services/gl-posting.service"
+        );
+        await safePostSaleJournal({
+          orderId: delivered.id,
+          storeId: delivered.store_id,
+          total: delivered.total,
+          tax: delivered.tax,
+          discount: delivered.discount,
+          payments: glPayments,
+          cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
+          entryDate: documentDate,
+          createdBy: delivered.created_by,
+          memo: `تسليم فاتورة ${delivered.order_number}`,
+        });
+      } catch (error) {
+        console.error("[sales-invoice] deferred GL post failed", error);
+      }
+    })();
+  });
 }
 
 export interface CorrectDeliveredCostsResult {
@@ -718,6 +770,172 @@ export async function correctDeliveredSalesInvoiceCosts(
   });
 
   return { ...summary, lines: corrections };
+}
+
+async function copyOrderLines(fromId: string, toId: string): Promise<void> {
+  const items = await orderRepo.getOrderItems(fromId);
+  for (const item of items) {
+    await orderRepo.insertSalesInvoiceLine({
+      orderId: toId,
+      productId: item.product_id,
+      variantId: item.variant_id,
+      quantity: item.quantity,
+      unitPrice: item.unit_price,
+      lineTotal: item.line_total,
+      saleUnit: item.sale_unit,
+      baseQuantity: item.base_quantity,
+      tierId: item.tier_id,
+      wholesaleApplied: item.wholesale_applied,
+      listUnitPrice: item.list_unit_price ?? item.unit_price,
+    });
+  }
+  const taxRate = await getTaxRate();
+  await orderRepo.recalcSalesInvoiceTotals(toId, taxRate);
+}
+
+export async function convertSalesDocument(input: {
+  sourceId: string;
+  createdBy: string;
+  targetKind: "sales_order" | "sales_invoice" | "credit_note";
+  fromStatus: NonNullable<Order["document_status"]>;
+  lockStatus: NonNullable<Order["document_status"]>;
+}): Promise<SalesInvoiceWithDetails> {
+  const source = await getSalesInvoice(input.sourceId);
+  if (!source) throw new Error("المستند غير موجود");
+  if (source.document_status !== input.fromStatus) {
+    throw new Error("حالة المستند لا تسمح بالتحويل");
+  }
+  if (!source.warehouse_id) throw new Error("المخزن مطلوب");
+
+  const locked = await orderRepo.updateSalesDocumentStatus(
+    input.sourceId,
+    input.fromStatus,
+    input.lockStatus
+  );
+  if (!locked) throw new Error("تم تحويل المستند من قبل");
+
+  const draft = await createDraftSalesInvoice({
+    storeId: source.store_id,
+    warehouseId: source.warehouse_id,
+    customerId: source.customer_id,
+    createdBy: input.createdBy,
+    documentKind: input.targetKind,
+    sourceDocumentId: source.id,
+  });
+  await copyOrderLines(source.id, draft.id);
+  const detail = await getSalesInvoice(draft.id);
+  if (!detail) throw new Error("تعذر إنشاء المستند");
+  return detail;
+}
+
+export async function transitionSalesDocument(input: {
+  orderId: string;
+  from: NonNullable<Order["document_status"]>;
+  to: NonNullable<Order["document_status"]>;
+}): Promise<SalesInvoiceWithDetails> {
+  const current = await getSalesInvoice(input.orderId);
+  if (!current) throw new Error("المستند غير موجود");
+  if (current.document_status !== input.from) {
+    throw new Error("حالة المستند لا تسمح بهذا الإجراء");
+  }
+  const kind = current.document_kind;
+  const allowed: Partial<
+    Record<
+      NonNullable<Order["document_kind"]>,
+      Partial<Record<NonNullable<Order["document_status"]>, NonNullable<Order["document_status"]>[]>>
+    >
+  > = {
+    quotation: { draft: ["sent"], sent: ["rejected", "expired"] },
+    sales_order: { draft: ["confirmed", "cancelled"], confirmed: ["cancelled"] },
+  };
+  const next = kind ? allowed[kind]?.[input.from] ?? [] : [];
+  if (!next.includes(input.to)) {
+    throw new Error("حالة المستند لا تسمح بهذا الإجراء");
+  }
+  await orderRepo.updateSalesDocumentStatus(input.orderId, input.from, input.to);
+  const detail = await getSalesInvoice(input.orderId);
+  if (!detail) throw new Error("المستند غير موجود");
+  return detail;
+}
+
+export async function createCreditNoteFromInvoice(input: {
+  sourceId: string;
+  createdBy: string;
+}): Promise<SalesInvoiceWithDetails> {
+  const source = await getSalesInvoice(input.sourceId);
+  if (!source || source.document_kind !== "sales_invoice" || source.document_status !== "delivered") {
+    throw new Error("الإشعار الدائن يُنشأ من فاتورة مسلَّمة فقط");
+  }
+  if (!source.warehouse_id || !source.customer_id) {
+    throw new Error("الفاتورة لازم يكون عليها عميل ومخزن");
+  }
+  const draft = await createDraftSalesInvoice({
+    storeId: source.store_id,
+    warehouseId: source.warehouse_id,
+    customerId: source.customer_id,
+    createdBy: input.createdBy,
+    documentKind: "credit_note",
+    sourceDocumentId: source.id,
+  });
+  await copyOrderLines(source.id, draft.id);
+  const detail = await getSalesInvoice(draft.id);
+  if (!detail) throw new Error("تعذر إنشاء الإشعار");
+  return detail;
+}
+
+export async function issueSalesCreditNote(orderId: string): Promise<SalesInvoiceWithDetails> {
+  const note = await getSalesInvoice(orderId);
+  if (!note || note.document_kind !== "credit_note") {
+    throw new Error("إشعار دائن غير موجود");
+  }
+  const { error } = await (await import("@/lib/repositories/client")).callRpc(
+    "issue_sales_credit_note",
+    { p_order_id: orderId, p_restock: true }
+  );
+  if (error) throw new Error(error.message);
+  const issued = await getSalesInvoice(orderId);
+  if (!issued) throw new Error("تعذر إصدار الإشعار");
+
+  const documentDate = normalizeDocumentDate(
+    issued.document_date ?? todayDocumentDate()
+  );
+  after(() => {
+    void (async () => {
+      try {
+        const items = issued.lines.length
+          ? issued.lines
+          : await orderRepo.getOrderItems(orderId);
+        let cogs = items.reduce((sum, item) => sum + Number(item.line_cost ?? 0), 0);
+        if (cogs <= 0 && items.length > 0) {
+          const products = await catalogRepo.getProductsByIds(
+            [...new Set(items.map((item) => item.product_id))]
+          );
+          cogs = items.reduce((sum, item) => {
+            const cost = Math.max(0, products.get(item.product_id)?.last_unit_cost ?? 0);
+            return sum + cost * item.quantity;
+          }, 0);
+        }
+        const { safePostCreditNoteJournal } = await import(
+          "@/modules/accounting/services/gl-posting.service"
+        );
+        await safePostCreditNoteJournal({
+          creditNoteId: issued.id,
+          storeId: issued.store_id,
+          total: issued.total,
+          tax: issued.tax,
+          discount: issued.discount,
+          cogs: roundMoney(cogs),
+          entryDate: documentDate,
+          createdBy: issued.created_by,
+          memo: `إشعار دائن ${issued.order_number}`,
+        });
+      } catch (glError) {
+        console.error("[credit-note] deferred GL post failed", glError);
+      }
+    })();
+  });
+
+  return issued;
 }
 
 export type { Customer, Product, Warehouse, SalesDocumentStatus };

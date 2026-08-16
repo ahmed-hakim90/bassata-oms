@@ -18,37 +18,41 @@ export function PageHeader({
   meta,
   className,
 }: PageHeaderProps) {
+  const hasSubtitle = Boolean(breadcrumb || description);
+
   return (
     <div
       className={cn(
-        "mb-4 flex flex-col gap-3 border-b border-border/80 pb-4 sm:mb-[var(--mds-space-8)] sm:flex-row sm:items-end sm:justify-between sm:gap-[var(--mds-space-4)] sm:pb-[var(--mds-space-5)]",
+        "flex flex-col gap-1.5 border-b border-border/70 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pb-2.5",
         className
       )}
     >
-      <div className="min-w-0 space-y-1.5 sm:space-y-[var(--mds-space-2)]">
-        {breadcrumb ? (
-          <div className="text-xs font-medium tracking-wide text-[var(--mds-color-text-secondary)]">
-            {breadcrumb}
-          </div>
-        ) : null}
+      <div className="min-w-0 space-y-0.5">
         <h1
-          className="text-xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]"
+          className="text-base font-semibold leading-tight tracking-tight text-foreground sm:text-lg"
           suppressHydrationWarning
         >
           {title}
         </h1>
-        {description ? (
-          <p
-            className="max-w-2xl text-sm leading-relaxed text-muted-foreground"
-            suppressHydrationWarning
-          >
-            {description}
-          </p>
+        {hasSubtitle ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[11px] leading-snug text-muted-foreground sm:text-xs">
+            {breadcrumb ? (
+              <span className="font-medium text-[var(--mds-color-text-secondary)]">
+                {breadcrumb}
+              </span>
+            ) : null}
+            {breadcrumb && description ? (
+              <span aria-hidden className="text-border">
+                ·
+              </span>
+            ) : null}
+            {description ? <span suppressHydrationWarning>{description}</span> : null}
+          </div>
         ) : null}
         {meta}
       </div>
       {action ? (
-        <div className="flex w-full shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:gap-[var(--mds-space-2)] [&_a]:min-h-11 sm:[&_a]:min-h-9 [&_button]:min-h-11 sm:[&_button]:min-h-9">
+        <div className="flex w-full shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:gap-2 [&_a]:min-h-11 sm:[&_a]:min-h-9 [&_button]:min-h-11 sm:[&_button]:min-h-9">
           {action}
         </div>
       ) : null}

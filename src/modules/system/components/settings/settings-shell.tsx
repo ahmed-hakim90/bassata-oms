@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { PageHeader } from "@/components/Velora/page-header";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,6 +38,9 @@ import { ExpenseSettingsTab } from "@/modules/system/components/settings/expense
 import { UsersSettingsTab } from "@/modules/system/components/settings/users-settings-tab";
 import { SystemFeaturesTab } from "@/modules/system/components/settings/system-features-tab";
 import { AuditSettingsTab } from "@/modules/system/components/settings/audit-settings-tab";
+import { PrintEngineStudio } from "@/modules/print-engine/components/print-engine-studio";
+import type { ReportBranding } from "@/modules/reports/core/report-context";
+import type { PrintEngineSettings } from "@/modules/print-engine/lib/print-engine-settings";
 import {
   type SettingsGroup,
   type SettingsTabId,
@@ -121,6 +125,12 @@ export interface SettingsShellProps {
     };
   } | null;
   reportSchedule?: ReportScheduleSettings | null;
+  printEngineBundle?: {
+    settings: PrintEngineSettings;
+    branding: ReportBranding;
+    generatedBy: string;
+  } | null;
+  canUploadLogo?: boolean;
 }
 
 export function SettingsShell({
@@ -139,6 +149,8 @@ export function SettingsShell({
   costCentersBundle,
   auditBundle,
   reportSchedule = null,
+  printEngineBundle = null,
+  canUploadLogo = false,
 }: SettingsShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -182,7 +194,7 @@ export function SettingsShell({
         breadcrumb={<span>الإدارة · الإعدادات</span>}
         title="الإعدادات"
       />
-      <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col gap-4">
+      <Tabs value={activeTab} onValueChange={setTab} className="min-w-0 flex-col gap-3">
         <div className="min-w-0 space-y-3 rounded-[var(--mds-radius-lg)] border border-border bg-card p-3 shadow-[var(--mds-elevation-1)] sm:p-4">
           <Input
             aria-label="بحث في الإعدادات"
@@ -295,6 +307,24 @@ export function SettingsShell({
         {usersBundle ? (
           <TabsContent value="users" className="min-w-0 overflow-hidden data-hidden:hidden">
             <UsersSettingsTab {...usersBundle} />
+          </TabsContent>
+        ) : null}
+
+        {canManageSettings ? (
+          <TabsContent value="print" className="min-w-0 data-hidden:hidden">
+            {printEngineBundle ? (
+              <PrintEngineStudio
+                initialSettings={printEngineBundle.settings}
+                branding={printEngineBundle.branding}
+                generatedBy={printEngineBundle.generatedBy}
+                canUploadLogo={canUploadLogo}
+              />
+            ) : (
+              <EmptyStateBlock
+                title="محرك الطباعة"
+                description="مقدرناش نحمّل القالب. حدّث الصفحة وحاول تاني."
+              />
+            )}
           </TabsContent>
         ) : null}
 

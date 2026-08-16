@@ -15,6 +15,27 @@ export function emptyAgingBuckets(): AgingBuckets {
   return { current: 0, days30: 0, days60: 0, days90: 0, over90: 0 };
 }
 
+/** Arabic/ops labels for glance charts and KPI strips. */
+export const AGING_BUCKET_CHART_ROWS: {
+  key: AgingBucketKey;
+  label: string;
+}[] = [
+  { key: "current", label: "0–30" },
+  { key: "days30", label: "31–60" },
+  { key: "days60", label: "61–90" },
+  { key: "days90", label: "91–120" },
+  { key: "over90", label: "120+" },
+];
+
+export function agingBucketsToChartRows(
+  buckets: AgingBuckets
+): { label: string; amount: number }[] {
+  return AGING_BUCKET_CHART_ROWS.map(({ key, label }) => ({
+    label,
+    amount: Math.round((buckets[key] ?? 0) * 100) / 100,
+  }));
+}
+
 /** Map days outstanding → bucket (0–30 current, 31–60, 61–90, 91–120, 120+). */
 export function bucketForDaysOutstanding(days: number): AgingBucketKey {
   if (days <= 30) return "current";

@@ -1,21 +1,7 @@
-import { AccessDenied } from "@/components/Velora/access-denied";
-import { AuthError } from "@/lib/auth/auth-error";
-import { getChartOfAccountsData } from "@/modules/accounting/actions/gl-account.actions";
-import { ChartOfAccountsPage } from "@/modules/accounting/components/chart-of-accounts-page";
+import { ModuleHubView } from "@/modules/module-hubs/components/module-hub-view";
+import { loadModuleHubPage } from "@/modules/module-hubs/services/module-hub.service";
 
-export default async function AccountingRoute() {
-  try {
-    const data = await getChartOfAccountsData();
-    return <ChartOfAccountsPage {...data} />;
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return (
-        <AccessDenied
-          title="مفيش صلاحية للحسابات"
-          description="فعّل دفتر الأستاذ العام من الإعدادات، أو اطلب صلاحية العرض من المالك."
-        />
-      );
-    }
-    throw error;
-  }
+export default async function AccountingHubPage() {
+  const hub = await loadModuleHubPage("accounting");
+  return <ModuleHubView hub={hub} links={hub.links} analytics={hub.analytics} />;
 }

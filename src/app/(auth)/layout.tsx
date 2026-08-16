@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 
+import { RouteTransitionMain } from "@/components/layout/route-transition";
+
 export default function AuthLayout({
   children,
 }: {
@@ -16,7 +18,9 @@ export default function AuthLayout({
       />
       <div className="pointer-events-none absolute -start-20 top-16 size-72 rounded-full bg-[var(--mds-color-harbor-100)] blur-3xl" />
       <div className="pointer-events-none absolute -end-16 bottom-10 size-80 rounded-full bg-[var(--mds-color-action-primary)]/10 blur-3xl" />
-      <div className="relative z-10 w-full max-w-3xl">{children}</div>
+      <div className="relative z-10 w-full max-w-3xl">
+        <RouteTransitionMain>{children}</RouteTransitionMain>
+      </div>
     </div>
   );
 }

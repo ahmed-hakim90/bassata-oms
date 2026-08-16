@@ -1,16 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Pencil, Plus, Tags, Truck, Receipt } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Landmark, Pencil, Plus, Tags, Truck, Receipt } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
+import { KpiCard } from "@/components/Velora/kpi-card";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { StatusPill } from "@/components/Velora/status-pill";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import type { Product, Supplier, Warehouse } from "@/lib/types";
+import { backgroundMutationKey } from "@/hooks/use-background-mutation";
+import { useBackgroundMutationStore } from "@/stores/background-mutation-store";
+import type { Product, PurchaseInvoice, Supplier, Warehouse } from "@/lib/types";
 import type { PurchaseWithLines } from "@/modules/purchases/services/purchase.service";
 import type { SupplierPriceSummary } from "@/modules/purchases/services/price-history.service";
 import { PurchaseForm } from "./purchase-form";
@@ -24,23 +29,45 @@ interface PurchasesPageProps {
   products: Product[];
   warehouses: Warehouse[];
   currency: string;
+  supplierDueTotal?: number;
+  documentKind?: NonNullable<PurchaseInvoice["document_kind"]>;
+  basePath?: string;
+  title?: string;
+  description?: string;
+  createLabel?: string;
+  allowCreate?: boolean;
+  canManagePrintEngine?: boolean;
+  importsEnabled?: boolean;
 }
 
 type PurchasesTab = "drafts" | "received" | "history";
 
-const statusVariant: Record<
-  PurchaseWithLines["status"],
-  "draft" | "success" | "danger"
+const statusVariant: Partial<
+  Record<PurchaseWithLines["status"], "draft" | "success" | "danger" | "warning" | "info">
 > = {
   draft: "draft",
   received: "success",
   cancelled: "danger",
+  submitted: "info",
+  approved: "success",
+  rejected: "danger",
+  sent: "info",
+  partial_invoiced: "warning",
+  invoiced: "success",
+  posted: "success",
 };
 
-const statusLabels: Record<PurchaseWithLines["status"], string> = {
+const statusLabels: Partial<Record<PurchaseWithLines["status"], string>> = {
   draft: "مسودة",
   received: "مستلمة",
   cancelled: "ملغاة",
+  submitted: "مقدَّم",
+  approved: "معتمد",
+  rejected: "مرفوض",
+  sent: "مُرسل",
+  partial_invoiced: "فوترة جزئية",
+  invoiced: "محوَّل",
+  posted: "مرحَّل",
 };
 
 function isPurchasesTab(value: string | null): value is PurchasesTab {
@@ -56,11 +83,13 @@ function sortByNewest(a: PurchaseWithLines, b: PurchaseWithLines) {
 function PurchaseInvoiceCard({
   purchase,
   currency,
+  receiving,
   onOpen,
   onPrintReceipt,
 }: {
   purchase: PurchaseWithLines;
   currency: string;
+  receiving?: boolean;
   onOpen: (id: string) => void;
   onPrintReceipt: (purchase: PurchaseWithLines) => void;
 }) {
@@ -72,12 +101,16 @@ function PurchaseInvoiceCard({
   return (
     <MobileEntityCard
       title={purchase.invoice_number}
-      subtitle={`${purchase.supplierName} · ${purchase.lines.length} أصناف`}
+      subtitle={`${purchase.supplierName || "بدون مورد"} · ${purchase.lines.length} أصناف`}
       badge={
-        <StatusPill
-          label={statusLabels[purchase.status]}
-          variant={statusVariant[purchase.status]}
-        />
+        receiving ? (
+          <StatusPill label="جاري الاستلام…" variant="info" />
+        ) : (
+          <StatusPill
+            label={statusLabels[purchase.status] ?? purchase.status}
+            variant={statusVariant[purchase.status] ?? "info"}
+          />
+        )
       }
       fields={[
         {
@@ -96,11 +129,19 @@ function PurchaseInvoiceCard({
           label: "التاريخ",
           value: formatDateTime(stamp),
         },
-        ...(isDraft
+        ...(isDraft && !receiving
           ? [
               {
                 label: "ملاحظة",
                 value: "مسودة — المخزون لم يتحدث بعد",
+              },
+            ]
+          : []),
+        ...(receiving
+          ? [
+              {
+                label: "ملاحظة",
+                value: "جاري تحديث المخزون في الخلفية",
               },
             ]
           : []),
@@ -109,7 +150,7 @@ function PurchaseInvoiceCard({
         <CompactActions className="w-full justify-end">
           {purchase.lines.length > 0 ? (
             <CompactAction
-              label="ريسيت"
+              label="طباعة"
               icon={Receipt}
               className="border-primary text-primary"
               onClick={() => onPrintReceipt(purchase)}
@@ -127,6 +168,7 @@ function PurchaseInvoiceCard({
             label={isDraft ? "متابعة" : "فتح"}
             icon={Pencil}
             variant={isDraft ? "default" : "outline"}
+            disabled={receiving}
             onClick={() => onOpen(purchase.id)}
           />
         </CompactActions>
@@ -152,6 +194,8 @@ function InvoiceList({
   onOpen: (id: string) => void;
   onPrintReceipt: (purchase: PurchaseWithLines) => void;
 }) {
+  const mutations = useBackgroundMutationStore((s) => s.mutations);
+
   if (items.length === 0) {
     return (
       <EmptyStateBlock
@@ -165,15 +209,20 @@ function InvoiceList({
   return (
     <div className="grid gap-3">
       <p className="text-sm text-muted-foreground">{items.length} فاتورة</p>
-      {items.map((purchase) => (
-        <PurchaseInvoiceCard
-          key={purchase.id}
-          purchase={purchase}
-          currency={currency}
-          onOpen={onOpen}
-          onPrintReceipt={onPrintReceipt}
-        />
-      ))}
+      {items.map((purchase) => {
+        const key = backgroundMutationKey("purchase", "receive", purchase.id);
+        const receiving = mutations[key]?.status === "pending";
+        return (
+          <PurchaseInvoiceCard
+            key={purchase.id}
+            purchase={purchase}
+            currency={currency}
+            receiving={receiving}
+            onOpen={onOpen}
+            onPrintReceipt={onPrintReceipt}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -185,6 +234,15 @@ export function PurchasesPage({
   products,
   warehouses,
   currency,
+  supplierDueTotal = 0,
+  documentKind = "purchase_invoice",
+  basePath = "/inventory/purchases",
+  title = "المشتريات",
+  description = "مسودات مؤقتة، فواتير مستلمة، وسجل الأسعار والإلغاءات",
+  createLabel = "شراء جديد",
+  allowCreate = true,
+  canManagePrintEngine = false,
+  importsEnabled = false,
 }: PurchasesPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -195,12 +253,49 @@ export function PurchasesPage({
     title: string;
   } | null>(null);
   const invoiceFromQuery = searchParams.get("invoice");
+  const createFromQuery = searchParams.get("create") === "1";
+  const [createBootstrapped, setCreateBootstrapped] = useState(false);
   const activeEditingId = editingId ?? invoiceFromQuery;
+
+  const closeForm = useCallback(() => {
+    setCreating(false);
+    setEditingId(null);
+    if (invoiceFromQuery) router.replace(`${basePath}?tab=drafts`);
+    else router.refresh();
+  }, [invoiceFromQuery, router, basePath]);
+
+  const startDraftCreate = useCallback(() => {
+    if (documentKind !== "purchase_request" && suppliers.length === 0) {
+      toast.error("ضيف مورد الأول من إدارة الموردين");
+      return;
+    }
+    if (warehouses.length === 0) {
+      toast.error("مفيش مخزن متاح — راجع إعدادات الفرع");
+      return;
+    }
+    // افتح الوثيقة فورًا — المسودة تتسجل على السيرفر عند أول حفظ/صنف (مش قبل ما تشوف الفورم)
+    setCreating(true);
+  }, [suppliers.length, warehouses.length, documentKind]);
+
+  useEffect(() => {
+    if (!createFromQuery || createBootstrapped || invoiceFromQuery || !allowCreate) return;
+    setCreateBootstrapped(true);
+    startDraftCreate();
+    router.replace(basePath, { scroll: false });
+  }, [
+    createFromQuery,
+    createBootstrapped,
+    invoiceFromQuery,
+    allowCreate,
+    startDraftCreate,
+    router,
+    basePath,
+  ]);
 
   function openPurchaseReceipt(purchase: PurchaseWithLines) {
     setPrintPreview({
-      href: `/print/purchases/${purchase.id}/receipt?embed=1`,
-      title: purchase.status === "draft" ? "ريسيت مشتريات مؤقت" : "ريسيت مشتريات",
+      href: `/print/purchases/${purchase.id}?embed=1`,
+      title: purchase.invoice_number,
     });
   }
 
@@ -212,9 +307,45 @@ export function PurchasesPage({
     () => purchases.filter((p) => p.status === "received").sort(sortByNewest),
     [purchases]
   );
+  const submitted = useMemo(
+    () => purchases.filter((p) => p.status === "submitted").sort(sortByNewest),
+    [purchases]
+  );
+  const approved = useMemo(
+    () => purchases.filter((p) => p.status === "approved").sort(sortByNewest),
+    [purchases]
+  );
+  const sent = useMemo(
+    () => purchases.filter((p) => p.status === "sent" || p.status === "partial_invoiced").sort(sortByNewest),
+    [purchases]
+  );
+  const invoiced = useMemo(
+    () => purchases.filter((p) => p.status === "invoiced").sort(sortByNewest),
+    [purchases]
+  );
+  const posted = useMemo(
+    () => purchases.filter((p) => p.status === "posted").sort(sortByNewest),
+    [purchases]
+  );
   const cancelled = useMemo(
     () => purchases.filter((p) => p.status === "cancelled").sort(sortByNewest),
     [purchases]
+  );
+
+  const receivedValue30d = useMemo(() => {
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+    return received
+      .filter((p) => {
+        const at = p.received_at ? new Date(p.received_at) : null;
+        return at != null && at >= from;
+      })
+      .reduce((sum, p) => sum + p.total, 0);
+  }, [received]);
+
+  const draftValue = useMemo(
+    () => drafts.reduce((sum, p) => sum + p.total, 0),
+    [drafts]
   );
 
   const tabFromQuery = searchParams.get("tab");
@@ -235,12 +366,8 @@ export function PurchasesPage({
     return (
       <>
         <PageHeader
-          title={activeEditingId ? "فاتورة شراء" : "فاتورة شراء جديدة"}
-          description={
-            activeEditingId
-              ? "أكمل المسودة ثم احفظ نهائيًا لتحديث المخزون"
-              : "مسودة سريعة → أصناف → حفظ نهائي"
-          }
+          title={activeEditingId ? title : createLabel}
+          description={description}
         />
         <PurchaseForm
           suppliers={suppliers}
@@ -248,12 +375,10 @@ export function PurchasesPage({
           warehouses={warehouses}
           currency={currency}
           initialInvoiceId={activeEditingId ?? undefined}
-          onComplete={() => {
-            setCreating(false);
-            setEditingId(null);
-            if (invoiceFromQuery) router.replace("/inventory/purchases?tab=drafts");
-            else router.refresh();
-          }}
+          documentKind={documentKind}
+          canManagePrintEngine={canManagePrintEngine}
+          importsEnabled={importsEnabled}
+          onComplete={closeForm}
         />
       </>
     );
@@ -261,35 +386,66 @@ export function PurchasesPage({
 
   const newPurchaseButton = (
     <CompactAction
-      label="شراء جديد"
+      label={createLabel}
       icon={Plus}
       variant="default"
       alwaysLabeled
-      onClick={() => setCreating(true)}
+      onClick={startDraftCreate}
     />
   );
 
   return (
     <>
       <PageHeader
-        title="المشتريات"
-        description="مسودات مؤقتة، فواتير مستلمة، وسجل الأسعار والإلغاءات"
+        title={title}
+        description={description}
         action={
           <CompactActions>
-            <CompactAction
-              label="قائمة أسعار من منتجات"
-              icon={Tags}
-              href="/inventory/purchases/price-list"
-            />
+            {documentKind === "purchase_invoice" ? (
+              <CompactAction
+                label="قائمة أسعار من منتجات"
+                icon={Tags}
+                href="/inventory/purchases/price-list"
+              />
+            ) : null}
             <CompactAction
               label="إدارة الموردين"
               icon={Truck}
               href="/inventory/suppliers"
             />
-            {newPurchaseButton}
+            {allowCreate ? newPurchaseButton : null}
           </CompactActions>
         }
       />
+
+      {documentKind === "purchase_invoice" ? (
+      <div className="mb-3 grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          label="مسودات"
+          value={String(drafts.length)}
+          change={formatCurrency(draftValue, currency)}
+          trend="neutral"
+          icon={<Pencil className="size-5" />}
+        />
+        <KpiCard
+          label="مستلمة"
+          value={String(received.length)}
+          icon={<Receipt className="size-5" />}
+        />
+        <KpiCard
+          label="قيمة الاستلام (30 يوم)"
+          value={formatCurrency(receivedValue30d, currency)}
+          icon={<Truck className="size-5" />}
+        />
+        <KpiCard
+          label="مستحق الموردين"
+          value={formatCurrency(supplierDueTotal, currency)}
+          change="افتح الموردين للتفاصيل"
+          trend="neutral"
+          icon={<Landmark className="size-5" />}
+        />
+      </div>
+      ) : null}
 
       <Tabs value={activeTab} onValueChange={setTab} className="gap-4">
         <TabsList
@@ -305,16 +461,46 @@ export function PurchasesPage({
             ) : null}
           </TabsTrigger>
           <TabsTrigger value="received" className="min-h-10 px-3 py-2">
-            مستلمة
-            {received.length > 0 ? (
+            {documentKind === "purchase_request"
+              ? "معتمدة"
+              : documentKind === "purchase_order"
+                ? "مُرسلة"
+                : documentKind === "purchase_return"
+                  ? "مرحَّلة"
+                  : "مستلمة"}
+            {(documentKind === "purchase_request"
+              ? approved.length
+              : documentKind === "purchase_order"
+                ? sent.length
+                : documentKind === "purchase_return"
+                  ? posted.length
+                  : received.length) > 0 ? (
               <span className="ms-1.5 tabular-nums text-muted-foreground">
-                ({received.length})
+                (
+                {documentKind === "purchase_request"
+                  ? approved.length
+                  : documentKind === "purchase_order"
+                    ? sent.length
+                    : documentKind === "purchase_return"
+                      ? posted.length
+                      : received.length}
+                )
               </span>
             ) : null}
           </TabsTrigger>
+          {documentKind === "purchase_invoice" ? (
           <TabsTrigger value="history" className="min-h-10 px-3 py-2">
             سجل
           </TabsTrigger>
+          ) : documentKind === "purchase_request" ? (
+          <TabsTrigger value="history" className="min-h-10 px-3 py-2">
+            مقدَّمة ({submitted.length})
+          </TabsTrigger>
+          ) : documentKind === "purchase_order" ? (
+          <TabsTrigger value="history" className="min-h-10 px-3 py-2">
+            محوَّلة ({invoiced.length})
+          </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="drafts" className="mt-0">
@@ -322,7 +508,7 @@ export function PurchasesPage({
             items={drafts}
             currency={currency}
             emptyTitle="مفيش فواتير مؤقتة"
-            emptyDescription="أنشئ مسودة، أضف الأصناف، وبعدين استلم عشان المخزون يتحدّث."
+            emptyDescription="اضغط شراء جديد — هتفتح فاتورة كاملة تضيف فيها الأصناف وتستلم عشان المخزون يتحدّث."
             emptyAction={newPurchaseButton}
             onOpen={setEditingId}
             onPrintReceipt={openPurchaseReceipt}
@@ -331,17 +517,26 @@ export function PurchasesPage({
 
         <TabsContent value="received" className="mt-0">
           <InvoiceList
-            items={received}
+            items={
+              documentKind === "purchase_request"
+                ? approved
+                : documentKind === "purchase_order"
+                  ? sent
+                  : documentKind === "purchase_return"
+                    ? posted
+                    : received
+            }
             currency={currency}
-            emptyTitle="مفيش فواتير مستلمة"
-            emptyDescription="بعد استلام المسودة هتظهر هنا مع تحديث المخزون."
-            emptyAction={newPurchaseButton}
+            emptyTitle="مفيش مستندات هنا"
+            emptyDescription={description}
+            emptyAction={allowCreate ? newPurchaseButton : undefined}
             onOpen={setEditingId}
             onPrintReceipt={openPurchaseReceipt}
           />
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">
+          {documentKind === "purchase_invoice" ? (
           <div className="grid gap-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <SupplierPriceHistory history={priceHistory} currency={currency} />
             <div className="space-y-2">
@@ -358,6 +553,16 @@ export function PurchasesPage({
               />
             </div>
           </div>
+          ) : (
+          <InvoiceList
+            items={documentKind === "purchase_request" ? submitted : invoiced}
+            currency={currency}
+            emptyTitle="مفيش مستندات هنا"
+            emptyDescription={description}
+            onOpen={setEditingId}
+            onPrintReceipt={openPurchaseReceipt}
+          />
+          )}
         </TabsContent>
       </Tabs>
 

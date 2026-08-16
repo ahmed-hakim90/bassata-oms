@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { matchProducts } from "@/modules/products/lib/match-products";
+import {
+  findProductByCode,
+  matchProducts,
+  productMatchesQuery,
+} from "@/modules/products/lib/match-products";
 import type { Product } from "@/lib/types";
 
 const makeProduct = (overrides: Partial<Product> = {}): Product =>
@@ -67,5 +71,28 @@ describe("matchProducts", () => {
       makeProduct({ id: String(i), name: `Item ${i}` })
     );
     expect(matchProducts(products, "item", { limit: 5 })).toHaveLength(5);
+  });
+
+  it("finds a product by barcode or sku for scanner increment", () => {
+    const products = [
+      makeProduct({ id: "1", barcode: "622111", sku: "SKU-A" }),
+      makeProduct({ id: "2", barcode: "622222", sku: "SKU-B" }),
+    ];
+    expect(findProductByCode(products, "622111")?.id).toBe("1");
+    expect(findProductByCode(products, "sku-b")?.id).toBe("2");
+    expect(findProductByCode(products, "missing")).toBeUndefined();
+  });
+
+  it("matches name, barcode, and sku in list search", () => {
+    const product = makeProduct({
+      name: "شاي ليبتون",
+      barcode: "622999",
+      sku: "LIP-1",
+    });
+    expect(productMatchesQuery(product, "")).toBe(true);
+    expect(productMatchesQuery(product, "ليبتون")).toBe(true);
+    expect(productMatchesQuery(product, "6229")).toBe(true);
+    expect(productMatchesQuery(product, "lip")).toBe(true);
+    expect(productMatchesQuery(product, "سكر")).toBe(false);
   });
 });

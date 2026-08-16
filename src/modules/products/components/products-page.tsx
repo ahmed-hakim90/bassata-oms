@@ -46,7 +46,7 @@ import {
   deleteProductAction,
 } from "../actions/product.actions";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { cn } from "@/lib/utils";
 import { useConfirmationDialog } from "@/components/Velora/confirmation-dialog";
 
@@ -325,7 +325,7 @@ export function ProductsPage({
     );
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         breadcrumb={<span>المخزون · المنتجات</span>}
         title="المنتجات"

@@ -6,6 +6,7 @@ import {
   Archive,
   Banknote,
   ClipboardList,
+  Loader2,
   MoreHorizontal,
   Plus,
   Search,
@@ -13,6 +14,15 @@ import {
   Truck,
   Wallet,
 } from "lucide-react";
+import {
+  backgroundMutationKey,
+  useBackgroundMutation,
+} from "@/hooks/use-background-mutation";
+import { useOperatorShortcuts } from "@/hooks/use-operator-shortcuts";
+import { useBackgroundMutationStore } from "@/stores/background-mutation-store";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
+import { OperatorShortcutHint } from "@/components/Velora/operator-shortcut-hint";
+import { holdCurrentPosCart } from "@/modules/pos/lib/hold-current-cart";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -267,6 +277,7 @@ export function PosScreen({
   const [attachExpanded, setAttachExpanded] = useState(false);
   const [discountOpen, setDiscountOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [onlineOrdersOpen, setOnlineOrdersOpen] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
   const [supplierPayOpen, setSupplierPayOpen] = useState(false);
@@ -278,6 +289,15 @@ export function PosScreen({
   );
   const [lastReceipt, setLastReceipt] = useState<ReceiptPayload | null>(null);
   const [pending, startTransition] = useTransition();
+  const { run: runBackground } = useBackgroundMutation();
+  const checkoutMutationKey = backgroundMutationKey(
+    "pos",
+    "checkout",
+    sessionId ?? storeId ?? "no-session"
+  );
+  const checkoutSaving = useBackgroundMutationStore(
+    (s) => s.mutations[checkoutMutationKey]?.status === "pending"
+  );
   const [catalogCategories, setCatalogCategories] = useState<Category[]>(categoriesProp);
   const [catalogProducts, setCatalogProducts] = useState<POSProduct[]>(initialProducts);
   const [liveOnlineOrders, setLiveOnlineOrders] =
@@ -286,6 +306,7 @@ export function PosScreen({
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const addItem = usePosStore((s) => s.addItem);
   const clearCart = usePosStore((s) => s.clearCart);
+  const undoLast = usePosStore((s) => s.undoLast);
   const setHeldCarts = usePosStore((s) => s.setHeldCarts);
   const cart = usePosStore((s) => s.cart);
   const customer = usePosStore((s) => s.customer);
@@ -442,18 +463,20 @@ export function PosScreen({
   const loyaltyEnabled = featureFlags.loyalty !== false;
   const cartItemCount = cart.reduce((total, line) => total + line.quantity, 0);
   const noPaymentMethods = enabledPaymentMethods.length === 0;
-  const checkoutBlockedReason = pending
-    ? "جاري إتمام البيع…"
-    : readinessState === "session_expired"
-      ? "أقفل الوردية عشان تكمّل البيع"
-      : readinessState === "no_session"
-        ? "افتح جلسة كاشير الأول"
-        : checkoutBlocked
-          ? POS_READINESS_COPY[readinessState]?.title ?? "الكاشير مش جاهز للبيع دلوقتي"
-          : noPaymentMethods
-            ? "مفيش طريقة دفع مفعّلة من الإعدادات"
-            : null;
-  const payLocked = checkoutBlocked || pending || noPaymentMethods;
+  const checkoutBlockedReason = checkoutSaving
+    ? "جاري حفظ الفاتورة السابقة…"
+    : pending
+      ? "جاري إتمام البيع…"
+      : readinessState === "session_expired"
+        ? "أقفل الوردية عشان تكمّل البيع"
+        : readinessState === "no_session"
+          ? "افتح جلسة كاشير الأول"
+          : checkoutBlocked
+            ? POS_READINESS_COPY[readinessState]?.title ?? "الكاشير مش جاهز للبيع دلوقتي"
+            : noPaymentMethods
+              ? "مفيش طريقة دفع مفعّلة من الإعدادات"
+              : null;
+  const payLocked = checkoutBlocked || pending || checkoutSaving || noPaymentMethods;
 
   function cartCheckout(method?: PaymentMethod) {
     if (!method) return;
@@ -465,6 +488,49 @@ export function PosScreen({
     const total = cartPayableTotal;
     handleComplete([{ method, amount: total }]);
   }
+
+  useOperatorShortcuts({
+    enabled: !checkoutBlocked,
+    onSave: () => {
+      if (payLocked || cart.length === 0) return;
+      if (paymentMethod === "credit" && !customer) {
+        playPosErrorSound();
+        toast.error("اربط عميلًا أولًا للبيع الآجل");
+        setAttachExpanded(true);
+        return;
+      }
+      cartCheckout(paymentMethod);
+    },
+    onDelete: () => {
+      if (cart.length === 0) return;
+      setClearConfirmOpen(true);
+    },
+    onUndo: () => {
+      if (!undoLast()) {
+        toast.message("مفيش خطوة للتراجع");
+      }
+    },
+    onHold: () => {
+      if (cart.length === 0) {
+        toast.message("السلة فاضية — مفيش حاجة تتعليق");
+        return;
+      }
+      holdCurrentPosCart();
+    },
+    onCustomer: () => {
+      setAttachExpanded(true);
+      setCartOpen(true);
+    },
+    onDiscount: () => {
+      if (!discountsEnabled) {
+        toast.message("الخصم مش مفعّل من الإعدادات");
+        return;
+      }
+      setDiscountOpen(true);
+      setCartOpen(true);
+    },
+  });
+
   const activeOnlineOrdersCount = onlineOrders.filter(
     (order) => order.status !== "cancelled" && order.status !== "invoiced"
   ).length;
@@ -588,6 +654,11 @@ export function PosScreen({
     overrideReason?: string,
     accountCollection = 0
   ) {
+    if (checkoutSaving) {
+      toast.message("الفاتورة السابقة بتتحفظ… استنى لحظة");
+      return;
+    }
+
     const checkoutPaymentMethod = payments[0]?.method ?? paymentMethod;
     const needsDiscountOverride = requiresManagerDiscountOverride(
       discountAmount,
@@ -595,25 +666,48 @@ export function PosScreen({
     );
     const needsExpiredSessionOverride =
       readinessState === "session_expired" && canManagerOverride;
-    startTransition(async () => {
-      const receiptCart = [...cart];
-      const receiptCustomer = customer ? { name: customer.name, phone: customer.phone } : null;
-      const attachedCustomer = customer;
-      const collectionMethod =
-        payments.find((payment) => payment.method !== "credit")?.method ?? "cash";
-      const redemptionAmount = loyaltyRedemption?.amount ?? 0;
-      const receiptDiscount = discountAmount + redemptionAmount + promoCartDiscount + promoItemSavings;
-      const receiptTotal = cartPayableTotal;
-      try {
+
+    const state = usePosStore.getState();
+    const receiptCart = [...state.cart];
+    const receiptCustomer = state.customer
+      ? { name: state.customer.name, phone: state.customer.phone }
+      : null;
+    const attachedCustomer = state.customer;
+    const collectionMethod =
+      payments.find((payment) => payment.method !== "credit")?.method ?? "cash";
+    const redemptionAmount = state.loyaltyRedemption?.amount ?? 0;
+    const receiptDiscount =
+      state.discountAmount + redemptionAmount + promoCartDiscount + promoItemSavings;
+    const receiptTotal = cartPayableTotal;
+    const checkoutCart = [...state.cart];
+    const checkoutCustomer = state.customer;
+    const checkoutDiscount = state.discountAmount;
+    const checkoutCoupon = state.couponCode;
+    const checkoutLoyaltyPoints = state.loyaltyRedemption?.points;
+    const checkoutSalesMode = state.salesMode;
+
+    if (checkoutCart.length === 0) {
+      toast.error("السلة فارغة");
+      return;
+    }
+
+    setOverrideDialog(null);
+    setCreditOpen(false);
+    clearCart({ undoable: false });
+
+    runBackground({
+      key: checkoutMutationKey,
+      label: "جاري حفظ البيع…",
+      execute: async () => {
         const result = await postPosCheckout({
-          cart,
-          customer,
+          cart: checkoutCart,
+          customer: checkoutCustomer,
           paymentMethod: checkoutPaymentMethod,
           payments,
-          salesMode,
-          discount: discountAmount,
-          couponCode: promotionsEnabled ? couponCode || null : null,
-          loyaltyPoints: loyaltyRedemption?.points,
+          salesMode: checkoutSalesMode,
+          discount: checkoutDiscount,
+          couponCode: promotionsEnabled ? checkoutCoupon || null : null,
+          loyaltyPoints: checkoutLoyaltyPoints,
           override:
             needsDiscountOverride || needsExpiredSessionOverride
               ? {
@@ -629,13 +723,16 @@ export function PosScreen({
         if (!result.orderNumber) {
           throw new Error("فشل إتمام البيع");
         }
-
-        setOverrideDialog(null);
+        return result;
+      },
+      successMessage: (result) => `تم إتمام الطلب ${result.orderNumber}`,
+      onSuccess: (result) => {
         if (cashDrawerEnabled && payments.some((payment) => payment.method === "cash")) {
           openCashDrawerHook();
         }
         if (receiptEnabled) {
           setLastReceipt({
+            orderId: result.order.id,
             orderNumber: result.orderNumber,
             createdAt: new Date().toISOString(),
             paymentMethod: checkoutPaymentMethod,
@@ -647,11 +744,7 @@ export function PosScreen({
             branding: receiptBranding,
           });
         }
-        clearCart();
-        setCreditOpen(false);
         playPosSuccessSound();
-        // Don't wait on account collection — cashier already has a completed sale.
-        toast.success(`تم إتمام الطلب ${result.orderNumber}`);
 
         if (
           accountCollection > 0.001 &&
@@ -674,10 +767,23 @@ export function PosScreen({
             );
           });
         }
-      } catch (error) {
+      },
+      onError: (message) => {
         playPosErrorSound();
-        toast.error(error instanceof Error ? error.message : "فشل إتمام البيع");
-      }
+        const failedHold: HeldCart = {
+          id: `temp-hold-${crypto.randomUUID()}`,
+          name: "فاتورة فشلت — اضغط للاستعادة",
+          cart: checkoutCart,
+          customer: checkoutCustomer,
+          discountAmount: checkoutDiscount,
+          couponCode: checkoutCoupon,
+          salesMode: checkoutSalesMode,
+          createdAt: new Date().toISOString(),
+          failedCheckout: true,
+          failureMessage: message,
+        };
+        usePosStore.getState().parkFailedCheckoutHold(failedHold);
+      },
     });
   }
 
@@ -998,6 +1104,13 @@ export function PosScreen({
         )}
 
         <div className="flex shrink-0 items-center gap-1.5">
+          {checkoutSaving ? (
+            <span className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-2.5 text-sm font-semibold text-primary sm:h-10">
+              <Loader2 className="size-4 shrink-0 animate-spin" />
+              <span className="truncate max-[390px]:sr-only">جاري حفظ الفاتورة…</span>
+            </span>
+          ) : null}
+          <OperatorShortcutHint variant="pos" className="me-1 hidden lg:block" />
           {hasActiveSession ? <PosHeldCartsBar /> : null}
           {readinessState === "ready" && hasActiveSession && activeSession && sessionReconciliation ? (
             <PosCloseSessionDialog
@@ -1112,6 +1225,7 @@ export function PosScreen({
             onAttachExpandedChange={setAttachExpanded}
             discountOpen={discountOpen}
             onDiscountOpenChange={setDiscountOpen}
+            onRequestClearCart={() => setClearConfirmOpen(true)}
           />
           {checkoutBlocked ? (
             <div className="mt-2.5 space-y-2.5 rounded-2xl border border-amber-500/25 bg-amber-50/80 p-3.5 text-center dark:bg-amber-500/10">
@@ -1175,6 +1289,7 @@ export function PosScreen({
                 onAttachExpandedChange={setAttachExpanded}
                 discountOpen={discountOpen}
                 onDiscountOpenChange={setDiscountOpen}
+                onRequestClearCart={() => setClearConfirmOpen(true)}
               />
               {checkoutBlocked ? (
                 <div className="space-y-2.5 border-t border-border/60 p-4 text-center">
@@ -1203,7 +1318,7 @@ export function PosScreen({
           total={cartPayableTotal}
           customer={customer}
           enabledMethods={enabledPaymentMethods}
-          loading={pending}
+          loading={checkoutSaving}
           onConfirm={handleCreditConfirm}
         />
 
@@ -1352,6 +1467,18 @@ export function PosScreen({
           onWhatsApp={handleSendWhatsAppReceipt}
         />
       ) : null}
+      <ConfirmActionDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title="مسح السلة؟"
+        description="هتتمسح كل الأصناف من الفاتورة الحالية. الفواتير المعلّقة مش هتتأثر."
+        confirmLabel="مسح السلة"
+        destructive
+        onConfirm={() => {
+          clearCart();
+          setDiscountOpen(false);
+        }}
+      />
     <ManagerOverrideDialog
       open={Boolean(overrideDialog)}
       onOpenChange={(open) => {
@@ -1360,11 +1487,13 @@ export function PosScreen({
       title={overrideDialog?.title ?? "موافقة المدير"}
       defaultReason={overrideDialog?.defaultReason ?? ""}
       onConfirm={(reason) => {
-        if (!overrideDialog || pending) return;
+        if (!overrideDialog) return;
         if (overrideDialog.kind === "cash_drawer") {
+          if (pending) return;
           confirmCashDrawer(reason);
           return;
         }
+        if (checkoutSaving) return;
         if (overrideDialog.payments) {
           runCheckout(
             overrideDialog.payments,

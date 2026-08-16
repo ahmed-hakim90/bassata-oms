@@ -16,20 +16,25 @@ import { getFeatureFlags } from "@/modules/system/services/settings.service";
 import {
   addSalesInvoiceLine,
   assertSalesInvoiceAccess,
+  convertSalesDocument,
   correctDeliveredSalesInvoiceCosts,
+  createCreditNoteFromInvoice,
   createDraftSalesInvoice,
   deleteDraftSalesInvoice,
   deliverSalesInvoice,
   getSalesInvoice,
+  issueSalesCreditNote,
   issueSalesInvoice,
-  listSalesInvoices,
+  listSalesDocuments,
   removeSalesInvoiceLine,
+  transitionSalesDocument,
   updateDraftSalesInvoiceHeader,
   updateSalesInvoiceLine,
   type CorrectDeliveredCostsResult,
   type SalesInvoiceLineMutationResult,
   type SalesInvoiceWithDetails,
 } from "@/modules/sales-invoices/services/sales-invoice.service";
+import type { Order } from "@/lib/types";
 
 export type SalesInvoiceActionResult<T = void> =
   | { ok: true; data: T }
@@ -57,11 +62,13 @@ async function requireSalesInvoiceUser() {
   return user;
 }
 
-export async function getSalesInvoicesData() {
+export async function getSalesInvoicesData(
+  kind: NonNullable<Order["document_kind"]> = "sales_invoice"
+) {
   const user = await requireSalesInvoiceUser();
   const storeId = await getValidatedActiveStoreId();
   const [invoices, customers, products, warehouses, organization, flags] = await Promise.all([
-    listSalesInvoices(storeId),
+    listSalesDocuments(storeId, kind),
     listCustomers(),
     catalogRepo.listProducts({ activeOnly: true }),
     warehouseRepo.listWarehouses(storeId),
@@ -82,6 +89,7 @@ export async function getSalesInvoicesData() {
     currency: organization.currency,
     enabledPaymentMethods: enabledPaymentMethodsFromFlags(flags),
     canCorrectCosts: user.role === "owner" || user.role === "manager",
+    canManagePrintEngine: user.role === "owner" || user.role === "manager",
     userId: user.id,
   };
 }
@@ -101,6 +109,7 @@ export async function createSalesInvoiceAction(input: {
   warehouseId: string;
   customerId?: string | null;
   documentDate?: string;
+  documentKind?: NonNullable<Order["document_kind"]>;
 }): Promise<SalesInvoiceActionResult<SalesInvoiceWithDetails>> {
   return runAction(async () => {
     const user = await requireSalesInvoiceUser();
@@ -111,6 +120,7 @@ export async function createSalesInvoiceAction(input: {
       customerId: input.customerId,
       createdBy: user.id,
       documentDate: input.documentDate,
+      documentKind: input.documentKind ?? "sales_invoice",
     });
     // Return the insert row immediately — extra getSalesInvoice + revalidatePath
     // blocked the form from opening. List refreshes when the operator closes.
@@ -149,6 +159,8 @@ export async function updateSalesInvoiceHeaderAction(input: {
   warehouseId?: string;
   discount?: number;
   documentDate?: string;
+  documentNotes?: string;
+  validUntil?: string | null;
 }): Promise<SalesInvoiceActionResult<SalesInvoiceWithDetails>> {
   return runAction(async () => {
     await requireSalesInvoiceUser();
@@ -166,6 +178,7 @@ export async function addSalesInvoiceLineAction(input: {
   quantity: number;
   unitPrice?: number;
   tierId?: string | null;
+  discountAmount?: number;
 }): Promise<SalesInvoiceActionResult<SalesInvoiceLineMutationResult>> {
   return runAction(async () => {
     await requireSalesInvoiceUser();
@@ -180,6 +193,7 @@ export async function updateSalesInvoiceLineAction(input: {
   quantity: number;
   unitPrice?: number;
   repriceFromTiers?: boolean;
+  discountAmount?: number;
 }): Promise<SalesInvoiceActionResult<SalesInvoiceLineMutationResult>> {
   return runAction(async () => {
     await requireSalesInvoiceUser();
@@ -266,5 +280,66 @@ export async function correctDeliveredSalesInvoiceCostsAction(
     revalidatePath("/orders");
     revalidatePath("/reports/profit");
     return { invoice, correction };
+  });
+}
+
+export async function transitionSalesDocumentAction(input: {
+  orderId: string;
+  from: NonNullable<Order["document_status"]>;
+  to: NonNullable<Order["document_status"]>;
+}): Promise<SalesInvoiceActionResult<SalesInvoiceWithDetails>> {
+  return runAction(async () => {
+    await requireSalesInvoiceUser();
+    const invoice = await transitionSalesDocument(input);
+    revalidatePath("/quotations");
+    revalidatePath("/sales-orders");
+    revalidatePath("/sales-invoices");
+    revalidatePath("/credit-notes");
+    return invoice;
+  });
+}
+
+export async function convertSalesDocumentAction(input: {
+  sourceId: string;
+  targetKind: "sales_order" | "sales_invoice";
+  fromStatus: NonNullable<Order["document_status"]>;
+  lockStatus: NonNullable<Order["document_status"]>;
+}): Promise<SalesInvoiceActionResult<SalesInvoiceWithDetails>> {
+  return runAction(async () => {
+    const user = await requireSalesInvoiceUser();
+    const created = await convertSalesDocument({
+      ...input,
+      createdBy: user.id,
+    });
+    revalidatePath("/quotations");
+    revalidatePath("/sales-orders");
+    revalidatePath("/sales-invoices");
+    return created;
+  });
+}
+
+export async function createCreditNoteFromInvoiceAction(
+  sourceId: string
+): Promise<SalesInvoiceActionResult<SalesInvoiceWithDetails>> {
+  return runAction(async () => {
+    const user = await requireSalesInvoiceUser();
+    const created = await createCreditNoteFromInvoice({
+      sourceId,
+      createdBy: user.id,
+    });
+    revalidatePath("/credit-notes");
+    revalidatePath("/sales-invoices");
+    return created;
+  });
+}
+
+export async function issueSalesCreditNoteAction(
+  orderId: string
+): Promise<SalesInvoiceActionResult<SalesInvoiceWithDetails>> {
+  return runAction(async () => {
+    await requireSalesInvoiceUser();
+    const issued = await issueSalesCreditNote(orderId);
+    revalidatePath("/credit-notes");
+    return issued;
   });
 }

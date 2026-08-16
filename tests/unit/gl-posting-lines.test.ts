@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPurchaseJournalLines,
+  buildPurchaseReturnJournalLines,
   buildSaleJournalLines,
+  buildStockCountJournalLines,
   buildSupplierPaymentJournalLines,
   buildWasteJournalLines,
   reverseBuiltLines,
@@ -125,5 +127,57 @@ describe("reverseBuiltLines", () => {
         expect.objectContaining({ systemKey: "inventory", debit: 40, credit: 0 }),
       ])
     );
+  });
+
+  it("reverses a credit-note sized sale onto AR", () => {
+    const reversed = reverseBuiltLines(
+      buildSaleJournalLines({
+        total: 80,
+        tax: 0,
+        discount: 0,
+        payments: [{ method: "credit", amount: 80 }],
+        cogs: 30,
+      })
+    );
+    expect(isJournalBalanced(reversed)).toBe(true);
+    expect(reversed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ systemKey: "ar", debit: 0, credit: 80 }),
+        expect.objectContaining({ systemKey: "sales_revenue", debit: 80, credit: 0 }),
+        expect.objectContaining({ systemKey: "inventory", debit: 30, credit: 0 }),
+        expect.objectContaining({ systemKey: "cogs", debit: 0, credit: 30 }),
+      ])
+    );
+  });
+});
+
+describe("buildPurchaseReturnJournalLines", () => {
+  it("debits AP and credits inventory", () => {
+    const lines = buildPurchaseReturnJournalLines({ total: 250 });
+    expect(lines).toEqual([
+      { systemKey: "ap", debit: 250, credit: 0 },
+      { systemKey: "inventory", debit: 0, credit: 250 },
+    ]);
+    expect(isJournalBalanced(lines)).toBe(true);
+  });
+});
+
+describe("buildStockCountJournalLines", () => {
+  it("posts shortage to waste", () => {
+    const lines = buildStockCountJournalLines({ inventoryDeltaValue: -40 });
+    expect(lines).toEqual([
+      { systemKey: "waste", debit: 40, credit: 0 },
+      { systemKey: "inventory", debit: 0, credit: 40 },
+    ]);
+    expect(isJournalBalanced(lines)).toBe(true);
+  });
+
+  it("posts overage as inventory against waste", () => {
+    const lines = buildStockCountJournalLines({ inventoryDeltaValue: 15 });
+    expect(lines).toEqual([
+      { systemKey: "inventory", debit: 15, credit: 0 },
+      { systemKey: "waste", debit: 0, credit: 15 },
+    ]);
+    expect(isJournalBalanced(lines)).toBe(true);
   });
 });

@@ -47,10 +47,21 @@ interface CompactActionProps {
   className?: string;
   /** Keep the text label visible on mobile (rare — e.g. sole primary). */
   alwaysLabeled?: boolean;
+  /** Optional keyboard shortcut hint (e.g. F1) shown in tooltip + aria. */
+  shortcut?: string;
 }
 
 const iconOnlyClass =
   "size-11 shrink-0 touch-manipulation sm:size-auto sm:h-9 sm:min-h-9 sm:gap-1.5 sm:px-3";
+
+function shortcutSuffix(shortcut?: string) {
+  if (!shortcut) return null;
+  return (
+    <kbd className="ms-1 hidden rounded border border-border/50 bg-muted/40 px-1 text-[10px] font-normal text-muted-foreground sm:inline">
+      {shortcut}
+    </kbd>
+  );
+}
 
 export function CompactAction({
   label,
@@ -62,13 +73,17 @@ export function CompactAction({
   type = "button",
   className,
   alwaysLabeled = false,
+  shortcut,
 }: CompactActionProps) {
   const labelClass = alwaysLabeled ? undefined : "sr-only sm:not-sr-only";
+  const ariaLabel = shortcut ? `${label} (${shortcut})` : label;
+  const tooltipLabel = shortcut ? `${label} · ${shortcut}` : label;
 
   const content = (
     <>
       <Icon className="size-4 shrink-0" aria-hidden />
       <span className={labelClass}>{label}</span>
+      {shortcutSuffix(shortcut)}
     </>
   );
 
@@ -89,7 +104,8 @@ export function CompactAction({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={label}
+            aria-label={ariaLabel}
+            aria-keyshortcuts={shortcut}
             className={linkClass}
           >
             {content}
@@ -97,7 +113,7 @@ export function CompactAction({
         );
       }
       return (
-        <Link href={href} aria-label={label} className={linkClass}>
+        <Link href={href} aria-label={ariaLabel} aria-keyshortcuts={shortcut} className={linkClass}>
           {content}
         </Link>
       );
@@ -112,7 +128,8 @@ export function CompactAction({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={label}
+                aria-label={ariaLabel}
+                aria-keyshortcuts={shortcut}
                 className={linkClass}
               />
             }
@@ -120,7 +137,7 @@ export function CompactAction({
             {content}
           </TooltipTrigger>
           <TooltipContent side="top" className="sm:hidden">
-            {label}
+            {tooltipLabel}
           </TooltipContent>
         </Tooltip>
       );
@@ -130,13 +147,18 @@ export function CompactAction({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Link href={href} aria-label={label} className={linkClass} />
+            <Link
+              href={href}
+              aria-label={ariaLabel}
+              aria-keyshortcuts={shortcut}
+              className={linkClass}
+            />
           }
         >
           {content}
         </TooltipTrigger>
         <TooltipContent side="top" className="sm:hidden">
-          {label}
+          {tooltipLabel}
         </TooltipContent>
       </Tooltip>
     );
@@ -149,7 +171,8 @@ export function CompactAction({
         variant={variant}
         disabled={disabled}
         onClick={onClick}
-        aria-label={label}
+        aria-label={ariaLabel}
+        aria-keyshortcuts={shortcut}
         className={cn(iconOnlyClass, className)}
       >
         {content}
@@ -166,7 +189,8 @@ export function CompactAction({
             variant={variant}
             disabled={disabled}
             onClick={onClick}
-            aria-label={label}
+            aria-label={ariaLabel}
+            aria-keyshortcuts={shortcut}
             className={cn(iconOnlyClass, className)}
           />
         }
@@ -174,7 +198,7 @@ export function CompactAction({
         {content}
       </TooltipTrigger>
       <TooltipContent side="top" className="sm:hidden">
-        {label}
+        {tooltipLabel}
       </TooltipContent>
     </Tooltip>
   );

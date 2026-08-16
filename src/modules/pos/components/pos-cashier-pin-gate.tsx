@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Lock } from "lucide-react";
 import { PinPad } from "@/modules/auth/components/pin-pad";
 import { PosLogoutButton } from "@/modules/pos/components/pos-logout-button";

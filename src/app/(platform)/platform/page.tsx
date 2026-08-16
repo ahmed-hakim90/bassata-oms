@@ -1,8 +1,5 @@
 import { resolvePlatformAdmin } from "@/modules/platform/services/platform-admin.service";
-import {
-  getPlatformRollup,
-  listOrganizationHealthSummaries,
-} from "@/modules/platform/services/platform-org.service";
+import { listOrganizationHealthSummaries } from "@/modules/platform/services/platform-org.service";
 import { countPendingCompanyInvites } from "@/modules/platform/services/platform-invite.service";
 import { PlatformConsole } from "@/modules/platform/components/platform-console";
 
@@ -18,7 +15,10 @@ export default async function PlatformPage() {
     countPendingCompanyInvites(),
   ]);
 
-  const rollup = getPlatformRollup(organizations, pendingInvites);
-
-  return <PlatformConsole organizations={organizations} rollup={rollup} />;
+  return (
+    <PlatformConsole
+      organizations={organizations}
+      pendingInvites={pendingInvites}
+    />
+  );
 }

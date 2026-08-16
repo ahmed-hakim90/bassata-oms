@@ -53,7 +53,18 @@ export function BranchesReportView({
   const totalWaste = rows.reduce((s, r) => s + r.wasteCost, 0);
 
   const columns: ColumnDef<BranchComparisonRow>[] = [
-    { header: "الفرع", accessorKey: "storeName" },
+    {
+      id: "store",
+      header: "الفرع",
+      cell: ({ row }) => (
+        <a
+          href={`/reports/sales/branch?storeId=${row.original.storeId}`}
+          className="font-medium hover:underline"
+        >
+          {row.original.storeName}
+        </a>
+      ),
+    },
     {
       id: "revenue",
       header: "الإيراد",

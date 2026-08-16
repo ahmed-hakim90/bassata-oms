@@ -51,7 +51,13 @@ import {
   resolveSettingsTab,
   type SettingsTabId,
 } from "@/modules/system/components/settings/settings-tabs";
+import { getCommercialPrintContext } from "@/modules/print-engine/services/print-engine.service";
+import {
+  DEFAULT_PRINT_ENGINE_SETTINGS,
+} from "@/modules/print-engine/lib/print-engine-settings";
+import type { ReportBranding } from "@/modules/reports/core/report-context";
 import { getReportScheduleAction } from "@/modules/reports/actions/report-schedule.actions";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export async function updateOrgSettingsAction(input: {
   name?: string;
@@ -96,6 +102,7 @@ export async function uploadOrganizationLogoAction(formData: FormData) {
 
   await updateOrganizationSettings({ logoUrl: publicUrl }, user.id);
   revalidatePath("/settings");
+  revalidatePath("/print", "layout");
   return publicUrl;
 }
 
@@ -766,6 +773,7 @@ export async function createDeviceAction(input: { storeId: string; name: string 
   const user = await requirePermissionOrRole("settings_manage", ["owner", "manager"]);
   const device = await createDevice(input, user.id);
   revalidatePath("/settings");
+  revalidatePath("/devices");
   return device;
 }
 
@@ -775,6 +783,7 @@ export async function generateDevicePairingCodeAction(deviceId: string) {
     m.createPairingCode(deviceId)
   );
   revalidatePath("/settings");
+  revalidatePath("/devices");
   return { code, expiresInMinutes: 15 };
 }
 
@@ -796,6 +805,7 @@ export async function updateDeviceAction(
     revalidatePath("/pos");
     revalidatePath("/device/pair");
   }
+  revalidatePath("/devices");
   return device;
 }
 
@@ -805,6 +815,7 @@ export async function deleteDeviceAction(id: string) {
   revalidatePath("/settings");
   revalidatePath("/pos");
   revalidatePath("/device/pair");
+  revalidatePath("/devices");
   return device;
 }
 
@@ -1119,6 +1130,40 @@ export async function getUnifiedSettingsData(
       ? await getReportScheduleAction().catch(() => null)
       : null;
 
+  const printEngineBundle =
+    has("settings_manage") && activeTab === "print"
+      ? await (async () => {
+          const [ctx, user] = await Promise.all([
+            getCommercialPrintContext(),
+            getCurrentUser(),
+          ]);
+          return {
+            settings: ctx.settings,
+            branding: ctx.branding,
+            generatedBy: user?.name ?? "",
+          };
+        })().catch((error) => {
+          console.error(
+            "[print-engine] studio load failed",
+            error instanceof Error ? error.message : "unknown"
+          );
+          return {
+            settings: DEFAULT_PRINT_ENGINE_SETTINGS,
+            branding: {
+              orgName: "الشركة",
+              orgLogoUrl: null,
+              currency: "EGP",
+              storeName: null,
+              storeAddress: null,
+              storePhone: null,
+              receiptHeader: null,
+              receiptFooter: null,
+            },
+            generatedBy: "",
+          };
+        })
+      : null;
+
   return {
     visibleTabs,
     activeTab: (visibleTabs.some((t) => t.id === activeTab)
@@ -1133,5 +1178,6 @@ export async function getUnifiedSettingsData(
     costCentersBundle,
     auditBundle,
     reportSchedule,
+    printEngineBundle,
   };
 }

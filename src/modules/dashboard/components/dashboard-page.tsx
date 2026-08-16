@@ -60,7 +60,7 @@ export async function DashboardPage() {
   const { lowStock, inventoryValue, nearExpiryCount, inventoryCostValue } = inventory;
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         breadcrumb={<span>الرئيسية</span>}
         title="لوحة التحكم"

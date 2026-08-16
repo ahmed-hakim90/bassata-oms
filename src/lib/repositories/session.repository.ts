@@ -7,7 +7,10 @@ async function orgStoreIds(): Promise<string[]> {
   return (await listStores()).map((store) => store.id);
 }
 
-export async function listSessions(storeId?: string): Promise<CashierSession[]> {
+export async function listSessions(
+  storeId?: string,
+  options?: { openedSince?: string }
+): Promise<CashierSession[]> {
   const storeIds = await orgStoreIds();
   if (storeIds.length === 0) return [];
   if (storeId && !storeIds.includes(storeId)) return [];
@@ -19,6 +22,7 @@ export async function listSessions(storeId?: string): Promise<CashierSession[]> 
     .in("store_id", storeIds)
     .order("opened_at", { ascending: false });
   if (storeId) q = q.eq("store_id", storeId);
+  if (options?.openedSince) q = q.gte("opened_at", options.openedSince);
   const { data, error } = await q;
   if (error) throwDbError(error, "listSessions");
   return (data ?? []).map(mapSession);

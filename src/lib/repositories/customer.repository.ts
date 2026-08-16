@@ -62,6 +62,8 @@ export type CreateCustomerInput = {
   account_balance?: number;
   credit_limit?: number;
   payment_terms?: string;
+  address?: string;
+  tax_id?: string;
 };
 
 export async function createCustomer(input: CreateCustomerInput): Promise<Customer> {
@@ -80,6 +82,8 @@ export async function createCustomer(input: CreateCustomerInput): Promise<Custom
       account_balance: input.account_balance ?? 0,
       credit_limit: input.credit_limit ?? 0,
       payment_terms: input.payment_terms ?? "",
+      address: input.address ?? "",
+      tax_id: input.tax_id ?? "",
     })
     .select()
     .single();
@@ -92,7 +96,7 @@ export async function updateCustomer(
   patch: Partial<
     Pick<
       Customer,
-      "name" | "phone" | "email" | "notes" | "account_balance" | "credit_limit" | "payment_terms"
+      "name" | "phone" | "email" | "notes" | "account_balance" | "credit_limit" | "payment_terms" | "address" | "tax_id"
     >
   >
 ): Promise<Customer | null> {

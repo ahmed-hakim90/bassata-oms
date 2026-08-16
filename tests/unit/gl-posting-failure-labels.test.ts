@@ -11,6 +11,11 @@ describe("gl-posting-failure-labels", () => {
 
   it("maps known labels to Arabic", () => {
     expect(glPostingFailureLabelAr("postSaleJournal")).toBe("ترحيل بيع");
+    expect(glPostingFailureLabelAr("postCreditNoteJournal")).toBe("ترحيل إشعار دائن");
+    expect(glPostingFailureLabelAr("postPurchaseReturnJournal")).toBe(
+      "ترحيل مرتجع مشتريات"
+    );
+    expect(glPostingFailureLabelAr("postStockCountJournal")).toBe("ترحيل فروقات جرد");
     expect(glPostingFailureLabelAr("unknown_label")).toBe("unknown_label");
   });
 });

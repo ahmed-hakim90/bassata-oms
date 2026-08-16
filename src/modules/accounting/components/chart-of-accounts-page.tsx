@@ -2,9 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
-import { BookOpen, Landmark, Plus, Power, ScrollText, Sparkles } from "lucide-react";
+import { BookOpen, Landmark, Plus, Power, ScrollText, Sparkles, BarChart3, FileSpreadsheet, Scale, Wallet, Upload } from "lucide-react";
 import { PageHeader } from "@/components/Velora/page-header";
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { KpiCard } from "@/components/Velora/kpi-card";
@@ -32,6 +32,8 @@ import {
   updateGlAccountAction,
 } from "@/modules/accounting/actions/gl-account.actions";
 import { AccountingSubnav } from "@/modules/accounting/components/accounting-subnav";
+import { CoaImportDialog } from "@/modules/accounting/components/coa-import-dialog";
+import { ModuleAnalyticsQuickLinks } from "@/modules/reports/components/module-analytics-quick-links";
 import type { AccountingOverview } from "@/modules/accounting/services/accounting-overview.service";
 import type { GlAccountTreeNode } from "@/modules/accounting/services/gl-account.service";
 
@@ -53,6 +55,7 @@ const SOURCE_LABELS: Record<string, string> = {
   refund: "مرتجع / إلغاء",
   adjustment: "تسوية",
   waste: "هالك",
+  customs_certificate: "شهادة جمركية",
 };
 
 interface ChartOfAccountsPageProps {
@@ -73,6 +76,7 @@ export function ChartOfAccountsPage({
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | GlAccountType>("all");
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState({
     code: "",
     name: "",
@@ -154,26 +158,42 @@ export function ChartOfAccountsPage({
   return (
     <>
       <PageHeader
+        breadcrumb={
+          <span>
+            <Link href="/accounting" className="text-primary hover:underline">
+              الحسابات
+            </Link>
+            <span className="mx-1 text-muted-foreground">/</span>
+            دليل الحسابات
+          </span>
+        }
         title="دليل الحسابات"
         description="شجرة الحسابات المستخدمة في القيود والترحيل التلقائي من البيع والمشتريات والمصروفات"
         action={
           canManage ? (
-            <CompactAction
-              label="حساب جديد"
-              icon={Plus}
-              variant="default"
-              alwaysLabeled
-              onClick={() => setOpen(true)}
-            />
+            <CompactActions>
+              <CompactAction
+                label="رفع شجرة"
+                icon={Upload}
+                onClick={() => setImportOpen(true)}
+              />
+              <CompactAction
+                label="حساب جديد"
+                icon={Plus}
+                variant="default"
+                alwaysLabeled
+                onClick={() => setOpen(true)}
+              />
+            </CompactActions>
           ) : undefined
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-3">
         <AccountingSubnav />
       </div>
 
-      <div className="mb-4 grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="حسابات نشطة"
           value={String(overview.accountCount)}
@@ -201,6 +221,51 @@ export function ChartOfAccountsPage({
           change="من آخر 200 قيد"
           trend="neutral"
           icon={<Sparkles className="size-5" />}
+        />
+      </div>
+
+      <div className="mb-4">
+        <ModuleAnalyticsQuickLinks
+          title="تقارير مالية"
+          description="الدفاتر مصدر الحقيقة — الروابط للتفاصيل والتقارير"
+          links={[
+            {
+              href: "/accounting/income-statement",
+              label: "قائمة الدخل",
+              description: "ربح الفترة من الأستاذ",
+              icon: FileSpreadsheet,
+            },
+            {
+              href: "/accounting/trial-balance",
+              label: "ميزان المراجعة",
+              description: "أرصدة الحسابات",
+              icon: Scale,
+            },
+            {
+              href: "/accounting/balance-sheet",
+              label: "الميزانية",
+              description: "المركز المالي",
+              icon: Landmark,
+            },
+            {
+              href: "/reports/pnl",
+              label: "PnL تشغيلي",
+              description: "تقدير سريع من التقارير",
+              icon: BarChart3,
+            },
+            {
+              href: "/expenses",
+              label: "المصروفات",
+              description: "تسجيل واعتماد",
+              icon: Wallet,
+            },
+            {
+              href: "/reports/expenses",
+              label: "تقرير المصروفات",
+              description: "تجميع + Excel",
+              icon: BookOpen,
+            },
+          ]}
         />
       </div>
 
@@ -556,6 +621,12 @@ export function ChartOfAccountsPage({
           </div>
         </StandardModalContent>
       </Dialog>
+
+      <CoaImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => router.refresh()}
+      />
     </>
   );
 }

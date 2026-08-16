@@ -114,6 +114,22 @@ export function buildPurchaseJournalLines(input: {
   return lines;
 }
 
+/** Capitalize customs/port costs onto inventory (EGP). Unpaid → AP. */
+export function buildCustomsCertificateJournalLines(input: {
+  amount: number;
+  paymentMethod?: PaymentMethod | null;
+}): BuiltGlLine[] {
+  const amount = roundMoney(Math.max(0, input.amount));
+  if (amount <= 0) return [];
+  const creditKey = input.paymentMethod
+    ? paymentMethodToSystemKey(input.paymentMethod)
+    : "ap";
+  return [
+    { systemKey: "inventory", debit: amount, credit: 0 },
+    { systemKey: creditKey, debit: 0, credit: amount },
+  ];
+}
+
 export function buildCustomerPaymentJournalLines(input: {
   amount: number;
   paymentMethod: PaymentMethod;
@@ -153,6 +169,41 @@ export function buildWasteJournalLines(input: { cost: number }): BuiltGlLine[] {
   return [
     { systemKey: "waste", debit: cost, credit: 0 },
     { systemKey: "inventory", debit: 0, credit: cost },
+  ];
+}
+
+/** Dr AP / Cr inventory — reduces what we owe the supplier. */
+export function buildPurchaseReturnJournalLines(input: {
+  total: number;
+}): BuiltGlLine[] {
+  const total = roundMoney(Math.max(0, input.total));
+  if (total <= 0) return [];
+  return [
+    { systemKey: "ap", debit: total, credit: 0 },
+    { systemKey: "inventory", debit: 0, credit: total },
+  ];
+}
+
+/**
+ * Stock-count net value: positive = overage (Dr inventory / Cr waste),
+ * negative = shortage (Dr waste / Cr inventory). Uses the waste account
+ * already in the default CoA — no new system key.
+ */
+export function buildStockCountJournalLines(input: {
+  inventoryDeltaValue: number;
+}): BuiltGlLine[] {
+  const value = roundMoney(input.inventoryDeltaValue);
+  if (value === 0) return [];
+  if (value > 0) {
+    return [
+      { systemKey: "inventory", debit: value, credit: 0 },
+      { systemKey: "waste", debit: 0, credit: value },
+    ];
+  }
+  const shortage = roundMoney(-value);
+  return [
+    { systemKey: "waste", debit: shortage, credit: 0 },
+    { systemKey: "inventory", debit: 0, credit: shortage },
   ];
 }
 

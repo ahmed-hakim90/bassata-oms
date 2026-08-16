@@ -14,7 +14,44 @@ export const ROLES = ["owner", "manager", "cashier", "inventory"] as const;
 export type UserRole = (typeof ROLES)[number];
 
 export const ORDER_STATUSES = ["open", "completed", "voided", "refunded"] as const;
-export const SALES_DOCUMENT_STATUSES = ["draft", "issued", "delivered"] as const;
+export const SALES_DOCUMENT_STATUSES = [
+  "draft",
+  "issued",
+  "delivered",
+  "sent",
+  "accepted",
+  "rejected",
+  "expired",
+  "confirmed",
+  "cancelled",
+  "invoiced",
+] as const;
+export const SALES_DOCUMENT_KINDS = [
+  "quotation",
+  "sales_order",
+  "sales_invoice",
+  "credit_note",
+] as const;
+export type SalesDocumentKind = (typeof SALES_DOCUMENT_KINDS)[number];
+export const PURCHASE_DOCUMENT_KINDS = [
+  "purchase_request",
+  "purchase_order",
+  "purchase_invoice",
+  "purchase_return",
+] as const;
+export type PurchaseDocumentKind = (typeof PURCHASE_DOCUMENT_KINDS)[number];
+export const PURCHASE_DOCUMENT_STATUSES = [
+  "draft",
+  "received",
+  "cancelled",
+  "submitted",
+  "approved",
+  "rejected",
+  "sent",
+  "partial_invoiced",
+  "invoiced",
+  "posted",
+] as const;
 export const ONLINE_ORDER_STATUSES = [
   "pending",
   "accepted",
@@ -187,17 +224,30 @@ export type WeightSaleInputMode = (typeof WEIGHT_SALE_INPUT_MODES)[number];
 /** Minimum permission to access a nav route (owner bypasses). */
 export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | PermissionKey[]>> = {
   "/": "order_view",
+  "/operations": ["pos_access", "order_view", "session_view"],
   "/pos": "pos_access",
   "/kitchen": "order_view",
   "/orders": "order_view",
+  "/sales-documents": "checkout_create",
   "/sales-invoices": "checkout_create",
+  "/quotations": "checkout_create",
+  "/sales-orders": "checkout_create",
+  "/credit-notes": "checkout_create",
   "/online-orders": "order_view",
   "/devices": "settings_manage",
   "/inventory/warehouses": "settings_manage",
+  "/catalog": ["product_manage", "barcode_label_print", "inventory_view"],
   "/products": "product_manage",
   "/inventory": "inventory_view",
+  "/purchasing": "purchase_manage",
   "/inventory/purchases": "purchase_manage",
+  "/inventory/purchases/price-list": "purchase_manage",
+  "/inventory/purchase-requests": "purchase_manage",
+  "/inventory/purchase-orders": "purchase_manage",
+  "/inventory/purchase-returns": "purchase_manage",
   "/inventory/suppliers": "purchase_manage",
+  "/inventory/containers": "purchase_manage",
+  "/inventory/customs-certificates": "purchase_manage",
   "/inventory/transfers": "transfer_manage",
   "/inventory/waste": "waste_manage",
   "/inventory/stock-count": "stock_count_manage",
@@ -205,19 +255,25 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/sessions": "session_view",
   "/expenses": "expense_view_all",
   "/accounting": "gl_view",
+  "/accounting/accounts": "gl_view",
   "/accounting/journals": "gl_view",
   "/accounting/trial-balance": "gl_view",
   "/accounting/ledger": "gl_view",
   "/accounting/income-statement": "gl_view",
   "/accounting/balance-sheet": "gl_view",
   "/customers": "customer_manage",
+  "/customers/directory": "customer_manage",
   "/customers/loyalty": "loyalty_manage",
   "/promotions": "manage_promotions",
   "/reports": "reports_view",
   "/reports/sales": "reports_view",
+  "/reports/sales/product": "reports_view",
+  "/reports/sales/branch": "reports_view",
+  "/reports/sales/cashier": "reports_view",
   "/reports/sessions": "reports_view",
   "/reports/daily-close": "reports_view",
   "/reports/aging": "reports_view",
+  "/reports/statement": "reports_view",
   "/reports/tax": "reports_view",
   "/reports/replenishment": "reports_view",
   "/reports/cashiers": "reports_view",
@@ -232,6 +288,13 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/reports/expenses": "financial_reports_view",
   "/labels": "barcode_label_print",
   "/monthly-closing": "monthly_closing_manage",
+  "/admin": [
+    "settings_manage",
+    "session_settings_manage",
+    "user_manage",
+    "cost_center_manage",
+    "audit_view",
+  ],
   "/settings": [
     "settings_manage",
     "session_settings_manage",
@@ -325,6 +388,22 @@ export function canPrintReports(
   return role === "owner" || role === "manager";
 }
 
+/** A4 commercial documents (invoices, quotes, POs) — cashiers must print after a sale. */
+export function canPrintCommercialDocuments(
+  role: UserRole,
+  permissions?: Set<PermissionKey>
+): boolean {
+  if (canPrintReports(role, permissions)) return true;
+  if (
+    permissions?.has("pos_access") ||
+    permissions?.has("checkout_create") ||
+    permissions?.has("purchase_manage")
+  ) {
+    return true;
+  }
+  return role === "cashier" || role === "inventory";
+}
+
 /** Label Studio + `/print/labels` — independent of `reports_print`. */
 export function canPrintBarcodeLabels(
   role: UserRole,
@@ -332,6 +411,16 @@ export function canPrintBarcodeLabels(
 ): boolean {
   if (permissions?.has("barcode_label_print")) return true;
   return role === "owner" || role === "manager" || role === "inventory";
+}
+
+/** Count sheets / count results — inventory operators print these, not only managers. */
+export function canPrintStockCount(
+  role: UserRole,
+  permissions?: Set<PermissionKey>
+): boolean {
+  if (canPrintReports(role, permissions)) return true;
+  if (permissions?.has("stock_count_manage")) return true;
+  return role === "inventory";
 }
 
 export function canExportExcel(
@@ -354,51 +443,80 @@ export const NAV_GROUPS = [
   {
     label: "Dashboard",
     icon: "LayoutDashboard",
-    items: [
-      { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
-      { label: "User Guide", href: "/guide", icon: "BookOpen" },
-    ],
+    items: [{ label: "Dashboard", href: "/", icon: "LayoutDashboard" }],
   },
   {
-    label: "Sales",
-    icon: "ShoppingCart",
+    label: "Operations",
+    icon: "Clock",
     items: [
+      { label: "Operations Overview", href: "/operations", icon: "LayoutDashboard" },
       { label: "POS", href: "/pos", icon: "ShoppingCart" },
       { label: "Kitchen Display", href: "/kitchen", icon: "ClipboardList" },
       { label: "Orders", href: "/orders", icon: "Receipt" },
-      { label: "Sales Invoices", href: "/sales-invoices", icon: "Receipt" },
       { label: "Online Orders", href: "/online-orders", icon: "Receipt" },
       { label: "Cashier Sessions", href: "/sessions", icon: "Clock" },
-      { label: "Promotions", href: "/promotions", icon: "Tag" },
     ],
   },
   {
-    label: "Inventory",
-    icon: "Package",
+    label: "Sales Documents",
+    icon: "FileSpreadsheet",
     items: [
-      { label: "Products", href: "/products", icon: "Package" },
-      { label: "Stock", href: "/inventory", icon: "Warehouse" },
-      { label: "Warehouses", href: "/inventory/warehouses", icon: "Warehouse" },
-      { label: "Purchases", href: "/inventory/purchases", icon: "Truck" },
-      { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
-      { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
-      { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
-      { label: "Stock Count", href: "/inventory/stock-count", icon: "ClipboardList" },
+      { label: "Sales Documents Overview", href: "/sales-documents", icon: "LayoutDashboard" },
+      { label: "Quotations", href: "/quotations", icon: "FileSpreadsheet" },
+      { label: "Sales Orders", href: "/sales-orders", icon: "ClipboardList" },
+      { label: "Sales Invoices", href: "/sales-invoices", icon: "Receipt" },
+      { label: "Credit Notes", href: "/credit-notes", icon: "ScrollText" },
     ],
   },
   {
     label: "Customers",
     icon: "Users",
     items: [
-      { label: "Customers", href: "/customers", icon: "Users" },
+      { label: "Customers Overview", href: "/customers", icon: "LayoutDashboard" },
+      { label: "Customer Directory", href: "/customers/directory", icon: "Users" },
       { label: "Loyalty", href: "/customers/loyalty", icon: "Heart" },
+      { label: "Promotions", href: "/promotions", icon: "Tag" },
+    ],
+  },
+  {
+    label: "Products",
+    icon: "Package",
+    items: [
+      { label: "Catalog Overview", href: "/catalog", icon: "LayoutDashboard" },
+      { label: "Products", href: "/products", icon: "Package" },
+      { label: "Barcode Labels", href: "/labels", icon: "Barcode" },
+    ],
+  },
+  {
+    label: "Inventory",
+    icon: "Warehouse",
+    items: [
+      { label: "Stock", href: "/inventory", icon: "Warehouse" },
+      { label: "Warehouses", href: "/inventory/warehouses", icon: "Warehouse" },
+      { label: "Stock Movements", href: "/inventory/movements", icon: "ClipboardList" },
+      { label: "Transfers", href: "/inventory/transfers", icon: "ArrowLeftRight" },
+      { label: "Waste", href: "/inventory/waste", icon: "Trash2" },
+      { label: "Stock Count", href: "/inventory/stock-count", icon: "ClipboardList" },
+    ],
+  },
+  {
+    label: "Purchasing",
+    icon: "Truck",
+    items: [
+      { label: "Purchasing Overview", href: "/purchasing", icon: "LayoutDashboard" },
+      { label: "Purchase Requests", href: "/inventory/purchase-requests", icon: "ClipboardList" },
+      { label: "Purchase Orders", href: "/inventory/purchase-orders", icon: "FileSpreadsheet" },
+      { label: "Purchases", href: "/inventory/purchases", icon: "Truck" },
+      { label: "Purchase Returns", href: "/inventory/purchase-returns", icon: "ScrollText" },
+      { label: "Suppliers", href: "/inventory/suppliers", icon: "Building2" },
     ],
   },
   {
     label: "Accounting",
     icon: "Calculator",
     items: [
-      { label: "Chart of Accounts", href: "/accounting", icon: "Landmark" },
+      { label: "Accounting Overview", href: "/accounting", icon: "LayoutDashboard" },
+      { label: "Chart of Accounts", href: "/accounting/accounts", icon: "Landmark" },
       { label: "Journal Entries", href: "/accounting/journals", icon: "ScrollText" },
       { label: "Trial Balance", href: "/accounting/trial-balance", icon: "BarChart3" },
       { label: "Account Ledger", href: "/accounting/ledger", icon: "BookOpen" },
@@ -419,17 +537,20 @@ export const NAV_GROUPS = [
       { label: "Profit Report", href: "/reports/profit", icon: "CircleDollarSign" },
       { label: "Inventory Report", href: "/reports/inventory", icon: "Warehouse" },
       { label: "Aging Report", href: "/reports/aging", icon: "Calendar" },
+      { label: "Party Statement", href: "/reports/statement", icon: "BookOpen" },
       { label: "Tax Report", href: "/reports/tax", icon: "FileSpreadsheet" },
-      { label: "Barcode Labels", href: "/labels", icon: "Barcode" },
     ],
   },
   {
     label: "Administration",
     icon: "Settings",
     items: [
+      { label: "Administration Overview", href: "/admin", icon: "LayoutDashboard" },
       { label: "Users", href: "/users", icon: "Shield" },
+      { label: "Devices", href: "/devices", icon: "MonitorSmartphone" },
       { label: "Settings", href: "/settings", icon: "Settings" },
       { label: "Audit Logs", href: "/audit", icon: "ScrollText" },
+      { label: "User Guide", href: "/guide", icon: "BookOpen" },
     ],
   },
 ] as const;
@@ -459,6 +580,8 @@ export const FEATURE_FLAGS = [
   "stock_count",
   "transfers",
   "purchases",
+  /** Manual opt-in: shipping containers + customs certificates + document FX. Never activity preset. */
+  "purchase_imports",
   "waste",
   "recipes",
   "credit_sales",
@@ -514,6 +637,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   stock_count: true,
   transfers: true,
   purchases: true,
+  purchase_imports: false,
   waste: true,
   recipes: true,
   credit_sales: false,

@@ -23,6 +23,11 @@ vi.mock("@/lib/repositories/order.repository");
 vi.mock("@/lib/repositories/catalog.repository");
 vi.mock("@/lib/repositories/customer.repository");
 vi.mock("@/lib/repositories/warehouse.repository");
+vi.mock("next/server", () => ({
+  after: (fn: () => void) => {
+    void fn();
+  },
+}));
 vi.mock("@/lib/repositories/recipe.repository", () => ({
   getRecipeWithLines: vi.fn().mockResolvedValue(null),
   computeRecipeTotalCost: vi.fn().mockReturnValue(0),

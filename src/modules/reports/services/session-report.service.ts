@@ -31,12 +31,12 @@ export async function getSessionReport(
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
 
-  const sessions = (await sessionRepo.listSessions(storeId)).filter(
-    (s) => new Date(s.opened_at) >= cutoff
-  );
+  const [sessions, users, stores] = await Promise.all([
+    sessionRepo.listSessions(storeId, { openedSince: cutoff.toISOString() }),
+    userRepo.listUsers(),
+    storeRepo.listStores(),
+  ]);
 
-  const users = await userRepo.listUsers();
-  const stores = await storeRepo.listStores();
   const userMap = new Map(users.map((u) => [u.id, u.name]));
   const storeMap = new Map(stores.map((s) => [s.id, s.name]));
 

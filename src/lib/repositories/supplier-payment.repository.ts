@@ -2,6 +2,7 @@ import { getDb, throwDbError } from "@/lib/repositories/client";
 import { mapSupplierPayment } from "@/lib/repositories/mappers";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { listStores } from "@/lib/repositories/store.repository";
+import { chunkIds } from "@/lib/query-chunks";
 import type { PaymentMethod } from "@/lib/types";
 import type { SupplierPayment } from "@/lib/types";
 
@@ -74,6 +75,32 @@ export async function listPaymentsForStore(
   const { data, error } = await q.order("paid_at", { ascending: false });
   if (error) throwDbError(error, "listPaymentsForStore");
   return (data ?? []).map(mapSupplierPayment);
+}
+
+/** Batch supplier payments across stores — avoids per-store N queries in AP aging. */
+export async function listPaymentsForStores(
+  storeIds: string[]
+): Promise<SupplierPayment[]> {
+  const allowed = new Set((await listStores()).map((s) => s.id));
+  const scoped = storeIds.filter((id) => allowed.has(id));
+  if (scoped.length === 0) return [];
+
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const rows: SupplierPayment[] = [];
+
+  for (const chunk of chunkIds(scoped)) {
+    const { data, error } = await db
+      .from("supplier_payments")
+      .select("*")
+      .eq("org_id", orgId)
+      .in("store_id", chunk)
+      .order("paid_at", { ascending: false });
+    if (error) throwDbError(error, "listPaymentsForStores");
+    rows.push(...(data ?? []).map(mapSupplierPayment));
+  }
+
+  return rows;
 }
 
 export async function listPaymentsForSessions(

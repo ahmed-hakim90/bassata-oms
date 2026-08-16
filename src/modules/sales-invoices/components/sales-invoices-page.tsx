@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Pencil, Plus } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +25,7 @@ import { formatCurrency, formatDateTime } from "@/lib/format";
 import { selectLabelById } from "@/lib/select-label";
 import type {
   Customer,
+  Order,
   PaymentMethod,
   Product,
   ProductPriceTier,
@@ -46,19 +48,40 @@ interface SalesInvoicesPageProps {
   currency: string;
   enabledPaymentMethods: PaymentMethod[];
   canCorrectCosts?: boolean;
+  canManagePrintEngine?: boolean;
+  documentKind?: NonNullable<Order["document_kind"]>;
+  basePath?: string;
+  title?: string;
+  description?: string;
+  createLabel?: string;
+  allowCreate?: boolean;
 }
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   draft: "مسودة",
   issued: "صادرة",
   delivered: "مُسلَّمة",
-} as const;
+  sent: "مُرسل",
+  accepted: "مقبول",
+  rejected: "مرفوض",
+  expired: "منتهي",
+  confirmed: "مؤكد",
+  cancelled: "ملغي",
+  invoiced: "مفوتر",
+};
 
-const statusVariant = {
+const statusVariant: Record<string, "draft" | "info" | "success" | "danger" | "warning"> = {
   draft: "draft",
   issued: "info",
   delivered: "success",
-} as const;
+  sent: "info",
+  accepted: "success",
+  rejected: "danger",
+  expired: "warning",
+  confirmed: "info",
+  cancelled: "danger",
+  invoiced: "success",
+};
 
 export function SalesInvoicesPage({
   invoices: initial,
@@ -69,6 +92,13 @@ export function SalesInvoicesPage({
   currency,
   enabledPaymentMethods,
   canCorrectCosts = false,
+  canManagePrintEngine = false,
+  documentKind = "sales_invoice",
+  basePath = "/sales-invoices",
+  title = "فواتير المبيعات",
+  description = "مسودة → إصدار → تسليم وخصم مخزون",
+  createLabel = "فاتورة جديدة",
+  allowCreate = true,
 }: SalesInvoicesPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -120,7 +150,7 @@ export function SalesInvoicesPage({
       setDraftDefaults(defaults);
       setCreating(true);
       refreshCatalog(true);
-      void createSalesInvoiceAction(defaults).then((result) => {
+      void createSalesInvoiceAction({ ...defaults, documentKind }).then((result) => {
         if (!result.ok) {
           toast.error(result.error);
           if (formOpenRef.current) {
@@ -145,7 +175,7 @@ export function SalesInvoicesPage({
         if (formOpenRef.current) setActiveId(next.id);
       });
     },
-    [refreshCatalog, warehouses, customers]
+    [refreshCatalog, warehouses, customers, documentKind]
   );
 
   // Pick up product/tier price edits after leaving the tab (throttled).
@@ -164,19 +194,19 @@ export function SalesInvoicesPage({
     setActiveId(openFromQuery);
     const inList = initial.some((inv) => inv.id === openFromQuery);
     if (inList) {
-      router.replace("/sales-invoices", { scroll: false });
+      router.replace(basePath, { scroll: false });
       return;
     }
     startTransition(async () => {
       const detail = await getSalesInvoiceDetailAction(openFromQuery);
       if (!detail.ok) {
         toast.error(detail.error);
-        router.replace("/sales-invoices", { scroll: false });
+        router.replace(basePath, { scroll: false });
         return;
       }
       setInvoices((prev) => [detail.data, ...prev.filter((i) => i.id !== detail.data.id)]);
       setActiveId(detail.data.id);
-      router.replace("/sales-invoices", { scroll: false });
+      router.replace(basePath, { scroll: false });
     });
   }, [openFromQuery, openBootstrapped, initial, router, startTransition]);
 
@@ -187,11 +217,11 @@ export function SalesInvoicesPage({
       warehouseId || warehouses.find((w) => w.is_default)?.id || warehouses[0]?.id || "";
     if (!nextWarehouseId) {
       toast.error("اختار المخزن أولاً");
-      router.replace("/sales-invoices", { scroll: false });
+      router.replace(basePath, { scroll: false });
       return;
     }
     startDraftCreate({ warehouseId: nextWarehouseId, customerId: null });
-    router.replace("/sales-invoices", { scroll: false });
+    router.replace(basePath, { scroll: false });
   }, [
     createFromQuery,
     createBootstrapped,
@@ -210,6 +240,36 @@ export function SalesInvoicesPage({
   const drafts = invoices.filter((i) => i.document_status === "draft");
   const issued = invoices.filter((i) => i.document_status === "issued");
   const delivered = invoices.filter((i) => i.document_status === "delivered");
+  const sent = invoices.filter((i) => i.document_status === "sent");
+  const accepted = invoices.filter((i) => i.document_status === "accepted");
+  const confirmed = invoices.filter((i) => i.document_status === "confirmed");
+  const invoiced = invoices.filter((i) => i.document_status === "invoiced");
+  const rejected = invoices.filter((i) => i.document_status === "rejected");
+
+  const tabs =
+    documentKind === "quotation"
+      ? [
+          { id: "drafts", label: "مسودات", rows: drafts },
+          { id: "sent", label: "مُرسلة", rows: sent },
+          { id: "accepted", label: "مقبولة", rows: accepted },
+          { id: "rejected", label: "مرفوضة", rows: rejected },
+        ]
+      : documentKind === "sales_order"
+        ? [
+            { id: "drafts", label: "مسودات", rows: drafts },
+            { id: "confirmed", label: "مؤكدة", rows: confirmed },
+            { id: "invoiced", label: "مفوترة", rows: invoiced },
+          ]
+        : documentKind === "credit_note"
+          ? [
+              { id: "drafts", label: "مسودات", rows: drafts },
+              { id: "issued", label: "صادرة", rows: issued },
+            ]
+          : [
+              { id: "drafts", label: "مسودات", rows: drafts },
+              { id: "issued", label: "صادرة", rows: issued },
+              { id: "delivered", label: "مُسلَّمة", rows: delivered },
+            ];
 
   function closeForm() {
     formOpenRef.current = false;
@@ -254,10 +314,10 @@ export function SalesInvoicesPage({
 
   function InvoiceCards({ rows }: { rows: SalesInvoiceWithDetails[] }) {
     if (rows.length === 0) {
-      return <EmptyStateBlock title="مفيش فواتير هنا" description="ابدأ بمسودة جديدة للجملة" />;
+      return <EmptyStateBlock title={`مفيش ${title} هنا`} description={description} />;
     }
     return (
-      <DataTableShell title={`الفواتير (${rows.length})`} scrollable={false}>
+      <DataTableShell title={`${title} (${rows.length})`} scrollable={false}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((invoice) => (
             <MobileEntityCard
@@ -310,15 +370,11 @@ export function SalesInvoicesPage({
 
   if (creating || active) {
     return (
-      <div className="flex flex-col gap-[var(--mds-space-6)]">
+      <div className="flex flex-col gap-3">
         <PageHeader
-          breadcrumb={<span>المبيعات · فواتير الجملة</span>}
-          title={active ? "فاتورة بيع" : "فاتورة بيع جديدة"}
-          description={
-            active
-              ? "أكمل المسودة ثم أصدرها أو سلّمها"
-              : "المسودة بتتحفظ في الخلفية — أضف الأصناف فور ما يظهر رقم الفاتورة"
-          }
+          breadcrumb={<span>المبيعات · {title}</span>}
+          title={active ? title : `${createLabel}`}
+          description={description}
         />
         <SalesInvoiceForm
           invoice={active}
@@ -330,6 +386,8 @@ export function SalesInvoicesPage({
           currency={currency}
           enabledPaymentMethods={enabledPaymentMethods}
           canCorrectCosts={canCorrectCosts}
+          canManagePrintEngine={canManagePrintEngine}
+          documentKind={documentKind}
           onClose={() => {
             closeForm();
             router.refresh();
@@ -351,11 +409,11 @@ export function SalesInvoicesPage({
 
   if (activeId && !active) {
     return (
-      <div className="flex flex-col gap-[var(--mds-space-6)]">
+      <div className="flex flex-col gap-3">
         <PageHeader
-          breadcrumb={<span>المبيعات · فواتير الجملة</span>}
-          title="فاتورة بيع"
-          description="جاري فتح الفاتورة"
+          breadcrumb={<span>المبيعات · {title}</span>}
+          title={title}
+          description="جاري فتح المستند"
         />
         <LoadingStateBlock label="جاري فتح الفاتورة" />
       </div>
@@ -363,12 +421,13 @@ export function SalesInvoicesPage({
   }
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
-        breadcrumb={<span>المبيعات · فواتير الجملة</span>}
-        title="فواتير المبيعات"
-        description="مسودة → إصدار → تسليم (خصم المخزون عند التسليم — مستقلة عن جلسة الكاشير)"
+        breadcrumb={<span>المبيعات · {title}</span>}
+        title={title}
+        description={description}
         action={
+          allowCreate ? (
           <div className="flex w-full flex-row flex-wrap items-end gap-2 sm:w-auto">
             <div className="space-y-1">
               <Label htmlFor="new-invoice-warehouse" className="text-xs">المخزن</Label>
@@ -419,33 +478,26 @@ export function SalesInvoicesPage({
               onClick={openNewDraft}
             >
               <Plus className="size-4" />
-              <span className="sr-only sm:not-sr-only">مسودة جديدة</span>
+              <span className="sr-only sm:not-sr-only">{createLabel}</span>
             </Button>
           </div>
+          ) : undefined
         }
       />
 
-      <Tabs defaultValue="drafts">
+      <Tabs defaultValue={tabs[0]?.id ?? "drafts"}>
         <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1 sm:inline-flex sm:w-fit">
-          <TabsTrigger value="drafts" className="min-h-10 px-2 py-2 text-xs sm:text-sm">
-            مسودات ({drafts.length})
-          </TabsTrigger>
-          <TabsTrigger value="issued" className="min-h-10 px-2 py-2 text-xs sm:text-sm">
-            صادرة ({issued.length})
-          </TabsTrigger>
-          <TabsTrigger value="delivered" className="min-h-10 px-2 py-2 text-xs sm:text-sm">
-            مُسلَّمة ({delivered.length})
-          </TabsTrigger>
+          {tabs.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id} className="min-h-10 px-2 py-2 text-xs sm:text-sm">
+              {tab.label} ({tab.rows.length})
+            </TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent value="drafts" className="mt-4">
-          <InvoiceCards rows={drafts} />
-        </TabsContent>
-        <TabsContent value="issued" className="mt-4">
-          <InvoiceCards rows={issued} />
-        </TabsContent>
-        <TabsContent value="delivered" className="mt-4">
-          <InvoiceCards rows={delivered} />
-        </TabsContent>
+        {tabs.map((tab) => (
+          <TabsContent key={tab.id} value={tab.id} className="mt-4">
+            <InvoiceCards rows={tab.rows} />
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );

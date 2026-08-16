@@ -22,12 +22,12 @@ import type { PaymentMethod } from "@/lib/types";
 import { computePosCartTotals } from "@/modules/pos/lib/cart-totals";
 import { getCartSubtotal, usePosStore } from "@/stores/pos-store";
 import { CustomerAttach } from "@/modules/pos/components/customer-attach";
-import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { playPosErrorSound } from "@/modules/pos/lib/pos-sounds";
+import { holdCurrentPosCart } from "@/modules/pos/lib/hold-current-cart";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { cn } from "@/lib/utils";
-import { holdCartAction } from "@/modules/pos/actions/held-cart.actions";
+import { OPERATOR_SHORTCUTS } from "@/lib/keyboard";
 
 const METHOD_META: Record<
   PaymentMethod,
@@ -88,6 +88,8 @@ interface CartPanelProps {
   onAttachExpandedChange?: (open: boolean) => void;
   discountOpen?: boolean;
   onDiscountOpenChange?: (open: boolean) => void;
+  /** Parent owns clear-cart confirm (F2 + button) so desktop/mobile share one dialog. */
+  onRequestClearCart?: () => void;
 }
 
 export function CartPanel({
@@ -107,6 +109,7 @@ export function CartPanel({
   onAttachExpandedChange,
   discountOpen: discountOpenProp,
   onDiscountOpenChange,
+  onRequestClearCart,
 }: CartPanelProps) {
   const { t } = useTranslation();
   const cart = usePosStore((s) => s.cart);
@@ -116,14 +119,10 @@ export function CartPanel({
   const discountAmount = usePosStore((s) => s.discountAmount);
   const updateQuantity = usePosStore((s) => s.updateQuantity);
   const removeItem = usePosStore((s) => s.removeItem);
-  const clearCart = usePosStore((s) => s.clearCart);
   const setDiscountAmount = usePosStore((s) => s.setDiscountAmount);
   const setLoyaltyRedemption = usePosStore((s) => s.setLoyaltyRedemption);
-  const holdCartLocal = usePosStore((s) => s.holdCart);
-  const reconcileHeldCartId = usePosStore((s) => s.reconcileHeldCartId);
   const [attachExpandedInternal, setAttachExpandedInternal] = useState(false);
   const [discountOpenInternal, setDiscountOpenInternal] = useState(false);
-  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
   const attachControlled = attachExpandedProp !== undefined;
   const discountControlled = discountOpenProp !== undefined;
@@ -219,41 +218,7 @@ export function CartPanel({
   }
 
   function handleHoldCart() {
-    if (!hasCart) return;
-    const state = usePosStore.getState();
-    const snapshot = {
-      cart: [...state.cart],
-      customer: state.customer,
-      customerLoyaltyBalance: state.customerLoyaltyBalance,
-      loyaltyRedemption: state.loyaltyRedemption,
-      discountAmount: state.discountAmount,
-      couponCode: state.couponCode,
-      salesMode: state.salesMode,
-      paymentMethod: state.paymentMethod,
-      paymentSplits: [...state.paymentSplits],
-      heldCarts: [...state.heldCarts],
-    };
-    const payload = {
-      name: state.customer?.name,
-      cart: snapshot.cart,
-      customer: snapshot.customer,
-      discountAmount: snapshot.discountAmount,
-      couponCode: snapshot.couponCode,
-      salesMode: snapshot.salesMode,
-    };
-    const localHeld = holdCartLocal(payload.name);
-    if (!localHeld) return;
-    toast.success("تم تعليق الفاتورة");
-
-    void holdCartAction(payload).then((result) => {
-      if (!result.success) {
-        usePosStore.setState(snapshot);
-        playPosErrorSound();
-        toast.error(result.error);
-        return;
-      }
-      reconcileHeldCartId(localHeld.id, result.heldCart);
-    });
+    holdCurrentPosCart();
   }
 
   return (
@@ -560,9 +525,14 @@ export function CartPanel({
               size="sm"
               className="h-11 min-w-0 flex-1 rounded-xl border-border/80 bg-background px-2 text-xs font-medium shadow-none"
               onClick={() => setDiscountOpen(true)}
+              aria-keyshortcuts={OPERATOR_SHORTCUTS.discount}
+              title={`خصم (${OPERATOR_SHORTCUTS.discount})`}
             >
               <Percent className="size-3.5 shrink-0" />
               خصم
+              <kbd className="ms-1 hidden rounded border border-border/60 bg-background/80 px-1 text-[10px] font-normal text-muted-foreground lg:inline">
+                {OPERATOR_SHORTCUTS.discount}
+              </kbd>
             </Button>
           ) : null}
           <Button
@@ -572,9 +542,14 @@ export function CartPanel({
             className="h-11 min-w-0 flex-1 rounded-xl border-border/80 bg-background px-2 text-xs font-medium shadow-none"
             disabled={!hasCart}
             onClick={() => handleHoldCart()}
+            aria-keyshortcuts={OPERATOR_SHORTCUTS.hold}
+            title={`تعليق (${OPERATOR_SHORTCUTS.hold})`}
           >
             <Pause className="size-3.5 shrink-0" />
             تعليق
+            <kbd className="ms-1 hidden rounded border border-border/60 bg-background/80 px-1 text-[10px] font-normal text-muted-foreground lg:inline">
+              {OPERATOR_SHORTCUTS.hold}
+            </kbd>
           </Button>
           <Button
             type="button"
@@ -582,10 +557,15 @@ export function CartPanel({
             size="sm"
             className="h-11 min-w-0 flex-1 rounded-xl border-destructive/25 bg-destructive/5 px-2 text-xs font-medium text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
             disabled={!hasCart}
-            onClick={() => setClearConfirmOpen(true)}
+            onClick={() => onRequestClearCart?.()}
+            aria-keyshortcuts={OPERATOR_SHORTCUTS.delete}
+            title={`مسح (${OPERATOR_SHORTCUTS.delete})`}
           >
             <Trash2 className="size-3.5 shrink-0" />
             مسح
+            <kbd className="ms-1 hidden rounded border border-border/60 bg-background/80 px-1 text-[10px] font-normal text-muted-foreground lg:inline">
+              {OPERATOR_SHORTCUTS.delete}
+            </kbd>
           </Button>
         </div>
 
@@ -601,6 +581,8 @@ export function CartPanel({
                   ? "grid-cols-4 lg:grid-cols-2"
                   : "grid-cols-5 lg:grid-cols-3"
           )}
+          aria-keyshortcuts="F1"
+          title="إتمام البيع بطريقة الدفع الحالية (F1)"
         >
           {methods.map((method) => {
             const meta = METHOD_META[method];
@@ -629,20 +611,6 @@ export function CartPanel({
           </p>
         ) : null}
       </div>
-
-      <ConfirmActionDialog
-        open={clearConfirmOpen}
-        onOpenChange={setClearConfirmOpen}
-        title="مسح السلة؟"
-        description="هتتمسح كل الأصناف من الفاتورة الحالية. الفواتير المعلّقة مش هتتأثر."
-        confirmLabel="مسح السلة"
-        destructive
-        onConfirm={() => {
-          clearCart();
-          setDiscountOpen(false);
-          setLoyaltyRedemption(null);
-        }}
-      />
     </div>
   );
 }

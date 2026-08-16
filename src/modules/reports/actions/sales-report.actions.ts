@@ -50,25 +50,55 @@ export async function getSalesReportPageData(params: Record<string, string | und
 
   let summary = null;
   let revenueByDay: { date: string; revenue: number; orders: number }[] = [];
+  let topProducts: {
+    id: string;
+    name: string;
+    quantity: number;
+    revenue: number;
+  }[] = [];
+  let revenueByStore: {
+    storeId: string;
+    storeName: string;
+    revenue: number;
+  }[] = [];
+
+  const legacyPromise = getSalesReport({
+    storeId,
+    days: range.days,
+    from: filters.from,
+    to: filters.to,
+  });
+
   try {
-    summary = await reportRepo.getSalesSummaryRpc({
-      storeId,
-      from: range.from.toISOString(),
-      to: range.to.toISOString(),
-      paymentMethod: filters.paymentMethod,
-    });
-    revenueByDay = await reportRepo.getSalesByDayRpc({
-      storeId,
-      from: range.from.toISOString(),
-      to: range.to.toISOString(),
-    });
+    const [rpcSummary, rpcByDay] = await Promise.all([
+      reportRepo.getSalesSummaryRpc({
+        storeId,
+        from: range.from.toISOString(),
+        to: range.to.toISOString(),
+        paymentMethod: filters.paymentMethod,
+      }),
+      reportRepo.getSalesByDayRpc({
+        storeId,
+        from: range.from.toISOString(),
+        to: range.to.toISOString(),
+      }),
+    ]);
+    const legacy = await legacyPromise;
+    summary = rpcSummary;
+    revenueByDay = rpcByDay;
+    topProducts = legacy.topProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      quantity: p.quantity,
+      revenue: p.revenue,
+    }));
+    revenueByStore = legacy.revenueByStore.map((s) => ({
+      storeId: s.storeId,
+      storeName: s.storeName,
+      revenue: s.revenue,
+    }));
   } catch {
-    const legacy = await getSalesReport({
-      storeId,
-      days: range.days,
-      from: filters.from,
-      to: filters.to,
-    });
+    const legacy = await legacyPromise;
     summary = {
       totalRevenue: legacy.totalRevenue,
       orderCount: legacy.orderCount,
@@ -78,6 +108,17 @@ export async function getSalesReportPageData(params: Record<string, string | und
       date: d.date,
       revenue: d.revenue,
       orders: d.orders,
+    }));
+    topProducts = legacy.topProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      quantity: p.quantity,
+      revenue: p.revenue,
+    }));
+    revenueByStore = legacy.revenueByStore.map((s) => ({
+      storeId: s.storeId,
+      storeName: s.storeName,
+      revenue: s.revenue,
     }));
   }
 
@@ -96,6 +137,8 @@ export async function getSalesReportPageData(params: Record<string, string | und
     context,
     summary,
     revenueByDay,
+    topProducts,
+    revenueByStore,
     orders,
     totalOrders: summary.orderCount,
   };

@@ -45,6 +45,7 @@ export function OperationalCard(props: OperationalCardProps) {
     const { title, description, action, children, className, accent } = props;
     return (
       <Card
+        size="sm"
         className={cn(
           "overflow-hidden rounded-[var(--mds-radius-lg)] border-border bg-card shadow-[var(--mds-elevation-1)]",
           className
@@ -52,17 +53,17 @@ export function OperationalCard(props: OperationalCardProps) {
       >
         {accent ? <div className="h-1 w-full" style={{ backgroundColor: accent }} /> : null}
         {(title || action) && (
-          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 pb-1.5">
             <div>
-              {title ? <CardTitle className="text-base font-semibold">{title}</CardTitle> : null}
+              {title ? <CardTitle className="text-sm font-semibold">{title}</CardTitle> : null}
               {description ? (
-                <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
               ) : null}
             </div>
             {action}
           </CardHeader>
         )}
-        <CardContent className={cn(!title && !action && "pt-4")}>{children}</CardContent>
+        <CardContent className={cn(!title && !action && "pt-3")}>{children}</CardContent>
       </Card>
     );
   }
@@ -87,20 +88,20 @@ export function OperationalCard(props: OperationalCardProps) {
       )}
     >
       <div className="h-1 w-full" style={{ backgroundColor: accent }} aria-hidden />
-      <div className="flex flex-col gap-3 p-5">
+      <div className="flex flex-col gap-2 p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               {title}
             </p>
-            <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
+            <p className="mt-0.5 text-xl font-semibold tracking-tight tabular-nums">{value}</p>
             {subtitle ? (
-              <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
           {icon ? (
             <div
-              className="flex size-10 shrink-0 items-center justify-center rounded-[var(--mds-radius-md)] text-primary-foreground"
+              className="flex size-8 shrink-0 items-center justify-center rounded-[var(--mds-radius-md)] text-primary-foreground"
               style={{ backgroundColor: accent }}
             >
               {icon}

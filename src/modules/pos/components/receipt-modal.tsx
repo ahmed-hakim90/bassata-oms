@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, Printer } from "lucide-react";
+import { FileText, MessageCircle, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +14,8 @@ import {
   type ReceiptPayload,
 } from "@/modules/pos/services/receipt-format.service";
 import { printReceiptViaUsb } from "@/modules/pos/services/receipt-usb-printer.service";
+import { DocumentPrintPreviewModal } from "@/components/print/document-print-preview-modal";
+import { useState } from "react";
 
 interface ReceiptModalProps {
   open: boolean;
@@ -22,6 +24,7 @@ interface ReceiptModalProps {
 }
 
 export function ReceiptModal({ open, onOpenChange, receipt }: ReceiptModalProps) {
+  const [a4Open, setA4Open] = useState(false);
   if (!receipt) return null;
 
   async function handleUsbPrint() {
@@ -75,6 +78,17 @@ export function ReceiptModal({ open, onOpenChange, receipt }: ReceiptModalProps)
               <MessageCircle className="size-4" />
               WhatsApp
             </Button>
+            {receipt.orderId ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 flex-1 rounded-xl"
+                onClick={() => setA4Open(true)}
+              >
+                <FileText className="size-4" />
+                فاتورة A4
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -86,6 +100,12 @@ export function ReceiptModal({ open, onOpenChange, receipt }: ReceiptModalProps)
           </div>
         </DialogContent>
       </Dialog>
+      <DocumentPrintPreviewModal
+        open={a4Open}
+        onOpenChange={setA4Open}
+        href={receipt.orderId ? `/print/orders/${receipt.orderId}?embed=1` : null}
+        title="فاتورة كاشير"
+      />
       <ReceiptPrint receipt={receipt} />
     </>
   );

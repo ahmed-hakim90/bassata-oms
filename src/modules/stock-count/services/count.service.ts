@@ -1,10 +1,19 @@
 import * as countRepo from "@/lib/repositories/stock-count.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
+import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
+import * as inventoryRepo from "@/lib/repositories/inventory.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { getOrgId } from "@/lib/repositories/organization.repository";
-import { adjustStock, getStockLevel } from "@/lib/services/inventory-movement.service";
+import { adjustStock } from "@/lib/services/inventory-movement.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
+import { roundMoney } from "@/lib/money";
 import type { StockCount, StockCountLine, StockCountStatus } from "@/lib/types";
+import { after } from "next/server";
+import { filterTrackedProducts, qtyByProductIdFromLevels } from "@/modules/stock-count/lib/count-sheet";
+import {
+  openingCountedQty,
+  shouldHealEmptyCountLines,
+} from "@/modules/stock-count/lib/counted-qty";
 
 export interface StockCountWithLines extends StockCount {
   lines: StockCountLine[];
@@ -32,44 +41,43 @@ export function isActiveStockCountStatus(status: StockCountStatus): boolean {
 
 async function buildLinesForProducts(
   count: StockCount,
-  products: Awaited<ReturnType<typeof catalogRepo.listProducts>>
+  products: Awaited<ReturnType<typeof catalogRepo.listProducts>>,
+  countFromZero = false
 ): Promise<Omit<StockCountLine, "id">[]> {
-  const lines: Omit<StockCountLine, "id">[] = [];
-  for (const product of products) {
-    const expected = await getStockLevel(
-      count.store_id,
-      count.warehouse_id,
-      product.id,
-      null
-    );
-    lines.push({
+  const levels = await inventoryRepo.listStockLevels(
+    count.store_id,
+    count.warehouse_id
+  );
+  const qtyByProductId = qtyByProductIdFromLevels(levels);
+  return products.map((product) => {
+    const expected = qtyByProductId.get(product.id) ?? 0;
+    const opening = openingCountedQty(expected, countFromZero);
+    return {
       count_id: count.id,
       product_id: product.id,
       variant_id: null,
       expected_qty: expected,
-      counted_qty: expected,
-      variance: 0,
-    });
-  }
-  return lines;
+      counted_qty: opening.countedQty,
+      variance: opening.variance,
+    };
+  });
 }
 
 /**
- * Ensures an in-progress count has lines for every active tracked product.
- * Heals empty/orphan counts created before products existed or after a failed insert.
+ * Heals empty in-progress counts (started before tracked products existed).
+ * Does not add products to a scoped count that already has lines.
  */
 export async function syncCountLines(count: StockCount): Promise<StockCountLine[]> {
   const existing = await countRepo.getStockCountLines(count.id);
   if (count.status !== "in_progress") return existing;
+  if (!shouldHealEmptyCountLines(existing.length)) return existing;
 
   const tracked = (await catalogRepo.listProducts({ activeOnly: true })).filter(
     (p) => p.track_inventory
   );
-  const existingIds = new Set(existing.map((l) => l.product_id));
-  const missing = tracked.filter((p) => !existingIds.has(p.id));
-  if (missing.length === 0) return existing;
+  if (tracked.length === 0) return existing;
 
-  await countRepo.insertStockCountLines(await buildLinesForProducts(count, missing));
+  await countRepo.insertStockCountLines(await buildLinesForProducts(count, tracked));
   return countRepo.getStockCountLines(count.id);
 }
 
@@ -107,14 +115,41 @@ export async function startStockCount(input: {
   storeId: string;
   warehouseId: string;
   createdBy: string;
+  categoryId?: string;
+  productId?: string;
+  countFromZero?: boolean;
 }): Promise<StockCountWithLines> {
   await assertPeriodOpen(input.storeId);
+  const warehouse = await warehouseRepo.getWarehouse(input.warehouseId);
+  if (!warehouse || warehouse.store_id !== input.storeId || !warehouse.is_active) {
+    throw new Error("المخزن لا يتبع الفرع المحدد أو أنه غير نشط");
+  }
   const counts = await countRepo.listStockCounts(input.storeId);
   const active = counts.find(
     (c) => isActiveStockCountStatus(c.status) && c.warehouse_id === input.warehouseId
   );
   if (active) return enrichCount(active);
 
+  const allProducts = await catalogRepo.listProducts({ activeOnly: true });
+  if (input.categoryId) {
+    const categories = await catalogRepo.listCategories();
+    if (!categories.some((category) => category.id === input.categoryId)) {
+      throw new Error("قسم المنتجات غير موجود");
+    }
+  }
+  if (input.productId && !allProducts.some((product) => product.id === input.productId)) {
+    throw new Error("المنتج غير موجود");
+  }
+
+  const tracked = filterTrackedProducts(allProducts, {
+    categoryId: input.categoryId,
+    productId: input.productId,
+  });
+  if (tracked.length === 0) {
+    throw new Error("مفيش أصناف بتتبع مخزون بالمعايير دي");
+  }
+
+  const countFromZero = input.countFromZero === true;
   const count = await countRepo.createStockCount({
     store_id: input.storeId,
     warehouse_id: input.warehouseId,
@@ -122,10 +157,9 @@ export async function startStockCount(input: {
     created_by: input.createdBy,
   });
 
-  const tracked = (await catalogRepo.listProducts({ activeOnly: true })).filter(
-    (p) => p.track_inventory
+  await countRepo.insertStockCountLines(
+    await buildLinesForProducts(count, tracked, countFromZero)
   );
-  await countRepo.insertStockCountLines(await buildLinesForProducts(count, tracked));
 
   const orgId = await getOrgId();
   await writeAuditLog({
@@ -137,6 +171,9 @@ export async function startStockCount(input: {
     entityId: count.id,
     metadata: {
       warehouseId: input.warehouseId,
+      categoryId: input.categoryId ?? null,
+      productId: input.productId ?? null,
+      countFromZero,
       lineCount: tracked.length,
     },
   });
@@ -304,6 +341,16 @@ export async function postCountAdjustments(
     });
   }
 
+  const productIds = [...new Set(lines.map((line) => line.product_id))];
+  const products = await catalogRepo.getProductsByIds(productIds);
+  const inventoryDeltaValue = roundMoney(
+    lines.reduce((sum, line) => {
+      if (line.variance === 0) return sum;
+      const unitCost = Math.max(0, products.get(line.product_id)?.last_unit_cost ?? 0);
+      return sum + line.variance * unitCost;
+    }, 0)
+  );
+
   const updated = await countRepo.updateStockCount(countId, {
     status: "completed",
     completed_at: new Date().toISOString(),
@@ -318,7 +365,29 @@ export async function postCountAdjustments(
     action: "stock_count.completed",
     entityType: "stock_count",
     entityId: countId,
-    metadata: { adjustedLines: lines.filter((l) => l.variance !== 0).length },
+    metadata: {
+      adjustedLines: lines.filter((l) => l.variance !== 0).length,
+      inventoryDeltaValue,
+    },
+  });
+
+  after(() => {
+    void (async () => {
+      try {
+        const { safePostStockCountJournal } = await import(
+          "@/modules/accounting/services/gl-posting.service"
+        );
+        await safePostStockCountJournal({
+          countId,
+          storeId: count.store_id,
+          inventoryDeltaValue,
+          createdBy: userId,
+          memo: `فروقات جرد`,
+        });
+      } catch (error) {
+        console.error("[stock-count] deferred GL post failed", error);
+      }
+    })();
   });
 
   return updated;

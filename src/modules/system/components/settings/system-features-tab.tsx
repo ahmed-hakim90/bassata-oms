@@ -25,6 +25,7 @@ const featureFlagLabels: Partial<Record<FeatureFlag, string>> = {
   stock_count: "جرد المخزون",
   transfers: "التحويلات",
   purchases: "المشتريات",
+  purchase_imports: "استيراد الحاويات والشهادات",
   waste: "الهالك",
   recipes: "الوصفات",
   credit_sales: "البيع الآجل",
@@ -39,6 +40,8 @@ const featureFlagHints: Partial<Record<FeatureFlag, string>> = {
     "بعد إقفال الفترة يتوقف البيع والمخزون والمصروفات على التواريخ داخل الفترة المقفولة.",
   general_ledger:
     "دليل الحسابات والقيود اليومية وميزان المراجعة — مع ترحيل تلقائي من البيع والمصروفات والمدفوعات.",
+  purchase_imports:
+    "اختياري يدوي: حاويات + شهادة جمركية + شراء بالدولار. مش بيتفعّل من نوع النشاط.",
 };
 
 interface SystemFeaturesTabProps {

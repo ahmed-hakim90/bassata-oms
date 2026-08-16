@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useDisplayPathname } from "@/hooks/use-display-pathname";
 import { useEffect, useTransition } from "react";
 import { Menu, Search, ShoppingCart, Store } from "lucide-react";
 import { setActiveStoreAction } from "@/modules/auth/actions/set-store.action";
@@ -92,7 +92,7 @@ export function AppShellHeader({
   posReadinessState,
 }: AppShellHeaderProps) {
   const { t } = useTranslation();
-  const pathname = usePathname();
+  const pathname = useDisplayPathname();
   const [pending, startTransition] = useTransition();
   const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen);
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);

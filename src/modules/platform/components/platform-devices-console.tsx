@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import { Ban, CheckCircle2, Download, Search } from "lucide-react";
 import { PageHeader } from "@/components/Velora/page-header";
@@ -37,7 +37,7 @@ export function PlatformDevicesConsole({ devices }: { devices: PlatformDeviceRow
   }, [devices, search]);
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         title="أجهزة POS"
         action={

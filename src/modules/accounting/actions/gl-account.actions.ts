@@ -12,6 +12,13 @@ import {
   type GlAccountTreeNode,
 } from "@/modules/accounting/services/gl-account.service";
 import {
+  exportChartOfAccountsWorkbook,
+  importChartOfAccounts,
+  previewChartOfAccountsImport,
+  type ParsedCoaImport,
+} from "@/modules/accounting/services/coa-import.service";
+import type { CoaImportRow } from "@/modules/accounting/lib/coa-import";
+import {
   getAccountingOverview,
   type AccountingOverview,
 } from "@/modules/accounting/services/accounting-overview.service";
@@ -65,6 +72,7 @@ export async function createGlAccountAction(input: {
     await requirePermissionOrRole("gl_manage", ["owner", "manager"]);
     await createGlAccount(input);
     revalidatePath("/accounting");
+    revalidatePath("/accounting/accounts");
   });
 }
 
@@ -85,6 +93,7 @@ export async function updateGlAccountAction(
     await requirePermissionOrRole("gl_manage", ["owner", "manager"]);
     await updateGlAccount(id, patch);
     revalidatePath("/accounting");
+    revalidatePath("/accounting/accounts");
   });
 }
 
@@ -96,5 +105,49 @@ export async function deactivateGlAccountAction(
     await requirePermissionOrRole("gl_manage", ["owner", "manager"]);
     await deactivateGlAccount(id);
     revalidatePath("/accounting");
+    revalidatePath("/accounting/accounts");
+  });
+}
+
+export async function previewChartOfAccountsImportAction(
+  base64: string
+): Promise<GlAccountActionResult<ParsedCoaImport>> {
+  return run(async () => {
+    await requireFeature("general_ledger");
+    await requirePermissionOrRole("gl_manage", ["owner", "manager"]);
+    return previewChartOfAccountsImport(base64);
+  });
+}
+
+export async function importChartOfAccountsAction(
+  rows: CoaImportRow[]
+): Promise<
+  GlAccountActionResult<{
+    created: number;
+    updated: number;
+    unchanged: number;
+  }>
+> {
+  return run(async () => {
+    await requireFeature("general_ledger");
+    const user = await requirePermissionOrRole("gl_manage", ["owner", "manager"]);
+    const result = await importChartOfAccounts(rows, user.id);
+    revalidatePath("/accounting");
+    revalidatePath("/accounting/accounts");
+    return {
+      created: result.created,
+      updated: result.updated,
+      unchanged: result.unchanged,
+    };
+  });
+}
+
+export async function exportChartOfAccountsAction(): Promise<
+  GlAccountActionResult<{ filename: string; base64: string }>
+> {
+  return run(async () => {
+    await requireFeature("general_ledger");
+    await requirePermissionOrRole("gl_view", ["owner", "manager"]);
+    return exportChartOfAccountsWorkbook();
   });
 }

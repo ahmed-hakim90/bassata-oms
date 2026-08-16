@@ -4,10 +4,13 @@ import { SupplierDetailPage } from "@/modules/suppliers/components/supplier-deta
 
 export default async function SupplierDetailRoute({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ pay?: string }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   const data = await getSupplierDetailDataAction(id);
   if (!data) notFound();
 
@@ -18,6 +21,7 @@ export default async function SupplierDetailRoute({
       canManagePayments={data.canManagePayments}
       canEditSupplier={data.canEditSupplier}
       storeId={data.storeId}
+      initialPayOpen={query.pay === "1" && data.canManagePayments}
     />
   );
 }

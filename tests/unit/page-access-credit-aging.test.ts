@@ -3,13 +3,13 @@ import { filterNavByAccess } from "@/lib/auth/nav";
 import { getPageAccessDenial } from "@/lib/auth/page-access";
 
 describe("aging report credit_sales gate", () => {
-  it("hides aging when credit_sales is off", () => {
+  it("keeps aging nav when credit_sales is off (supplier AP still available)", () => {
     const items = filterNavByAccess(
       "owner",
       new Set(),
       { reports: true, credit_sales: false }
     ).flatMap((g) => g.items.map((i) => i.href));
-    expect(items).not.toContain("/reports/aging");
+    expect(items).toContain("/reports/aging");
   });
 
   it("shows aging when credit_sales is on", () => {
@@ -21,13 +21,13 @@ describe("aging report credit_sales gate", () => {
     expect(items).toContain("/reports/aging");
   });
 
-  it("denies aging page when credit_sales is off", () => {
+  it("allows aging page when credit_sales is off", () => {
     const denial = getPageAccessDenial(
       "/reports/aging",
       "owner",
       { reports: true, credit_sales: false },
       new Set()
     );
-    expect(denial).not.toBeNull();
+    expect(denial).toBeNull();
   });
 });

@@ -20,9 +20,13 @@ export type NavAccessOptions = {
 const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/reports": "reports",
   "/reports/sales": "reports",
+  "/reports/sales/product": "reports",
+  "/reports/sales/branch": "reports",
+  "/reports/sales/cashier": "reports",
   "/reports/sessions": "reports",
   "/reports/daily-close": "reports",
   "/reports/aging": "reports",
+  "/reports/statement": "reports",
   "/reports/tax": "reports",
   "/reports/replenishment": "reports",
   "/reports/cashiers": "reports",
@@ -37,7 +41,14 @@ const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/reports/expenses": "reports",
   "/monthly-closing": "monthly_closing",
   "/inventory/purchases": "purchases",
+  "/inventory/purchases/price-list": "purchases",
+  "/inventory/purchase-requests": "purchases",
+  "/inventory/purchase-orders": "purchases",
+  "/inventory/purchase-returns": "purchases",
   "/inventory/suppliers": "purchases",
+  "/inventory/containers": "purchase_imports",
+  "/inventory/customs-certificates": "purchase_imports",
+  "/purchasing": "purchases",
   "/inventory/transfers": "transfers",
   "/inventory/waste": "waste",
   "/inventory/stock-count": "stock_count",
@@ -45,6 +56,7 @@ const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/promotions": "promotions",
   "/expenses": "session_expenses",
   "/accounting": "general_ledger",
+  "/accounting/accounts": "general_ledger",
   "/accounting/journals": "general_ledger",
   "/accounting/trial-balance": "general_ledger",
   "/accounting/ledger": "general_ledger",
@@ -52,8 +64,13 @@ const FEATURE_BY_PATH: Partial<Record<string, FeatureFlag>> = {
   "/accounting/balance-sheet": "general_ledger",
 };
 
+function navHrefPath(href: string): string {
+  const q = href.indexOf("?");
+  return q === -1 ? href : href.slice(0, q);
+}
+
 function pathAllowedByPermission(href: string, permissions: Set<PermissionKey>): boolean {
-  const required = PATH_PERMISSIONS[href];
+  const required = PATH_PERMISSIONS[navHrefPath(href)];
   if (!required) return true;
   if (Array.isArray(required)) return required.some((k) => permissions.has(k));
   return permissions.has(required);
@@ -66,6 +83,7 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/settings",
     "/audit",
     "/devices",
+    "/admin",
     "/inventory/warehouses",
     "/monthly-closing",
   ]);
@@ -73,12 +91,19 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/users",
     "/settings",
     "/audit",
+    "/admin",
+    "/catalog",
+    "/purchasing",
     "/monthly-closing",
     "/reports",
     "/reports/sales",
+    "/reports/sales/product",
+    "/reports/sales/branch",
+    "/reports/sales/cashier",
     "/reports/sessions",
     "/reports/daily-close",
     "/reports/aging",
+    "/reports/statement",
     "/reports/tax",
     "/reports/replenishment",
     "/reports/cashiers",
@@ -95,17 +120,23 @@ function filterNavByRoleLegacy(role: UserRole) {
     "/products",
     "/inventory",
     "/inventory/purchases",
+    "/inventory/purchase-requests",
+    "/inventory/purchase-orders",
+    "/inventory/purchase-returns",
     "/inventory/suppliers",
     "/inventory/transfers",
     "/inventory/waste",
     "/inventory/stock-count",
     "/inventory/warehouses",
+    "/inventory/movements",
     "/devices",
     "/customers",
+    "/customers/directory",
     "/customers/loyalty",
     "/promotions",
     "/expenses",
     "/accounting",
+    "/accounting/accounts",
     "/accounting/journals",
     "/accounting/trial-balance",
     "/accounting/ledger",
@@ -119,6 +150,8 @@ function filterNavByRoleLegacy(role: UserRole) {
       return (
         href === "/" ||
         href === "/products" ||
+        href === "/catalog" ||
+        href === "/purchasing" ||
         href === "/inventory" ||
         href.startsWith("/inventory/") ||
         href === "/reports/product-card"
@@ -129,36 +162,47 @@ function filterNavByRoleLegacy(role: UserRole) {
   };
 }
 
+export function navItemAllowed(
+  href: string,
+  role: UserRole,
+  permissions: Set<PermissionKey>,
+  flags?: Partial<Record<FeatureFlag, boolean>>,
+  options?: NavAccessOptions
+): boolean {
+  const path = navHrefPath(href);
+  const flag = FEATURE_BY_PATH[path];
+  if (flag && flags?.[flag] === false) return false;
+  if (
+    path === "/sales-documents" ||
+    path === "/sales-invoices" ||
+    path === "/quotations" ||
+    path === "/sales-orders" ||
+    path === "/credit-notes"
+  ) {
+    if (options?.enableWholesaleSales === false) return false;
+    if (role === "cashier" && options?.allowCashierWholesale === false) {
+      return false;
+    }
+  }
+  if (path === "/kitchen" && options?.enableKitchenDisplay === false) {
+    return false;
+  }
+  if (role === "owner") return true;
+  if (permissions.size === 0) return filterNavByRoleLegacy(role)(path);
+  return pathAllowedByPermission(path, permissions);
+}
+
 export function filterNavByAccess(
   role: UserRole,
   permissions: Set<PermissionKey>,
   flags?: Partial<Record<FeatureFlag, boolean>>,
   options?: NavAccessOptions
 ) {
-  const useLegacy = permissions.size === 0;
-  const legacyAllow = useLegacy ? filterNavByRoleLegacy(role) : null;
-
   return NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => {
-      const flag = FEATURE_BY_PATH[item.href];
-      if (flag && flags?.[flag] === false) return false;
-      if (item.href === "/sales-invoices") {
-        if (options?.enableWholesaleSales === false) return false;
-        if (role === "cashier" && options?.allowCashierWholesale === false) {
-          return false;
-        }
-      }
-      if (item.href === "/kitchen" && options?.enableKitchenDisplay === false) {
-        return false;
-      }
-      if (item.href === "/reports/aging" && flags?.credit_sales === false) {
-        return false;
-      }
-      if (role === "owner") return true;
-      if (useLegacy && legacyAllow) return legacyAllow(item.href);
-      return pathAllowedByPermission(item.href, permissions);
-    }),
+    items: group.items.filter((item) =>
+      navItemAllowed(item.href, role, permissions, flags, options)
+    ),
   })).filter((g) => g.items.length > 0);
 }
 

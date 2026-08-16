@@ -1,0 +1,157 @@
+import { describe, expect, it } from "vitest";
+import {
+  mapRawCoaRow,
+  orderCoaImportRows,
+  parseCoaAccountType,
+  parseCoaImportRows,
+  planCoaImport,
+  resolveCoaHeader,
+} from "@/modules/accounting/lib/coa-import";
+
+describe("coa import parser", () => {
+  it("maps Arabic and English headers", () => {
+    expect(resolveCoaHeader("كود")).toBe("code");
+    expect(resolveCoaHeader("كود الحساب")).toBe("code");
+    expect(resolveCoaHeader("Account_Type")).toBe("account_type");
+    expect(resolveCoaHeader("كود الأب")).toBe("parent_code");
+  });
+
+  it("maps Arabic account types", () => {
+    expect(parseCoaAccountType("أصل")).toBe("asset");
+    expect(parseCoaAccountType("خصوم")).toBe("liability");
+    expect(parseCoaAccountType("إيراد")).toBe("revenue");
+    expect(parseCoaAccountType("مصروف")).toBe("expense");
+    expect(parseCoaAccountType("equity")).toBe("equity");
+  });
+
+  it("parses a header + child row with Arabic columns", () => {
+    const parsed = mapRawCoaRow(
+      {
+        كود: "61",
+        اسم: "مصروفات إدارية",
+        نوع: "مصروف",
+        "كود الأب": "5",
+        "قابل للترحيل": "لا",
+        ترتيب: "6100",
+      },
+      2
+    );
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.row).toMatchObject({
+      code: "61",
+      name: "مصروفات إدارية",
+      account_type: "expense",
+      parent_code: "5",
+      is_postable: false,
+      sort_order: 6100,
+    });
+  });
+
+  it("rejects duplicate codes and orders parents first", () => {
+    const parsed = parseCoaImportRows([
+      { code: "5110", name: "كهربا", account_type: "مصروف", parent_code: "51" },
+      { code: "51", name: "تشغيل", account_type: "مصروف", parent_code: "5" },
+      { code: "5", name: "مصروفات", account_type: "مصروف" },
+      { code: "5110", name: "مكرر", account_type: "مصروف" },
+    ]);
+    expect(parsed.errors.some((e) => e.message.includes("مكرر"))).toBe(true);
+
+    const unique = parseCoaImportRows([
+      { code: "5110", name: "كهربا", account_type: "مصروف", parent_code: "51" },
+      { code: "51", name: "تشغيل", account_type: "مصروف", parent_code: "5" },
+      { code: "5", name: "مصروفات", account_type: "مصروف" },
+    ]);
+    const ordered = orderCoaImportRows(unique.rows);
+    expect(ordered.errors).toEqual([]);
+    expect(ordered.ordered.map((r) => r.code)).toEqual(["5", "51", "5110"]);
+  });
+
+  it("detects a parent cycle in the file", () => {
+    const parsed = parseCoaImportRows([
+      { code: "A", name: "أ", account_type: "أصل", parent_code: "B" },
+      { code: "B", name: "ب", account_type: "أصل", parent_code: "A" },
+    ]);
+    const ordered = orderCoaImportRows(parsed.rows);
+    expect(ordered.errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe("planCoaImport", () => {
+  const cash = {
+    id: "id-cash",
+    code: "1111",
+    name: "الصندوق / النقدية",
+    account_type: "asset" as const,
+    parent_id: "id-11",
+    is_postable: true,
+    is_system: true,
+    sort_order: 1111,
+  };
+
+  it("creates new accounts and updates names without touching system type", () => {
+    const plan = planCoaImport(
+      [cash],
+      [
+        {
+          row: 2,
+          code: "1111",
+          name: "الخزينة",
+          account_type: "asset",
+          parent_code: null,
+          is_postable: true,
+          sort_order: 1111,
+        },
+        {
+          row: 3,
+          code: "1140",
+          name: "عهد موظفين",
+          account_type: "asset",
+          parent_code: null,
+          is_postable: true,
+          sort_order: 1140,
+        },
+      ]
+    );
+    expect(plan.errors).toEqual([]);
+    expect(plan.ops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "update", id: "id-cash" }),
+        expect.objectContaining({ kind: "create" }),
+      ])
+    );
+  });
+
+  it("rejects changing a system account type", () => {
+    const plan = planCoaImport(
+      [cash],
+      [
+        {
+          row: 2,
+          code: "1111",
+          name: "الخزينة",
+          account_type: "expense",
+          parent_code: null,
+          is_postable: true,
+          sort_order: 1111,
+        },
+      ]
+    );
+    expect(plan.errors[0]?.message).toMatch(/حساب النظام/);
+    expect(plan.ops).toEqual([]);
+  });
+
+  it("rejects a missing parent", () => {
+    const plan = planCoaImport([], [
+      {
+        row: 2,
+        code: "6110",
+        name: "إيجار",
+        account_type: "expense",
+        parent_code: "61",
+        is_postable: true,
+        sort_order: 6110,
+      },
+    ]);
+    expect(plan.errors[0]?.message).toMatch(/مش موجود/);
+  });
+});

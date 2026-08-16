@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import {
   Ban,
@@ -18,7 +18,6 @@ import { OperationalCard } from "@/components/Velora/operational-card";
 import { StatusPill } from "@/components/Velora/status-pill";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
-import { KpiCard } from "@/components/Velora/kpi-card";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { Button } from "@/components/ui/button";
@@ -26,10 +25,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
 import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
-import type {
-  PlatformOrganizationSummary,
-  PlatformRollup,
-} from "@/modules/platform/services/platform-org.service";
+import { buildPlatformOrgGlance } from "@/modules/platform/lib/platform-glance";
+import { PlatformOrgAnalyticsGlance } from "@/modules/platform/components/platform-org-analytics-glance";
+import type { PlatformOrganizationSummary } from "@/modules/platform/services/platform-org.service";
 import {
   exportPlatformOrganizationsExcelAction,
   reactivateOrganizationAction,
@@ -38,15 +36,23 @@ import {
 
 interface PlatformConsoleProps {
   organizations: PlatformOrganizationSummary[];
-  rollup: PlatformRollup;
+  pendingInvites: number;
 }
 
-export function PlatformConsole({ organizations, rollup }: PlatformConsoleProps) {
+export function PlatformConsole({
+  organizations,
+  pendingInvites,
+}: PlatformConsoleProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [confirmSuspend, setConfirmSuspend] = useState<PlatformOrganizationSummary | null>(
     null
+  );
+
+  const glance = useMemo(
+    () => buildPlatformOrgGlance({ organizations, pendingInvites }),
+    [organizations, pendingInvites]
   );
 
   const filteredOrgs = useMemo(() => {
@@ -77,7 +83,7 @@ export function PlatformConsole({ organizations, rollup }: PlatformConsoleProps)
   }
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         title="إدارة المنصة"
         description="تحكم كامل في الشركات: تعليق، تفعيل، استهلاك، ودعوات."
@@ -117,32 +123,7 @@ export function PlatformConsole({ organizations, rollup }: PlatformConsoleProps)
         }
       />
 
-      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="شركات نشطة"
-          value={String(rollup.orgActive)}
-          change={`من أصل ${rollup.orgTotal}`}
-          trend="neutral"
-        />
-        <KpiCard
-          label="شركات معلّقة"
-          value={String(rollup.orgSuspended)}
-          change="موقوف تسجيل الدخول"
-          trend={rollup.orgSuspended > 0 ? "down" : "neutral"}
-        />
-        <KpiCard
-          label="دعوات معلّقة"
-          value={String(rollup.pendingInvites)}
-          change="بانتظار القبول"
-          trend="neutral"
-        />
-        <KpiCard
-          label="إجمالي الطلبات"
-          value={String(rollup.orderTotal)}
-          change={`${rollup.storeTotal} فرع · ${rollup.userTotal} مستخدم`}
-          trend="neutral"
-        />
-      </div>
+      <PlatformOrgAnalyticsGlance glance={glance} />
 
       <OperationalCard title="الشركات">
         <div className="mb-[var(--mds-space-4)]">

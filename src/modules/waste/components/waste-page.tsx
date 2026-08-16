@@ -2,12 +2,22 @@
 
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { CompactAction } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { KpiCard } from "@/components/Velora/kpi-card";
+import { ReportChartSection } from "@/modules/reports/components/report-chart-section";
 import { formatDateTime } from "@/lib/format";
 import type { Product, Warehouse } from "@/lib/types";
 import type { WasteWithProduct } from "@/modules/waste/services/waste.service";
@@ -60,16 +70,40 @@ export function WastePage({ records, summary, products, warehouses }: WastePageP
         }
       />
 
-      <div className="mb-[var(--mds-space-6)] grid gap-[var(--mds-space-4)] sm:grid-cols-3">
+      <div className="mb-3 grid gap-[var(--mds-space-4)] sm:grid-cols-3">
         <KpiCard label="الوحدات (30 يوم)" value={String(summary.totalUnits)} icon={<Trash2 className="size-5" />} />
         <KpiCard label="السجلات" value={String(summary.recordCount)} />
         <KpiCard
           label="أهم سبب"
           value={
-            summary.byReason.sort((a, b) => b.units - a.units)[0]?.label ?? "—"
+            [...summary.byReason].sort((a, b) => b.units - a.units)[0]?.label ?? "—"
           }
         />
       </div>
+
+      {summary.byReason.length > 0 ? (
+        <div className="mb-3">
+          <ReportChartSection title="الهالك حسب السبب" height={220}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[...summary.byReason]
+                  .sort((a, b) => b.units - a.units)
+                  .slice(0, 8)
+                  .map((r) => ({
+                    label: r.label.length > 10 ? `${r.label.slice(0, 10)}…` : r.label,
+                    units: r.units,
+                  }))}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="units" fill="#DC2626" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ReportChartSection>
+        </div>
+      ) : null}
 
       {records.length === 0 ? (
         <EmptyStateBlock

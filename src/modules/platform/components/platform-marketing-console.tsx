@@ -29,7 +29,7 @@ export function PlatformMarketingConsole({ orgs }: { orgs: PlatformOrgOption[] }
   const needsOrg = audience === "org_owners" || audience === "org_users";
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         title="رسائل المنصة"
       />

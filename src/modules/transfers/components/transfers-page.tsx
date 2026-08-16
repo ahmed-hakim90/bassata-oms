@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { Pencil, Plus, ArrowLeftRight } from "lucide-react";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { PageHeader } from "@/components/Velora/page-header";
+import { KpiCard } from "@/components/Velora/kpi-card";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { StatusPill } from "@/components/Velora/status-pill";
@@ -49,6 +50,14 @@ export function TransfersPage({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const statusCounts = useMemo(() => {
+    const counts = { draft: 0, sent: 0, received: 0, cancelled: 0 };
+    for (const t of transfers) {
+      counts[t.status] += 1;
+    }
+    return counts;
+  }, [transfers]);
+
   if (creating || editingId) {
     return (
       <>
@@ -87,6 +96,27 @@ export function TransfersPage({
           />
         }
       />
+
+      <div className="mb-3 grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          label="مسودة"
+          value={String(statusCounts.draft)}
+          icon={<Pencil className="size-5" />}
+        />
+        <KpiCard
+          label="مرسلة"
+          value={String(statusCounts.sent)}
+          icon={<ArrowLeftRight className="size-5" />}
+        />
+        <KpiCard
+          label="مستلمة"
+          value={String(statusCounts.received)}
+        />
+        <KpiCard
+          label="ملغاة"
+          value={String(statusCounts.cancelled)}
+        />
+      </div>
 
       {transfers.length === 0 ? (
         <EmptyStateBlock

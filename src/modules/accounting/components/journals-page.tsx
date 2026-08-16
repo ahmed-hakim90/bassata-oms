@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
 import { FilePenLine, ScrollText, Send, Sparkles, XCircle } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
@@ -53,6 +53,7 @@ const SOURCE_LABELS: Record<string, string> = {
   refund: "مرتجع / إلغاء",
   adjustment: "تسوية",
   waste: "هالك",
+  customs_certificate: "شهادة جمركية",
 };
 
 type DraftLine = {
@@ -272,11 +273,11 @@ export function JournalsPage({
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-3">
         <AccountingSubnav />
       </div>
 
-      <div className="mb-4 grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="كل القيود"
           value={String(counts.total)}

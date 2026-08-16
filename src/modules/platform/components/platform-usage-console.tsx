@@ -8,7 +8,6 @@ import { PageHeader } from "@/components/Velora/page-header";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { StatusPill } from "@/components/Velora/status-pill";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
-import { KpiCard } from "@/components/Velora/kpi-card";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
 import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
+import { buildPlatformUsageGlance } from "@/modules/platform/lib/platform-glance";
+import { PlatformUsageAnalyticsGlance } from "@/modules/platform/components/platform-usage-analytics-glance";
 import {
   type PlatformOrgUsageRow,
   type PlatformPlanId,
@@ -127,20 +128,10 @@ export function PlatformUsageConsole({ rows }: { rows: PlatformOrgUsageRow[] }) 
     });
   }, [rows, search, pressureFilter]);
 
-  const rollup = useMemo(() => {
-    let over = 0;
-    let near = 0;
-    let suspended = 0;
-    for (const row of rows) {
-      if (row.org_status === "suspended") suspended += 1;
-      if (row.pressure.worst === "over") over += 1;
-      else if (row.pressure.worst === "near") near += 1;
-    }
-    return { over, near, suspended, total: rows.length };
-  }, [rows]);
+  const glance = useMemo(() => buildPlatformUsageGlance(rows), [rows]);
 
   return (
-    <div className="flex flex-col gap-[var(--mds-space-6)]">
+    <div className="flex flex-col gap-3">
       <PageHeader
         title="الاستهلاك والحدود"
         description="مقارنة الباقة مع الاستخدام الفعلي لكل شركة (فروع / مستخدمين نشطين / سجلات تشغيل)."
@@ -167,25 +158,7 @@ export function PlatformUsageConsole({ rows }: { rows: PlatformOrgUsageRow[] }) 
         }
       />
 
-      <div className="grid gap-[var(--mds-space-4)] sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="شركات" value={String(rollup.total)} trend="neutral" />
-        <KpiCard
-          label="تجاوزت الحد"
-          value={String(rollup.over)}
-          change="تحتاج ترقية أو تعليق"
-          trend={rollup.over > 0 ? "down" : "neutral"}
-        />
-        <KpiCard
-          label="قرب الحد (≥80%)"
-          value={String(rollup.near)}
-          trend={rollup.near > 0 ? "down" : "neutral"}
-        />
-        <KpiCard
-          label="معلّقة"
-          value={String(rollup.suspended)}
-          trend="neutral"
-        />
-      </div>
+      <PlatformUsageAnalyticsGlance glance={glance} />
 
       <OperationalCard title="مصفوفة الاستهلاك">
         <div className="mb-[var(--mds-space-4)] flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

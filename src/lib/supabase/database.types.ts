@@ -590,6 +590,8 @@ export type Database = {
           org_id: string
           payment_terms: string
           phone: string
+          address: string
+          tax_id: string
           total_spent: number
           visit_count: number
         }
@@ -604,6 +606,8 @@ export type Database = {
           org_id: string
           payment_terms?: string
           phone: string
+          address?: string
+          tax_id?: string
           total_spent?: number
           visit_count?: number
         }
@@ -618,6 +622,8 @@ export type Database = {
           org_id?: string
           payment_terms?: string
           phone?: string
+          address?: string
+          tax_id?: string
           total_spent?: number
           visit_count?: number
         }
@@ -749,6 +755,35 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "devices_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_number_counters: {
+        Row: {
+          business_date: string
+          kind: string
+          last_number: number
+          store_id: string
+        }
+        Insert: {
+          business_date: string
+          kind: string
+          last_number?: number
+          store_id: string
+        }
+        Update: {
+          business_date?: string
+          kind?: string
+          last_number?: number
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_number_counters_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
@@ -1960,6 +1995,10 @@ export type Database = {
           discount: number
           document_date: string
           document_status: Database["public"]["Enums"]["sales_document_status"] | null
+          document_kind: Database["public"]["Enums"]["sales_document_kind"] | null
+          source_document_id: string | null
+          valid_until: string | null
+          document_notes: string
           id: string
           issued_at: string | null
           kitchen_status: string | null
@@ -1983,6 +2022,10 @@ export type Database = {
           discount?: number
           document_date?: string
           document_status?: Database["public"]["Enums"]["sales_document_status"] | null
+          document_kind?: Database["public"]["Enums"]["sales_document_kind"] | null
+          source_document_id?: string | null
+          valid_until?: string | null
+          document_notes?: string
           id?: string
           issued_at?: string | null
           kitchen_status?: string | null
@@ -2006,6 +2049,10 @@ export type Database = {
           discount?: number
           document_date?: string
           document_status?: Database["public"]["Enums"]["sales_document_status"] | null
+          document_kind?: Database["public"]["Enums"]["sales_document_kind"] | null
+          source_document_id?: string | null
+          valid_until?: string | null
+          document_notes?: string
           id?: string
           issued_at?: string | null
           kitchen_status?: string | null
@@ -2938,7 +2985,11 @@ export type Database = {
           production_date: string | null
           quantity: number
           unit_cost: number
+          discount_amount: number
           variant_id: string | null
+          source_line_id: string | null
+          foreign_unit_cost: number | null
+          foreign_line_total: number | null
         }
         Insert: {
           batch_number?: string | null
@@ -2952,7 +3003,11 @@ export type Database = {
           production_date?: string | null
           quantity: number
           unit_cost: number
+          discount_amount?: number
           variant_id?: string | null
+          source_line_id?: string | null
+          foreign_unit_cost?: number | null
+          foreign_line_total?: number | null
         }
         Update: {
           batch_number?: string | null
@@ -2966,7 +3021,11 @@ export type Database = {
           production_date?: string | null
           quantity?: number
           unit_cost?: number
+          discount_amount?: number
           variant_id?: string | null
+          source_line_id?: string | null
+          foreign_unit_cost?: number | null
+          foreign_line_total?: number | null
         }
         Relationships: [
           {
@@ -2992,6 +3051,165 @@ export type Database = {
           },
         ]
       }
+      customs_certificates: {
+        Row: {
+          id: string
+          org_id: string
+          store_id: string
+          certificate_number: string
+          status: Database["public"]["Enums"]["customs_certificate_status"]
+          certificate_date: string
+          notes: string
+          created_by: string
+          created_at: string
+          closed_at: string | null
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          store_id: string
+          certificate_number: string
+          status?: Database["public"]["Enums"]["customs_certificate_status"]
+          certificate_date?: string
+          notes?: string
+          created_by: string
+          created_at?: string
+          closed_at?: string | null
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          store_id?: string
+          certificate_number?: string
+          status?: Database["public"]["Enums"]["customs_certificate_status"]
+          certificate_date?: string
+          notes?: string
+          created_by?: string
+          created_at?: string
+          closed_at?: string | null
+        }
+        Relationships: []
+      }
+      customs_certificate_costs: {
+        Row: {
+          id: string
+          certificate_id: string
+          cost_type: Database["public"]["Enums"]["customs_certificate_cost_type"]
+          amount: number
+          payee_supplier_id: string | null
+          payment_method: Database["public"]["Enums"]["expense_payment_method"] | null
+          notes: string
+          posted_amount: number
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          certificate_id: string
+          cost_type?: Database["public"]["Enums"]["customs_certificate_cost_type"]
+          amount: number
+          payee_supplier_id?: string | null
+          payment_method?: Database["public"]["Enums"]["expense_payment_method"] | null
+          notes?: string
+          posted_amount?: number
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          certificate_id?: string
+          cost_type?: Database["public"]["Enums"]["customs_certificate_cost_type"]
+          amount?: number
+          payee_supplier_id?: string | null
+          payment_method?: Database["public"]["Enums"]["expense_payment_method"] | null
+          notes?: string
+          posted_amount?: number
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      purchase_containers: {
+        Row: {
+          id: string
+          org_id: string
+          store_id: string
+          warehouse_id: string
+          purchase_order_id: string
+          customs_certificate_id: string | null
+          container_number: string
+          status: Database["public"]["Enums"]["purchase_container_status"]
+          shipped_at: string | null
+          arrived_port_at: string | null
+          received_at: string | null
+          notes: string
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          store_id: string
+          warehouse_id: string
+          purchase_order_id: string
+          customs_certificate_id?: string | null
+          container_number: string
+          status?: Database["public"]["Enums"]["purchase_container_status"]
+          shipped_at?: string | null
+          arrived_port_at?: string | null
+          received_at?: string | null
+          notes?: string
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          store_id?: string
+          warehouse_id?: string
+          purchase_order_id?: string
+          customs_certificate_id?: string | null
+          container_number?: string
+          status?: Database["public"]["Enums"]["purchase_container_status"]
+          shipped_at?: string | null
+          arrived_port_at?: string | null
+          received_at?: string | null
+          notes?: string
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      purchase_container_lines: {
+        Row: {
+          id: string
+          container_id: string
+          source_line_id: string
+          product_id: string
+          variant_id: string | null
+          quantity: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          container_id: string
+          source_line_id: string
+          product_id: string
+          variant_id?: string | null
+          quantity: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          container_id?: string
+          source_line_id?: string
+          product_id?: string
+          variant_id?: string | null
+          quantity?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       purchase_invoices: {
         Row: {
           cancelled_at: string | null
@@ -3003,12 +3221,18 @@ export type Database = {
           invoice_number: string
           received_at: string | null
           status: Database["public"]["Enums"]["purchase_status"]
+          document_kind: Database["public"]["Enums"]["purchase_document_kind"]
+          source_document_id: string | null
+          document_notes: string
           store_id: string
           subtotal: number
-          supplier_id: string
+          supplier_id: string | null
           tax: number
           total: number
           warehouse_id: string
+          currency: string
+          fx_rate: number
+          container_id: string | null
         }
         Insert: {
           cancelled_at?: string | null
@@ -3020,12 +3244,18 @@ export type Database = {
           invoice_number: string
           received_at?: string | null
           status?: Database["public"]["Enums"]["purchase_status"]
+          document_kind?: Database["public"]["Enums"]["purchase_document_kind"]
+          source_document_id?: string | null
+          document_notes?: string
           store_id: string
           subtotal?: number
-          supplier_id: string
+          supplier_id?: string | null
           tax?: number
           total?: number
           warehouse_id: string
+          currency?: string
+          fx_rate?: number
+          container_id?: string | null
         }
         Update: {
           cancelled_at?: string | null
@@ -3037,12 +3267,18 @@ export type Database = {
           invoice_number?: string
           received_at?: string | null
           status?: Database["public"]["Enums"]["purchase_status"]
+          document_kind?: Database["public"]["Enums"]["purchase_document_kind"]
+          source_document_id?: string | null
+          document_notes?: string
           store_id?: string
           subtotal?: number
-          supplier_id?: string
+          supplier_id?: string | null
           tax?: number
           total?: number
           warehouse_id?: string
+          currency?: string
+          fx_rate?: number
+          container_id?: string | null
         }
         Relationships: [
           {
@@ -3428,6 +3664,8 @@ export type Database = {
           name: string
           opening_balance: number
           org_id: string
+          address: string
+          tax_id: string
         }
         Insert: {
           contact_info?: string
@@ -3435,6 +3673,8 @@ export type Database = {
           name: string
           opening_balance?: number
           org_id: string
+          address?: string
+          tax_id?: string
         }
         Update: {
           contact_info?: string
@@ -3442,6 +3682,8 @@ export type Database = {
           name?: string
           opening_balance?: number
           org_id?: string
+          address?: string
+          tax_id?: string
         }
         Relationships: [
           {
@@ -4209,8 +4451,24 @@ export type Database = {
         Returns: boolean
       }
       is_privileged_role: { Args: never; Returns: boolean }
+      issue_sales_credit_note: {
+        Args: { p_order_id: string; p_restock?: boolean }
+        Returns: Json
+      }
+      next_document_number: {
+        Args: { p_business_date: string; p_kind: string; p_store_id: string }
+        Returns: string
+      }
       platform_organization_data_size: {
         Args: { p_org_id: string }
+        Returns: Json
+      }
+      post_purchase_return: {
+        Args: {
+          p_invoice_id: string
+          p_prevent_negative?: boolean
+          p_user_id: string
+        }
         Returns: Json
       }
       record_customer_payment: {
@@ -4398,6 +4656,22 @@ export type Database = {
         | "supplier_payment"
         | "refund"
         | "adjustment"
+        | "customs_certificate"
+      purchase_container_status:
+        | "planned"
+        | "shipped"
+        | "at_port"
+        | "inland"
+        | "received"
+        | "cancelled"
+      customs_certificate_status: "open" | "closed"
+      customs_certificate_cost_type:
+        | "customs"
+        | "port"
+        | "demurrage"
+        | "inland"
+        | "agent"
+        | "other"
       expiry_policy_type: "block_sale" | "warn_only" | "manager_override"
       import_job_status: "pending" | "completed" | "failed"
       inventory_product_type:
@@ -4452,9 +4726,35 @@ export type Database = {
       payment_status: "paid" | "unpaid" | "partial"
       product_sales_unit_type: "piece" | "weight" | "volume" | "pack" | "mixed"
       product_type: "finished" | "ingredient"
-      purchase_status: "draft" | "received" | "cancelled"
+      purchase_status:
+        | "draft"
+        | "received"
+        | "cancelled"
+        | "submitted"
+        | "approved"
+        | "rejected"
+        | "sent"
+        | "partial_invoiced"
+        | "invoiced"
+        | "posted"
       sales_mode: "retail" | "wholesale"
-      sales_document_status: "draft" | "issued" | "delivered"
+      sales_document_status:
+        | "draft"
+        | "issued"
+        | "delivered"
+        | "sent"
+        | "accepted"
+        | "rejected"
+        | "expired"
+        | "confirmed"
+        | "cancelled"
+        | "invoiced"
+      sales_document_kind: "quotation" | "sales_order" | "sales_invoice" | "credit_note"
+      purchase_document_kind:
+        | "purchase_request"
+        | "purchase_order"
+        | "purchase_invoice"
+        | "purchase_return"
       session_status: "open" | "closed"
       shelf_life_unit_type: "days" | "months" | "years"
       stock_count_status:
@@ -4694,6 +4994,24 @@ export const Constants = {
         "supplier_payment",
         "refund",
         "adjustment",
+        "customs_certificate",
+      ],
+      purchase_container_status: [
+        "planned",
+        "shipped",
+        "at_port",
+        "inland",
+        "received",
+        "cancelled",
+      ],
+      customs_certificate_status: ["open", "closed"],
+      customs_certificate_cost_type: [
+        "customs",
+        "port",
+        "demurrage",
+        "inland",
+        "agent",
+        "other",
       ],
       expiry_policy_type: ["block_sale", "warn_only", "manager_override"],
       import_job_status: ["pending", "completed", "failed"],
@@ -4754,9 +5072,38 @@ export const Constants = {
       payment_status: ["paid", "unpaid", "partial"],
       product_sales_unit_type: ["piece", "weight", "volume", "pack", "mixed"],
       product_type: ["finished", "ingredient"],
-      purchase_status: ["draft", "received", "cancelled"],
+      purchase_status: [
+        "draft",
+        "received",
+        "cancelled",
+        "submitted",
+        "approved",
+        "rejected",
+        "sent",
+        "partial_invoiced",
+        "invoiced",
+        "posted",
+      ],
       sales_mode: ["retail", "wholesale"],
-      sales_document_status: ["draft", "issued", "delivered"],
+      sales_document_status: [
+        "draft",
+        "issued",
+        "delivered",
+        "sent",
+        "accepted",
+        "rejected",
+        "expired",
+        "confirmed",
+        "cancelled",
+        "invoiced",
+      ],
+      sales_document_kind: ["quotation", "sales_order", "sales_invoice", "credit_note"],
+      purchase_document_kind: [
+        "purchase_request",
+        "purchase_order",
+        "purchase_invoice",
+        "purchase_return",
+      ],
       session_status: ["open", "closed"],
       shelf_life_unit_type: ["days", "months", "years"],
       stock_count_status: [

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Pencil, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -276,7 +276,7 @@ export function UsersPage({
         />
       )}
 
-      <Tabs defaultValue="team" className="min-w-0 space-y-6">
+      <Tabs defaultValue="team" className="min-w-0 space-y-3">
         <div className="min-w-0">
           <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
             <TabsTrigger value="team">الفريق</TabsTrigger>

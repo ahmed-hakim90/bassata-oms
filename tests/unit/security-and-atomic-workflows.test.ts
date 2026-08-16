@@ -22,6 +22,10 @@ const atomicTransfers = readFileSync(
   "supabase/migrations/20260811101000_atomic_transfer_lifecycle.sql",
   "utf8"
 );
+const atomicPurchaseReceive = readFileSync(
+  "supabase/migrations/20260816192751_receive_purchase_invoice.sql",
+  "utf8"
+);
 
 describe("checkout trust boundary", () => {
   it("keeps checkout cores private and validates permission, identity, and discount threshold", () => {
@@ -68,6 +72,14 @@ describe("atomic inventory workflows", () => {
     expect(atomicTransfers).toContain("FOR UPDATE");
     expect(atomicTransfers).toContain("adjust_inventory_stock");
     expect(atomicTransfers).toContain("FROM PUBLIC, anon");
+  });
+
+  it("receives purchase invoices with stock and status in one locked RPC", () => {
+    expect(atomicPurchaseReceive).toContain("receive_purchase_invoice");
+    expect(atomicPurchaseReceive).toContain("FOR UPDATE");
+    expect(atomicPurchaseReceive).toContain("adjust_inventory_stock");
+    expect(atomicPurchaseReceive).toContain("Already received");
+    expect(atomicPurchaseReceive).toContain("FROM PUBLIC, anon");
   });
 });
 

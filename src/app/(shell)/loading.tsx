@@ -1,5 +1,5 @@
-import { LoadingStateBlock } from "@/components/Velora/state-blocks";
+import { PageLoadingSkeleton } from "@/components/Velora/page-loading-skeleton";
 
 export default function ShellLoading() {
-  return <LoadingStateBlock label="جاري تحميل مساحة العمل..." />;
+  return <PageLoadingSkeleton />;
 }

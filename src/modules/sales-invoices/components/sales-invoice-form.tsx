@@ -8,10 +8,12 @@ import {
   useTransition,
   type FormEvent,
 } from "react";
-import { Plus, Trash2, Save, Send, FileText, Receipt, PackageCheck, Wrench, Loader2, X } from "lucide-react";
+import { Plus, Trash2, Save, Send, FileText, Receipt, PackageCheck, Wrench, Loader2, X, MessageCircle, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -30,16 +32,26 @@ import {
 } from "@/components/ui/table";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
+import { OperatorShortcutHint } from "@/components/Velora/operator-shortcut-hint";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
+import {
+  backgroundMutationKey,
+  useBackgroundMutation,
+} from "@/hooks/use-background-mutation";
+import { useOperatorShortcuts } from "@/hooks/use-operator-shortcuts";
+import { useUndoStack } from "@/hooks/use-undo-stack";
+import { OPERATOR_SHORTCUTS } from "@/lib/keyboard";
 import { formatCurrency } from "@/lib/format";
+import { lineTotalAfterDiscount } from "@/lib/line-discount";
 import { sanitizeDecimalInput } from "@/lib/digits";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import { selectLabelById } from "@/lib/select-label";
 import type {
   Customer,
+  Order,
   PaymentMethod,
   PaymentSplit,
   Product,
@@ -62,14 +74,23 @@ import {
 } from "@/modules/pos/components/pos-credit-checkout-dialog";
 import {
   addSalesInvoiceLineAction,
+  convertSalesDocumentAction,
   correctDeliveredSalesInvoiceCostsAction,
+  createCreditNoteFromInvoiceAction,
   deleteDraftSalesInvoiceAction,
   deliverSalesInvoiceAction,
+  issueSalesCreditNoteAction,
   issueSalesInvoiceAction,
   removeSalesInvoiceLineAction,
+  transitionSalesDocumentAction,
   updateSalesInvoiceHeaderAction,
   updateSalesInvoiceLineAction,
 } from "@/modules/sales-invoices/actions/sales-invoice.actions";
+import {
+  buildWhatsAppDocumentUrl,
+  formatCommercialDocumentForWhatsApp,
+} from "@/modules/pos/services/receipt-format.service";
+import { COMMERCIAL_DOCUMENT_KIND_LABELS } from "@/modules/print-engine/lib/print-engine-settings";
 import type {
   SalesInvoiceLineWithName,
   SalesInvoiceWithDetails,
@@ -93,6 +114,8 @@ interface SalesInvoiceFormProps {
   currency: string;
   enabledPaymentMethods: PaymentMethod[];
   canCorrectCosts?: boolean;
+  canManagePrintEngine?: boolean;
+  documentKind?: NonNullable<Order["document_kind"]>;
   onChanged: (invoice: SalesInvoiceWithDetails | null, options?: { refresh?: boolean }) => void;
   onClose: () => void;
 }
@@ -183,9 +206,12 @@ function SalesInvoiceFormEditor({
   currency,
   enabledPaymentMethods,
   canCorrectCosts = false,
+  canManagePrintEngine = false,
+  documentKind = "sales_invoice",
   onChanged,
   onClose,
 }: SalesInvoiceFormEditorProps) {
+  const router = useRouter();
   const [invoice, setInvoice] = useState(initial);
   const [productQuery, setProductQuery] = useState("");
   const [productId, setProductId] = useState("");
@@ -193,10 +219,12 @@ function SalesInvoiceFormEditor({
   const [amount, setAmount] = useState("");
   const [entryMode, setEntryMode] = useState<"by_qty" | "by_amount">("by_qty");
   const [unitPrice, setUnitPrice] = useState("");
+  const [lineDiscount, setLineDiscount] = useState("");
   const [priceManual, setPriceManual] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "unpaid">("cash");
   const [lifecyclePending, startLifecycle] = useTransition();
+  const { run: runBackground } = useBackgroundMutation();
   const [confirmDeliver, setConfirmDeliver] = useState(false);
   const [creditDeliverOpen, setCreditDeliverOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -210,6 +238,19 @@ function SalesInvoiceFormEditor({
   const amountRef = useRef<HTMLInputElement>(null);
   const snapshotRef = useRef<SalesInvoiceWithDetails | null>(null);
   const taxRateRef = useRef(inferTaxRate(initial));
+  const invoiceRef = useRef(invoice);
+  const isUndoingRef = useRef(false);
+  const cancelledTempIdsRef = useRef(new Set<string>());
+  const removeLineRef = useRef<(lineId: string) => void>(() => {});
+  const updateLineRef = useRef<
+    (
+      lineId: string,
+      quantity: number,
+      options: { unitPrice?: number; repriceFromTiers?: boolean; discountAmount?: number }
+    ) => void
+  >(() => {});
+  const { push: pushUndo, undo: undoLast, clear: clearUndo } = useUndoStack();
+  invoiceRef.current = invoice;
 
   useEffect(() => {
     // Don't clobber optimistic temp lines with a stale parent snapshot mid-sync.
@@ -223,6 +264,29 @@ function SalesInvoiceFormEditor({
   const isDraft = invoice.document_status === "draft";
   const isIssued = invoice.document_status === "issued";
   const isDelivered = invoice.document_status === "delivered";
+  const kind = invoice.document_kind ?? documentKind;
+  const isSalesInvoice = kind === "sales_invoice";
+  const isQuotation = kind === "quotation";
+  const isSalesOrder = kind === "sales_order";
+  const isCreditNote = kind === "credit_note";
+  const kindLabels: Record<string, string> = {
+    quotation: "عرض سعر",
+    sales_order: "أمر بيع",
+    sales_invoice: "فاتورة بيع",
+    credit_note: "إشعار دائن",
+  };
+  const statusLabels: Record<string, string> = {
+    draft: "مسودة",
+    issued: "صادرة",
+    delivered: "مُسلَّمة",
+    sent: "مُرسل",
+    accepted: "مقبول",
+    rejected: "مرفوض",
+    expired: "منتهي",
+    confirmed: "مؤكد",
+    cancelled: "ملغي",
+    invoiced: "مفوتر",
+  };
   const editable = isDraft && !lifecyclePending;
   const recordedCost = useMemo(
     () => invoice.lines.reduce((sum, line) => sum + (Number(line.line_cost) || 0), 0),
@@ -281,33 +345,41 @@ function SalesInvoiceFormEditor({
   }
 
   function runDeliver(payments?: PaymentSplit[]) {
-    startLifecycle(async () => {
-      const method =
-        paymentMethod === "unpaid"
-          ? null
-          : payments?.some((p) => p.method === "credit")
+    const method =
+      paymentMethod === "unpaid"
+        ? null
+        : payments?.some((p) => p.method === "credit")
+          ? "credit"
+          : paymentMethod === "credit"
             ? "credit"
-            : paymentMethod === "credit"
-              ? "credit"
-              : paymentMethod;
-      const result = await deliverSalesInvoiceAction({
-        orderId: invoice.id,
-        paymentMethod: method,
-        payments,
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      const hasDeposit = Boolean(
-        payments?.some((p) => p.method !== "credit" && p.amount > 0) &&
-          payments?.some((p) => p.method === "credit")
-      );
-      toast.success(
-        hasDeposit ? "تم التسليم مع تسجيل الدفعة والباقي آجل" : "تم التسليم وخصم المخزون"
-      );
-      setInvoice(result.data);
-      onChanged(result.data, { refresh: true });
+            : paymentMethod;
+    const orderId = invoice.id;
+    const hasDeposit = Boolean(
+      payments?.some((p) => p.method !== "credit" && p.amount > 0) &&
+        payments?.some((p) => p.method === "credit")
+    );
+
+    onChanged(invoice, { refresh: false });
+    onClose();
+
+    runBackground({
+      key: backgroundMutationKey("sales", "deliver", orderId),
+      label: "جاري تسليم الفاتورة…",
+      execute: async () => {
+        const result = await deliverSalesInvoiceAction({
+          orderId,
+          paymentMethod: method,
+          payments,
+        });
+        if (!result.ok) throw new Error(result.error);
+        return result.data;
+      },
+      successMessage: hasDeposit
+        ? "تم التسليم مع تسجيل الدفعة والباقي آجل"
+        : "تم التسليم وخصم المخزون",
+      onSuccess: (data) => {
+        onChanged(data, { refresh: true });
+      },
     });
   }
 
@@ -370,6 +442,8 @@ function SalesInvoiceFormEditor({
     warehouseId?: string;
     discount?: number;
     documentDate?: string;
+    documentNotes?: string;
+    validUntil?: string | null;
   }) {
     snapshotRef.current = invoice;
     const customerId =
@@ -381,12 +455,18 @@ function SalesInvoiceFormEditor({
       patch.documentDate !== undefined
         ? patch.documentDate
         : (invoice.document_date ?? invoice.created_at.slice(0, 10));
+    const documentNotes =
+      patch.documentNotes !== undefined ? patch.documentNotes : (invoice.document_notes ?? "");
+    const validUntil =
+      patch.validUntil !== undefined ? patch.validUntil : (invoice.valid_until ?? null);
     const optimistic = withInvoiceTotals(
       {
         ...invoice,
         customer_id: customerId,
         warehouse_id: warehouseId,
         document_date: documentDate,
+        document_notes: documentNotes,
+        valid_until: validUntil,
         customerName:
           customerId == null
             ? null
@@ -421,6 +501,7 @@ function SalesInvoiceFormEditor({
     setAmount("");
     setEntryMode("by_qty");
     setUnitPrice("");
+    setLineDiscount("");
     setPriceManual(false);
     setProductId("");
     setProductQuery("");
@@ -494,7 +575,11 @@ function SalesInvoiceFormEditor({
     const nextUnitPrice = sendManualPrice
       ? (lockedUnitPrice ?? typedPrice ?? tiered.unitPrice)
       : tiered.unitPrice;
-    const lineTotal = Number((mergedQty * nextUnitPrice).toFixed(2));
+    const addDiscount = Math.max(0, parseFloat(sanitizeDecimalInput(lineDiscount)) || 0);
+    const nextDiscount = Number(
+      (((existingLine?.discount_amount ?? 0) + addDiscount)).toFixed(2)
+    );
+    const lineTotal = lineTotalAfterDiscount(mergedQty, nextUnitPrice, nextDiscount);
     const tempId = existingLine ? null : `temp-${crypto.randomUUID()}`;
     const optimisticId = existingLine?.id ?? tempId!;
 
@@ -506,7 +591,7 @@ function SalesInvoiceFormEditor({
       quantity: mergedQty,
       unit_price: nextUnitPrice,
       list_unit_price: nextUnitPrice,
-      discount_amount: 0,
+      discount_amount: nextDiscount,
       promotion_rule_id: null,
       modifiers: [],
       line_total: lineTotal,
@@ -540,11 +625,37 @@ function SalesInvoiceFormEditor({
     );
     resetLineInputs();
 
+    if (!isUndoingRef.current) {
+      const merged = Boolean(existingLine);
+      const qtyBeforeAdd = priorQty;
+      const priorUnitPrice = existingLine?.unit_price ?? nextUnitPrice;
+      const productIdForUndo = resolvedId;
+      pushUndo({
+        undo: () => {
+          const current = invoiceRef.current;
+          const line = current.lines.find(
+            (l) => l.product_id === productIdForUndo && (l.variant_id ?? null) === null
+          );
+          if (!line) return;
+          isUndoingRef.current = true;
+          if (!merged || qtyBeforeAdd <= 0) {
+            removeLineRef.current(line.id);
+          } else {
+            updateLineRef.current(line.id, qtyBeforeAdd, {
+              unitPrice: priorUnitPrice,
+            });
+          }
+          isUndoingRef.current = false;
+        },
+      });
+    }
+
     void (async () => {
       const result = await addSalesInvoiceLineAction({
         orderId: invoice.id,
         productId: resolvedId,
         quantity,
+        discountAmount: addDiscount,
         // Only lock price when operator typed/amount-entry; else server resolves for merged qty.
         ...(sendManualPrice
           ? { unitPrice: nextUnitPrice, tierId: null }
@@ -553,6 +664,14 @@ function SalesInvoiceFormEditor({
       if (!result.ok) {
         if (snapshotRef.current) publishLocal(snapshotRef.current);
         toast.error(result.error);
+        return;
+      }
+      if (tempId && cancelledTempIdsRef.current.has(tempId)) {
+        cancelledTempIdsRef.current.delete(tempId);
+        void removeSalesInvoiceLineAction({
+          orderId: invoice.id,
+          lineId: result.data.line.id,
+        });
         return;
       }
       setInvoice((prev) => {
@@ -584,7 +703,7 @@ function SalesInvoiceFormEditor({
   function updateLine(
     lineId: string,
     quantity: number,
-    options: { unitPrice?: number; repriceFromTiers?: boolean }
+    options: { unitPrice?: number; repriceFromTiers?: boolean; discountAmount?: number }
   ) {
     if (lineId.startsWith("temp-")) return;
     const existing = invoice.lines.find((line) => line.id === lineId);
@@ -604,13 +723,21 @@ function SalesInvoiceFormEditor({
       }
     }
 
-    const lineTotal = Number((quantity * nextUnitPrice).toFixed(2));
+    const nextDiscount = Math.max(
+      0,
+      options.discountAmount !== undefined
+        ? options.discountAmount
+        : (existing.discount_amount ?? 0)
+    );
+    const lineTotal = lineTotalAfterDiscount(quantity, nextUnitPrice, nextDiscount);
     const nextLines = invoice.lines.map((line) =>
       line.id === lineId
         ? {
             ...line,
             quantity,
             unit_price: nextUnitPrice,
+            discount_amount: nextDiscount,
+            list_unit_price: nextUnitPrice,
             line_total: lineTotal,
             base_quantity: quantity,
             tier_id: nextTierId,
@@ -624,6 +751,7 @@ function SalesInvoiceFormEditor({
         orderId: invoice.id,
         lineId,
         quantity,
+        discountAmount: nextDiscount,
         ...(reprice
           ? { repriceFromTiers: true }
           : { unitPrice: nextUnitPrice, repriceFromTiers: false }),
@@ -652,10 +780,64 @@ function SalesInvoiceFormEditor({
   }
 
   function removeLine(lineId: string) {
-    if (lineId.startsWith("temp-")) return;
+    const removed = invoice.lines.find((line) => line.id === lineId);
+    if (!removed) return;
+
     snapshotRef.current = invoice;
     const nextLines = invoice.lines.filter((line) => line.id !== lineId);
     publishLocal(withInvoiceTotals(invoice, nextLines, invoice.discount, taxRateRef.current));
+
+    if (!isUndoingRef.current) {
+      const productIdForUndo = removed.product_id;
+      const qtyForUndo = removed.quantity;
+      const priceForUndo = removed.unit_price;
+      pushUndo({
+        undo: () => {
+          // Re-add by temporarily setting product + qty then calling addLine path via action.
+          isUndoingRef.current = true;
+          void (async () => {
+            const result = await addSalesInvoiceLineAction({
+              orderId: invoiceRef.current.id,
+              productId: productIdForUndo,
+              quantity: qtyForUndo,
+              unitPrice: priceForUndo,
+              tierId: null,
+            });
+            isUndoingRef.current = false;
+            if (!result.ok) {
+              toast.error(result.error);
+              return;
+            }
+            setInvoice((prev) => {
+              const next = {
+                ...prev,
+                lines: [
+                  ...prev.lines.filter(
+                    (line) =>
+                      !(
+                        line.product_id === result.data.line.product_id &&
+                        (line.variant_id ?? null) === null
+                      )
+                  ),
+                  result.data.line,
+                ],
+                subtotal: result.data.subtotal,
+                discount: result.data.discount,
+                tax: result.data.tax,
+                total: result.data.total,
+              };
+              onChanged(next, { refresh: false });
+              return next;
+            });
+          })();
+        },
+      });
+    }
+
+    if (lineId.startsWith("temp-")) {
+      cancelledTempIdsRef.current.add(lineId);
+      return;
+    }
 
     void (async () => {
       const result = await removeSalesInvoiceLineAction({
@@ -681,6 +863,27 @@ function SalesInvoiceFormEditor({
       });
     })();
   }
+
+  removeLineRef.current = removeLine;
+  updateLineRef.current = updateLine;
+
+  useOperatorShortcuts({
+    enabled: isDraft && !lifecyclePending,
+    onSave: () => {
+      if (!isDraft || lifecyclePending) return;
+      toast.success("تم الحفظ المؤقت — تابع لاحقًا من القائمة");
+      onChanged(invoice, { refresh: true });
+      onClose();
+    },
+    onDelete: () => {
+      if (!isDraft || lifecyclePending || invoice.lines.length === 0) return;
+      const last = invoice.lines[invoice.lines.length - 1];
+      if (last) removeLine(last.id);
+    },
+    onUndo: () => {
+      if (!undoLast()) toast.message("مفيش خطوة للتراجع");
+    },
+  });
 
   function handleProductSubmit(e: FormEvent) {
     e.preventDefault();
@@ -719,18 +922,16 @@ function SalesInvoiceFormEditor({
         <div>
           <h2 className="text-lg font-semibold">{invoice.order_number}</h2>
           <p className="text-sm text-muted-foreground">
-            فاتورة جملة ·{" "}
-            {invoice.document_status === "draft"
-              ? "مسودة"
-              : invoice.document_status === "issued"
-                ? "صادرة"
-                : "مُسلَّمة"}
+            {kindLabels[kind] ?? "مستند مبيعات"} ·{" "}
+            {statusLabels[invoice.document_status ?? "draft"] ?? invoice.document_status}
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
-            <Label htmlFor={`invoice-date-${invoice.id}`}>تاريخ الفاتورة</Label>
+            <Label htmlFor={`invoice-date-${invoice.id}`}>
+              {isQuotation ? "تاريخ العرض" : "تاريخ المستند"}
+            </Label>
             <Input
               id={`invoice-date-${invoice.id}`}
               type="date"
@@ -746,6 +947,22 @@ function SalesInvoiceFormEditor({
               }}
             />
           </div>
+          {isQuotation ? (
+            <div className="space-y-1.5">
+              <Label htmlFor={`invoice-valid-${invoice.id}`}>صالح حتى</Label>
+              <Input
+                id={`invoice-valid-${invoice.id}`}
+                type="date"
+                disabled={!editable}
+                value={invoice.valid_until ?? ""}
+                onChange={(e) => {
+                  const next = e.target.value || null;
+                  if (next === (invoice.valid_until ?? null)) return;
+                  commitHeader({ validUntil: next });
+                }}
+              />
+            </div>
+          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor={`invoice-customer-${invoice.id}`}>العميل</Label>
             <Select
@@ -816,10 +1033,27 @@ function SalesInvoiceFormEditor({
           </div>
         </div>
 
+        <div className="space-y-1.5">
+          <Label htmlFor={`invoice-notes-${invoice.id}`}>ملاحظات المستند</Label>
+          <Textarea
+            id={`invoice-notes-${invoice.id}`}
+            disabled={!editable}
+            defaultValue={invoice.document_notes ?? ""}
+            key={`notes-${invoice.id}-${invoice.document_notes ?? ""}`}
+            rows={2}
+            onBlur={(e) => {
+              const next = e.target.value;
+              if (next !== (invoice.document_notes ?? "")) {
+                commitHeader({ documentNotes: next });
+              }
+            }}
+          />
+        </div>
+
         {isDraft ? (
           <form
             onSubmit={handleProductSubmit}
-            className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_6rem_7rem_auto] sm:items-end"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_6rem_7rem_5.5rem_auto] sm:items-end"
           >
             <div>
               <ProductSearchCombobox
@@ -926,6 +1160,17 @@ function SalesInvoiceFormEditor({
                 inputMode="decimal"
               />
             </div>
+            <div>
+              <Label htmlFor={`invoice-line-discount-${invoice.id}`} className="mb-1.5 text-xs text-muted-foreground">خصم البند</Label>
+              <Input
+                id={`invoice-line-discount-${invoice.id}`}
+                value={lineDiscount}
+                onChange={(e) => setLineDiscount(sanitizeDecimalInput(e.target.value))}
+                placeholder="0"
+                inputMode="decimal"
+                className="tabular-nums"
+              />
+            </div>
             <div className="flex items-end">
               <CompactAction
                 label="إضافة"
@@ -980,8 +1225,10 @@ function SalesInvoiceFormEditor({
                                   quantity,
                                   wholesaleTiersByProductId
                                 );
-                                const lineTotal = Number(
-                                  (quantity * tiered.unitPrice).toFixed(2)
+                                const lineTotal = lineTotalAfterDiscount(
+                                  quantity,
+                                  tiered.unitPrice,
+                                  line.discount_amount ?? 0
                                 );
                                 const nextLines = invoice.lines.map((row) =>
                                   row.id === line.id
@@ -989,6 +1236,7 @@ function SalesInvoiceFormEditor({
                                         ...row,
                                         quantity,
                                         unit_price: tiered.unitPrice,
+                                        list_unit_price: tiered.unitPrice,
                                         line_total: lineTotal,
                                         base_quantity: quantity,
                                         tier_id: tiered.tierId,
@@ -1009,7 +1257,10 @@ function SalesInvoiceFormEditor({
                                   parseFloat(sanitizeDecimalInput(e.target.value)) ||
                                   line.quantity;
                                 if (quantity <= 0) return;
-                                updateLine(line.id, quantity, { repriceFromTiers: true });
+                                updateLine(line.id, quantity, {
+                                  repriceFromTiers: true,
+                                  discountAmount: line.discount_amount ?? 0,
+                                });
                               }}
                             />
                           ) : (
@@ -1031,14 +1282,17 @@ function SalesInvoiceFormEditor({
                                   sanitizeDecimalInput(e.target.value)
                                 );
                                 if (!Number.isFinite(price) || price < 0) return;
-                                const lineTotal = Number(
-                                  (line.quantity * price).toFixed(2)
+                                const lineTotal = lineTotalAfterDiscount(
+                                  line.quantity,
+                                  price,
+                                  line.discount_amount ?? 0
                                 );
                                 const nextLines = invoice.lines.map((row) =>
                                   row.id === line.id
                                     ? {
                                         ...row,
                                         unit_price: price,
+                                        list_unit_price: price,
                                         line_total: lineTotal,
                                         tier_id: null,
                                       }
@@ -1060,12 +1314,67 @@ function SalesInvoiceFormEditor({
                                 updateLine(line.id, line.quantity, {
                                   unitPrice: price,
                                   repriceFromTiers: false,
+                                  discountAmount: line.discount_amount ?? 0,
                                 });
                               }}
                             />
                           ) : (
                             <p className="flex h-11 items-center tabular-nums font-medium">
                               {formatCurrency(line.unit_price, currency)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`mobile-line-discount-${line.id}`} className="text-xs text-muted-foreground">خصم</Label>
+                          {isDraft ? (
+                            <Input
+                              id={`mobile-line-discount-${line.id}`}
+                              className="h-11 min-w-0 tabular-nums"
+                              value={String(line.discount_amount ?? 0)}
+                              disabled={lineLocked}
+                              onChange={(e) => {
+                                const discount = Math.max(
+                                  0,
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) || 0
+                                );
+                                const lineTotal = lineTotalAfterDiscount(
+                                  line.quantity,
+                                  line.unit_price,
+                                  discount
+                                );
+                                const nextLines = invoice.lines.map((row) =>
+                                  row.id === line.id
+                                    ? {
+                                        ...row,
+                                        discount_amount: discount,
+                                        line_total: lineTotal,
+                                      }
+                                    : row
+                                );
+                                publishLocal(
+                                  withInvoiceTotals(
+                                    invoice,
+                                    nextLines,
+                                    invoice.discount,
+                                    taxRateRef.current
+                                  )
+                                );
+                              }}
+                              onBlur={(e) => {
+                                const discount = Math.max(
+                                  0,
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) || 0
+                                );
+                                updateLine(line.id, line.quantity, {
+                                  unitPrice: line.unit_price,
+                                  repriceFromTiers: false,
+                                  discountAmount: discount,
+                                });
+                              }}
+                            />
+                          ) : (
+                            <p className="flex h-11 items-center tabular-nums font-medium">
+                              {formatCurrency(line.discount_amount ?? 0, currency)}
                             </p>
                           )}
                         </div>
@@ -1094,6 +1403,7 @@ function SalesInvoiceFormEditor({
                       <TableHead>الصنف</TableHead>
                       <TableHead>كمية</TableHead>
                       <TableHead>سعر</TableHead>
+                      <TableHead>خصم</TableHead>
                       <TableHead>الإجمالي</TableHead>
                       {isDraft ? <TableHead className="w-12" /> : null}
                     </TableRow>
@@ -1119,8 +1429,10 @@ function SalesInvoiceFormEditor({
                                   quantity,
                                   wholesaleTiersByProductId
                                 );
-                                const lineTotal = Number(
-                                  (quantity * tiered.unitPrice).toFixed(2)
+                                const lineTotal = lineTotalAfterDiscount(
+                                  quantity,
+                                  tiered.unitPrice,
+                                  line.discount_amount ?? 0
                                 );
                                 const nextLines = invoice.lines.map((row) =>
                                   row.id === line.id
@@ -1128,6 +1440,7 @@ function SalesInvoiceFormEditor({
                                         ...row,
                                         quantity,
                                         unit_price: tiered.unitPrice,
+                                        list_unit_price: tiered.unitPrice,
                                         line_total: lineTotal,
                                         base_quantity: quantity,
                                         tier_id: tiered.tierId,
@@ -1148,7 +1461,10 @@ function SalesInvoiceFormEditor({
                                   parseFloat(sanitizeDecimalInput(e.target.value)) ||
                                   line.quantity;
                                 if (quantity <= 0) return;
-                                updateLine(line.id, quantity, { repriceFromTiers: true });
+                                updateLine(line.id, quantity, {
+                                  repriceFromTiers: true,
+                                  discountAmount: line.discount_amount ?? 0,
+                                });
                               }}
                             />
                           ) : (
@@ -1166,14 +1482,17 @@ function SalesInvoiceFormEditor({
                                   sanitizeDecimalInput(e.target.value)
                                 );
                                 if (!Number.isFinite(price) || price < 0) return;
-                                const lineTotal = Number(
-                                  (line.quantity * price).toFixed(2)
+                                const lineTotal = lineTotalAfterDiscount(
+                                  line.quantity,
+                                  price,
+                                  line.discount_amount ?? 0
                                 );
                                 const nextLines = invoice.lines.map((row) =>
                                   row.id === line.id
                                     ? {
                                         ...row,
                                         unit_price: price,
+                                        list_unit_price: price,
                                         line_total: lineTotal,
                                         tier_id: null,
                                       }
@@ -1195,11 +1514,62 @@ function SalesInvoiceFormEditor({
                                 updateLine(line.id, line.quantity, {
                                   unitPrice: price,
                                   repriceFromTiers: false,
+                                  discountAmount: line.discount_amount ?? 0,
                                 });
                               }}
                             />
                           ) : (
                             formatCurrency(line.unit_price, currency)
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isDraft ? (
+                            <Input
+                              className="w-20"
+                              value={String(line.discount_amount ?? 0)}
+                              disabled={lifecyclePending || line.id.startsWith("temp-")}
+                              onChange={(e) => {
+                                const discount = Math.max(
+                                  0,
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) || 0
+                                );
+                                const lineTotal = lineTotalAfterDiscount(
+                                  line.quantity,
+                                  line.unit_price,
+                                  discount
+                                );
+                                const nextLines = invoice.lines.map((row) =>
+                                  row.id === line.id
+                                    ? {
+                                        ...row,
+                                        discount_amount: discount,
+                                        line_total: lineTotal,
+                                      }
+                                    : row
+                                );
+                                publishLocal(
+                                  withInvoiceTotals(
+                                    invoice,
+                                    nextLines,
+                                    invoice.discount,
+                                    taxRateRef.current
+                                  )
+                                );
+                              }}
+                              onBlur={(e) => {
+                                const discount = Math.max(
+                                  0,
+                                  parseFloat(sanitizeDecimalInput(e.target.value)) || 0
+                                );
+                                updateLine(line.id, line.quantity, {
+                                  unitPrice: line.unit_price,
+                                  repriceFromTiers: false,
+                                  discountAmount: discount,
+                                });
+                              }}
+                            />
+                          ) : (
+                            formatCurrency(line.discount_amount ?? 0, currency)
                           )}
                         </TableCell>
                         <TableCell>{formatCurrency(line.line_total, currency)}</TableCell>
@@ -1247,6 +1617,7 @@ function SalesInvoiceFormEditor({
               تكلفة مسجّلة: {formatCurrency(recordedCost, currency)}
             </p>
           ) : null}
+          {isDraft ? <OperatorShortcutHint className="mt-0.5" /> : null}
         </div>
         <CompactActions>
           {isDraft ? (
@@ -1254,6 +1625,7 @@ function SalesInvoiceFormEditor({
               <CompactAction
                 label="حفظ مؤقت"
                 icon={Save}
+                shortcut={OPERATOR_SHORTCUTS.save}
                 disabled={lifecyclePending}
                 onClick={() => {
                   toast.success("تم الحفظ المؤقت — تابع لاحقًا من القائمة");
@@ -1261,28 +1633,109 @@ function SalesInvoiceFormEditor({
                   onClose();
                 }}
               />
-              <CompactAction
-                label="إصدار"
-                icon={Send}
-                variant="default"
-                disabled={
-                  lifecyclePending ||
-                  invoice.lines.length === 0 ||
-                  invoice.lines.some((line) => line.id.startsWith("temp-"))
-                }
-                onClick={() =>
-                  startLifecycle(async () => {
-                    const result = await issueSalesInvoiceAction(invoice.id);
-                    if (!result.ok) {
-                      toast.error(result.error);
-                      return;
-                    }
-                    toast.success("تم إصدار الفاتورة");
-                    setInvoice(result.data);
-                    onChanged(result.data, { refresh: true });
-                  })
-                }
-              />
+              {isSalesInvoice ? (
+                <CompactAction
+                  label="إصدار"
+                  icon={Send}
+                  variant="default"
+                  disabled={
+                    lifecyclePending ||
+                    invoice.lines.length === 0 ||
+                    invoice.lines.some((line) => line.id.startsWith("temp-"))
+                  }
+                  onClick={() => {
+                    const orderId = invoice.id;
+                    onClose();
+                    runBackground({
+                      key: backgroundMutationKey("sales", "issue", orderId),
+                      label: "جاري إصدار الفاتورة…",
+                      execute: async () => {
+                        const result = await issueSalesInvoiceAction(orderId);
+                        if (!result.ok) throw new Error(result.error);
+                        return result.data;
+                      },
+                      successMessage: "تم إصدار الفاتورة",
+                      onSuccess: (data) => {
+                        onChanged(data, { refresh: true });
+                      },
+                    });
+                  }}
+                />
+              ) : null}
+              {isQuotation ? (
+                <CompactAction
+                  label="إرسال العرض"
+                  icon={Send}
+                  variant="default"
+                  disabled={lifecyclePending || invoice.lines.length === 0}
+                  onClick={() => {
+                    const orderId = invoice.id;
+                    runBackground({
+                      key: backgroundMutationKey("sales", "send-quote", orderId),
+                      label: "جاري إرسال عرض السعر…",
+                      execute: async () => {
+                        const result = await transitionSalesDocumentAction({
+                          orderId,
+                          from: "draft",
+                          to: "sent",
+                        });
+                        if (!result.ok) throw new Error(result.error);
+                        return result.data;
+                      },
+                      successMessage: "تم تعليم العرض كمُرسل",
+                      onSuccess: (data) => onChanged(data, { refresh: true }),
+                    });
+                  }}
+                />
+              ) : null}
+              {isSalesOrder ? (
+                <CompactAction
+                  label="تأكيد الأمر"
+                  icon={PackageCheck}
+                  variant="default"
+                  disabled={lifecyclePending || invoice.lines.length === 0}
+                  onClick={() => {
+                    const orderId = invoice.id;
+                    runBackground({
+                      key: backgroundMutationKey("sales", "confirm-so", orderId),
+                      label: "جاري تأكيد أمر البيع…",
+                      execute: async () => {
+                        const result = await transitionSalesDocumentAction({
+                          orderId,
+                          from: "draft",
+                          to: "confirmed",
+                        });
+                        if (!result.ok) throw new Error(result.error);
+                        return result.data;
+                      },
+                      successMessage: "تم تأكيد أمر البيع",
+                      onSuccess: (data) => onChanged(data, { refresh: true }),
+                    });
+                  }}
+                />
+              ) : null}
+              {isCreditNote ? (
+                <CompactAction
+                  label="إصدار الإشعار"
+                  icon={Send}
+                  variant="default"
+                  disabled={lifecyclePending || invoice.lines.length === 0}
+                  onClick={() => {
+                    const orderId = invoice.id;
+                    runBackground({
+                      key: backgroundMutationKey("sales", "issue-cn", orderId),
+                      label: "جاري إصدار الإشعار الدائن…",
+                      execute: async () => {
+                        const result = await issueSalesCreditNoteAction(orderId);
+                        if (!result.ok) throw new Error(result.error);
+                        return result.data;
+                      },
+                      successMessage: "تم إصدار الإشعار — رجع المخزون والرصيد",
+                      onSuccess: (data) => onChanged(data, { refresh: true }),
+                    });
+                  }}
+                />
+              ) : null}
               <CompactAction
                 label="حذف المسودة"
                 icon={Trash2}
@@ -1300,7 +1753,95 @@ function SalesInvoiceFormEditor({
             />
           )}
 
-          {isIssued ? (
+          {isQuotation && invoice.document_status === "sent" ? (
+            <>
+            <CompactAction
+              label="تحويل لأمر بيع"
+              icon={FileText}
+              variant="default"
+              disabled={lifecyclePending}
+              onClick={() => {
+                const orderId = invoice.id;
+                runBackground({
+                  key: backgroundMutationKey("sales", "quote-to-so", orderId),
+                  label: "جاري إنشاء أمر البيع…",
+                  execute: async () => {
+                    const result = await convertSalesDocumentAction({
+                      sourceId: orderId,
+                      targetKind: "sales_order",
+                      fromStatus: "sent",
+                      lockStatus: "accepted",
+                    });
+                    if (!result.ok) throw new Error(result.error);
+                    return result.data;
+                  },
+                  successMessage: "اتفتح أمر بيع من العرض",
+                  onSuccess: (data) => {
+                    onChanged(invoice, { refresh: true });
+                    router.push(`/sales-orders?open=${data.id}`);
+                  },
+                });
+              }}
+            />
+            <CompactAction
+              label="رفض العرض"
+              icon={X}
+              variant="destructive"
+              disabled={lifecyclePending}
+              onClick={() => {
+                const orderId = invoice.id;
+                runBackground({
+                  key: backgroundMutationKey("sales", "reject-quote", orderId),
+                  label: "جاري رفض عرض السعر…",
+                  execute: async () => {
+                    const result = await transitionSalesDocumentAction({
+                      orderId,
+                      from: "sent",
+                      to: "rejected",
+                    });
+                    if (!result.ok) throw new Error(result.error);
+                    return result.data;
+                  },
+                  successMessage: "اترفض عرض السعر",
+                  onSuccess: (data) => onChanged(data, { refresh: true }),
+                });
+              }}
+            />
+            </>
+          ) : null}
+
+          {isSalesOrder && invoice.document_status === "confirmed" ? (
+            <CompactAction
+              label="تحويل لفاتورة"
+              icon={FileText}
+              variant="default"
+              disabled={lifecyclePending}
+              onClick={() => {
+                const orderId = invoice.id;
+                runBackground({
+                  key: backgroundMutationKey("sales", "so-to-si", orderId),
+                  label: "جاري إنشاء فاتورة المبيعات…",
+                  execute: async () => {
+                    const result = await convertSalesDocumentAction({
+                      sourceId: orderId,
+                      targetKind: "sales_invoice",
+                      fromStatus: "confirmed",
+                      lockStatus: "invoiced",
+                    });
+                    if (!result.ok) throw new Error(result.error);
+                    return result.data;
+                  },
+                  successMessage: "اتفتحت فاتورة من أمر البيع",
+                  onSuccess: (data) => {
+                    onChanged(invoice, { refresh: true });
+                    router.push(`/sales-invoices?open=${data.id}`);
+                  },
+                });
+              }}
+            />
+          ) : null}
+
+          {isIssued && isSalesInvoice ? (
             <>
               <Select
                 value={paymentMethod}
@@ -1357,6 +1898,30 @@ function SalesInvoiceFormEditor({
             </>
           ) : null}
 
+          {isDelivered && isSalesInvoice ? (
+            <CompactAction
+              label="إشعار دائن"
+              icon={FileText}
+              disabled={lifecyclePending}
+              onClick={() => {
+                const orderId = invoice.id;
+                runBackground({
+                  key: backgroundMutationKey("sales", "create-cn", orderId),
+                  label: "جاري إنشاء الإشعار الدائن…",
+                  execute: async () => {
+                    const result = await createCreditNoteFromInvoiceAction(orderId);
+                    if (!result.ok) throw new Error(result.error);
+                    return result.data;
+                  },
+                  successMessage: "اتفتح إشعار دائن من الفاتورة",
+                  onSuccess: (data) => {
+                    router.push(`/credit-notes?open=${data.id}`);
+                  },
+                });
+              }}
+            />
+          ) : null}
+
           {isDelivered && canCorrectCosts ? (
             <CompactAction
               label="تصحيح التكلفة"
@@ -1366,39 +1931,95 @@ function SalesInvoiceFormEditor({
             />
           ) : null}
 
-          {invoice.lines.length > 0 &&
-          (invoice.document_status === "draft" ||
-            invoice.document_status === "issued" ||
-            invoice.document_status === "delivered") ? (
+          {invoice.lines.length > 0 ? (
             <>
               <CompactAction
-                label="فاتورة"
+                label="طباعة A4"
                 icon={FileText}
                 onClick={() =>
                   setPrintPreview({
                     href: `/print/orders/${invoice.id}?embed=1`,
                     title:
-                      invoice.document_status === "draft"
-                        ? "فاتورة مؤقتة"
-                        : "فاتورة مبيعات",
+                      COMMERCIAL_DOCUMENT_KIND_LABELS[
+                        kind === "quotation" ||
+                        kind === "sales_order" ||
+                        kind === "sales_invoice" ||
+                        kind === "credit_note"
+                          ? kind
+                          : "sales_invoice"
+                      ],
                   })
                 }
               />
+              {isSalesInvoice && (isIssued || isDelivered) ? (
+                <CompactAction
+                  label="إذن تسليم"
+                  icon={PackageCheck}
+                  onClick={() =>
+                    setPrintPreview({
+                      href: `/print/orders/${invoice.id}?embed=1&variant=delivery`,
+                      title: COMMERCIAL_DOCUMENT_KIND_LABELS.delivery_note,
+                    })
+                  }
+                />
+              ) : null}
+              {isSalesInvoice ? (
+                <CompactAction
+                  label="ريسيت"
+                  icon={Receipt}
+                  className="border-primary text-primary"
+                  onClick={() =>
+                    setPrintPreview({
+                      href: `/print/receipts/${invoice.id}?embed=1`,
+                      title:
+                        invoice.document_status === "draft" ? "ريسيت مؤقت" : "ريسيت مبيعات",
+                    })
+                  }
+                />
+              ) : null}
               <CompactAction
-                label="ريسيت"
-                icon={Receipt}
-                className="border-primary text-primary"
-                onClick={() =>
-                  setPrintPreview({
-                    href: `/print/receipts/${invoice.id}?embed=1`,
-                    title:
-                      invoice.document_status === "draft"
-                        ? "ريسيت مؤقت"
-                        : "ريسيت مبيعات",
-                  })
-                }
+                label="واتساب"
+                icon={MessageCircle}
+                disabled={!selectedCustomer?.phone}
+                onClick={() => {
+                  const url = buildWhatsAppDocumentUrl(
+                    selectedCustomer?.phone,
+                    formatCommercialDocumentForWhatsApp({
+                      title:
+                        COMMERCIAL_DOCUMENT_KIND_LABELS[
+                          kind === "quotation" ||
+                          kind === "sales_order" ||
+                          kind === "sales_invoice" ||
+                          kind === "credit_note"
+                            ? kind
+                            : "sales_invoice"
+                        ],
+                      number: invoice.order_number,
+                      partyName: selectedCustomer?.name,
+                      total: invoice.total,
+                      currency,
+                      lines: invoice.lines.map((line) => ({
+                        name: line.productName,
+                        quantity: line.quantity,
+                        lineTotal: line.line_total,
+                      })),
+                    })
+                  );
+                  if (!url) {
+                    toast.error("رقم هاتف العميل غير صالح لواتساب");
+                    return;
+                  }
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }}
               />
             </>
+          ) : null}
+          {canManagePrintEngine ? (
+            <CompactAction
+              label="تعديل القالب"
+              icon={Settings}
+              href="/settings?tab=print"
+            />
           ) : null}
         </CompactActions>
       </div>
@@ -1455,6 +2076,7 @@ function SalesInvoiceFormEditor({
               return;
             }
             toast.success("اتمسحت المسودة");
+            clearUndo();
             onChanged(null, { refresh: true });
             onClose();
           });
@@ -1548,6 +2170,8 @@ export function SalesInvoiceForm({
   currency,
   enabledPaymentMethods,
   canCorrectCosts = false,
+  canManagePrintEngine = false,
+  documentKind = "sales_invoice",
   onChanged,
   onClose,
 }: SalesInvoiceFormProps) {
@@ -1578,6 +2202,8 @@ export function SalesInvoiceForm({
       currency={currency}
       enabledPaymentMethods={enabledPaymentMethods}
       canCorrectCosts={canCorrectCosts}
+      canManagePrintEngine={canManagePrintEngine}
+      documentKind={documentKind}
       onChanged={onChanged}
       onClose={onClose}
     />

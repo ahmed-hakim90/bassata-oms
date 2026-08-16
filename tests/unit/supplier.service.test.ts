@@ -53,6 +53,8 @@ describe("supplier opening balance", () => {
         name: "Supplier",
         contact_info: "",
         opening_balance: 500,
+        address: "",
+        tax_id: "",
       },
     ]);
     vi.mocked(purchaseRepo.listPurchaseInvoicesForStore).mockResolvedValue([
@@ -103,6 +105,8 @@ describe("supplier opening balance", () => {
       name: "Supplier",
       contact_info: "",
       opening_balance: 300,
+      address: "",
+      tax_id: "",
     });
     vi.mocked(purchaseRepo.listPurchaseInvoicesForStore).mockResolvedValue([]);
     vi.mocked(paymentRepo.listPaymentsForStore).mockResolvedValue([]);

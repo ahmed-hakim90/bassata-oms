@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { Badge } from "@/components/ui/badge";
 import { DataTableShell } from "@/components/Velora/data-table-shell";
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
