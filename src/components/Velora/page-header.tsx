@@ -35,7 +35,7 @@ export function PageHeader({
           {title}
         </h1>
         {hasSubtitle ? (
-          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[11px] leading-snug text-muted-foreground sm:text-xs">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs leading-snug text-muted-foreground">
             {breadcrumb ? (
               <span className="font-medium text-[var(--mds-color-text-secondary)]">
                 {breadcrumb}
