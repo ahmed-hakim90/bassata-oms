@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { playPosErrorSound } from "@/modules/pos/lib/pos-sounds";
+import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
 import {
   discardHeldCartAction,
   resumeHeldCartAction,
@@ -48,6 +48,7 @@ export function PosHeldCartsBar() {
         return;
       }
       setPickerOpen(false);
+      playPosSuccessSound();
       toast.success("اترجعت الفاتورة — راجع وادفع تاني");
       return;
     }
@@ -101,7 +102,6 @@ export function PosHeldCartsBar() {
     }
 
     setPickerOpen(false);
-    toast.success("تم استئناف الفاتورة");
 
     void resumeHeldCartAction({
       resumeId: id,
@@ -113,6 +113,8 @@ export function PosHeldCartsBar() {
         toast.error(result.error);
         return;
       }
+      playPosSuccessSound();
+      toast.success("تم استئناف الفاتورة");
       if (parkedLocal && result.parked) {
         reconcileHeldCartId(parkedLocal.id, result.parked);
       }

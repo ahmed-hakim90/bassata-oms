@@ -23,6 +23,9 @@ const LABEL_AR: Record<string, string> = {
   postCreditNoteJournal: "ترحيل إشعار دائن",
   postPurchaseReturnJournal: "ترحيل مرتجع مشتريات",
   postStockCountJournal: "ترحيل فروقات جرد",
+  postSessionVarianceJournal: "ترحيل فرق إقفال وردية",
+  postCogsAdjustmentJournal: "ترحيل تصحيح تكلفة بيع",
+  postCoaOpeningJournal: "ترحيل أرصدة أول المدة",
   reversePostedBySource: "عكس قيد مرحّل",
 };
 

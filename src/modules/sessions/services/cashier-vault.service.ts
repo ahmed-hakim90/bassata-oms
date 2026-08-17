@@ -130,6 +130,7 @@ export async function withdrawFromCashierVault(input: {
   withdrawAmount: number;
   nextOpeningFloat: number;
   notes?: string;
+  destinationTreasuryId?: string | null;
 }): Promise<CashierVault> {
   await assertPeriodOpen(input.storeId);
   const withdrawAmount = roundMoney(input.withdrawAmount);
@@ -147,6 +148,7 @@ export async function withdrawFromCashierVault(input: {
     withdrawAmount,
     nextOpeningFloat,
     notes: input.notes,
+    destinationTreasuryId: input.destinationTreasuryId,
   });
 }
 
@@ -178,13 +180,14 @@ export async function batchWithdrawStoreCashierVaults(input: {
   notes?: string;
   /** If omitted, withdraws the full excess above pending float for every vault. */
   items?: BatchVaultWithdrawRequestItem[];
+  destinationTreasuryId?: string | null;
 }): Promise<BatchVaultWithdrawResult> {
   await assertPeriodOpen(input.storeId);
   const rows = await listStoreCashierVaults(input.storeId);
   const rowByCashier = new Map(rows.map((row) => [row.cashierId, row]));
   const note =
     input.notes?.trim() ||
-    "سحب من خزائن الكاشير (مع الإبقاء على رصيد بداية الوردية)";
+    "توريد من خزائن الكاشير لخزينة الفرع (مع الإبقاء على رصيد بداية الوردية)";
 
   const requested: BatchVaultWithdrawRequestItem[] =
     input.items && input.items.length > 0
@@ -245,6 +248,7 @@ export async function batchWithdrawStoreCashierVaults(input: {
         withdrawAmount,
         nextOpeningFloat,
         notes: note,
+        destinationTreasuryId: input.destinationTreasuryId,
       });
       withdrawnTotal = roundMoney(withdrawnTotal + withdrawAmount);
       succeeded += 1;

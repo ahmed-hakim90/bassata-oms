@@ -24,6 +24,7 @@ import { loadSessionCashBundle } from "@/modules/sessions/services/reconciliatio
 import * as storeRepo from "@/lib/repositories/store.repository";
 import * as userRepo from "@/lib/repositories/user.repository";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
+import * as deviceRepo from "@/lib/repositories/device.repository";
 import { enabledPaymentMethodsFromFlags } from "@/lib/enabled-payment-methods";
 import { supportsProductModifiers } from "@/lib/business-activity-flags";
 
@@ -129,6 +130,7 @@ export async function getPosPageData() {
     expenseCategories,
     receiptBranding,
     allStores,
+    device,
     initialHeldCarts,
   ] = await Promise.all([
     readiness.cashierId
@@ -168,6 +170,9 @@ export async function getPosPageData() {
       "receiptBranding"
     ),
     settled(storeRepo.listStores(), [], "stores"),
+    readiness.deviceId
+      ? settled(deviceRepo.getDevice(readiness.deviceId), null, "device")
+      : Promise.resolve(null),
     readiness.deviceId
       ? settled(
           listHeldCartsForPosDevice({ storeId, deviceId: readiness.deviceId }),
@@ -252,6 +257,10 @@ export async function getPosPageData() {
     canAddSessionExpense: Boolean(canAddSessionExpensePerm),
     featureFlags: flags,
     canManagerOverride: user?.role === "owner" || user?.role === "manager",
+    requireManagerOverrideForExpiredSale:
+      sessionSettings.require_manager_override_for_expired_sale !== false,
+    scaleEnabled: Boolean(device?.scale_enabled),
+    scaleSettings: device?.scale_settings ?? null,
     canCollectPayment: Boolean(canCollectPaymentPerm),
     canPaySupplier: Boolean(canPaySupplierPerm),
     managerDiscountOverrideAmount: sessionSettings.manager_discount_override_amount,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,11 @@ import { CompactAction, CompactActions } from "@/components/Velora/compact-actio
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { PageHeader } from "@/components/Velora/page-header";
 import { StatusPill } from "@/components/Velora/status-pill";
+import {
+  playPosErrorSound,
+  playPosNewOrderSound,
+  unlockPosAudio,
+} from "@/modules/pos/lib/pos-sounds";
 import {
   advanceKitchenStatusAction,
   listKitchenTicketsAction,
@@ -42,21 +47,34 @@ const VARIANT: Record<KitchenStatus, "default" | "warning" | "success" | "danger
 export function KitchenDisplay({ initialTickets }: { initialTickets: KitchenTicket[] }) {
   const [tickets, setTickets] = useState(initialTickets);
   const [pending, startTransition] = useTransition();
+  const seenTicketIds = useRef(new Set(initialTickets.map((ticket) => ticket.id)));
   const glance = useMemo(() => buildKitchenGlance(tickets), [tickets]);
 
-  function refresh() {
+  function applyTickets(next: KitchenTicket[], { alertNew }: { alertNew: boolean }) {
+    const hasNew = next.some((ticket) => !seenTicketIds.current.has(ticket.id));
+    seenTicketIds.current = new Set(next.map((ticket) => ticket.id));
+    setTickets(next);
+    if (alertNew && hasNew) {
+      playPosNewOrderSound();
+    }
+  }
+
+  function refresh({ alertNew = false }: { alertNew?: boolean } = {}) {
     startTransition(async () => {
       try {
-        setTickets(await listKitchenTicketsAction());
+        applyTickets(await listKitchenTicketsAction(), { alertNew });
       } catch (error) {
+        playPosErrorSound();
         toast.error(error instanceof Error ? error.message : "فشل التحديث");
       }
     });
   }
 
   useEffect(() => {
-    const id = window.setInterval(refresh, 15000);
+    unlockPosAudio();
+    const id = window.setInterval(() => refresh({ alertNew: true }), 15000);
     return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- poll once per mount
   }, []);
 
   const columns: KitchenStatus[] = ["queued", "preparing", "ready"];
@@ -72,7 +90,7 @@ export function KitchenDisplay({ initialTickets }: { initialTickets: KitchenTick
               label="تحديث"
               icon={RefreshCw}
               disabled={pending}
-              onClick={refresh}
+              onClick={() => refresh()}
             />
           </CompactActions>
         }
@@ -130,6 +148,7 @@ export function KitchenDisplay({ initialTickets }: { initialTickets: KitchenTick
                                 next
                               );
                               if (!result.ok) {
+                                playPosErrorSound();
                                 toast.error(result.error);
                                 return;
                               }

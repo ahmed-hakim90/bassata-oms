@@ -110,62 +110,101 @@ export async function closeSession(input: {
   const existing = await sessionRepo.getSession(input.sessionId);
   if (!existing) return null;
   await assertPeriodOpen(existing.store_id);
-  const session = await sessionRepo.closeSession({
-    sessionId: input.sessionId,
-    expectedCash: input.expectedCash,
-    actualCash: input.actualCash,
-    notes: input.notes,
-    closedBy: input.closedBy ?? input.userId,
-    closeReason: input.closeReason,
-    forceClosed: input.forceClosed,
-  });
-  if (session) {
-    // Full counted drawer settles into cashier vault (درج → خزينة).
-    await vaultRepo.depositClosing({
-      storeId: session.store_id,
-      cashierId: session.cashier_id,
-      amount: input.actualCash,
-      sessionId: session.id,
-    });
 
-    const orgId = await getOrgId();
-    await writeAuditLog({
-      orgId,
-      storeId: session.store_id,
-      userId: input.userId,
-      action: input.forceClosed ? "session.force_closed" : "session.closed",
-      entityType: "cashier_session",
-      entityId: session.id,
-      metadata: {
-        variance: session.variance,
-        close_reason: input.closeReason ?? null,
-        force_closed: input.forceClosed ?? false,
-        vault_deposit: input.actualCash,
-      },
-    });
-
-    try {
-      const [store, cashier, org] = await Promise.all([
-        getStore(session.store_id),
-        getUser(session.cashier_id),
-        getOrganization(),
-      ]);
-      const payload = {
-        orgId,
-        session,
-        storeName: store?.name ?? session.store_id,
-        cashierName: cashier?.name ?? session.cashier_id,
-        currency: org.currency,
-      };
-      try {
-        after(() => {
-          void notifyOwnersSessionClosed(payload);
+  let session =
+    existing.status === "closed"
+      ? existing
+      : await sessionRepo.closeSession({
+          sessionId: input.sessionId,
+          expectedCash: input.expectedCash,
+          actualCash: input.actualCash,
+          notes: input.notes,
+          closedBy: input.closedBy ?? input.userId,
+          closeReason: input.closeReason,
+          forceClosed: input.forceClosed,
         });
-      } catch {
-        void notifyOwnersSessionClosed(payload);
+
+  if (!session) {
+    const raced = await sessionRepo.getSession(input.sessionId);
+    if (raced?.status === "closed") session = raced;
+  }
+
+  if (session?.status === "closed") {
+    try {
+      await vaultRepo.depositClosing({
+        storeId: session.store_id,
+        cashierId: session.cashier_id,
+        amount: input.actualCash,
+        sessionId: session.id,
+      });
+    } catch (error) {
+      console.error("[sessions] vault deposit after close failed", error);
+      throw new Error(
+        "تم إقفال الوردية، لكن تحويل الدرج للخزينة فشل. متكررش الإغلاق من الصفر — حاول تاني أو راجع الخزينة."
+      );
+    }
+
+    after(() => {
+      void (async () => {
+        try {
+          const variance = roundMoney(Number(session.variance ?? 0));
+          if (variance === 0) return;
+          const { safePostSessionVarianceJournal } = await import(
+            "@/modules/accounting/services/gl-posting.service"
+          );
+          await safePostSessionVarianceJournal({
+            sessionId: session.id,
+            storeId: session.store_id,
+            variance,
+            createdBy: input.userId,
+            memo: `فرق إقفال وردية`,
+          });
+        } catch (error) {
+          console.error("[sessions] deferred GL variance post failed", error);
+        }
+      })();
+    });
+
+    if (existing.status === "open") {
+      const orgId = await getOrgId();
+      await writeAuditLog({
+        orgId,
+        storeId: session.store_id,
+        userId: input.userId,
+        action: input.forceClosed ? "session.force_closed" : "session.closed",
+        entityType: "cashier_session",
+        entityId: session.id,
+        metadata: {
+          variance: session.variance,
+          close_reason: input.closeReason ?? null,
+          force_closed: input.forceClosed ?? false,
+          vault_deposit: input.actualCash,
+        },
+      });
+
+      try {
+        const [store, cashier, org] = await Promise.all([
+          getStore(session.store_id),
+          getUser(session.cashier_id),
+          getOrganization(),
+        ]);
+        const payload = {
+          orgId,
+          session,
+          storeName: store?.name ?? session.store_id,
+          cashierName: cashier?.name ?? session.cashier_id,
+          currency: org.currency,
+        };
+        try {
+          after(() => {
+            void notifyOwnersSessionClosed(payload);
+          });
+        } catch {
+          void notifyOwnersSessionClosed(payload);
+        }
+      } catch (emailError) {
+        console.error("[sessions] close email prepare failed", emailError);
       }
-    } catch (emailError) {
-      console.error("[sessions] close email prepare failed", emailError);
     }
   }
   return session;

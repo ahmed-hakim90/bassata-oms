@@ -1,16 +1,25 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { formatCurrency } from "@/lib/format";
 import { withdrawCashierVaultAction } from "@/modules/sessions/actions/session.actions";
+import { listTreasuryOptionsAction } from "@/modules/treasury/actions/treasury.actions";
 import type { CashierVaultSummary } from "@/modules/sessions/services/cashier-vault.service";
+import type { TreasurySummary } from "@/modules/treasury/lib/treasury-view";
 
 interface CashierVaultWithdrawDialogProps {
   storeId: string;
@@ -25,6 +34,8 @@ export function CashierVaultWithdrawDialog({
   const [withdraw, setWithdraw] = useState("");
   const [nextFloat, setNextFloat] = useState(String(row.pendingOpeningFloat || ""));
   const [notes, setNotes] = useState("");
+  const [destinationId, setDestinationId] = useState("");
+  const [destinations, setDestinations] = useState<TreasurySummary[]>([]);
   const [pending, startTransition] = useTransition();
 
   const withdrawAmount = parseFloat(withdraw) || 0;
@@ -33,6 +44,23 @@ export function CashierVaultWithdrawDialog({
     () => row.balance - withdrawAmount - nextOpeningFloat,
     [row.balance, withdrawAmount, nextOpeningFloat]
   );
+
+  useEffect(() => {
+    if (!open) return;
+    void listTreasuryOptionsAction()
+      .then((rows) => {
+        const allowed = rows.filter(
+          (t) => t.kind === "hq" || t.store_id === storeId
+        );
+        setDestinations(allowed);
+        const storeTreasury = allowed.find((t) => t.kind === "store" && t.store_id === storeId);
+        setDestinationId(storeTreasury?.id ?? allowed[0]?.id ?? "");
+      })
+      .catch(() => {
+        setDestinations([]);
+        setDestinationId("");
+      });
+  }, [open, storeId]);
 
   function handleSubmit() {
     if (withdrawAmount < 0 || nextOpeningFloat < 0) {
@@ -51,14 +79,15 @@ export function CashierVaultWithdrawDialog({
           withdrawAmount,
           nextOpeningFloat,
           notes: notes.trim() || undefined,
+          destinationTreasuryId: destinationId || null,
         });
-        toast.success("تم السحب من خزينة الكاشير");
+        toast.success("تم توريد أمانة الكاشير للخزينة");
         setOpen(false);
         setWithdraw("");
         setNotes("");
         window.location.reload();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "تعذر السحب من الخزينة");
+        toast.error(error instanceof Error ? error.message : "تعذر التوريد للخزينة");
       }
     });
   }
@@ -77,12 +106,12 @@ export function CashierVaultWithdrawDialog({
           setOpen(true);
         }}
       >
-        سحب
+        توريد
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <StandardModalContent
           size="sm"
-          title="سحب من خزينة الكاشير"
+          title="توريد من أمانة الكاشير"
           description={`${row.cashierName} · الرصيد الحالي ${formatCurrency(row.balance)}`}
           footer={
             <Button
@@ -91,12 +120,12 @@ export function CashierVaultWithdrawDialog({
               disabled={pending || remainder < -1e-9}
               onClick={handleSubmit}
             >
-              {pending ? "جاري السحب…" : "تأكيد السحب"}
+              {pending ? "جاري التوريد…" : "تأكيد التوريد"}
             </Button>
           }
         >
           <div className="space-y-2">
-            <Label htmlFor={`vault-withdraw-${row.cashierId}`}>مبلغ السحب</Label>
+            <Label htmlFor={`vault-withdraw-${row.cashierId}`}>مبلغ التوريد</Label>
             <Input
               id={`vault-withdraw-${row.cashierId}`}
               type="number"
@@ -127,7 +156,22 @@ export function CashierVaultWithdrawDialog({
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`vault-notes-${row.cashierId}`}>ملاحظات (اختياري)</Label>
+            <Label>إلى خزينة</Label>
+            <Select value={destinationId} onValueChange={(v) => setDestinationId(v ?? "")}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder="اختار الخزينة" />
+              </SelectTrigger>
+              <SelectContent>
+                {destinations.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`vault-notes-${row.cashierId}`}>ملاحظات</Label>
             <Textarea
               id={`vault-notes-${row.cashierId}`}
               value={notes}
@@ -136,30 +180,12 @@ export function CashierVaultWithdrawDialog({
               rows={2}
             />
           </div>
-          <dl className="space-y-1 rounded-xl border border-border/60 bg-muted/30 p-3 text-sm">
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">بعد السحب يبقى في الخزينة</dt>
-              <dd className="tabular-nums font-medium">
-                {formatCurrency(Math.max(0, row.balance - withdrawAmount))}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">محجوز لبداية الوردية</dt>
-              <dd className="tabular-nums">{formatCurrency(nextOpeningFloat)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">متبقي أمانة (مش مخصّص للوردية)</dt>
-              <dd
-                className={
-                  remainder < -1e-9
-                    ? "tabular-nums text-destructive"
-                    : "tabular-nums"
-                }
-              >
-                {formatCurrency(remainder)}
-              </dd>
-            </div>
-          </dl>
+          <p className="text-sm text-muted-foreground">
+            المتبقي بعد التوريد:{" "}
+            <span className="font-semibold tabular-nums text-foreground">
+              {formatCurrency(remainder)}
+            </span>
+          </p>
         </StandardModalContent>
       </Dialog>
     </>

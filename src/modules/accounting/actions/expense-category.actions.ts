@@ -18,11 +18,12 @@ export async function createExpenseCategoryAction(input: {
   cost_center_id: string;
   name: string;
   requires_inventory_item?: boolean;
+  gl_account_id?: string | null;
 }) {
   const user = await requirePermission("expense_category_manage");
   const category = await createExpenseCategory(input, user.id);
   revalidatePath("/settings");
-  revalidatePath("/settings");
+  revalidatePath("/expenses");
   return category;
 }
 
@@ -32,12 +33,13 @@ export async function updateExpenseCategoryAction(
     name?: string;
     is_active?: boolean;
     requires_inventory_item?: boolean;
+    gl_account_id?: string | null;
   }
 ) {
   const user = await requirePermission("expense_category_manage");
   const category = await updateExpenseCategory(id, patch, user.id);
   revalidatePath("/settings");
-  revalidatePath("/settings");
+  revalidatePath("/expenses");
   return category;
 }
 

@@ -1,7 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireFeature, requirePermissionOrRole } from "@/lib/auth/guards";
+import {
+  getValidatedActiveStoreId,
+  requireFeature,
+  requirePermissionOrRole,
+} from "@/lib/auth/guards";
 import type { GlAccountType } from "@/lib/types";
 import {
   createGlAccount,
@@ -126,18 +130,24 @@ export async function importChartOfAccountsAction(
     created: number;
     updated: number;
     unchanged: number;
+    openingsPosted: boolean;
+    openingAccounts: number;
   }>
 > {
   return run(async () => {
     await requireFeature("general_ledger");
     const user = await requirePermissionOrRole("gl_manage", ["owner", "manager"]);
-    const result = await importChartOfAccounts(rows, user.id);
+    const storeId = await getValidatedActiveStoreId();
+    const result = await importChartOfAccounts(rows, user.id, storeId);
     revalidatePath("/accounting");
     revalidatePath("/accounting/accounts");
+    revalidatePath("/accounting/journals");
     return {
       created: result.created,
       updated: result.updated,
       unchanged: result.unchanged,
+      openingsPosted: result.openingsPosted,
+      openingAccounts: result.openingAccounts,
     };
   });
 }

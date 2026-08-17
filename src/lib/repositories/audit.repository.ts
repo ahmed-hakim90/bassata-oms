@@ -49,3 +49,16 @@ export async function listAuditLogs(filters?: {
   if (error) throwDbError(error, "listAuditLogs");
   return (data ?? []).map(mapAuditLog);
 }
+
+export async function getAuditLog(id: string): Promise<AuditLog | null> {
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("audit_logs")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throwDbError(error, "getAuditLog");
+  return data ? mapAuditLog(data) : null;
+}

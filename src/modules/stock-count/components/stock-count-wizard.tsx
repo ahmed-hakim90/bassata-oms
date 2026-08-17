@@ -56,7 +56,7 @@ import {
   productMatchesQuery,
 } from "@/modules/products/lib/match-products";
 import { clampCountedQty, nextCountedQty } from "@/modules/stock-count/lib/counted-qty";
-import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
+import { playPosErrorSound, playPosScanSound, unlockPosAudio } from "@/modules/pos/lib/pos-sounds";
 
 interface StockCountWizardProps {
   count: StockCountWithLines;
@@ -167,6 +167,10 @@ export function StockCountWizard({
   );
 
   useEffect(() => {
+    unlockPosAudio();
+  }, []);
+
+  useEffect(() => {
     if (skipSaveRef.current) {
       skipSaveRef.current = false;
       return;
@@ -211,7 +215,7 @@ export function StockCountWizard({
         [product.id]: nextCountedQty(prev[product.id] ?? 0, 1),
       }));
       const nextQty = nextCountedQty(countsRef.current[product.id] ?? 0, 1);
-      playPosSuccessSound();
+      playPosScanSound();
       toast.success(`${product.name} → ${nextQty}`);
       setLastScannedId(product.id);
       setScanCode("");

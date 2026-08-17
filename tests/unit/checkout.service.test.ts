@@ -562,4 +562,62 @@ describe("completeCheckout session expiry", () => {
       expect.objectContaining({ deviceId: "device-b" })
     );
   });
+
+  it("does not fail the sale when loyalty redeem throws after checkout RPC", async () => {
+    vi.mocked(sessionRepo.getSession).mockResolvedValue({
+      id: "s1",
+      store_id: "store1",
+      device_id: null,
+      cashier_id: "c1",
+      opened_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      closed_at: null,
+      opening_cash: 0,
+      expected_cash: null,
+      actual_cash: null,
+      variance: null,
+      status: "open",
+      notes: null,
+      closed_by: null,
+      close_reason: null,
+      force_closed: false,
+    });
+    vi.mocked(orderRepo.completeCheckoutRpc).mockResolvedValue({
+      order_id: "o1",
+      order_number: "SF-001",
+      subtotal: 10,
+      tax: 0,
+      total: 8,
+    });
+    vi.mocked(loyaltyService.getLoyaltyRule).mockResolvedValue({
+      id: "rule-1",
+      org_id: "org-1",
+      points_per_currency: 1,
+      redemption_rate: 0.1,
+      minimum_redeem_points: 10,
+      is_active: true,
+    });
+    vi.mocked(loyaltyService.getCustomerLoyaltyBalance).mockResolvedValue(100);
+    vi.mocked(loyaltyService.redeemPoints).mockRejectedValue(new Error("ledger down"));
+
+    const result = await completeCheckout({
+      storeId: "store1",
+      sessionId: "s1",
+      cashierId: "c1",
+      cart: [cartLine],
+      customer: {
+        id: "cust-1",
+        org_id: "org-1",
+        name: "عميل",
+        phone: "0100",
+        email: null,
+        notes: null,
+        created_at: new Date().toISOString(),
+      } as never,
+      paymentMethod: "cash",
+      loyaltyPoints: 20,
+    });
+
+    expect(result.orderNumber).toBe("SF-001");
+    expect(result.loyaltyRedeemWarning).toMatch(/استبدال النقاط فشل/);
+  });
 });

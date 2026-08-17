@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermissionOrRole } from "@/lib/auth/guards";
+import { getValidatedActiveStoreId, requirePermissionOrRole } from "@/lib/auth/guards";
 import { requirePosAccess, getActiveSessionForPos } from "@/lib/auth/pos-access";
 import {
   invoiceOnlineOrder,
+  listOnlineOrdersWithItems,
   updateOnlineOrderDetails,
   updateOnlineOrderStatus,
   getOnlineOrderWithItems,
@@ -100,4 +101,10 @@ export async function getOnlineOrderReceiptPayloadAction(onlineOrderId: string) 
   if (!order) throw new Error("الطلب غير موجود");
   const branding = await getReportBranding(order.store_id);
   return buildReceiptPayloadFromOrder(order, branding);
+}
+
+export async function listOnlineOrdersBoardAction() {
+  await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
+  const storeId = await getValidatedActiveStoreId();
+  return listOnlineOrdersWithItems(storeId);
 }

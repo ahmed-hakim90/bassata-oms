@@ -133,3 +133,13 @@ export async function enqueueKitchenIfNeeded(orderId: string, enabled: boolean):
     console.warn("[kitchen] enqueue failed", error.message);
   }
 }
+
+/** Load activity settings then enqueue — used by POS checkout and online invoice. */
+export async function enqueueKitchenForCompletedOrder(orderId: string): Promise<void> {
+  const { getBusinessActivitySettings } = await import(
+    "@/modules/system/services/settings.service"
+  );
+  const { isFoodServiceActivity } = await import("@/lib/business-activity-flags");
+  const activity = await getBusinessActivitySettings();
+  await enqueueKitchenIfNeeded(orderId, isFoodServiceActivity(activity.activity_type));
+}

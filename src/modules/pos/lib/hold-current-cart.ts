@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import { holdCartAction } from "@/modules/pos/actions/held-cart.actions";
-import { playPosErrorSound } from "@/modules/pos/lib/pos-sounds";
+import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
 import { usePosStore } from "@/stores/pos-store";
 
 /**
@@ -35,7 +35,6 @@ export function holdCurrentPosCart(): boolean {
   };
   const localHeld = state.holdCart(payload.name);
   if (!localHeld) return false;
-  toast.success("تم تعليق الفاتورة");
 
   void holdCartAction(payload).then((result) => {
     if (!result.success) {
@@ -44,6 +43,8 @@ export function holdCurrentPosCart(): boolean {
       toast.error(result.error);
       return;
     }
+    playPosSuccessSound();
+    toast.success("تم تعليق الفاتورة");
     usePosStore.getState().reconcileHeldCartId(localHeld.id, result.heldCart);
   });
 

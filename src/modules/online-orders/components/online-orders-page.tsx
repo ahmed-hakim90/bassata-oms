@@ -32,6 +32,7 @@ import { ONLINE_ORDER_STATUS_LABELS_AR } from "@/modules/online-orders/lib/onlin
 import {
   getOnlineOrderReceiptPayloadAction,
   invoiceOnlineOrderAction,
+  listOnlineOrdersBoardAction,
   updateOnlineOrderDetailsAction,
   updateOnlineOrderStatusAction,
 } from "@/modules/online-orders/actions/online-order.actions";
@@ -46,7 +47,7 @@ import {
 } from "@/modules/pos/services/receipt-format.service";
 import { printReceiptViaUsb } from "@/modules/pos/services/receipt-usb-printer.service";
 import { buildReceiptPayloadFromOnlineOrder } from "@/modules/pos/utils/receipt-payload";
-import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
+import { playPosErrorSound, playPosNewOrderSound, playPosSuccessSound, unlockPosAudio } from "@/modules/pos/lib/pos-sounds";
 import type { ReceiptPayload } from "@/modules/pos/services/receipt-format.service";
 import type { ReportBranding } from "@/modules/reports/core/report-context";
 import type { PaymentMethod, PaymentSplit } from "@/lib/types";
@@ -236,6 +237,7 @@ export function OnlineOrdersPageClient({
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [orders, setOrders] = useState(initialOrders);
+  const seenOrderIds = useRef(new Set(initialOrders.map((order) => order.id)));
   const [expandedId, setExpandedId] = useState<string | null>(() => {
     const firstPending = initialOrders.find((order) => order.status === "pending");
     return firstPending?.id ?? null;
@@ -243,7 +245,35 @@ export function OnlineOrdersPageClient({
 
   useEffect(() => {
     setOrders(initialOrders);
+    seenOrderIds.current = new Set(initialOrders.map((order) => order.id));
   }, [initialOrders]);
+
+  useEffect(() => {
+    if (compact) return;
+    unlockPosAudio();
+    let cancelled = false;
+    const id = window.setInterval(() => {
+      void (async () => {
+        try {
+          const next = await listOnlineOrdersBoardAction();
+          if (cancelled) return;
+          const hasNew = next.some((order) => !seenOrderIds.current.has(order.id));
+          seenOrderIds.current = new Set(next.map((order) => order.id));
+          setOrders(next);
+          if (hasNew) {
+            playPosNewOrderSound();
+            toast.message("طلب أونلاين جديد");
+          }
+        } catch {
+          // Keep the current board; the next poll retries.
+        }
+      })();
+    }, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [compact]);
 
   function upsertOrder(next: OnlineOrderWithItems) {
     setOrders((prev) => {

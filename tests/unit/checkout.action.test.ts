@@ -3,6 +3,8 @@ import { checkoutAction } from "@/modules/pos/actions/checkout.action";
 import * as guards from "@/lib/auth/guards";
 import * as posAccess from "@/lib/auth/pos-access";
 import { completeCheckout } from "@/modules/pos/services/checkout.service";
+import { computeSessionLifecycle } from "@/modules/sessions/services/session-lifecycle.service";
+import { assertManagerOverridePin } from "@/modules/pos/services/manager-override.service";
 import {
   getBusinessActivitySettings,
   getSessionSettings,
@@ -25,6 +27,7 @@ vi.mock("@/modules/system/services/settings.service", () => ({
 }));
 vi.mock("@/modules/pos/services/manager-override.service", () => ({
   requiresManagerDiscountOverride: vi.fn(() => false),
+  assertManagerOverridePin: vi.fn(),
 }));
 vi.mock("@/lib/services/audit.service", () => ({ writeAuditLog: vi.fn() }));
 vi.mock("@/lib/repositories/organization.repository", () => ({ getOrgId: vi.fn() }));
@@ -147,5 +150,82 @@ describe("checkoutAction payment validation", () => {
         payments: [{ method: "cash", amount: 10 }],
       })
     );
+  });
+
+  it("allows expired-session sales without PIN when the setting is off", async () => {
+    vi.mocked(computeSessionLifecycle).mockReturnValue({
+      blocksSales: true,
+      lifecycle: "expired",
+      hoursOpen: 30,
+    } as never);
+    vi.mocked(getSessionSettings).mockResolvedValue({
+      max_open_hours: 24,
+      warn_after_hours: 20,
+      block_sales_when_expired: true,
+      require_manager_override_for_expired_sale: false,
+      allow_manager_force_close: true,
+      manager_discount_override_amount: null,
+    });
+
+    const result = await checkoutAction({
+      cart: [
+        {
+          id: "line-1",
+          productId: "p1",
+          variantId: null,
+          name: "Latte",
+          quantity: 1,
+          unitPrice: 10,
+          modifiers: [],
+          lineTotal: 10,
+          imageUrl: null,
+        },
+      ],
+      customer: null,
+      paymentMethod: "cash",
+      payments: [{ method: "cash", amount: 10 }],
+      override: { expiredSession: true },
+    });
+
+    expect(result.success).toBe(true);
+    expect(assertManagerOverridePin).not.toHaveBeenCalled();
+    expect(completeCheckout).toHaveBeenCalled();
+  });
+
+  it("requires a manager PIN for expired-session sales when the setting is on", async () => {
+    vi.mocked(computeSessionLifecycle).mockReturnValue({
+      blocksSales: true,
+      lifecycle: "expired",
+      hoursOpen: 30,
+    } as never);
+    vi.mocked(assertManagerOverridePin).mockRejectedValue(
+      new Error("أدخل PIN المالك أو المدير")
+    );
+
+    const result = await checkoutAction({
+      cart: [
+        {
+          id: "line-1",
+          productId: "p1",
+          variantId: null,
+          name: "Latte",
+          quantity: 1,
+          unitPrice: 10,
+          modifiers: [],
+          lineTotal: 10,
+          imageUrl: null,
+        },
+      ],
+      customer: null,
+      paymentMethod: "cash",
+      payments: [{ method: "cash", amount: 10 }],
+      override: { expiredSession: true },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "أدخل PIN المالك أو المدير",
+    });
+    expect(completeCheckout).not.toHaveBeenCalled();
   });
 });

@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       paymentMethod?: PaymentMethod;
       reference?: string;
       notes?: string;
+      treasuryId?: string | null;
     };
 
     if (!body.customerId) {
@@ -43,6 +44,21 @@ export async function POST(request: Request) {
     }
 
     const storeId = await getValidatedActiveStoreId();
+    let treasuryId = body.treasuryId ?? null;
+    if (body.paymentMethod === "cash" && !treasuryId) {
+      const { getStoreTreasury } = await import(
+        "@/lib/repositories/cash-treasury.repository"
+      );
+      const storeTreasury = await getStoreTreasury(storeId);
+      treasuryId = storeTreasury?.id ?? null;
+      if (!treasuryId) {
+        return NextResponse.json(
+          { success: false, error: "خزينة الفرع غير جاهزة للتحصيل النقدي" },
+          { status: 400 }
+        );
+      }
+    }
+
     await recordCustomerPayment({
       customerId: body.customerId,
       amount: body.amount,
@@ -51,6 +67,7 @@ export async function POST(request: Request) {
       notes: body.notes,
       storeId,
       userId: user.id,
+      treasuryId,
     });
 
     after(() => {

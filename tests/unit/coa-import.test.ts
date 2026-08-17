@@ -14,6 +14,8 @@ describe("coa import parser", () => {
     expect(resolveCoaHeader("كود الحساب")).toBe("code");
     expect(resolveCoaHeader("Account_Type")).toBe("account_type");
     expect(resolveCoaHeader("كود الأب")).toBe("parent_code");
+    expect(resolveCoaHeader("مدين")).toBe("opening_debit");
+    expect(resolveCoaHeader("دائن أول المدة")).toBe("opening_credit");
   });
 
   it("maps Arabic account types", () => {
@@ -44,6 +46,26 @@ describe("coa import parser", () => {
       parent_code: "5",
       is_postable: false,
       sort_order: 6100,
+      opening_debit: 0,
+      opening_credit: 0,
+    });
+  });
+
+  it("parses opening debit and credit columns", () => {
+    const parsed = mapRawCoaRow(
+      {
+        كود: "1111",
+        اسم: "صندوق",
+        نوع: "أصل",
+        مدين: "250.5",
+        دائن: "",
+      },
+      2
+    );
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.row).toMatchObject({
+      opening_debit: 250.5,
+      opening_credit: 0,
     });
   });
 
@@ -100,6 +122,8 @@ describe("planCoaImport", () => {
           parent_code: null,
           is_postable: true,
           sort_order: 1111,
+          opening_debit: 0,
+          opening_credit: 0,
         },
         {
           row: 3,
@@ -109,6 +133,8 @@ describe("planCoaImport", () => {
           parent_code: null,
           is_postable: true,
           sort_order: 1140,
+          opening_debit: 0,
+          opening_credit: 0,
         },
       ]
     );
@@ -133,6 +159,8 @@ describe("planCoaImport", () => {
           parent_code: null,
           is_postable: true,
           sort_order: 1111,
+          opening_debit: 0,
+          opening_credit: 0,
         },
       ]
     );
@@ -150,8 +178,86 @@ describe("planCoaImport", () => {
         parent_code: "61",
         is_postable: true,
         sort_order: 6110,
+        opening_debit: 0,
+        opening_credit: 0,
       },
     ]);
     expect(plan.errors[0]?.message).toMatch(/مش موجود/);
+  });
+
+  it("rejects unbalanced opening balances", () => {
+    const plan = planCoaImport([], [
+      {
+        row: 2,
+        code: "1111",
+        name: "صندوق",
+        account_type: "asset",
+        parent_code: null,
+        is_postable: true,
+        sort_order: 1111,
+        opening_debit: 100,
+        opening_credit: 0,
+      },
+    ]);
+    expect(plan.errors.some((e) => e.message.includes("مش متوازنة"))).toBe(true);
+  });
+
+  it("accepts a balanced opening trial balance", () => {
+    const plan = planCoaImport([], [
+      {
+        row: 2,
+        code: "1111",
+        name: "صندوق",
+        account_type: "asset",
+        parent_code: null,
+        is_postable: true,
+        sort_order: 1111,
+        opening_debit: 100,
+        opening_credit: 0,
+      },
+      {
+        row: 3,
+        code: "3100",
+        name: "رأس المال",
+        account_type: "equity",
+        parent_code: null,
+        is_postable: true,
+        sort_order: 3100,
+        opening_debit: 0,
+        opening_credit: 100,
+      },
+    ]);
+    expect(plan.errors).toEqual([]);
+    expect(plan.ops.filter((op) => op.kind === "create")).toHaveLength(2);
+  });
+
+  it("rejects openings on header accounts", () => {
+    const plan = planCoaImport([], [
+      {
+        row: 2,
+        code: "11",
+        name: "أصول متداولة",
+        account_type: "asset",
+        parent_code: null,
+        is_postable: false,
+        sort_order: 11,
+        opening_debit: 50,
+        opening_credit: 0,
+      },
+      {
+        row: 3,
+        code: "3100",
+        name: "رأس المال",
+        account_type: "equity",
+        parent_code: null,
+        is_postable: true,
+        sort_order: 3100,
+        opening_debit: 0,
+        opening_credit: 50,
+      },
+    ]);
+    expect(plan.errors.some((e) => e.message.includes("القابلة للترحيل"))).toBe(
+      true
+    );
   });
 });

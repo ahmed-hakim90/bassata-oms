@@ -135,7 +135,7 @@ export async function closeSessionAction(input: {
 }) {
   const user = await requireAuth();
   const existing = await getSessionById(input.sessionId);
-  if (!existing) throw new Error("Session not found");
+  if (!existing) throw new Error("الجلسة غير موجودة");
 
   const posCtx = await getPosAccessOrNull();
   const activeCashierId = posCtx?.activeCashierId ?? user.id;
@@ -146,7 +146,7 @@ export async function closeSessionAction(input: {
     (existing.cashier_id === activeCashierId &&
       (user.role !== "cashier" || activeCashierId === user.id));
 
-  if (!canClose) throw new Error("You can only close your own session");
+  if (!canClose) throw new Error("تقدر تقفل جلستك بس");
 
   await requirePermissionOrRole("session_close", ["owner", "manager", "cashier"]);
 
@@ -174,14 +174,14 @@ export async function forceCloseSessionAction(input: {
   await requirePermissionOrRole("session_force_close", ["owner", "manager"]);
   const settings = await getSessionSettings();
   if (!settings.allow_manager_force_close) {
-    throw new Error("Manager force close is disabled in settings");
+    throw new Error("الإغلاق الإجباري معطّل من الإعدادات");
   }
   if (!input.closeReason.trim()) {
-    throw new Error("Close reason is required");
+    throw new Error("سبب الإغلاق مطلوب");
   }
 
   const existing = await getSessionById(input.sessionId);
-  if (!existing) throw new Error("Session not found");
+  if (!existing) throw new Error("الجلسة غير موجودة");
   if (existing.status !== "open") throw new Error("Session is already closed");
 
   const reconciliation = await calcExpectedCash(input.sessionId);
@@ -205,6 +205,7 @@ export async function withdrawCashierVaultAction(input: {
   withdrawAmount: number;
   nextOpeningFloat: number;
   notes?: string;
+  destinationTreasuryId?: string | null;
 }) {
   await requirePermissionOrRole(["owner", "manager"]);
   await requireStoreAccess(input.storeId);
@@ -215,9 +216,11 @@ export async function withdrawCashierVaultAction(input: {
     withdrawAmount: input.withdrawAmount,
     nextOpeningFloat: input.nextOpeningFloat,
     notes: input.notes,
+    destinationTreasuryId: input.destinationTreasuryId,
   });
 
   revalidatePath("/sessions");
+  revalidatePath("/treasury");
   return vault;
 }
 
@@ -225,6 +228,7 @@ export async function batchWithdrawCashierVaultsAction(input: {
   storeId: string;
   notes?: string;
   items?: Array<{ cashierId: string; withdrawAmount: number }>;
+  destinationTreasuryId?: string | null;
 }) {
   await requirePermissionOrRole(["owner", "manager"]);
   await requireStoreAccess(input.storeId);
@@ -233,9 +237,11 @@ export async function batchWithdrawCashierVaultsAction(input: {
     storeId: input.storeId,
     notes: input.notes,
     items: input.items,
+    destinationTreasuryId: input.destinationTreasuryId,
   });
 
   revalidatePath("/sessions");
+  revalidatePath("/treasury");
   return result;
 }
 

@@ -8,10 +8,16 @@ export type GlAccountTreeNode = GlAccount & {
 };
 
 export async function ensureSeeded(): Promise<void> {
-  const count = await glRepo.countGlAccounts();
-  if (count > 0) return;
   const orgId = await getOrgId();
-  await glRepo.seedDefaultChartOfAccounts(orgId);
+  const count = await glRepo.countGlAccounts();
+  if (count === 0) {
+    await glRepo.seedDefaultChartOfAccounts(orgId);
+    return;
+  }
+  const overShort = await glRepo.getGlAccountBySystemKey("cash_over_short");
+  if (!overShort) {
+    await glRepo.ensureSystemGlAccounts(orgId);
+  }
 }
 
 export async function listGlAccountsFlat(options?: {

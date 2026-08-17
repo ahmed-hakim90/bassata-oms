@@ -11,10 +11,13 @@ import { resolvePrintTemplate } from "@/modules/print-engine/lib/print-engine-se
 
 export default async function PrintPurchaseInvoicePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ embed?: string; hidePrices?: string }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   const auth = await requirePageAuth(`/print/purchases/${id}`);
   if (!auth.ok) {
     return <AccessDenied title={auth.denial.title} description={auth.denial.description} />;
@@ -35,6 +38,10 @@ export default async function PrintPurchaseInvoicePage({
   const qrDataUrl = template.fields.showQr
     ? await commercialDocumentQrDataUrl(document.number)
     : null;
+  const hideMoney =
+    query.hidePrices === "1" &&
+    (purchase.document_kind === "purchase_order" ||
+      purchase.document_kind === "purchase_request");
 
   return (
     <CommercialDocumentView
@@ -44,6 +51,7 @@ export default async function PrintPurchaseInvoicePage({
       generatedBy={user.name}
       generatedAt={new Date().toISOString()}
       qrDataUrl={qrDataUrl}
+      hideMoney={hideMoney}
     />
   );
 }

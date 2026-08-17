@@ -1,21 +1,29 @@
 import * as auditRepo from "@/lib/repositories/audit.repository";
+import * as categoryRepo from "@/lib/repositories/expense-category.repository";
+import * as expenseRepo from "@/lib/repositories/expense.repository";
 import * as glRepo from "@/lib/repositories/gl-account.repository";
 import * as journalRepo from "@/lib/repositories/journal.repository";
+import { roundMoney } from "@/lib/money";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import {
   buildCustomerPaymentJournalLines,
+  buildCogsAdjustmentJournalLines,
   buildCustomsCertificateJournalLines,
   buildExpenseJournalLines,
   buildPurchaseJournalLines,
   buildPurchaseReturnJournalLines,
   buildSaleJournalLines,
+  buildSessionVarianceJournalLines,
   buildStockCountJournalLines,
   buildSupplierPaymentJournalLines,
   buildWasteJournalLines,
   reverseBuiltLines,
   type BuiltGlLine,
 } from "@/modules/accounting/lib/gl-posting-lines";
-import { createAndPostAutoJournal } from "@/modules/accounting/services/journal.service";
+import {
+  createAndPostAutoJournal,
+  voidJournal,
+} from "@/modules/accounting/services/journal.service";
 import { ensureSeeded } from "@/modules/accounting/services/gl-account.service";
 import type {
   JournalEntryWithLines,
@@ -28,6 +36,7 @@ type SoftFailContext = {
   storeId?: string | null;
   entityId: string;
   source: string;
+  extra?: Record<string, string | number | boolean | null>;
 };
 
 async function resolveSystemAccountIds(
@@ -55,6 +64,28 @@ async function linesFromBuilt(built: BuiltGlLine[]) {
     credit: line.credit,
     memo: line.memo ?? "",
   }));
+}
+
+async function resolveMappedExpenseAccountId(
+  expenseId: string
+): Promise<string | null> {
+  const expense = await expenseRepo.getExpense(expenseId);
+  if (!expense) return null;
+  const category = await categoryRepo.getExpenseCategory(
+    expense.expense_category_id
+  );
+  const mappedId = category?.gl_account_id ?? null;
+  if (!mappedId) return null;
+  const account = await glRepo.getGlAccount(mappedId);
+  if (
+    !account ||
+    !account.is_active ||
+    !account.is_postable ||
+    account.account_type !== "expense"
+  ) {
+    throw new Error("حساب تصنيف المصروف غير صالح للترحيل");
+  }
+  return account.id;
 }
 
 function entryDateFrom(isoOrDate?: string): string {
@@ -118,7 +149,22 @@ export async function postExpenseJournal(input: {
     paymentMethod: input.paymentMethod,
   });
   if (built.length === 0) return null;
-  const lines = await linesFromBuilt(built);
+  let lines = await linesFromBuilt(built);
+  const mappedExpenseAccountId = await resolveMappedExpenseAccountId(
+    input.expenseId
+  );
+  if (mappedExpenseAccountId) {
+    const defaultExpense = await glRepo.getGlAccountBySystemKey(
+      "expense_default"
+    );
+    if (defaultExpense) {
+      lines = lines.map((line) =>
+        line.account_id === defaultExpense.id
+          ? { ...line, account_id: mappedExpenseAccountId }
+          : line
+      );
+    }
+  }
   return createAndPostAutoJournal({
     storeId: input.storeId,
     entryDate: entryDateFrom(input.entryDate),
@@ -456,6 +502,7 @@ async function softFail<T>(
           label,
           source: context.source,
           error: message,
+          ...(context.extra ?? {}),
         },
       });
     } catch (auditError) {
@@ -492,6 +539,10 @@ export function safePostPurchaseJournal(
     storeId: input.storeId,
     entityId: input.purchaseId,
     source: "purchase",
+    extra: {
+      amountPaid: input.amountPaid,
+      paymentMethod: input.paymentMethod ?? "cash",
+    },
   });
 }
 
@@ -595,6 +646,175 @@ export function safePostStockCountJournal(
   });
 }
 
+export async function voidPostedBySource(input: {
+  source: JournalSource;
+  sourceId: string;
+  userId: string;
+}): Promise<boolean> {
+  if (!(await glEnabled())) return false;
+  const existing = await journalRepo.findPostedBySource(input.source, input.sourceId);
+  if (!existing) return false;
+  await voidJournal(existing.id, input.userId);
+  return true;
+}
+
+export const SESSION_VARIANCE_SOURCE_PREFIX = "session_var:";
+
+export function sessionVarianceSourceId(sessionId: string): string {
+  return `${SESSION_VARIANCE_SOURCE_PREFIX}${sessionId}`;
+}
+
+export async function postSessionVarianceJournal(input: {
+  sessionId: string;
+  storeId: string;
+  variance: number;
+  createdBy: string;
+  entryDate?: string;
+  memo?: string;
+}): Promise<JournalEntryWithLines | null> {
+  if (!(await glEnabled())) return null;
+  const built = buildSessionVarianceJournalLines({ variance: input.variance });
+  if (built.length === 0) return null;
+  const lines = await linesFromBuilt(built);
+  return createAndPostAutoJournal({
+    storeId: input.storeId,
+    entryDate: entryDateFrom(input.entryDate),
+    memo: input.memo ?? `فرق إقفال وردية ${input.sessionId.slice(0, 8)}`,
+    source: "adjustment",
+    sourceId: sessionVarianceSourceId(input.sessionId),
+    lines,
+    createdBy: input.createdBy,
+  });
+}
+
+export function safePostSessionVarianceJournal(
+  input: Parameters<typeof postSessionVarianceJournal>[0]
+): Promise<JournalEntryWithLines | null> {
+  return softFail(
+    "postSessionVarianceJournal",
+    () => postSessionVarianceJournal(input),
+    {
+      storeId: input.storeId,
+      entityId: input.sessionId,
+      source: "adjustment",
+    }
+  );
+}
+
+/** Stable source_id so a later CoA import can replace the previous opening JE. */
+export const COA_OPENING_SOURCE_ID = "coa_opening";
+
+export async function postCoaOpeningJournal(input: {
+  periodStoreId: string;
+  lines: { account_id: string; debit: number; credit: number; memo?: string }[];
+  createdBy: string;
+  entryDate?: string;
+  memo?: string;
+}): Promise<JournalEntryWithLines | null> {
+  if (!(await glEnabled())) return null;
+  if (input.lines.length === 0) return null;
+
+  const existing = await journalRepo.findPostedBySource(
+    "adjustment",
+    COA_OPENING_SOURCE_ID
+  );
+  if (existing) {
+    await voidJournal(existing.id, input.createdBy);
+  }
+
+  return createAndPostAutoJournal({
+    storeId: null,
+    periodStoreId: input.periodStoreId,
+    entryDate: entryDateFrom(input.entryDate),
+    memo: input.memo ?? "أرصدة أول المدة من رفع الشجرة",
+    source: "adjustment",
+    sourceId: COA_OPENING_SOURCE_ID,
+    lines: input.lines,
+    createdBy: input.createdBy,
+  });
+}
+
+export function safePostCoaOpeningJournal(
+  input: Parameters<typeof postCoaOpeningJournal>[0]
+): Promise<JournalEntryWithLines | null> {
+  return softFail("postCoaOpeningJournal", () => postCoaOpeningJournal(input), {
+    storeId: null,
+    entityId: COA_OPENING_SOURCE_ID,
+    source: "adjustment",
+  });
+}
+
+export const COGS_ADJ_SOURCE_PREFIX = "cogs_adj:";
+
+export function cogsAdjSourceId(orderId: string): string {
+  return `${COGS_ADJ_SOURCE_PREFIX}${orderId}`;
+}
+
+/**
+ * Align COGS/inventory to the invoice's current line costs after a cost correction.
+ * Replaces the previous adjustment for this order. Requires the original sale JE.
+ */
+export async function postCogsAdjustmentJournal(input: {
+  orderId: string;
+  storeId: string;
+  currentCogs: number;
+  createdBy: string;
+  entryDate?: string;
+  memo?: string;
+}): Promise<JournalEntryWithLines | null> {
+  if (!(await glEnabled())) return null;
+
+  const sale = await journalRepo.findPostedBySource("sale", input.orderId);
+  if (!sale) {
+    throw new Error("قيد البيع الأصلي مش موجود — رحّل البيع الأول");
+  }
+  const saleWithLines = await journalRepo.getJournalEntryWithLines(sale.id);
+  const cogsAccount = await glRepo.getGlAccountBySystemKey("cogs");
+  if (!cogsAccount) throw new Error("حساب تكلفة البضاعة غير موجود");
+  const originalCogs = roundMoney(
+    (saleWithLines?.lines ?? [])
+      .filter((line) => line.account_id === cogsAccount.id)
+      .reduce((sum, line) => sum + Number(line.debit) - Number(line.credit), 0)
+  );
+  const delta = roundMoney(Math.max(0, input.currentCogs) - originalCogs);
+  const sourceId = cogsAdjSourceId(input.orderId);
+  const existing = await journalRepo.findPostedBySource("adjustment", sourceId);
+  if (delta === 0) {
+    if (existing) await voidJournal(existing.id, input.createdBy);
+    return null;
+  }
+
+  if (existing) {
+    await voidJournal(existing.id, input.createdBy);
+  }
+  const built = buildCogsAdjustmentJournalLines({ cogsDelta: delta });
+  if (built.length === 0) return null;
+  const lines = await linesFromBuilt(built);
+  return createAndPostAutoJournal({
+    storeId: input.storeId,
+    entryDate: entryDateFrom(input.entryDate),
+    memo: input.memo ?? `تصحيح تكلفة فاتورة ${input.orderId.slice(0, 8)}`,
+    source: "adjustment",
+    sourceId,
+    lines,
+    createdBy: input.createdBy,
+  });
+}
+
+export function safePostCogsAdjustmentJournal(
+  input: Parameters<typeof postCogsAdjustmentJournal>[0]
+): Promise<JournalEntryWithLines | null> {
+  return softFail(
+    "postCogsAdjustmentJournal",
+    () => postCogsAdjustmentJournal(input),
+    {
+      storeId: input.storeId,
+      entityId: input.orderId,
+      source: "adjustment",
+    }
+  );
+}
+
 export function safeReversePostedBySource(
   input: Parameters<typeof reversePostedBySource>[0]
 ): Promise<JournalEntryWithLines | null> {
@@ -605,6 +825,12 @@ export function safeReversePostedBySource(
       storeId: input.storeId,
       entityId: input.originalSourceId,
       source: input.reverseSource,
+      extra: {
+        originalSource: input.originalSource,
+        reverseSource: input.reverseSource,
+        reverseSourceId: input.reverseSourceId,
+        memo: input.memo,
+      },
     }
   );
 }

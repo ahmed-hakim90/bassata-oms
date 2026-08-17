@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
+import { requiresManagerDiscountOverride } from "@/modules/pos/lib/requires-manager-discount-override";
 
 describe("requiresManagerDiscountOverride", () => {
   it("does not require override when no threshold is configured", () => {

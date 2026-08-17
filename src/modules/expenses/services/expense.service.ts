@@ -47,6 +47,15 @@ async function validateExpenseInput(
   if (input.expense_source === "purchase") {
     throw new Error("شراء المخزون من المصروفات غير متاح — استخدم صفحة المشتريات");
   }
+  if (input.treasury_id && input.expense_source === "session_cash") {
+    throw new Error("مصروف الجلسة بيتخصم من الدرج — متختارش خزينة");
+  }
+  if (input.treasury_id && input.payment_method !== "cash") {
+    throw new Error("الصرف من الخزينة للنقدي فقط");
+  }
+  if (input.payment_method === "cash" && !isSessionExpense && !input.treasury_id && input.expense_source !== "external") {
+    // external without treasury stays outside the system (legacy)
+  }
   if (category.requires_inventory_item) {
     throw new Error(
       "التصنيف ده مرتبط بمخزون — اختار تصنيف مصروف عادي أو سجّل شراء من المشتريات"
@@ -93,10 +102,14 @@ export async function createExpense(
   const approvedBy = status === "approved" ? user.id : null;
 
   const sessionId = isSessionExpense ? input.session_id : null;
+  if (sessionId && input.treasury_id) {
+    throw new Error("مصروف الجلسة بيتخصم من الدرج — متختارش خزينة");
+  }
   const expense = await expenseRepo.createExpense({
     ...input,
     created_by: user.id,
     session_id: sessionId,
+    treasury_id: sessionId ? null : input.treasury_id ?? null,
     cost_center_id: category.cost_center_id,
     inventory_item_id: null,
     quantity: null,
@@ -120,6 +133,7 @@ export async function createExpense(
       expense_source: input.expense_source,
       session_id: sessionId,
       amount: input.amount,
+      treasury_id: expense.treasury_id ?? null,
     },
   });
 
@@ -144,6 +158,21 @@ export async function createExpense(
       createdBy: user.id,
       memo: expense.title || `مصروف ${expense.id.slice(0, 8)}`,
     });
+    if (
+      expense.treasury_id &&
+      expense.payment_method === "cash" &&
+      expense.expense_source !== "session_cash" &&
+      !expense.session_id
+    ) {
+      const { postExpenseToTreasury } = await import(
+        "@/modules/treasury/services/treasury.service"
+      );
+      await postExpenseToTreasury({
+        treasuryId: expense.treasury_id,
+        expenseId: expense.id,
+        amount: expense.amount,
+      });
+    }
   }
 
   return expense;
@@ -264,6 +293,21 @@ export async function approveExpense(id: string, user: AppUser): Promise<Expense
       createdBy: user.id,
       memo: expense.title || `مصروف ${expense.id.slice(0, 8)}`,
     });
+    if (
+      expense.treasury_id &&
+      expense.payment_method === "cash" &&
+      expense.expense_source !== "session_cash" &&
+      !expense.session_id
+    ) {
+      const { postExpenseToTreasury } = await import(
+        "@/modules/treasury/services/treasury.service"
+      );
+      await postExpenseToTreasury({
+        treasuryId: expense.treasury_id,
+        expenseId: expense.id,
+        amount: expense.amount,
+      });
+    }
   }
   return expense;
 }

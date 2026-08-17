@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -21,23 +22,25 @@ interface ManagerOverrideDialogProps {
   description?: string;
   defaultReason: string;
   confirmLabel?: string;
-  onConfirm: (reason: string) => void;
+  onConfirm: (reason: string, pin: string) => void;
 }
 
 function ManagerOverrideDialogForm({
   onOpenChange,
   title,
-  description = "سجّل سبب موافقة المدير للمتابعة.",
+  description = "المالك أو المدير يدخل PIN حسابه من المستخدمين — مش PIN الكاشير على الجهاز.",
   defaultReason,
   confirmLabel = "تأكيد الموافقة",
   onConfirm,
 }: Omit<ManagerOverrideDialogProps, "open">) {
   const [reason, setReason] = useState(defaultReason);
+  const [pin, setPin] = useState("");
 
   function handleConfirm() {
     const trimmed = reason.trim();
-    if (!trimmed) return;
-    onConfirm(trimmed);
+    const trimmedPin = pin.trim();
+    if (!trimmed || trimmedPin.length < 4) return;
+    onConfirm(trimmed, trimmedPin);
   }
 
   return (
@@ -50,15 +53,31 @@ function ManagerOverrideDialogForm({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor="manager-override-reason">سبب الموافقة</Label>
-          <Textarea
-            id="manager-override-reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={3}
-            className="min-h-24 resize-none rounded-xl text-base"
-          />
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="manager-override-pin">PIN المالك أو المدير</Label>
+            <Input
+              id="manager-override-pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              autoFocus
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              className="h-12 rounded-xl text-base tracking-[0.3em]"
+              dir="ltr"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="manager-override-reason">سبب الموافقة</Label>
+            <Textarea
+              id="manager-override-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              className="min-h-24 resize-none rounded-xl text-base"
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button
@@ -73,7 +92,7 @@ function ManagerOverrideDialogForm({
             type="button"
             className="h-12 rounded-xl font-semibold"
             onClick={handleConfirm}
-            disabled={!reason.trim()}
+            disabled={!reason.trim() || pin.trim().length < 4}
           >
             {confirmLabel}
           </Button>

@@ -370,6 +370,23 @@ export async function listCertificateCosts(
   return rows;
 }
 
+export async function getCertificateCost(
+  id: string
+): Promise<CustomsCertificateCostRow | null> {
+  const db = await getDb();
+  const { data, error } = await db
+    .from("customs_certificate_costs")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throwDbError(error, "getCertificateCost");
+  if (!data) return null;
+  const cost = mapCost(data as Record<string, unknown>);
+  const certificate = await getCertificate(cost.certificate_id);
+  if (!certificate) return null;
+  return cost;
+}
+
 export async function insertCertificateCost(
   input: Omit<CustomsCertificateCostRow, "id" | "created_at" | "posted_amount"> & {
     posted_amount?: number;

@@ -18,18 +18,31 @@ import {
 import {
   createExpenseCategoryAction,
   toggleExpenseCategoryAction,
+  updateExpenseCategoryAction,
 } from "@/modules/accounting/actions/expense-category.actions";
 import { COST_CENTER_TYPES } from "@/lib/constants";
 import { labelCostCenterType } from "@/lib/labels/cost-centers";
 import type { CostCenter, ExpenseCategory, CostCenterType } from "@/lib/types";
 
+type ExpenseAccountOption = { id: string; code: string; name: string };
+
 interface CostCentersPageProps {
   centers: CostCenter[];
   categories: ExpenseCategory[];
+  expenseAccounts?: ExpenseAccountOption[];
   embedded?: boolean;
 }
 
-export function CostCentersPage({ centers, categories, embedded }: CostCentersPageProps) {
+function accountLabel(account: ExpenseAccountOption) {
+  return `${account.code} · ${account.name}`;
+}
+
+export function CostCentersPage({
+  centers,
+  categories,
+  expenseAccounts = [],
+  embedded,
+}: CostCentersPageProps) {
   const [pending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showCenterForm, setShowCenterForm] = useState(false);
@@ -41,7 +54,7 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
     code: "",
     type: "other" as CostCenterType,
   });
-  const [newCategory, setNewCategory] = useState({ name: "", requires_inventory_item: false });
+  const [newCategory, setNewCategory] = useState({ name: "", gl_account_id: "" });
 
   const categoriesByCenter = categories.reduce<Record<string, ExpenseCategory[]>>((acc, c) => {
     (acc[c.cost_center_id] ??= []).push(c);
@@ -68,12 +81,26 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
           cost_center_id: centerId,
           name: newCategory.name,
           requires_inventory_item: false,
+          gl_account_id: newCategory.gl_account_id || null,
         });
         toast.success("تم إنشاء التصنيف");
         setCategoryForm(null);
-        setNewCategory({ name: "", requires_inventory_item: false });
+        setNewCategory({ name: "", gl_account_id: "" });
       } catch {
         toast.error("تعذر إنشاء التصنيف");
+      }
+    });
+  }
+
+  function saveCategoryAccount(categoryId: string, accountId: string) {
+    startTransition(async () => {
+      try {
+        await updateExpenseCategoryAction(categoryId, {
+          gl_account_id: accountId || null,
+        });
+        toast.success("تم ربط حساب المصروف");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "تعذر ربط الحساب");
       }
     });
   }
@@ -280,12 +307,38 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
                   </div>
                   {categoryForm === center.id && (
                     <div className="rounded-xl bg-muted/30 p-4 space-y-3">
-                      <Input
-                        placeholder="اسم التصنيف"
-                        value={newCategory.name}
-                        onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                        className="rounded-xl"
-                      />
+                      <div className="space-y-2">
+                        <Label>اسم التصنيف</Label>
+                        <Input
+                          value={newCategory.name}
+                          onChange={(e) =>
+                            setNewCategory({ ...newCategory, name: e.target.value })
+                          }
+                          className="rounded-xl"
+                        />
+                      </div>
+                      {expenseAccounts.length > 0 ? (
+                        <div className="space-y-2">
+                          <Label>حساب المصروف</Label>
+                          <select
+                            value={newCategory.gl_account_id}
+                            onChange={(e) =>
+                              setNewCategory({
+                                ...newCategory,
+                                gl_account_id: e.target.value,
+                              })
+                            }
+                            className="flex h-9 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
+                          >
+                            <option value="">مصروفات تشغيل (افتراضي)</option>
+                            {expenseAccounts.map((account) => (
+                              <option key={account.id} value={account.id}>
+                                {accountLabel(account)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
                       <div className="flex gap-2">
                         <Button size="sm" className="rounded-xl" disabled={pending} onClick={() => saveCategory(center.id)}>
                           حفظ
@@ -301,14 +354,30 @@ export function CostCentersPage({ centers, categories, embedded }: CostCentersPa
                       <li className="px-4 py-3 text-sm text-muted-foreground">لا توجد تصنيفات بعد</li>
                     ) : (
                       centerCategories.map((cat) => (
-                        <li key={cat.id} className="flex items-center justify-between px-4 py-3">
-                          <div>
+                        <li key={cat.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
                             <p className="font-medium">{cat.name}</p>
                             {cat.requires_inventory_item && (
                               <p className="text-xs text-muted-foreground">المخزون مطلوب</p>
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {expenseAccounts.length > 0 ? (
+                              <select
+                                aria-label={`حساب مصروف ${cat.name}`}
+                                value={cat.gl_account_id ?? ""}
+                                disabled={pending}
+                                onChange={(e) => saveCategoryAccount(cat.id, e.target.value)}
+                                className="flex h-9 min-w-[12rem] rounded-xl border border-input bg-transparent px-3 text-sm"
+                              >
+                                <option value="">مصروفات تشغيل (افتراضي)</option>
+                                {expenseAccounts.map((account) => (
+                                  <option key={account.id} value={account.id}>
+                                    {accountLabel(account)}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : null}
                             <StatusPill label={cat.is_active ? "نشط" : "غير نشط"} variant={cat.is_active ? "success" : "default"} />
                             <Button
                               variant="ghost"

@@ -78,7 +78,7 @@ describe("forceCloseSessionAction", () => {
         actualCash: 140,
         closeReason: "   ",
       })
-    ).rejects.toThrow("Close reason is required");
+    ).rejects.toThrow("سبب الإغلاق مطلوب");
   });
 
   it("rejects when manager force close is disabled", async () => {
@@ -97,7 +97,7 @@ describe("forceCloseSessionAction", () => {
         actualCash: 140,
         closeReason: "Cashier left",
       })
-    ).rejects.toThrow("Manager force close is disabled in settings");
+    ).rejects.toThrow("الإغلاق الإجباري معطّل من الإعدادات");
   });
 
   it("force closes an open session with audit metadata path", async () => {
@@ -220,6 +220,6 @@ describe("closeSessionAction authorization", () => {
 
     await expect(
       closeSessionAction({ sessionId: "s1", actualCash: 0 })
-    ).rejects.toThrow("You can only close your own session");
+    ).rejects.toThrow("تقدر تقفل جلستك بس");
   });
 });

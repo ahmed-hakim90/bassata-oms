@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -10,8 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { StandardModalContent } from "@/components/Velora/standard-modal";
 import { formatCurrency } from "@/lib/format";
 import { batchWithdrawCashierVaultsAction } from "@/modules/sessions/actions/session.actions";
+import { listTreasuryOptionsAction } from "@/modules/treasury/actions/treasury.actions";
 import type { CashierVaultSummary } from "@/modules/sessions/services/cashier-vault.service";
 import { roundMoney } from "@/lib/money";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { TreasurySummary } from "@/modules/treasury/lib/treasury-view";
 
 type EditableVaultRow = {
   cashierId: string;
@@ -59,10 +68,31 @@ export function CashierVaultBatchWithdrawDialog({
   const editableRows = useMemo(() => buildEditableRows(rows), [rows]);
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
+  const [destinationId, setDestinationId] = useState("");
+  const [destinations, setDestinations] = useState<TreasurySummary[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     defaultAmounts(editableRows)
   );
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!open) return;
+    void listTreasuryOptionsAction()
+      .then((rows) => {
+        const allowed = rows.filter(
+          (t) => t.kind === "hq" || t.store_id === storeId
+        );
+        setDestinations(allowed);
+        const storeTreasury = allowed.find(
+          (t) => t.kind === "store" && t.store_id === storeId
+        );
+        setDestinationId(storeTreasury?.id ?? allowed[0]?.id ?? "");
+      })
+      .catch(() => {
+        setDestinations([]);
+        setDestinationId("");
+      });
+  }, [open, storeId]);
 
   const summary = useMemo(() => {
     let total = 0;
@@ -135,11 +165,12 @@ export function CashierVaultBatchWithdrawDialog({
           storeId,
           notes: notes.trim() || undefined,
           items,
+          destinationTreasuryId: destinationId || null,
         });
 
         if (result.failed === 0) {
           toast.success(
-            `تم سحب ${formatCurrency(result.withdrawnTotal)} من ${result.succeeded} خزينة`
+            `تم توريد ${formatCurrency(result.withdrawnTotal)} من ${result.succeeded} أمانة`
           );
         } else if (result.succeeded === 0) {
           toast.error("تعذر السحب من كل الخزائن");
@@ -168,13 +199,13 @@ export function CashierVaultBatchWithdrawDialog({
         className="rounded-xl"
         onClick={openDialog}
       >
-        سحب من الخزائن
+        توريد للخزينة
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <StandardModalContent
           size="md"
-          title="سحب من خزائن الكاشير"
-          description={`فرع ${storeName} — عدّل مبلغ السحب لكل كاشير (الحد الأقصى = الرصيد − بداية الوردية)`}
+          title="توريد من خزائن الكاشير"
+          description={`فرع ${storeName} — عدّل مبلغ التوريد لكل كاشير (الحد الأقصى = الرصيد − بداية الوردية)`}
           footer={
             <Button
               type="button"
@@ -294,6 +325,22 @@ export function CashierVaultBatchWithdrawDialog({
           </dl>
 
           <div className="space-y-2">
+            <Label>إلى خزينة</Label>
+            <Select value={destinationId} onValueChange={(v) => setDestinationId(v ?? "")}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder="اختار الخزينة" />
+              </SelectTrigger>
+              <SelectContent>
+                {destinations.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="vault-batch-notes">ملاحظات (اختياري)</Label>
             <Textarea
               id="vault-batch-notes"
@@ -301,7 +348,7 @@ export function CashierVaultBatchWithdrawDialog({
               onChange={(e) => setNotes(e.target.value)}
               className="rounded-xl"
               rows={2}
-              placeholder="مثال: توريد جزئي للخزينة الرئيسية"
+              placeholder="مثال: توريد لخزينة الفرع"
               disabled={pending}
             />
           </div>

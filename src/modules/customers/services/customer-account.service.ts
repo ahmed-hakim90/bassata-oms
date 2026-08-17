@@ -73,9 +73,13 @@ export async function recordCustomerPayment(input: {
   reference?: string;
   notes?: string;
   userId: string;
+  treasuryId?: string | null;
 }): Promise<string> {
   if (input.paymentMethod === "credit") {
     throw new Error("لا يمكن تسجيل التحصيل كبيع آجل");
+  }
+  if (input.treasuryId && input.paymentMethod !== "cash") {
+    throw new Error("إيداع التحصيل في الخزينة للنقدي فقط");
   }
   await assertPeriodOpen(input.storeId);
   const paymentId = await accountRepo.recordCustomerPaymentRpc({
@@ -94,7 +98,11 @@ export async function recordCustomerPayment(input: {
     action: "customer.payment_received",
     entityType: "customer_payment",
     entityId: paymentId,
-    metadata: { customerId: input.customerId, amount: input.amount },
+    metadata: {
+      customerId: input.customerId,
+      amount: input.amount,
+      treasuryId: input.treasuryId ?? null,
+    },
   });
   const { safePostCustomerPaymentJournal } = await import(
     "@/modules/accounting/services/gl-posting.service"
@@ -106,6 +114,16 @@ export async function recordCustomerPayment(input: {
     paymentMethod: input.paymentMethod,
     createdBy: input.userId,
   });
+  if (input.treasuryId && input.paymentMethod === "cash") {
+    const { postCollectionToTreasury } = await import(
+      "@/modules/treasury/services/treasury.service"
+    );
+    await postCollectionToTreasury({
+      treasuryId: input.treasuryId,
+      customerPaymentId: paymentId,
+      amount: input.amount,
+    });
+  }
   return paymentId;
 }
 

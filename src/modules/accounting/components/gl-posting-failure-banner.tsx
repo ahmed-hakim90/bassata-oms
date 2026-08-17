@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { getRecentGlPostingFailuresAction } from "@/modules/accounting/actions/gl-posting-failures.actions";
+import { Button } from "@/components/ui/button";
+import {
+  getRecentGlPostingFailuresAction,
+  retryFailedGlPostingAction,
+} from "@/modules/accounting/actions/gl-posting-failures.actions";
 import {
   glPostingFailureLabelAr,
   type GlPostingFailure,
@@ -12,6 +17,14 @@ import {
 
 export function GlPostingFailureBanner() {
   const [failures, setFailures] = useState<GlPostingFailure[]>([]);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function reload() {
+    void getRecentGlPostingFailuresAction()
+      .then((result) => setFailures(result.failures))
+      .catch(() => setFailures([]));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +40,21 @@ export function GlPostingFailureBanner() {
     };
   }, []);
 
+  function retry(id: string) {
+    setPendingId(id);
+    startTransition(async () => {
+      const result = await retryFailedGlPostingAction(id);
+      if (!result.ok) {
+        toast.error(result.error);
+        setPendingId(null);
+        return;
+      }
+      toast.success("تم ترحيل القيد");
+      setPendingId(null);
+      reload();
+    });
+  }
+
   if (failures.length === 0) return null;
 
   return (
@@ -37,8 +65,8 @@ export function GlPostingFailureBanner() {
       </AlertTitle>
       <AlertDescription>
         <p className="mb-2">
-          العملية الأصلية اتمت (بيع/مصروف/…) لكن القيد الأوتوماتيك فشل. راجع الحسابات
-          أو أنشئ قيد يدوي من{" "}
+          العملية الأصلية اتمت (بيع/مصروف/…) لكن القيد الأوتوماتيك فشل. جرّب إعادة
+          الترحيل من هنا، أو أنشئ قيد يدوي من{" "}
           <Link
             href="/accounting/journals"
             className="font-medium underline underline-offset-2"
@@ -47,18 +75,35 @@ export function GlPostingFailureBanner() {
           </Link>
           .
         </p>
-        <ul className="space-y-1 text-xs">
+        <ul className="space-y-2 text-xs">
           {failures.slice(0, 5).map((failure) => (
-            <li key={failure.id} className="truncate">
-              <span className="font-medium">
-                {glPostingFailureLabelAr(failure.label)}
+            <li
+              key={failure.id}
+              className="flex flex-wrap items-center justify-between gap-2"
+            >
+              <span className="min-w-0 truncate">
+                <span className="font-medium">
+                  {glPostingFailureLabelAr(failure.label)}
+                </span>
+                {" · "}
+                <span className="tabular-nums">
+                  {failure.createdAt.slice(0, 16).replace("T", " ")}
+                </span>
+                {" · "}
+                {failure.error}
               </span>
-              {" · "}
-              <span className="tabular-nums">
-                {failure.createdAt.slice(0, 16).replace("T", " ")}
-              </span>
-              {" · "}
-              {failure.error}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 rounded-lg"
+                disabled={pending}
+                onClick={() => retry(failure.id)}
+              >
+                {pending && pendingId === failure.id
+                  ? "جارٍ الترحيل..."
+                  : "إعادة الترحيل"}
+              </Button>
             </li>
           ))}
         </ul>

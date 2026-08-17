@@ -68,6 +68,14 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   cashier: "كاشير",
   inventory: "أمين مخزن",
 };
+
+/** Roles that may hold a POS PIN (cashier unlock or manager override). */
+export const PIN_ROLES = ["owner", "manager", "cashier"] as const;
+export type PinRole = (typeof PIN_ROLES)[number];
+
+export function userRoleSupportsPin(role: string): role is PinRole {
+  return (PIN_ROLES as readonly string[]).includes(role);
+}
 export const SESSION_STATUSES = ["open", "closed"] as const;
 export const SESSION_LIFECYCLE_STATES = ["open", "warning", "expired_locked"] as const;
 export type SessionLifecycleState = (typeof SESSION_LIFECYCLE_STATES)[number];
@@ -261,6 +269,7 @@ export const PATH_PERMISSIONS: Partial<Record<string, PermissionKey | Permission
   "/accounting/ledger": "gl_view",
   "/accounting/income-statement": "gl_view",
   "/accounting/balance-sheet": "gl_view",
+  "/treasury": "session_view",
   "/customers": "customer_manage",
   "/customers/directory": "customer_manage",
   "/customers/loyalty": "loyalty_manage",
@@ -522,6 +531,7 @@ export const NAV_GROUPS = [
       { label: "Account Ledger", href: "/accounting/ledger", icon: "BookOpen" },
       { label: "Income Statement", href: "/accounting/income-statement", icon: "FileSpreadsheet" },
       { label: "Balance Sheet", href: "/accounting/balance-sheet", icon: "CircleDollarSign" },
+      { label: "Treasuries", href: "/treasury", icon: "Landmark" },
       { label: "Manage Expenses", href: "/expenses", icon: "Wallet" },
       { label: "Monthly Closing", href: "/monthly-closing", icon: "CalendarCheck" },
     ],

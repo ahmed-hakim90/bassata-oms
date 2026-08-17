@@ -18,6 +18,7 @@ import { PAYMENT_METHODS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 import type { PaymentMethod } from "@/lib/types";
 import { recordCustomerPaymentAction } from "@/modules/customers/actions/customer.actions";
+import { TreasuryPicker } from "@/modules/treasury/components/treasury-picker";
 
 interface RecordCustomerPaymentDialogProps {
   customerId: string;
@@ -25,6 +26,7 @@ interface RecordCustomerPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  storeId?: string;
 }
 
 export function RecordCustomerPaymentDialog({
@@ -33,16 +35,19 @@ export function RecordCustomerPaymentDialog({
   open,
   onOpenChange,
   onSuccess,
+  storeId,
 }: RecordCustomerPaymentDialogProps) {
   const [pending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [reference, setReference] = useState("");
+  const [treasuryId, setTreasuryId] = useState("");
 
   const reset = () => {
     setAmount("");
     setMethod("cash");
     setReference("");
+    setTreasuryId("");
   };
 
   const collectValue = Number(amount);
@@ -58,6 +63,10 @@ export function RecordCustomerPaymentDialog({
       toast.error("المبلغ أكبر من المستحق");
       return;
     }
+    if (method === "cash" && !treasuryId) {
+      toast.error("اختار الخزينة اللي هيتحط فيها التحصيل النقدي");
+      return;
+    }
     startTransition(async () => {
       try {
         const result = await recordCustomerPaymentAction({
@@ -65,6 +74,7 @@ export function RecordCustomerPaymentDialog({
           amount: collectValue,
           paymentMethod: method,
           reference,
+          treasuryId: method === "cash" ? treasuryId : null,
         });
         if (!result.success) {
           toast.error(result.error);
@@ -152,6 +162,14 @@ export function RecordCustomerPaymentDialog({
               </SelectContent>
             </Select>
           </div>
+          {method === "cash" ? (
+            <TreasuryPicker
+              value={treasuryId}
+              onChange={setTreasuryId}
+              preferredStoreId={storeId}
+              label="إيداع في خزينة"
+            />
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="customer-collect-ref">مرجع</Label>
             <Input

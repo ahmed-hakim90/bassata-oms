@@ -276,12 +276,20 @@ export async function createSupplierPayment(input: {
   createdBy: string;
   /** When set (POS), links payment to session; cash reduces expected drawer cash. */
   sessionId?: string | null;
+  /** Cash paid from HQ/store treasury (not session drawer). */
+  treasuryId?: string | null;
   /** Skip GL when purchase receive already posts paid portion. */
   skipGlPost?: boolean;
 }): Promise<SupplierPayment> {
   if (input.amount <= 0) throw new Error("Amount must be greater than zero");
   if (input.paymentMethod === "credit") {
     throw new Error("Cannot record a supplier payment as credit");
+  }
+  if (input.treasuryId && input.sessionId) {
+    throw new Error("سداد المورد من الجلسة بيتخصم من الدرج — متختارش خزينة");
+  }
+  if (input.treasuryId && input.paymentMethod !== "cash") {
+    throw new Error("صرف المورد من الخزينة للنقدي فقط");
   }
 
   const supplier = await purchaseRepo.getSupplier(input.supplierId);
@@ -326,6 +334,7 @@ export async function createSupplierPayment(input: {
       supplierId: input.supplierId,
       sessionId,
       paymentMethod: input.paymentMethod,
+      treasuryId: input.treasuryId ?? null,
     },
   });
 
@@ -340,6 +349,17 @@ export async function createSupplierPayment(input: {
       paymentMethod: input.paymentMethod,
       entryDate: payment.paid_at,
       createdBy: input.createdBy,
+    });
+  }
+
+  if (input.treasuryId && input.paymentMethod === "cash" && !sessionId) {
+    const { postSupplierPayToTreasury } = await import(
+      "@/modules/treasury/services/treasury.service"
+    );
+    await postSupplierPayToTreasury({
+      treasuryId: input.treasuryId,
+      supplierPaymentId: payment.id,
+      amount: payment.amount,
     });
   }
 

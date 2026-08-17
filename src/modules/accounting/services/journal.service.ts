@@ -188,7 +188,8 @@ export async function voidJournal(
 
 /** Create and immediately post an auto journal (idempotent by source+sourceId). */
 export async function createAndPostAutoJournal(input: {
-  storeId: string;
+  storeId?: string | null;
+  periodStoreId?: string | null;
   entryDate: string;
   memo: string;
   source: JournalSource;
@@ -204,13 +205,16 @@ export async function createAndPostAutoJournal(input: {
     return journalRepo.getJournalEntryWithLines(existing.id);
   }
 
-  await assertPeriodOpen(input.storeId, `${input.entryDate}T12:00:00.000Z`);
+  const lockStore = input.periodStoreId ?? input.storeId ?? null;
+  if (lockStore) {
+    await assertPeriodOpen(lockStore, `${input.entryDate}T12:00:00.000Z`);
+  }
   await validateLines(input.lines);
 
   const entryNumber = await generateEntryNumber(input.entryDate);
   const now = new Date().toISOString();
   const entry = await journalRepo.createJournalEntry({
-    store_id: input.storeId,
+    store_id: input.storeId ?? null,
     entry_number: entryNumber,
     entry_date: input.entryDate,
     status: "posted",

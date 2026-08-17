@@ -1,4 +1,5 @@
 import type { GlAccount, GlAccountType } from "@/lib/types";
+import { roundMoney } from "@/lib/money";
 
 export const COA_IMPORT_MAX_ROWS = 2000;
 export const COA_IMPORT_MAX_BYTES = 1_500_000;
@@ -10,6 +11,8 @@ export const COA_IMPORT_COLUMNS = [
   "parent_code",
   "is_postable",
   "sort_order",
+  "opening_debit",
+  "opening_credit",
 ] as const;
 
 export type CoaImportColumn = (typeof COA_IMPORT_COLUMNS)[number];
@@ -22,6 +25,8 @@ export type CoaImportRow = {
   parent_code: string | null;
   is_postable: boolean;
   sort_order: number;
+  opening_debit: number;
+  opening_credit: number;
 };
 
 export type CoaImportIssue = {
@@ -79,6 +84,16 @@ const HEADER_ALIASES: Record<string, CoaImportColumn> = {
   order: "sort_order",
   "ترتيب": "sort_order",
   "الترتيب": "sort_order",
+  opening_debit: "opening_debit",
+  debit: "opening_debit",
+  "مدين": "opening_debit",
+  "مدين أول المدة": "opening_debit",
+  "رصيد مدين": "opening_debit",
+  opening_credit: "opening_credit",
+  credit: "opening_credit",
+  "دائن": "opening_credit",
+  "دائن أول المدة": "opening_credit",
+  "رصيد دائن": "opening_credit",
 };
 
 const TYPE_ALIASES: Record<string, GlAccountType> = {
@@ -170,6 +185,14 @@ function parseSortOrder(raw: unknown, code: string): number {
   return Math.trunc(n);
 }
 
+function parseOpeningAmount(raw: unknown): number | null {
+  const value = cellText(raw).replace(/,/g, "");
+  if (!value) return 0;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return roundMoney(n);
+}
+
 export function mapRawCoaRow(
   raw: Record<string, unknown>,
   excelRow: number
@@ -226,6 +249,23 @@ export function mapRawCoaRow(
     });
   }
 
+  const openingDebit = parseOpeningAmount(mapped.opening_debit);
+  const openingCredit = parseOpeningAmount(mapped.opening_credit);
+  if (openingDebit == null) {
+    errors.push({
+      row: excelRow,
+      field: "opening_debit",
+      message: "مدين أول المدة لازم يكون رقم صفر أو أكبر",
+    });
+  }
+  if (openingCredit == null) {
+    errors.push({
+      row: excelRow,
+      field: "opening_credit",
+      message: "دائن أول المدة لازم يكون رقم صفر أو أكبر",
+    });
+  }
+
   if (errors.length > 0 || !accountType || postable == null || !code || !name) {
     return { row: null, errors };
   }
@@ -239,6 +279,8 @@ export function mapRawCoaRow(
       parent_code: parentCode,
       is_postable: postable,
       sort_order: parseSortOrder(mapped.sort_order, code),
+      opening_debit: openingDebit ?? 0,
+      opening_credit: openingCredit ?? 0,
     },
     errors: [],
   };
@@ -452,7 +494,58 @@ export function planCoaImport(
     return { ops: [], errors, warnings };
   }
 
+  errors.push(...validateCoaOpenings(rows));
+  if (errors.length > 0) {
+    return { ops: [], errors, warnings };
+  }
+
   return { ops, errors, warnings };
+}
+
+export function validateCoaOpenings(rows: CoaImportRow[]): CoaImportIssue[] {
+  const errors: CoaImportIssue[] = [];
+  let debit = 0;
+  let credit = 0;
+  for (const row of rows) {
+    if (row.opening_debit > 0 && row.opening_credit > 0) {
+      errors.push({
+        row: row.row,
+        field: "opening_debit",
+        message: "الحساب مينفعش يبقى مدين ودائن في نفس الصف",
+      });
+    }
+    if ((row.opening_debit > 0 || row.opening_credit > 0) && !row.is_postable) {
+      errors.push({
+        row: row.row,
+        field: "opening_debit",
+        message: "رصيد أول المدة للحسابات القابلة للترحيل فقط",
+      });
+    }
+    debit += row.opening_debit;
+    credit += row.opening_credit;
+  }
+  debit = roundMoney(debit);
+  credit = roundMoney(credit);
+  if ((debit > 0 || credit > 0) && Math.abs(debit - credit) >= 0.01) {
+    errors.push({
+      row: 0,
+      field: "opening_debit",
+      message: `أرصدة أول المدة مش متوازنة — مدين ${debit.toFixed(2)} ≠ دائن ${credit.toFixed(2)}`,
+    });
+  }
+  return errors;
+}
+
+export function summarizeCoaOpenings(rows: CoaImportRow[]): {
+  debit: number;
+  credit: number;
+  accounts: number;
+} {
+  return {
+    debit: roundMoney(rows.reduce((sum, row) => sum + row.opening_debit, 0)),
+    credit: roundMoney(rows.reduce((sum, row) => sum + row.opening_credit, 0)),
+    accounts: rows.filter((row) => row.opening_debit > 0 || row.opening_credit > 0).length,
+  };
 }
 
 function findParentCycle(parentByCode: Map<string, string | null>): string | null {

@@ -76,6 +76,8 @@ import {
   createPurchaseAction,
   deleteDraftPurchaseAction,
   getPurchaseDetailAction,
+  importPurchaseOrdersIntoInvoiceAction,
+  listImportablePurchaseOrdersAction,
   postPurchaseReturnAction,
   previewPurchaseConvertAction,
   receivePurchaseAction,
@@ -90,7 +92,10 @@ import {
   formatCommercialDocumentForWhatsApp,
 } from "@/modules/pos/services/receipt-format.service";
 import { COMMERCIAL_DOCUMENT_KIND_LABELS } from "@/modules/print-engine/lib/print-engine-settings";
-import type { PurchaseWithLines } from "@/modules/purchases/services/purchase.service";
+import type {
+  ImportablePurchaseOrder,
+  PurchaseWithLines,
+} from "@/modules/purchases/services/purchase.service";
 
 function withLineTotals(
   lines: PurchaseInvoiceLine[],
@@ -263,6 +268,10 @@ export function PurchaseForm({
   const [convertRows, setConvertRows] = useState<
     Array<{ sourceLineId: string; productId: string; remaining: number; qty: string }>
   >([]);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importableOrders, setImportableOrders] = useState<ImportablePurchaseOrder[]>([]);
+  const [selectedImportIds, setSelectedImportIds] = useState<string[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
   const [printPreview, setPrintPreview] = useState<{
     href: string;
     title: string;
@@ -1095,6 +1104,33 @@ export function PurchaseForm({
     posted: "مرحَّل",
   };
 
+  const openImportPurchaseOrders = async () => {
+    if (!invoice || !isDraft || !isPurchaseInvoice) return;
+    let target = invoice;
+    if (isLocalDraftId(target.id)) {
+      const persisted = await ensurePersistedDraft();
+      if (!persisted) return;
+      target = persisted;
+    }
+    setImportLoading(true);
+    setImportOpen(true);
+    setSelectedImportIds([]);
+    const result = await listImportablePurchaseOrdersAction({
+      supplierId: target.supplier_id,
+      warehouseId: target.warehouse_id,
+    });
+    setImportLoading(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      setImportOpen(false);
+      return;
+    }
+    setImportableOrders(result.data);
+  };
+
+  const zeroCostLineCount =
+    invoice?.lines.filter((line) => line.unit_cost === 0).length ?? 0;
+
   if (!invoice) {
     return (
       <EmptyStateBlock
@@ -1466,6 +1502,12 @@ export function PurchaseForm({
               )}
             </div>
           </div>
+
+          {isDraft && isPurchaseInvoice && zeroCostLineCount > 0 ? (
+            <p className="rounded-[var(--mds-radius-lg)] border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
+              فيه {zeroCostLineCount} بند بدون تكلفة — عدّل سعر الفاتورة قبل الاستلام؛ سعر الفاتورة هو المعتمد في المخزون.
+            </p>
+          ) : null}
 
           {isDraft ? (
             <>
@@ -1889,6 +1931,15 @@ export function PurchaseForm({
                   onClick={() => setConfirmDelete(true)}
                 />
                 {isPurchaseInvoice ? (
+                <>
+                <CompactAction
+                  label="استدعاء أمر توريد"
+                  icon={FileText}
+                  disabled={pending}
+                  onClick={() => {
+                    void openImportPurchaseOrders();
+                  }}
+                />
                 <CompactAction
                   label="حفظ نهائي وتحديث المخزون"
                   icon={PackageCheck}
@@ -1900,6 +1951,7 @@ export function PurchaseForm({
                     setConfirmReceive(true);
                   }}
                 />
+                </>
                 ) : null}
                 {isPurchaseRequest ? (
                 <CompactAction
@@ -2084,6 +2136,18 @@ export function PurchaseForm({
                     })
                   }
                 />
+                {isPurchaseOrder || isPurchaseRequest ? (
+                  <CompactAction
+                    label="طباعة بدون أسعار"
+                    icon={FileText}
+                    onClick={() =>
+                      setPrintPreview({
+                        href: `/print/purchases/${invoice.id}?embed=1&hidePrices=1`,
+                        title: `${kindTitle} بدون أسعار`,
+                      })
+                    }
+                  />
+                ) : null}
                 {isPurchaseInvoice ? (
                 <CompactAction
                   label="ريسيت"
@@ -2346,6 +2410,101 @@ export function PurchaseForm({
               }}
             >
               إنشاء فاتورة الشراء
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open);
+          if (!open) {
+            setImportableOrders([]);
+            setSelectedImportIds([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>استدعاء أوامر توريد</DialogTitle>
+            <DialogDescription>
+              اختار أوامر مُرسلة (أو فوترة جزئية) لنفس المورد والمخزن. بعد الاستيراد تقدر تعدّل الكمية والسعر على الفاتورة.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid max-h-[50vh] gap-2 overflow-y-auto">
+            {importLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">جاري التحميل…</p>
+            ) : importableOrders.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                مفيش أوامر توريد متاحة للاستيراد
+              </p>
+            ) : (
+              importableOrders.map((order) => {
+                const selected = selectedImportIds.includes(order.id);
+                return (
+                  <button
+                    key={order.id}
+                    type="button"
+                    className={`rounded-[var(--mds-radius-lg)] border px-3 py-2 text-start transition-colors ${
+                      selected
+                        ? "border-primary bg-primary/10"
+                        : "border-border/60 hover:bg-muted/40"
+                    }`}
+                    onClick={() => {
+                      setSelectedImportIds((current) =>
+                        selected
+                          ? current.filter((id) => id !== order.id)
+                          : [...current, order.id]
+                      );
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{order.invoice_number}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {statusLabels[order.status] ?? order.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {order.remainingLines} بند متبقي · كمية {order.remainingQty}
+                      {order.supplierName ? ` · ${order.supplierName}` : ""}
+                    </p>
+                  </button>
+                );
+              })
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              disabled={pending || importLoading || selectedImportIds.length === 0}
+              onClick={() => {
+                if (!invoice) return;
+                startTransition(async () => {
+                  let targetId = invoice.id;
+                  if (isLocalDraftId(targetId)) {
+                    const persisted = await ensurePersistedDraft();
+                    if (!persisted) return;
+                    targetId = persisted.id;
+                  }
+                  const result = await importPurchaseOrdersIntoInvoiceAction({
+                    invoiceId: targetId,
+                    sourceIds: selectedImportIds,
+                  });
+                  if (!result.ok) {
+                    toast.error(result.error);
+                    return;
+                  }
+                  setInvoice(result.data);
+                  setImportOpen(false);
+                  toast.success("اتضافت بنود أوامر التوريد — عدّل السعر لو محتاج");
+                });
+              }}
+            >
+              استيراد البنود
             </Button>
           </DialogFooter>
         </DialogContent>

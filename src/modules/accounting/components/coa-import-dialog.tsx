@@ -118,7 +118,9 @@ export function CoaImportDialog({
       throw new Error(result.error);
     }
     toast.success(
-      `اتضاف ${result.data.created} · اتحدّث ${result.data.updated} · بدون تغيير ${result.data.unchanged}`
+      result.data.openingsPosted
+        ? `اتضاف ${result.data.created} · اتحدّث ${result.data.updated} · قيد أول المدة على ${result.data.openingAccounts} حساب`
+        : `اتضاف ${result.data.created} · اتحدّث ${result.data.updated} · بدون تغيير ${result.data.unchanged}`
     );
     reset();
     onImported();
@@ -131,7 +133,7 @@ export function CoaImportDialog({
         <StandardModalContent
           size="md"
           title="رفع شجرة الحسابات"
-          description="Excel أو CSV بالكود. الإضافة والتحديث بالكود — الحسابات الحالية اللي مش في الملف تفضل، وحسابات النظام محمية."
+          description="Excel أو CSV بالكود. الإضافة والتحديث بالكود — الحسابات الحالية اللي مش في الملف تفضل، وحسابات النظام محمية. أعمدة المدين/الدائن تسجّل قيد أول المدة على مستوى المؤسسة (مش فرع)."
           footer={
             <>
               <Button
@@ -183,7 +185,7 @@ export function CoaImportDialog({
                 <p className="text-xs text-muted-foreground">{fileName}</p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  الأعمدة: كود · اسم · نوع · كود الأب · قابل للترحيل · ترتيب
+                  الأعمدة: كود · اسم · نوع · كود الأب · قابل للترحيل · ترتيب · مدين أول المدة · دائن أول المدة
                 </p>
               )}
             </div>
@@ -204,10 +206,23 @@ export function CoaImportDialog({
                     </ul>
                   </div>
                 ) : (
-                  <p>
-                    هيتعمل: إضافة {preview.summary.created} · تحديث{" "}
-                    {preview.summary.updated} · بدون تغيير {preview.summary.unchanged}
-                  </p>
+                  <div className="space-y-1">
+                    <p>
+                      هيتعمل: إضافة {preview.summary.created} · تحديث{" "}
+                      {preview.summary.updated} · بدون تغيير {preview.summary.unchanged}
+                    </p>
+                    {preview.openings.accounts > 0 ? (
+                      <p>
+                        أول المدة: {preview.openings.accounts} حساب · مدين{" "}
+                        {preview.openings.debit.toFixed(2)} · دائن{" "}
+                        {preview.openings.credit.toFixed(2)} — قيد المؤسسة (مش فرع)، والقيد السابق هيتعوّض
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        مفيش أرصدة أول المدة في الملف — القيد السابق إن وجد هيفضل
+                      </p>
+                    )}
+                  </div>
                 )}
                 {preview.warnings.length > 0 ? (
                   <ul className="mt-2 max-h-24 list-disc space-y-0.5 overflow-y-auto ps-5 text-amber-800 dark:text-amber-300">
@@ -230,7 +245,11 @@ export function CoaImportDialog({
         title="تأكيد رفع الشجرة"
         description={
           preview
-            ? `هيتضاف ${preview.summary.created} حساب ويتحدّث ${preview.summary.updated}. الحسابات اللي مش في الملف مش هتتمسح. حسابات النظام الكود والنوع بتوعهم ثابتين.`
+            ? `هيتضاف ${preview.summary.created} حساب ويتحدّث ${preview.summary.updated}. الحسابات اللي مش في الملف مش هتتمسح.${
+                preview.openings.accounts > 0
+                  ? ` وهيتسجل قيد أول المدة على الفرع الحالي (${preview.openings.accounts} حساب) ويعوّض القيد السابق.`
+                  : ""
+              }`
             : "تأكيد الرفع"
         }
         confirmLabel="رفع"

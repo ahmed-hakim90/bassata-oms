@@ -15,12 +15,14 @@ import {
 } from "@/lib/repositories/organization.repository";
 import { getStore } from "@/lib/repositories/store.repository";
 import { getUser } from "@/lib/repositories/user.repository";
-import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
+import { requiresManagerDiscountOverride, assertManagerOverridePin } from "@/modules/pos/services/manager-override.service";
 
 export type CheckoutOverride = {
   discount?: boolean;
   expiredSession?: boolean;
   reason?: string;
+  /** Manager/owner PIN — verified server-side; never logged. */
+  pin?: string;
 };
 
 export type CheckoutFlowResult =
@@ -137,14 +139,24 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
       if (!input.override?.discount) {
         return { success: false, error: "هذا الخصم يحتاج موافقة المدير" };
       }
-      if (user.role !== "owner" && user.role !== "manager") {
-        return { success: false, error: "موافقة المالك أو المدير مطلوبة" };
+      let approver;
+      try {
+        approver = await assertManagerOverridePin({
+          storeId: ctx.storeId,
+          deviceId: ctx.deviceId,
+          pin: input.override.pin,
+        });
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "موافقة المالك أو المدير مطلوبة",
+        };
       }
       const orgId = await getOrgId();
       await writeAuditLog({
         orgId,
         storeId: ctx.storeId,
-        userId: user.id,
+        userId: approver.managerId,
         action: "pos.manager_override.discount",
         entityType: "checkout",
         entityId: session.id,
@@ -166,7 +178,7 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
           orgId,
           storeName: store?.name ?? ctx.storeId,
           cashierName: cashier?.name ?? ctx.activeCashierId,
-          approverName: user.name,
+          approverName: approver.managerName,
           discount,
           threshold: overrideThreshold,
           reason: input.override.reason ?? null,
@@ -183,14 +195,24 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
         return { success: false, error: "انتهت الجلسة — أغلق الوردية للمتابعة" };
       }
       if (settings.require_manager_override_for_expired_sale) {
-        if (user.role !== "owner" && user.role !== "manager") {
-          return { success: false, error: "موافقة المالك أو المدير مطلوبة" };
+        let expiredApprover;
+        try {
+          expiredApprover = await assertManagerOverridePin({
+            storeId: ctx.storeId,
+            deviceId: ctx.deviceId,
+            pin: input.override.pin,
+          });
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "موافقة المالك أو المدير مطلوبة",
+          };
         }
         const orgId = await getOrgId();
         await writeAuditLog({
           orgId,
           storeId: ctx.storeId,
-          userId: user.id,
+          userId: expiredApprover.managerId,
           action: "pos.manager_override.expired_session",
           entityType: "checkout",
           entityId: session.id,
@@ -230,18 +252,10 @@ export async function executePosCheckout(input: CheckoutFlowInput): Promise<Chec
       }
       void (async () => {
         try {
-          const { getBusinessActivitySettings } = await import(
-            "@/modules/system/services/settings.service"
-          );
-          const { isFoodServiceActivity } = await import("@/lib/business-activity-flags");
-          const { enqueueKitchenIfNeeded } = await import(
+          const { enqueueKitchenForCompletedOrder } = await import(
             "@/modules/kitchen/services/kitchen.service"
           );
-          const activity = await getBusinessActivitySettings();
-          await enqueueKitchenIfNeeded(
-            result.order.id,
-            isFoodServiceActivity(activity.activity_type)
-          );
+          await enqueueKitchenForCompletedOrder(result.order.id);
         } catch (kitchenError) {
           console.warn("[pos] kitchen enqueue skipped", kitchenError);
         }

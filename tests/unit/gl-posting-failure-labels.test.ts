@@ -16,6 +16,9 @@ describe("gl-posting-failure-labels", () => {
       "ترحيل مرتجع مشتريات"
     );
     expect(glPostingFailureLabelAr("postStockCountJournal")).toBe("ترحيل فروقات جرد");
+    expect(glPostingFailureLabelAr("postSessionVarianceJournal")).toBe(
+      "ترحيل فرق إقفال وردية"
+    );
     expect(glPostingFailureLabelAr("unknown_label")).toBe("unknown_label");
   });
 });

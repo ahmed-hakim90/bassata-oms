@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { glSaleDiscount } from "@/lib/line-discount";
 import { roundMoney } from "@/lib/money";
 import type { Json } from "@/lib/supabase/database.types";
 import * as onlineOrderRepo from "@/lib/repositories/online-order.repository";
@@ -723,7 +725,7 @@ export async function invoiceOnlineOrder(input: {
       storeId: input.storeId,
       total: Number(postedOrder?.total ?? result.total ?? 0),
       tax: Number(postedOrder?.tax ?? result.tax ?? 0),
-      discount: Number(postedOrder?.discount ?? 0),
+      discount: glSaleDiscount(Number(postedOrder?.discount ?? 0), items),
       payments,
       cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
       createdBy: input.cashierId,
@@ -732,6 +734,19 @@ export async function invoiceOnlineOrder(input: {
   } catch (error) {
     console.error("[online-order] GL sale post failed", error);
   }
+
+  after(() => {
+    void (async () => {
+      try {
+        const { enqueueKitchenForCompletedOrder } = await import(
+          "@/modules/kitchen/services/kitchen.service"
+        );
+        await enqueueKitchenForCompletedOrder(result.order_id);
+      } catch (kitchenError) {
+        console.warn("[online-order] kitchen enqueue skipped", kitchenError);
+      }
+    })();
+  });
 
   return result;
 }

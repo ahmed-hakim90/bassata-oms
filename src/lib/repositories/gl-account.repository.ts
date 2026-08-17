@@ -68,6 +68,13 @@ export async function seedDefaultChartOfAccounts(orgId: string): Promise<void> {
   if (error) throwDbError(error, "seedDefaultChartOfAccounts");
 }
 
+export async function ensureSystemGlAccounts(orgId: string): Promise<void> {
+  const { error } = await callRpc("ensure_system_gl_accounts", {
+    p_org_id: orgId,
+  });
+  if (error) throwDbError(error, "ensureSystemGlAccounts");
+}
+
 export async function createGlAccount(input: {
   parent_id?: string | null;
   code: string;

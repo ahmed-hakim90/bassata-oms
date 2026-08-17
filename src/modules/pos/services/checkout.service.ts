@@ -1,5 +1,6 @@
 import * as orderRepo from "@/lib/repositories/order.repository";
 import * as sessionRepo from "@/lib/repositories/session.repository";
+import { glSaleDiscount } from "@/lib/line-discount";
 import { roundMoney } from "@/lib/money";
 import {
   earnPoints,
@@ -44,6 +45,8 @@ export interface CheckoutInput {
 export interface CheckoutResult {
   order: Order;
   orderNumber: string;
+  /** Sale committed; loyalty ledger write failed — do not retry checkout. */
+  loyaltyRedeemWarning?: string;
 }
 
 export async function completeCheckout(input: CheckoutInput): Promise<CheckoutResult> {
@@ -256,15 +259,22 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     sales_mode: input.salesMode ?? "retail",
   };
 
+  let loyaltyRedeemWarning: string | undefined;
   if (input.customer?.id && requestedPoints > 0) {
-    await redeemPoints({
-      customerId: input.customer.id,
-      points: requestedPoints,
-      reason: `استبدال نقاط - طلب ${result.order_number}`,
-      userId: input.cashierId,
-      storeId: input.storeId,
-      rule: loyaltyRule,
-    });
+    try {
+      await redeemPoints({
+        customerId: input.customer.id,
+        points: requestedPoints,
+        reason: `استبدال نقاط - طلب ${result.order_number}`,
+        userId: input.cashierId,
+        storeId: input.storeId,
+        rule: loyaltyRule,
+      });
+    } catch (error) {
+      console.error("[checkout] loyalty redeem failed after sale", error);
+      loyaltyRedeemWarning =
+        "تم البيع، لكن استبدال النقاط فشل. راجع رصيد الولاء للعميل — متكررش الفاتورة.";
+    }
   }
 
   // Earn after the cashier gets success — do not block invoice/toast.
@@ -299,7 +309,7 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
           storeId: input.storeId,
           total: order.total,
           tax: order.tax,
-          discount: order.discount,
+          discount: glSaleDiscount(order.discount, items),
           payments,
           cogs,
           createdBy: input.cashierId,
@@ -311,5 +321,5 @@ export async function completeCheckout(input: CheckoutInput): Promise<CheckoutRe
     })();
   });
 
-  return { order, orderNumber: result.order_number };
+  return { order, orderNumber: result.order_number, loyaltyRedeemWarning };
 }

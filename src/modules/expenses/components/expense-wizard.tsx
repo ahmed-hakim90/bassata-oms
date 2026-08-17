@@ -20,6 +20,7 @@ import {
   deleteExpenseAction,
   updateExpenseAction,
 } from "@/modules/expenses/actions/expense.actions";
+import { TreasuryPicker } from "@/modules/treasury/components/treasury-picker";
 import {
   EXPENSE_PAYMENT_METHODS,
   EXPENSE_SOURCES,
@@ -90,6 +91,7 @@ export function ExpenseWizard({
   const [expenseSource, setExpenseSource] = useState<ExpenseSource>(
     expense?.expense_source ?? (sessionMode || sessionId ? "session_cash" : "external")
   );
+  const [treasuryId, setTreasuryId] = useState(expense?.treasury_id ?? "");
 
   const selectableCategories = useMemo(
     () =>
@@ -124,6 +126,7 @@ export function ExpenseWizard({
     setNotes("");
     setPaymentMethod("cash");
     setExpenseSource(sessionMode || sessionId ? "session_cash" : "external");
+    setTreasuryId("");
   }
 
   function handleSubmit() {
@@ -155,7 +158,25 @@ export function ExpenseWizard({
           notes,
           receipt_url: expense?.receipt_url ?? null,
           created_by: userId,
+          treasury_id:
+            !sessionMode &&
+            !sessionId &&
+            paymentMethod === "cash" &&
+            expenseSource !== "session_cash"
+              ? treasuryId || null
+              : null,
         };
+
+        if (
+          !sessionMode &&
+          !sessionId &&
+          payload.payment_method === "cash" &&
+          payload.expense_source !== "session_cash" &&
+          !payload.treasury_id
+        ) {
+          toast.error("اختار الخزينة اللي هيتصرف منها المصروف النقدي");
+          return;
+        }
 
         if (expense) {
           await updateExpenseAction(expense.id, {
@@ -311,6 +332,17 @@ export function ExpenseWizard({
             </select>
           </div>
         </div>
+      ) : null}
+
+      {!sessionMode &&
+      paymentMethod === "cash" &&
+      expenseSource !== "session_cash" ? (
+        <TreasuryPicker
+          value={treasuryId}
+          onChange={setTreasuryId}
+          preferredStoreId={storeId}
+          label="الصرف من خزينة"
+        />
       ) : null}
 
       <div className="space-y-2">

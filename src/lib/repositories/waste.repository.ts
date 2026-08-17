@@ -28,3 +28,17 @@ export async function createWaste(
   if (error || !data) throwDbError(error, "createWaste");
   return mapWaste(data);
 }
+
+export async function getWaste(id: string): Promise<WasteRecord | null> {
+  const storeIds = (await listStores()).map((store) => store.id);
+  if (storeIds.length === 0) return null;
+  const db = await getDb();
+  const { data, error } = await db
+    .from("waste_records")
+    .select("*")
+    .eq("id", id)
+    .in("store_id", storeIds)
+    .maybeSingle();
+  if (error) throwDbError(error, "getWaste");
+  return data ? mapWaste(data) : null;
+}

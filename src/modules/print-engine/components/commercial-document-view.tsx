@@ -19,6 +19,7 @@ export function CommercialDocumentView({
   generatedBy,
   generatedAt,
   qrDataUrl = null,
+  hideMoney: hideMoneyProp = false,
 }: CommercialDocumentViewProps) {
   const colors = settings.colors;
   const title = documentTitle(settings, doc.kind);
@@ -36,7 +37,7 @@ export function CommercialDocumentView({
   const striped = layout === "striped";
   const currency = branding.currency;
   const extraCost = doc.extraCost ?? 0;
-  const hideMoney = doc.kind === "delivery_note";
+  const hideMoney = hideMoneyProp || doc.kind === "delivery_note";
   const blocks = normalizePrintBlocks(settings.blocks);
 
   const logoBlock =

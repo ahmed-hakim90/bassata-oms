@@ -15,7 +15,6 @@ import {
 import { amountFromQuantity, quantityFromAmount } from "@/lib/units";
 import {
   parseScaleSettings,
-  readWeightFromScale,
 } from "@/modules/pos/lib/scale-device-hook";
 
 interface Props {
@@ -120,27 +119,9 @@ export function WeightAmountModal({
             سعر الوحدة: {formatCurrency(unitPrice)} / {unit}
           </p>
           {scaleConfig.enabled && mode === "by_weight" ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  void readWeightFromScale(scaleConfig).then((kg) => {
-                    if (kg == null || !Number.isFinite(kg) || kg <= 0) {
-                      // Manual entry remains the supported path for protocol=manual.
-                      return;
-                    }
-                    setWeight(formatWeightPresetValue(kg));
-                  });
-                }}
-              >
-                قراءة من الميزان
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                البروتوكول الحالي: {scaleConfig.protocol === "manual" ? "إدخال يدوي" : "USB/serial stub"}
-              </span>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              أدخل الوزن يدويًا. قراءة USB من الميزان لسه غير مفعّلة على الجهاز ده.
+            </p>
           ) : null}
           {mode === "by_weight" ? (
             <div className="space-y-3">

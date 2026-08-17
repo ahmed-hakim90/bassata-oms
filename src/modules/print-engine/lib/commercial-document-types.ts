@@ -49,4 +49,6 @@ export interface CommercialDocumentViewProps {
   generatedBy: string;
   generatedAt: string;
   qrDataUrl?: string | null;
+  /** Hide unit prices / money columns (e.g. PO or quotation for warehouse). */
+  hideMoney?: boolean;
 }

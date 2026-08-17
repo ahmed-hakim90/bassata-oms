@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCogsAdjustmentJournalLines,
   buildPurchaseJournalLines,
   buildPurchaseReturnJournalLines,
   buildSaleJournalLines,
+  buildSessionVarianceJournalLines,
   buildStockCountJournalLines,
   buildSupplierPaymentJournalLines,
   buildWasteJournalLines,
@@ -177,6 +179,46 @@ describe("buildStockCountJournalLines", () => {
     expect(lines).toEqual([
       { systemKey: "inventory", debit: 15, credit: 0 },
       { systemKey: "waste", debit: 0, credit: 15 },
+    ]);
+    expect(isJournalBalanced(lines)).toBe(true);
+  });
+});
+
+describe("buildCogsAdjustmentJournalLines", () => {
+  it("increases COGS when costs go up", () => {
+    const lines = buildCogsAdjustmentJournalLines({ cogsDelta: 25 });
+    expect(lines).toEqual([
+      { systemKey: "cogs", debit: 25, credit: 0 },
+      { systemKey: "inventory", debit: 0, credit: 25 },
+    ]);
+    expect(isJournalBalanced(lines)).toBe(true);
+  });
+
+  it("decreases COGS when costs go down", () => {
+    const lines = buildCogsAdjustmentJournalLines({ cogsDelta: -12 });
+    expect(lines).toEqual([
+      { systemKey: "inventory", debit: 12, credit: 0 },
+      { systemKey: "cogs", debit: 0, credit: 12 },
+    ]);
+    expect(isJournalBalanced(lines)).toBe(true);
+  });
+});
+
+describe("buildSessionVarianceJournalLines", () => {
+  it("posts a till shortage to cash over/short", () => {
+    const lines = buildSessionVarianceJournalLines({ variance: -30 });
+    expect(lines).toEqual([
+      { systemKey: "cash_over_short", debit: 30, credit: 0 },
+      { systemKey: "cash", debit: 0, credit: 30 },
+    ]);
+    expect(isJournalBalanced(lines)).toBe(true);
+  });
+
+  it("posts a till overage to cash over/short", () => {
+    const lines = buildSessionVarianceJournalLines({ variance: 8 });
+    expect(lines).toEqual([
+      { systemKey: "cash", debit: 8, credit: 0 },
+      { systemKey: "cash_over_short", debit: 0, credit: 8 },
     ]);
     expect(isJournalBalanced(lines)).toBe(true);
   });

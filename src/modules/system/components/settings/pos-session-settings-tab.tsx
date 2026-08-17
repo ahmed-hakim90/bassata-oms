@@ -208,6 +208,18 @@ export function PosSessionSettingsTab({
             </label>
             <label className="flex items-center gap-2">
               <Checkbox
+                checked={sessionForm.require_manager_override_for_expired_sale}
+                onCheckedChange={(v) =>
+                  setSessionForm({
+                    ...sessionForm,
+                    require_manager_override_for_expired_sale: v === true,
+                  })
+                }
+              />
+              <span className="text-sm">طلب موافقة مدير للبيع بعد انتهاء الجلسة</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <Checkbox
                 checked={sessionForm.allow_manager_force_close}
                 onCheckedChange={(v) =>
                   setSessionForm({
@@ -244,6 +256,8 @@ export function PosSessionSettingsTab({
                       max_open_hours: sessionForm.max_open_hours,
                       warn_after_hours: sessionForm.warn_after_hours,
                       block_sales_when_expired: sessionForm.block_sales_when_expired,
+                      require_manager_override_for_expired_sale:
+                        sessionForm.require_manager_override_for_expired_sale,
                       allow_manager_force_close: sessionForm.allow_manager_force_close,
                       manager_discount_override_amount:
                         sessionForm.manager_discount_override_amount,

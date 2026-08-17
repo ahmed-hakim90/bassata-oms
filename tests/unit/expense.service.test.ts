@@ -86,6 +86,7 @@ describe("createExpense", () => {
       name: "Cleaning",
       is_active: true,
       requires_inventory_item: false,
+      gl_account_id: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
@@ -195,6 +196,21 @@ describe("createExpense", () => {
 
     expect(expenseRepo.createExpense).not.toHaveBeenCalled();
     expect(adjustStock).not.toHaveBeenCalled();
+  });
+
+  it("rejects mixing session drawer expenses with a treasury_id", async () => {
+    await expect(
+      createExpense(
+        {
+          ...baseInput,
+          treasury_id: "treasury-1",
+        },
+        cashier,
+        { isSessionExpense: true }
+      )
+    ).rejects.toThrow(/الدرج/);
+
+    expect(expenseRepo.createExpense).not.toHaveBeenCalled();
   });
 
   it("preserves closed-period rejection before creating expenses", async () => {

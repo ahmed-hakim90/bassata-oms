@@ -10,7 +10,11 @@ import * as userRepo from "@/lib/repositories/user.repository";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as permissionRepo from "@/lib/repositories/permission.repository";
 import { listDevices } from "@/modules/system/services/users.service";
+import Link from "next/link";
+import { Landmark } from "lucide-react";
 import { PageHeader } from "@/components/Velora/page-header";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { OpenSessionDialog } from "@/modules/sessions/components/open-session-dialog";
 import { CloseSessionStepper } from "@/modules/sessions/components/close-session-stepper";
 import { OpenSessionsTable } from "@/modules/sessions/components/open-sessions-table";
@@ -151,11 +155,25 @@ export async function SessionsPage({ filterStoreId = "all" }: SessionsPageProps)
             : "افتح واقفل جلستك وعدّ الدرج قبل ما تمشي"
         }
         action={
-          <OpenSessionDialog
-            disabled={Boolean(active)}
-            canEditOpeningFloat={canManageVault}
-            lockOpeningFloat={!canManageVault}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {canManageVault ? (
+              <Link
+                href="/treasury"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "rounded-xl"
+                )}
+              >
+                <Landmark className="size-4" />
+                الخزائن
+              </Link>
+            ) : null}
+            <OpenSessionDialog
+              disabled={Boolean(active)}
+              canEditOpeningFloat={canManageVault}
+              lockOpeningFloat={!canManageVault}
+            />
+          </div>
         }
       />
 

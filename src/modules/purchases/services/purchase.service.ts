@@ -16,6 +16,7 @@ import { lineTotalAfterDiscount } from "@/lib/line-discount";
 import type { MeasurementUnit, PaymentMethod, PurchaseInvoice, PurchaseInvoiceLine } from "@/lib/types";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import { remainingPurchaseLineQty } from "@/modules/purchases/lib/remaining-qty";
+import { canImportPurchaseOrderStatus } from "@/lib/commercial-document-import";
 import { after } from "next/server";
 
 export interface PurchaseWithLines extends PurchaseInvoice {
@@ -452,7 +453,7 @@ export async function addPurchaseLine(input: {
   discountAmount?: number;
 }): Promise<PurchaseInvoiceLine> {
   const invoice = await purchaseRepo.getPurchase(input.invoiceId);
-  if (!invoice) throw new Error("Purchase not found");
+  if (!invoice) throw new Error("فاتورة الشراء غير موجودة");
   if (invoice.status !== "draft") throw new Error("Cannot edit received purchase");
 
   const product = await catalogRepo.getProduct(input.productId);
@@ -687,7 +688,7 @@ export async function updateDraftPurchase(
   }
 ): Promise<PurchaseInvoice> {
   const invoice = await purchaseRepo.getPurchase(invoiceId);
-  if (!invoice) throw new Error("Purchase not found");
+  if (!invoice) throw new Error("فاتورة الشراء غير موجودة");
   const kind = invoice.document_kind ?? "purchase_invoice";
   const prOpen =
     kind === "purchase_request" &&
@@ -746,11 +747,24 @@ export async function updateDraftPurchase(
 }
 
 export async function deleteDraftPurchase(invoiceId: string, userId: string): Promise<void> {
-  const invoice = await purchaseRepo.getPurchase(invoiceId);
-  if (!invoice) throw new Error("Purchase not found");
+  const invoice = await getPurchase(invoiceId);
+  if (!invoice) throw new Error("فاتورة الشراء غير موجودة");
   if (invoice.status !== "draft") throw new Error("Only draft purchases can be deleted");
+
+  const sourceLineIds = invoice.lines
+    .map((line) => line.source_line_id)
+    .filter((id): id is string => Boolean(id));
+
   await purchaseRepo.deletePurchaseLinesForInvoice(invoiceId);
   await purchaseRepo.deletePurchase(invoiceId);
+
+  if (sourceLineIds.length > 0 || invoice.source_document_id) {
+    await refreshPurchaseOrderStatusAfterAllocationChange({
+      explicitPoIds: invoice.source_document_id ? [invoice.source_document_id] : [],
+      sourceLineIds,
+    });
+  }
+
   const orgId = await getOrgId();
   await writeAuditLog({
     orgId,
@@ -760,6 +774,44 @@ export async function deleteDraftPurchase(invoiceId: string, userId: string): Pr
     entityType: "purchase_invoice",
     entityId: invoiceId,
   });
+}
+
+async function refreshPurchaseOrderStatusAfterAllocationChange(input: {
+  explicitPoIds: string[];
+  sourceLineIds: string[];
+}): Promise<void> {
+  const poIds = new Set(input.explicitPoIds);
+  for (const sourceLineId of input.sourceLineIds) {
+    const db = await (await import("@/lib/repositories/client")).getDb();
+    const { data, error } = await db
+      .from("purchase_invoice_lines")
+      .select("invoice_id")
+      .eq("id", sourceLineId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data?.invoice_id) poIds.add(data.invoice_id);
+  }
+
+  for (const poId of poIds) {
+    const po = await getPurchase(poId);
+    if (!po || po.document_kind !== "purchase_order") continue;
+    if (po.status !== "invoiced" && po.status !== "partial_invoiced" && po.status !== "sent") {
+      continue;
+    }
+    let remainingTotal = 0;
+    let orderedTotal = 0;
+    for (const line of po.lines) {
+      orderedTotal += line.quantity;
+      const allocated = await allocatedPurchaseLineQty(line.id);
+      remainingTotal += remainingPurchaseLineQty(line.quantity, allocated);
+    }
+    if (orderedTotal <= 0) continue;
+    const nextStatus =
+      remainingTotal <= 0 ? "invoiced" : remainingTotal < orderedTotal ? "partial_invoiced" : "sent";
+    if (nextStatus !== po.status) {
+      await purchaseRepo.updatePurchase(poId, { status: nextStatus });
+    }
+  }
 }
 
 /**
@@ -772,7 +824,7 @@ export async function voidReceivedPurchase(
   userId: string
 ): Promise<PurchaseInvoice> {
   const invoice = await purchaseRepo.getPurchase(invoiceId);
-  if (!invoice) throw new Error("Purchase not found");
+  if (!invoice) throw new Error("فاتورة الشراء غير موجودة");
   if (invoice.status === "draft") {
     throw new Error("Delete draft purchases instead of voiding");
   }
@@ -780,6 +832,15 @@ export async function voidReceivedPurchase(
   if (invoice.status !== "received") throw new Error("Cannot void purchase in this status");
 
   await assertPeriodOpen(invoice.store_id);
+  const { voidPostedBySource } = await import(
+    "@/modules/accounting/services/gl-posting.service"
+  );
+  await voidPostedBySource({
+    source: "purchase",
+    sourceId: invoiceId,
+    userId,
+  });
+
   const lines = await purchaseRepo.getPurchaseLines(invoiceId);
   const invoiceBatches = await inventoryRepo.listInventoryBatchesForPurchaseInvoice(invoiceId);
   const batchesByProduct = new Map<string, typeof invoiceBatches>();
@@ -922,6 +983,190 @@ export async function allocatedPurchaseLineQty(poLineId: string): Promise<number
     sum += Number(row.quantity ?? 0);
   }
   return sum;
+}
+
+export type ImportablePurchaseOrder = {
+  id: string;
+  invoice_number: string;
+  status: PurchaseInvoice["status"];
+  supplier_id: string | null;
+  supplierName: string | null;
+  warehouse_id: string;
+  document_date: string | null;
+  remainingLines: number;
+  remainingQty: number;
+};
+
+export async function listImportablePurchaseOrders(input: {
+  storeId: string;
+  supplierId?: string | null;
+  warehouseId?: string | null;
+}): Promise<ImportablePurchaseOrder[]> {
+  const orders = await listPurchaseDocuments(input.storeId, "purchase_order");
+  const eligible = orders.filter(
+    (order) =>
+      canImportPurchaseOrderStatus(order.status) &&
+      (!input.supplierId || order.supplier_id === input.supplierId) &&
+      (!input.warehouseId || order.warehouse_id === input.warehouseId)
+  );
+  const rows: ImportablePurchaseOrder[] = [];
+  for (const order of eligible) {
+    let remainingLines = 0;
+    let remainingQty = 0;
+    for (const line of order.lines) {
+      const allocated = await allocatedPurchaseLineQty(line.id);
+      const remaining = remainingPurchaseLineQty(line.quantity, allocated);
+      if (remaining > 0) {
+        remainingLines += 1;
+        remainingQty += remaining;
+      }
+    }
+    if (remainingLines === 0) continue;
+    rows.push({
+      id: order.id,
+      invoice_number: order.invoice_number,
+      status: order.status,
+      supplier_id: order.supplier_id,
+      supplierName: order.supplierName,
+      warehouse_id: order.warehouse_id,
+      document_date: order.document_date ?? null,
+      remainingLines,
+      remainingQty,
+    });
+  }
+  return rows;
+}
+
+async function appendPurchaseOrderLinesToInvoice(input: {
+  invoiceId: string;
+  source: PurchaseWithLines;
+  lines?: Array<{ sourceLineId: string; quantity: number }>;
+}): Promise<void> {
+  const requested = input.lines?.length
+    ? input.lines
+    : await Promise.all(
+        input.source.lines.map(async (line) => {
+          const allocated = await allocatedPurchaseLineQty(line.id);
+          return {
+            sourceLineId: line.id,
+            quantity: remainingPurchaseLineQty(line.quantity, allocated),
+          };
+        })
+      );
+
+  for (const req of requested) {
+    const sourceLine = input.source.lines.find((line) => line.id === req.sourceLineId);
+    if (!sourceLine) throw new Error("سطر غير موجود على المستند المصدر");
+    const allocated = await allocatedPurchaseLineQty(sourceLine.id);
+    const remaining = remainingPurchaseLineQty(sourceLine.quantity, allocated);
+    if (req.quantity > remaining) {
+      throw new Error("الكمية أكبر من المتبقي على أمر التوريد");
+    }
+    if (req.quantity <= 0) continue;
+    const sourceDiscount = sourceLine.discount_amount ?? 0;
+    const discountAmount =
+      sourceLine.quantity > 0
+        ? Number(((sourceDiscount * req.quantity) / sourceLine.quantity).toFixed(2))
+        : 0;
+    await purchaseRepo.addPurchaseLine({
+      invoice_id: input.invoiceId,
+      product_id: sourceLine.product_id,
+      variant_id: sourceLine.variant_id,
+      quantity: req.quantity,
+      unit_cost: sourceLine.unit_cost,
+      discount_amount: discountAmount,
+      line_total: lineTotalAfterDiscount(
+        req.quantity,
+        sourceLine.unit_cost,
+        discountAmount
+      ),
+      source_line_id: sourceLine.id,
+      foreign_unit_cost: sourceLine.foreign_unit_cost ?? null,
+      foreign_line_total:
+        sourceLine.foreign_unit_cost != null
+          ? Number((req.quantity * sourceLine.foreign_unit_cost).toFixed(2))
+          : null,
+    });
+  }
+
+  let remainingTotal = 0;
+  for (const line of input.source.lines) {
+    const allocated = await allocatedPurchaseLineQty(line.id);
+    remainingTotal += remainingPurchaseLineQty(line.quantity, allocated);
+  }
+  await purchaseRepo.updatePurchase(input.source.id, {
+    status: remainingTotal <= 0 ? "invoiced" : "partial_invoiced",
+  });
+}
+
+/** Pull remaining lines from sent/partial POs into an existing draft purchase invoice. */
+export async function importPurchaseOrdersIntoInvoice(input: {
+  invoiceId: string;
+  sourceIds: string[];
+}): Promise<PurchaseWithLines> {
+  const target = await getPurchase(input.invoiceId);
+  if (!target || target.document_kind !== "purchase_invoice") {
+    throw new Error("فاتورة الشراء غير موجودة");
+  }
+  if (target.status !== "draft") {
+    throw new Error("الاستيراد متاح على مسودة فاتورة الشراء فقط");
+  }
+  if (input.sourceIds.length === 0) {
+    throw new Error("اختار أمر توريد واحد على الأقل");
+  }
+
+  const uniqueIds = [...new Set(input.sourceIds)];
+  const sources: PurchaseWithLines[] = [];
+  for (const sourceId of uniqueIds) {
+    const source = await getPurchase(sourceId);
+    if (!source || source.document_kind !== "purchase_order") {
+      throw new Error("أمر التوريد غير موجود");
+    }
+    if (!canImportPurchaseOrderStatus(source.status)) {
+      throw new Error("أمر التوريد لازم يكون مُرسل أو مستلم جزئيًا");
+    }
+    if (source.store_id !== target.store_id) {
+      throw new Error("أمر التوريد من فرع تاني");
+    }
+    if (source.warehouse_id !== target.warehouse_id) {
+      throw new Error("أمر التوريد على مخزن مختلف عن الفاتورة");
+    }
+    if (target.supplier_id && source.supplier_id && source.supplier_id !== target.supplier_id) {
+      throw new Error("أمر التوريد لمورد مختلف عن الفاتورة");
+    }
+    sources.push(source);
+  }
+
+  const supplierIds = [
+    ...new Set(sources.map((s) => s.supplier_id).filter((id): id is string => Boolean(id))),
+  ];
+  if (supplierIds.length > 1) {
+    throw new Error("اختار أوامر توريد لنفس المورد");
+  }
+
+  if (!target.supplier_id) {
+    const supplierId = supplierIds[0] ?? null;
+    if (!supplierId) throw new Error("اختار المورد على الفاتورة أو أمر التوريد");
+    await purchaseRepo.updatePurchase(target.id, { supplier_id: supplierId });
+  }
+
+  if (!target.source_document_id && sources[0]) {
+    await purchaseRepo.updatePurchase(target.id, {
+      source_document_id: sources[0].id,
+    });
+  }
+
+  for (const source of sources) {
+    await appendPurchaseOrderLinesToInvoice({
+      invoiceId: target.id,
+      source,
+    });
+  }
+
+  await purchaseRepo.recalcPurchaseTotals(target.id);
+  const detail = await getPurchase(target.id);
+  if (!detail) throw new Error("تعذر تحديث فاتورة الشراء");
+  return detail;
 }
 
 export async function convertPurchaseDocument(input: {

@@ -112,6 +112,7 @@ export async function adminWithdraw(input: {
   withdrawAmount: number;
   nextOpeningFloat: number;
   notes?: string;
+  destinationTreasuryId?: string | null;
 }): Promise<CashierVault> {
   const { data, error } = await callRpc<CashierVaultRow>("cashier_vault_admin_withdraw", {
     p_store_id: input.storeId,
@@ -119,6 +120,7 @@ export async function adminWithdraw(input: {
     p_withdraw_amount: input.withdrawAmount,
     p_next_opening_float: input.nextOpeningFloat,
     p_notes: input.notes ?? "",
+    p_destination_treasury_id: input.destinationTreasuryId ?? null,
   });
   if (error || !data) throwDbError(error, "adminWithdraw");
   return mapVaultRpc(data);

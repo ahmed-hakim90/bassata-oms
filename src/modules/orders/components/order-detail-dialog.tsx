@@ -22,6 +22,8 @@ export function OrderDetailDialog({
 }: OrderDetailDialogProps) {
   const router = useRouter();
   const [order, setOrder] = useState<OrderWithDetails | null>(null);
+  const [canRefund, setCanRefund] = useState(false);
+  const [canVoid, setCanVoid] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -38,7 +40,9 @@ export function OrderDetailDialog({
           setError("الفاتورة مش موجودة أو مفيش صلاحية لعرضها.");
           return;
         }
-        setOrder(result);
+        setOrder(result.order);
+        setCanRefund(result.canRefund);
+        setCanVoid(result.canVoid);
         setError(null);
       } catch {
         if (cancelled) return;
@@ -58,6 +62,8 @@ export function OrderDetailDialog({
     setWasOpen(open);
     if (!open) {
       setOrder(null);
+      setCanRefund(false);
+      setCanVoid(false);
       setError(null);
     }
   }
@@ -83,6 +89,8 @@ export function OrderDetailDialog({
           <OrderDetail
             order={order}
             embedded
+            canRefund={canRefund}
+            canVoid={canVoid}
             onUpdated={() => {
               onOpenChange(false);
               router.refresh();

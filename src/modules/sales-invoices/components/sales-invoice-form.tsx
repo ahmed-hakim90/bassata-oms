@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -37,6 +38,14 @@ import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { MobileEntityCard } from "@/components/Velora/mobile-entity-card";
 import { OperationalCard } from "@/components/Velora/operational-card";
 import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   backgroundMutationKey,
   useBackgroundMutation,
@@ -77,10 +86,13 @@ import {
   convertSalesDocumentAction,
   correctDeliveredSalesInvoiceCostsAction,
   createCreditNoteFromInvoiceAction,
+  createSalesInvoiceAction,
   deleteDraftSalesInvoiceAction,
   deliverSalesInvoiceAction,
+  importSalesSourcesIntoInvoiceAction,
   issueSalesCreditNoteAction,
   issueSalesInvoiceAction,
+  listImportableSalesSourcesAction,
   removeSalesInvoiceLineAction,
   transitionSalesDocumentAction,
   updateSalesInvoiceHeaderAction,
@@ -92,6 +104,7 @@ import {
 } from "@/modules/pos/services/receipt-format.service";
 import { COMMERCIAL_DOCUMENT_KIND_LABELS } from "@/modules/print-engine/lib/print-engine-settings";
 import type {
+  ImportableSalesSource,
   SalesInvoiceLineWithName,
   SalesInvoiceWithDetails,
 } from "@/modules/sales-invoices/services/sales-invoice.service";
@@ -105,8 +118,7 @@ const paymentLabels: Record<PaymentMethod, string> = {
 };
 
 interface SalesInvoiceFormProps {
-  invoice?: SalesInvoiceWithDetails | null;
-  draftDefaults?: { warehouseId: string; customerId: string | null };
+  invoice: SalesInvoiceWithDetails;
   customers: Customer[];
   products: Product[];
   warehouses: Warehouse[];
@@ -120,9 +132,11 @@ interface SalesInvoiceFormProps {
   onClose: () => void;
 }
 
-type SalesInvoiceFormEditorProps = Omit<SalesInvoiceFormProps, "invoice" | "draftDefaults"> & {
-  invoice: SalesInvoiceWithDetails;
-};
+const LOCAL_DRAFT_PREFIX = "local-";
+
+function isLocalDraftId(id: string) {
+  return id.startsWith(LOCAL_DRAFT_PREFIX);
+}
 
 function wholesalePriceFor(
   product: Product,
@@ -210,7 +224,7 @@ function SalesInvoiceFormEditor({
   documentKind = "sales_invoice",
   onChanged,
   onClose,
-}: SalesInvoiceFormEditorProps) {
+}: SalesInvoiceFormProps) {
   const router = useRouter();
   const [invoice, setInvoice] = useState(initial);
   const [productQuery, setProductQuery] = useState("");
@@ -229,6 +243,10 @@ function SalesInvoiceFormEditor({
   const [creditDeliverOpen, setCreditDeliverOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmCorrectCosts, setConfirmCorrectCosts] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importableSources, setImportableSources] = useState<ImportableSalesSource[]>([]);
+  const [selectedImportId, setSelectedImportId] = useState<string | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
   const [printPreview, setPrintPreview] = useState<{
     href: string;
     title: string;
@@ -239,6 +257,7 @@ function SalesInvoiceFormEditor({
   const snapshotRef = useRef<SalesInvoiceWithDetails | null>(null);
   const taxRateRef = useRef(inferTaxRate(initial));
   const invoiceRef = useRef(invoice);
+  const persistPromiseRef = useRef<Promise<SalesInvoiceWithDetails | null> | null>(null);
   const isUndoingRef = useRef(false);
   const cancelledTempIdsRef = useRef(new Set<string>());
   const removeLineRef = useRef<(lineId: string) => void>(() => {});
@@ -287,6 +306,7 @@ function SalesInvoiceFormEditor({
     cancelled: "ملغي",
     invoiced: "مفوتر",
   };
+
   const editable = isDraft && !lifecyclePending;
   const recordedCost = useMemo(
     () => invoice.lines.reduce((sum, line) => sum + (Number(line.line_cost) || 0), 0),
@@ -343,6 +363,74 @@ function SalesInvoiceFormEditor({
     setInvoice(next);
     onChanged(next, { refresh: false });
   }
+
+  const ensurePersistedDraft = useCallback(async (): Promise<SalesInvoiceWithDetails | null> => {
+    const current = invoiceRef.current;
+    if (!isLocalDraftId(current.id)) return current;
+    if (!current.warehouse_id) {
+      toast.error("اختار المخزن");
+      return null;
+    }
+    if (persistPromiseRef.current) return persistPromiseRef.current;
+
+    persistPromiseRef.current = (async () => {
+      const result = await createSalesInvoiceAction({
+        warehouseId: current.warehouse_id!,
+        customerId: current.customer_id,
+        documentDate: current.document_date,
+        documentKind: current.document_kind ?? documentKind,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return null;
+      }
+      const persisted: SalesInvoiceWithDetails = {
+        ...result.data,
+        lines: [],
+        customerName:
+          current.customer_id == null
+            ? null
+            : customers.find((c) => c.id === current.customer_id)?.name ??
+              result.data.customerName,
+        warehouseName:
+          warehouses.find((w) => w.id === current.warehouse_id)?.name ??
+          result.data.warehouseName,
+        document_notes: current.document_notes,
+        discount: current.discount,
+        valid_until: current.valid_until,
+      };
+      setInvoice(persisted);
+      invoiceRef.current = persisted;
+      onChanged(persisted, { refresh: false });
+      return persisted;
+    })();
+
+    try {
+      return await persistPromiseRef.current;
+    } finally {
+      persistPromiseRef.current = null;
+    }
+  }, [customers, warehouses, documentKind, onChanged]);
+
+  const openImportSalesSources = async () => {
+    if (!isDraft || !isSalesInvoice) return;
+    const persisted = await ensurePersistedDraft();
+    if (!persisted) return;
+    setImportLoading(true);
+    setImportOpen(true);
+    setSelectedImportId(null);
+    const result = await listImportableSalesSourcesAction({
+      customerId: persisted.customer_id,
+      warehouseId: persisted.warehouse_id,
+    });
+    setImportLoading(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      setImportOpen(false);
+      return;
+    }
+    setImportableSources(result.data);
+  };
 
   function runDeliver(payments?: PaymentSplit[]) {
     const method =
@@ -483,8 +571,13 @@ function SalesInvoiceFormEditor({
     publishLocal(optimistic);
 
     void (async () => {
+      const persisted = await ensurePersistedDraft();
+      if (!persisted) {
+        if (snapshotRef.current) publishLocal(snapshotRef.current);
+        return;
+      }
       const result = await updateSalesInvoiceHeaderAction({
-        orderId: invoice.id,
+        orderId: persisted.id,
         ...patch,
       });
       if (!result.ok) {
@@ -651,8 +744,13 @@ function SalesInvoiceFormEditor({
     }
 
     void (async () => {
+      const persisted = await ensurePersistedDraft();
+      if (!persisted) {
+        if (snapshotRef.current) publishLocal(snapshotRef.current);
+        return;
+      }
       const result = await addSalesInvoiceLineAction({
-        orderId: invoice.id,
+        orderId: persisted.id,
         productId: resolvedId,
         quantity,
         discountAmount: addDiscount,
@@ -669,7 +767,7 @@ function SalesInvoiceFormEditor({
       if (tempId && cancelledTempIdsRef.current.has(tempId)) {
         cancelledTempIdsRef.current.delete(tempId);
         void removeSalesInvoiceLineAction({
-          orderId: invoice.id,
+          orderId: persisted.id,
           lineId: result.data.line.id,
         });
         return;
@@ -687,6 +785,8 @@ function SalesInvoiceFormEditor({
         );
         const next = {
           ...prev,
+          id: persisted.id,
+          order_number: persisted.order_number,
           lines: [...withoutDupes, serverLine],
           subtotal: result.data.subtotal,
           discount: result.data.discount,
@@ -1628,12 +1728,35 @@ function SalesInvoiceFormEditor({
                 shortcut={OPERATOR_SHORTCUTS.save}
                 disabled={lifecyclePending}
                 onClick={() => {
-                  toast.success("تم الحفظ المؤقت — تابع لاحقًا من القائمة");
-                  onChanged(invoice, { refresh: true });
-                  onClose();
+                  void (async () => {
+                    if (invoice.lines.some((line) => line.id.startsWith("temp-"))) {
+                      toast.error("استنى لحد ما الأصناف تتسجل");
+                      return;
+                    }
+                    if (isLocalDraftId(invoice.id)) {
+                      if (invoice.lines.length === 0) {
+                        onClose();
+                        return;
+                      }
+                      const persisted = await ensurePersistedDraft();
+                      if (!persisted) return;
+                    }
+                    toast.success("تم الحفظ المؤقت — تابع لاحقًا من القائمة");
+                    onChanged(invoiceRef.current, { refresh: true });
+                    onClose();
+                  })();
                 }}
               />
               {isSalesInvoice ? (
+                <>
+                <CompactAction
+                  label="استدعاء عرض سعر"
+                  icon={FileText}
+                  disabled={lifecyclePending}
+                  onClick={() => {
+                    void openImportSalesSources();
+                  }}
+                />
                 <CompactAction
                   label="إصدار"
                   icon={Send}
@@ -1644,47 +1767,72 @@ function SalesInvoiceFormEditor({
                     invoice.lines.some((line) => line.id.startsWith("temp-"))
                   }
                   onClick={() => {
-                    const orderId = invoice.id;
-                    onClose();
-                    runBackground({
-                      key: backgroundMutationKey("sales", "issue", orderId),
-                      label: "جاري إصدار الفاتورة…",
-                      execute: async () => {
-                        const result = await issueSalesInvoiceAction(orderId);
-                        if (!result.ok) throw new Error(result.error);
-                        return result.data;
-                      },
-                      successMessage: "تم إصدار الفاتورة",
-                      onSuccess: (data) => {
-                        onChanged(data, { refresh: true });
-                      },
-                    });
+                    void (async () => {
+                      const persisted = await ensurePersistedDraft();
+                      if (!persisted) return;
+                      if (persisted.lines.length === 0) {
+                        toast.error("ضيف أصناف قبل الإصدار");
+                        return;
+                      }
+                      if (persisted.lines.some((line) => line.id.startsWith("temp-"))) {
+                        toast.error("استنى لحد ما الأصناف تتسجل");
+                        return;
+                      }
+                      const orderId = persisted.id;
+                      onClose();
+                      runBackground({
+                        key: backgroundMutationKey("sales", "issue", orderId),
+                        label: "جاري إصدار الفاتورة…",
+                        execute: async () => {
+                          const result = await issueSalesInvoiceAction(orderId);
+                          if (!result.ok) throw new Error(result.error);
+                          return result.data;
+                        },
+                        successMessage: "تم إصدار الفاتورة",
+                        onSuccess: (data) => {
+                          onChanged(data, { refresh: true });
+                        },
+                      });
+                    })();
                   }}
                 />
+                </>
               ) : null}
               {isQuotation ? (
                 <CompactAction
                   label="إرسال العرض"
                   icon={Send}
                   variant="default"
-                  disabled={lifecyclePending || invoice.lines.length === 0}
+                  disabled={
+                    lifecyclePending ||
+                    invoice.lines.length === 0 ||
+                    invoice.lines.some((line) => line.id.startsWith("temp-"))
+                  }
                   onClick={() => {
-                    const orderId = invoice.id;
-                    runBackground({
-                      key: backgroundMutationKey("sales", "send-quote", orderId),
-                      label: "جاري إرسال عرض السعر…",
-                      execute: async () => {
-                        const result = await transitionSalesDocumentAction({
-                          orderId,
-                          from: "draft",
-                          to: "sent",
-                        });
-                        if (!result.ok) throw new Error(result.error);
-                        return result.data;
-                      },
-                      successMessage: "تم تعليم العرض كمُرسل",
-                      onSuccess: (data) => onChanged(data, { refresh: true }),
-                    });
+                    void (async () => {
+                      const persisted = await ensurePersistedDraft();
+                      if (!persisted) return;
+                      if (persisted.lines.some((line) => line.id.startsWith("temp-"))) {
+                        toast.error("استنى لحد ما الأصناف تتسجل");
+                        return;
+                      }
+                      const orderId = persisted.id;
+                      runBackground({
+                        key: backgroundMutationKey("sales", "send-quote", orderId),
+                        label: "جاري إرسال عرض السعر…",
+                        execute: async () => {
+                          const result = await transitionSalesDocumentAction({
+                            orderId,
+                            from: "draft",
+                            to: "sent",
+                          });
+                          if (!result.ok) throw new Error(result.error);
+                          return result.data;
+                        },
+                        successMessage: "تم تعليم العرض كمُرسل",
+                        onSuccess: (data) => onChanged(data, { refresh: true }),
+                      });
+                    })();
                   }}
                 />
               ) : null}
@@ -1693,24 +1841,36 @@ function SalesInvoiceFormEditor({
                   label="تأكيد الأمر"
                   icon={PackageCheck}
                   variant="default"
-                  disabled={lifecyclePending || invoice.lines.length === 0}
+                  disabled={
+                    lifecyclePending ||
+                    invoice.lines.length === 0 ||
+                    invoice.lines.some((line) => line.id.startsWith("temp-"))
+                  }
                   onClick={() => {
-                    const orderId = invoice.id;
-                    runBackground({
-                      key: backgroundMutationKey("sales", "confirm-so", orderId),
-                      label: "جاري تأكيد أمر البيع…",
-                      execute: async () => {
-                        const result = await transitionSalesDocumentAction({
-                          orderId,
-                          from: "draft",
-                          to: "confirmed",
-                        });
-                        if (!result.ok) throw new Error(result.error);
-                        return result.data;
-                      },
-                      successMessage: "تم تأكيد أمر البيع",
-                      onSuccess: (data) => onChanged(data, { refresh: true }),
-                    });
+                    void (async () => {
+                      const persisted = await ensurePersistedDraft();
+                      if (!persisted) return;
+                      if (persisted.lines.some((line) => line.id.startsWith("temp-"))) {
+                        toast.error("استنى لحد ما الأصناف تتسجل");
+                        return;
+                      }
+                      const orderId = persisted.id;
+                      runBackground({
+                        key: backgroundMutationKey("sales", "confirm-so", orderId),
+                        label: "جاري تأكيد أمر البيع…",
+                        execute: async () => {
+                          const result = await transitionSalesDocumentAction({
+                            orderId,
+                            from: "draft",
+                            to: "confirmed",
+                          });
+                          if (!result.ok) throw new Error(result.error);
+                          return result.data;
+                        },
+                        successMessage: "تم تأكيد أمر البيع",
+                        onSuccess: (data) => onChanged(data, { refresh: true }),
+                      });
+                    })();
                   }}
                 />
               ) : null}
@@ -1779,6 +1939,34 @@ function SalesInvoiceFormEditor({
                   onSuccess: (data) => {
                     onChanged(invoice, { refresh: true });
                     router.push(`/sales-orders?open=${data.id}`);
+                  },
+                });
+              }}
+            />
+            <CompactAction
+              label="تحويل لفاتورة"
+              icon={FileText}
+              variant="default"
+              disabled={lifecyclePending}
+              onClick={() => {
+                const orderId = invoice.id;
+                runBackground({
+                  key: backgroundMutationKey("sales", "quote-to-si", orderId),
+                  label: "جاري إنشاء فاتورة المبيعات…",
+                  execute: async () => {
+                    const result = await convertSalesDocumentAction({
+                      sourceId: orderId,
+                      targetKind: "sales_invoice",
+                      fromStatus: "sent",
+                      lockStatus: "accepted",
+                    });
+                    if (!result.ok) throw new Error(result.error);
+                    return result.data;
+                  },
+                  successMessage: "اتفتحت فاتورة من عرض السعر",
+                  onSuccess: (data) => {
+                    onChanged(invoice, { refresh: true });
+                    router.push(`/sales-invoices?open=${data.id}`);
                   },
                 });
               }}
@@ -1951,6 +2139,18 @@ function SalesInvoiceFormEditor({
                   })
                 }
               />
+              {isQuotation || isSalesOrder ? (
+                <CompactAction
+                  label="طباعة بدون أسعار"
+                  icon={FileText}
+                  onClick={() =>
+                    setPrintPreview({
+                      href: `/print/orders/${invoice.id}?embed=1&hidePrices=1`,
+                      title: `${kindLabels[kind ?? "sales_invoice"] ?? "مستند"} بدون أسعار`,
+                    })
+                  }
+                />
+              ) : null}
               {isSalesInvoice && (isIssued || isDelivered) ? (
                 <CompactAction
                   label="إذن تسليم"
@@ -2069,6 +2269,13 @@ function SalesInvoiceFormEditor({
         destructive
         onConfirm={() => {
           setConfirmDelete(false);
+          if (isLocalDraftId(invoice.id)) {
+            toast.success("اتمسحت المسودة");
+            clearUndo();
+            onChanged(null, { refresh: false });
+            onClose();
+            return;
+          }
           startLifecycle(async () => {
             const result = await deleteDraftSalesInvoiceAction(invoice.id);
             if (!result.ok) {
@@ -2110,102 +2317,97 @@ function SalesInvoiceFormEditor({
           });
         }}
       />
-    </>
-  );
-}
 
-function CreatingInvoiceShell({
-  warehouseName,
-  customerName,
-  onClose,
-}: {
-  warehouseName: string;
-  customerName: string;
-  onClose: () => void;
-}) {
-  return (
-    <>
-      <OperationalCard
-        accent="var(--mds-color-action-primary)"
-        className="pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
+      <Dialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open);
+          if (!open) {
+            setImportableSources([]);
+            setSelectedImportId(null);
+          }
+        }}
       >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
-            <div>
-              <h2 className="text-lg font-semibold">مسودة جديدة</h2>
-              <p className="text-sm text-muted-foreground">جاري حفظ المسودة — تقدر تتابع من هنا فور ما الرقم يظهر</p>
-            </div>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>استدعاء عرض سعر / أمر بيع</DialogTitle>
+            <DialogDescription>
+              اختار عرض مُرسل أو أمر مؤكد لنفس العميل والمخزن. بعد الاستيراد تقدر تعدّل الكمية والسعر على الفاتورة.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid max-h-[50vh] gap-2 overflow-y-auto">
+            {importLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">جاري التحميل…</p>
+            ) : importableSources.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                مفيش عروض أسعار أو أوامر بيع متاحة
+              </p>
+            ) : (
+              importableSources.map((source) => {
+                const selected = selectedImportId === source.id;
+                return (
+                  <button
+                    key={source.id}
+                    type="button"
+                    className={`rounded-[var(--mds-radius-lg)] border px-3 py-2 text-start transition-colors ${
+                      selected
+                        ? "border-primary bg-primary/10"
+                        : "border-border/60 hover:bg-muted/40"
+                    }`}
+                    onClick={() => setSelectedImportId(source.id)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{source.order_number}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {kindLabels[source.document_kind]} ·{" "}
+                        {statusLabels[source.document_status] ?? source.document_status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {source.lineCount} بند · {formatCurrency(source.total, currency)}
+                      {source.customerName ? ` · ${source.customerName}` : ""}
+                    </p>
+                  </button>
+                );
+              })
+            )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>المخزن</Label>
-              <p className="text-sm">{warehouseName}</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label>العميل</Label>
-              <p className="text-sm">{customerName}</p>
-            </div>
-          </div>
-        </div>
-      </OperationalCard>
-      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 px-3 py-2.5 backdrop-blur-xl md:bottom-0 md:pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pt-3 lg:ps-64">
-        <div className="mx-auto flex max-w-7xl items-center justify-end">
-          <CompactActions>
-            <CompactAction label="إغلاق" icon={X} onClick={onClose} />
-          </CompactActions>
-        </div>
-      </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              disabled={lifecyclePending || importLoading || !selectedImportId}
+              onClick={() => {
+                if (!selectedImportId) return;
+                startLifecycle(async () => {
+                  const persisted = await ensurePersistedDraft();
+                  if (!persisted) return;
+                  const result = await importSalesSourcesIntoInvoiceAction({
+                    invoiceId: persisted.id,
+                    sourceIds: [selectedImportId],
+                  });
+                  if (!result.ok) {
+                    toast.error(result.error);
+                    return;
+                  }
+                  setInvoice(result.data);
+                  onChanged(result.data, { refresh: true });
+                  setImportOpen(false);
+                  toast.success("اتضافت البنود — عدّل الكمية أو السعر لو محتاج");
+                });
+              }}
+            >
+              استيراد البنود
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
-export function SalesInvoiceForm({
-  invoice,
-  draftDefaults,
-  customers,
-  products,
-  warehouses,
-  wholesaleTiersByProductId,
-  currency,
-  enabledPaymentMethods,
-  canCorrectCosts = false,
-  canManagePrintEngine = false,
-  documentKind = "sales_invoice",
-  onChanged,
-  onClose,
-}: SalesInvoiceFormProps) {
-  if (!invoice) {
-    return (
-      <CreatingInvoiceShell
-        warehouseName={
-          warehouses.find((warehouse) => warehouse.id === draftDefaults?.warehouseId)?.name ?? "—"
-        }
-        customerName={
-          draftDefaults?.customerId
-            ? customers.find((customer) => customer.id === draftDefaults.customerId)?.name ??
-              "بدون عميل"
-            : "بدون عميل"
-        }
-        onClose={onClose}
-      />
-    );
-  }
-
-  return (
-    <SalesInvoiceFormEditor
-      invoice={invoice}
-      customers={customers}
-      products={products}
-      warehouses={warehouses}
-      wholesaleTiersByProductId={wholesaleTiersByProductId}
-      currency={currency}
-      enabledPaymentMethods={enabledPaymentMethods}
-      canCorrectCosts={canCorrectCosts}
-      canManagePrintEngine={canManagePrintEngine}
-      documentKind={documentKind}
-      onChanged={onChanged}
-      onClose={onClose}
-    />
-  );
+export function SalesInvoiceForm(props: SalesInvoiceFormProps) {
+  return <SalesInvoiceFormEditor key={props.invoice.id} {...props} />;
 }

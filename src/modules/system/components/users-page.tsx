@@ -32,7 +32,7 @@ import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import type { AppUser, Store, Permission, PermissionKey } from "@/lib/types";
 import type { UserRole } from "@/lib/constants";
-import { ROLE_LABELS } from "@/lib/constants";
+import { ROLE_LABELS, userRoleSupportsPin } from "@/lib/constants";
 import { PermissionsMatrix } from "@/modules/accounting/components/permissions-matrix";
 import { UserPermissionOverrides } from "@/modules/accounting/components/user-permission-overrides";
 import {
@@ -140,7 +140,9 @@ export function UsersPage({
     form.name.trim().length > 0 &&
     form.email.trim().length > 0 &&
     form.password.length >= 8 &&
-    (form.role !== "cashier" || /^[0-9]{4,8}$/.test(form.pin));
+    (form.role === "cashier"
+      ? /^[0-9]{4,8}$/.test(form.pin)
+      : !form.pin || /^[0-9]{4,8}$/.test(form.pin));
 
   const openEditor = (user: AppUser) => {
     setEditingUserId(user.id);
@@ -177,8 +179,8 @@ export function UsersPage({
     const passwordEntered = passwordValue.length > 0;
 
     if (pinEntered) {
-      if (current.role !== "cashier") {
-        toast.error("PIN متاح لدور الكاشير فقط.");
+      if (!userRoleSupportsPin(current.role)) {
+        toast.error("PIN متاح للمالك والمدير والكاشير فقط.");
         return;
       }
       if (!/^[0-9]{4,8}$/.test(pinValue)) {
@@ -365,9 +367,14 @@ export function UsersPage({
                 <Label htmlFor="create-role">الدور</Label>
                 <Select
                   value={form.role}
-                  onValueChange={(v) =>
-                    setForm({ ...form, role: (v ?? "cashier") as AppUser["role"] })
-                  }
+                  onValueChange={(v) => {
+                    const role = (v ?? "cashier") as AppUser["role"];
+                    setForm({
+                      ...form,
+                      role,
+                      pin: userRoleSupportsPin(role) ? form.pin : "",
+                    });
+                  }}
                 >
                   <SelectTrigger id="create-role" className="w-full">
                     <SelectValue />
@@ -381,9 +388,13 @@ export function UsersPage({
                   </SelectContent>
                 </Select>
               </div>
-              {form.role === "cashier" && (
+              {userRoleSupportsPin(form.role) && (
                 <div className="space-y-2">
-                  <Label htmlFor="create-pin">PIN (4–8 أرقام)</Label>
+                  <Label htmlFor="create-pin">
+                    {form.role === "cashier"
+                      ? "PIN (4–8 أرقام)"
+                      : "PIN للموافقة على الكاشير (اختياري)"}
+                  </Label>
                   <Input
                     id="create-pin"
                     value={form.pin}
@@ -392,6 +403,11 @@ export function UsersPage({
                     inputMode="numeric"
                     autoComplete="off"
                   />
+                  {form.role !== "cashier" ? (
+                    <p className="text-xs text-muted-foreground">
+                      للموافقة على الخصم وفتح الدرج والبيع بعد انتهاء الجلسة. مش هيغيّر كاشير الجهاز.
+                    </p>
+                  ) : null}
                 </div>
               )}
               <div className="space-y-2">
@@ -593,7 +609,7 @@ export function UsersPage({
                   </div>
                 ) : null}
 
-                {editing.role === "cashier" ? (
+                {userRoleSupportsPin(editing.role) ? (
                   <div className="space-y-2 rounded-xl border border-border/60 p-3">
                     <Label htmlFor="edit-pin">PIN جديد (اختياري)</Label>
                     <Input
@@ -607,7 +623,9 @@ export function UsersPage({
                       onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ""))}
                     />
                     <p className="text-xs text-muted-foreground">
-                      لو كتبت PIN، هيتطبّق مع «حفظ التغييرات».
+                      {editing.role === "cashier"
+                        ? "لو كتبت PIN، هيتطبّق مع «حفظ التغييرات»."
+                        : "PIN للموافقة على الخصم وفتح الدرج والبيع بعد انتهاء الجلسة — مش PIN الكاشير على الجهاز."}
                     </p>
                   </div>
                 ) : null}

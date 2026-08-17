@@ -622,6 +622,7 @@ export async function updateSalesInvoiceDraft(
     documentDate?: string;
     documentNotes?: string;
     validUntil?: string | null;
+    sourceDocumentId?: string | null;
   }
 ): Promise<Order> {
   const db = await getDb();
@@ -639,6 +640,9 @@ export async function updateSalesInvoiceDraft(
       ...(patch.documentDate !== undefined ? { document_date: patch.documentDate } : {}),
       ...(patch.documentNotes !== undefined ? { document_notes: patch.documentNotes } : {}),
       ...(patch.validUntil !== undefined ? { valid_until: patch.validUntil } : {}),
+      ...(patch.sourceDocumentId !== undefined
+        ? { source_document_id: patch.sourceDocumentId }
+        : {}),
     } as never)
     .eq("id", orderId)
     .eq("document_status", "draft")

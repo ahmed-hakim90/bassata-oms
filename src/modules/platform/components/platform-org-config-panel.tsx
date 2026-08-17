@@ -67,6 +67,9 @@ export function PlatformOrgConfigPanel({ config }: { config: PlatformOrgConfig }
   const [allowForceClose, setAllowForceClose] = useState(
     config.sessionSettings.allow_manager_force_close
   );
+  const [requireExpiredOverride, setRequireExpiredOverride] = useState(
+    config.sessionSettings.require_manager_override_for_expired_sale
+  );
 
   return (
     <div className="grid gap-[var(--mds-space-6)] lg:grid-cols-2">
@@ -154,6 +157,13 @@ export function PlatformOrgConfigPanel({ config }: { config: PlatformOrgConfig }
           </label>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox
+              checked={requireExpiredOverride}
+              onCheckedChange={(v) => setRequireExpiredOverride(Boolean(v))}
+            />
+            طلب موافقة مدير للبيع بعد انتهاء الجلسة
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
               checked={allowForceClose}
               onCheckedChange={(v) => setAllowForceClose(Boolean(v))}
             />
@@ -175,6 +185,7 @@ export function PlatformOrgConfigPanel({ config }: { config: PlatformOrgConfig }
                     max_open_hours: Number(maxOpenHours) || 24,
                     warn_after_hours: Number(warnAfterHours) || 20,
                     block_sales_when_expired: blockExpired,
+                    require_manager_override_for_expired_sale: requireExpiredOverride,
                     allow_manager_force_close: allowForceClose,
                   },
                 });
@@ -192,7 +203,7 @@ export function PlatformOrgConfigPanel({ config }: { config: PlatformOrgConfig }
         </div>
       </OperationalCard>
 
-      <OperationalCard title="Feature flags">
+      <OperationalCard title="خصائص النظام">
         <div className="mb-3 max-h-[420px] space-y-2 overflow-y-auto pe-1">
           {FEATURE_FLAGS.map((flag) => (
             <label key={flag} className="flex items-center gap-2 text-sm">

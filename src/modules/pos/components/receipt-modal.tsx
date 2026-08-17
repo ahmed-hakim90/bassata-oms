@@ -76,7 +76,7 @@ export function ReceiptModal({ open, onOpenChange, receipt }: ReceiptModalProps)
               disabled={!receipt.customer?.phone}
             >
               <MessageCircle className="size-4" />
-              WhatsApp
+              <span>واتساب</span>
             </Button>
             {receipt.orderId ? (
               <Button

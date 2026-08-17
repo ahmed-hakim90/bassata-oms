@@ -137,6 +137,7 @@ export async function recordCustomerPaymentAction(input: {
   paymentMethod: PaymentMethod;
   reference?: string;
   notes?: string;
+  treasuryId?: string | null;
 }): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const user = await requirePermissionOrRole("customer_payment_receive", [
@@ -156,6 +157,7 @@ export async function recordCustomerPaymentAction(input: {
     revalidatePath("/customers");
     revalidatePath("/customers/directory");
     revalidatePath(`/customers/${input.customerId}`);
+    revalidatePath("/treasury");
     // Avoid revalidatePath("/pos") — remounting POS mid-session freezes the screen.
     return { success: true };
   } catch (error) {

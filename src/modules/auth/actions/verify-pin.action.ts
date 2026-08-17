@@ -37,16 +37,16 @@ export async function lockPosCashierAction(): Promise<{ success: boolean; error?
 export async function verifyPinAction(pin: string): Promise<VerifyPinResult> {
   const user = await getCurrentUser();
   if (!user) {
-    return { success: false, error: "You must be signed in." };
+    return { success: false, error: "لازم تسجّل الدخول أولاً." };
   }
 
   if (!pin || pin.length < 4) {
-    return { success: false, error: "Enter a valid PIN." };
+    return { success: false, error: "أدخل PIN صالح (4 أرقام على الأقل)." };
   }
 
   const storeId = await getActiveStoreId();
   if (!storeId) {
-    return { success: false, error: "No active store selected." };
+    return { success: false, error: "مفيش فرع نشط مختار." };
   }
 
   const deviceCtx = await getRegisteredDeviceContext();
@@ -76,7 +76,7 @@ export async function verifyPinAction(pin: string): Promise<VerifyPinResult> {
     } catch {
       // ignore audit errors
     }
-    return { success: false, error: "Incorrect PIN." };
+    return { success: false, error: "الرقم السري غلط." };
   }
 
   const cashierId = data as string;

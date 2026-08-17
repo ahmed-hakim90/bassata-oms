@@ -278,6 +278,7 @@ export function mapSupplierPayment(row: SupplierPaymentRow): SupplierPayment {
     created_by: row.created_by,
     created_at: row.created_at,
     voided_at: row.voided_at,
+    treasury_id: row.treasury_id ?? null,
   };
 }
 
@@ -608,6 +609,7 @@ export function mapExpense(row: ExpenseRow): Expense {
     payment_method: row.payment_method as Expense["payment_method"],
     expense_source: row.expense_source as Expense["expense_source"],
     status: row.status as Expense["status"],
+    treasury_id: row.treasury_id ?? null,
   };
 }
 
@@ -616,7 +618,11 @@ export function mapCostCenter(row: CostCenterRow): CostCenter {
 }
 
 export function mapExpenseCategory(row: ExpenseCategoryRow): ExpenseCategory {
-  return row;
+  const extra = row as ExpenseCategoryRow & { gl_account_id?: string | null };
+  return {
+    ...row,
+    gl_account_id: extra.gl_account_id ?? null,
+  };
 }
 
 export function mapGlAccount(row: GlAccountRow): GlAccount {

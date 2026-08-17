@@ -20,6 +20,7 @@ import { PAYMENT_METHODS } from "@/lib/constants";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import type { PaymentMethod, SupplierListSummary } from "@/lib/types";
 import { createSupplierPaymentAction } from "@/modules/suppliers/actions/supplier.actions";
+import { TreasuryPicker } from "@/modules/treasury/components/treasury-picker";
 
 type SupplierOption = Pick<SupplierListSummary, "id" | "name" | "balanceDue">;
 
@@ -36,6 +37,7 @@ interface RecordPaymentDialogProps {
   initialSupplierId?: string;
   /** Suppliers list still loading (dashboard quick open). */
   loading?: boolean;
+  storeId?: string;
 }
 
 export function RecordPaymentDialog({
@@ -47,6 +49,7 @@ export function RecordPaymentDialog({
   currency,
   initialSupplierId,
   loading = false,
+  storeId,
 }: RecordPaymentDialogProps) {
   const { t } = useTranslation();
   const [pending, startTransition] = useTransition();
@@ -58,6 +61,7 @@ export function RecordPaymentDialog({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 16));
+  const [treasuryId, setTreasuryId] = useState("");
 
   const pickerMode = !fixedSupplierId;
   const supplierId = fixedSupplierId ?? selectedSupplierId;
@@ -74,6 +78,7 @@ export function RecordPaymentDialog({
     setReference("");
     setNotes("");
     setPaidAt(new Date().toISOString().slice(0, 16));
+    setTreasuryId("");
     if (pickerMode) {
       setSelectedSupplierId(initialSupplierId ?? "");
     }
@@ -93,6 +98,10 @@ export function RecordPaymentDialog({
       toast.error("لا يمكن تسجيل دفعة مورد بطريقة آجل");
       return;
     }
+    if (paymentMethod === "cash" && !treasuryId) {
+      toast.error("اختار الخزينة اللي هيتصرف منها السداد النقدي");
+      return;
+    }
     startTransition(async () => {
       const result = await createSupplierPaymentAction({
         supplierId,
@@ -101,6 +110,7 @@ export function RecordPaymentDialog({
         reference: reference.trim() || undefined,
         notes: notes.trim() || undefined,
         paidAt: new Date(paidAt).toISOString(),
+        treasuryId: paymentMethod === "cash" ? treasuryId : null,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -220,6 +230,14 @@ export function RecordPaymentDialog({
               </SelectContent>
             </Select>
           </div>
+          {paymentMethod === "cash" ? (
+            <TreasuryPicker
+              value={treasuryId}
+              onChange={setTreasuryId}
+              preferredStoreId={storeId}
+              label="الصرف من خزينة"
+            />
+          ) : null}
           <div className="space-y-2">
             <Label>المرجع</Label>
             <Input

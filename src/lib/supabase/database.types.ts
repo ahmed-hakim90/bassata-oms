@@ -272,6 +272,109 @@ export type Database = {
           },
         ]
       }
+
+      cash_treasuries: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["cash_treasury_kind"]
+          org_id: string
+          store_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["cash_treasury_kind"]
+          org_id: string
+          store_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["cash_treasury_kind"]
+          org_id?: string
+          store_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_treasuries_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_treasuries_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_treasury_ledger: {
+        Row: {
+          amount: number
+          balance_after: number
+          counterpart_treasury_id: string | null
+          created_at: string
+          created_by: string
+          customer_payment_id: string | null
+          entry_type: Database["public"]["Enums"]["cash_treasury_entry_type"]
+          expense_id: string | null
+          id: string
+          notes: string
+          org_id: string
+          period_id: string | null
+          session_id: string | null
+          store_id: string | null
+          supplier_payment_id: string | null
+          treasury_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          counterpart_treasury_id?: string | null
+          created_at?: string
+          created_by: string
+          customer_payment_id?: string | null
+          entry_type: Database["public"]["Enums"]["cash_treasury_entry_type"]
+          expense_id?: string | null
+          id?: string
+          notes?: string
+          org_id: string
+          period_id?: string | null
+          session_id?: string | null
+          store_id?: string | null
+          supplier_payment_id?: string | null
+          treasury_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          counterpart_treasury_id?: string | null
+          created_at?: string
+          created_by?: string
+          customer_payment_id?: string | null
+          entry_type?: Database["public"]["Enums"]["cash_treasury_entry_type"]
+          expense_id?: string | null
+          id?: string
+          notes?: string
+          org_id?: string
+          period_id?: string | null
+          session_id?: string | null
+          store_id?: string | null
+          supplier_payment_id?: string | null
+          treasury_id?: string
+        }
+        Relationships: []
+      }
       cashier_vaults: {
         Row: {
           balance: number
@@ -518,6 +621,7 @@ export type Database = {
           reference: string
           store_id: string
           voided_at: string | null
+          treasury_id: string | null
         }
         Insert: {
           amount: number
@@ -532,6 +636,7 @@ export type Database = {
           reference?: string
           store_id: string
           voided_at?: string | null
+          treasury_id?: string | null
         }
         Update: {
           amount?: number
@@ -546,6 +651,7 @@ export type Database = {
           reference?: string
           store_id?: string
           voided_at?: string | null
+          treasury_id?: string | null
         }
         Relationships: [
           {
@@ -861,6 +967,7 @@ export type Database = {
           supplier_id: string | null
           title: string
           unit_cost: number | null
+          treasury_id: string | null
         }
         Insert: {
           amount: number
@@ -883,6 +990,7 @@ export type Database = {
           supplier_id?: string | null
           title?: string
           unit_cost?: number | null
+          treasury_id?: string | null
         }
         Update: {
           amount?: number
@@ -905,6 +1013,7 @@ export type Database = {
           supplier_id?: string | null
           title?: string
           unit_cost?: number | null
+          treasury_id?: string | null
         }
         Relationships: [
           {
@@ -3588,6 +3697,7 @@ export type Database = {
           store_id: string
           supplier_id: string
           voided_at: string | null
+          treasury_id: string | null
         }
         Insert: {
           amount: number
@@ -3603,6 +3713,7 @@ export type Database = {
           store_id: string
           supplier_id: string
           voided_at?: string | null
+          treasury_id?: string | null
         }
         Update: {
           amount?: number
@@ -3618,6 +3729,7 @@ export type Database = {
           store_id?: string
           supplier_id?: string
           voided_at?: string | null
+          treasury_id?: string | null
         }
         Relationships: [
           {
@@ -4211,6 +4323,7 @@ export type Database = {
       cashier_vault_admin_withdraw: {
         Args: {
           p_cashier_id: string
+          p_destination_treasury_id?: string
           p_next_opening_float: number
           p_notes?: string
           p_store_id: string
@@ -4597,6 +4710,47 @@ export type Database = {
         Returns: string
       }
       touch_device_seen: { Args: { p_device_id: string }; Returns: undefined }
+      ensure_org_treasuries: { Args: never; Returns: number }
+      treasury_period_sweep: {
+        Args: { p_notes?: string; p_period_id: string; p_store_id: string }
+        Returns: number
+      }
+      treasury_post_collection: {
+        Args: {
+          p_amount: number
+          p_customer_payment_id: string
+          p_notes?: string
+          p_treasury_id: string
+        }
+        Returns: string
+      }
+      treasury_post_expense: {
+        Args: {
+          p_amount: number
+          p_expense_id: string
+          p_notes?: string
+          p_treasury_id: string
+        }
+        Returns: string
+      }
+      treasury_post_supplier_pay: {
+        Args: {
+          p_amount: number
+          p_notes?: string
+          p_supplier_payment_id: string
+          p_treasury_id: string
+        }
+        Returns: string
+      }
+      treasury_transfer: {
+        Args: {
+          p_amount: number
+          p_from_treasury_id: string
+          p_notes?: string
+          p_to_treasury_id: string
+        }
+        Returns: string
+      }
       verify_cashier_pin: {
         Args: { p_device_id: string; p_pin: string; p_store_id: string }
         Returns: string
@@ -4628,6 +4782,15 @@ export type Database = {
         | "session_close_deposit"
         | "session_open_float"
         | "admin_withdraw"
+      cash_treasury_entry_type:
+        | "transfer_out"
+        | "transfer_in"
+        | "cashier_collect"
+        | "expense_payout"
+        | "collection_deposit"
+        | "supplier_payout"
+        | "period_sweep"
+      cash_treasury_kind: "hq" | "store"
       cost_center_type:
         | "operations"
         | "cleaning"
@@ -4924,6 +5087,8 @@ export type PurchaseRow = Tables<"purchase_invoices">
 export type SupplierPaymentRow = Tables<"supplier_payments">
 export type CashierVaultLedgerRow = Tables<"cashier_vault_ledger">
 export type CashierVaultRow = Tables<"cashier_vaults">
+export type CashTreasuryRow = Tables<"cash_treasuries">
+export type CashTreasuryLedgerRow = Tables<"cash_treasury_ledger">
 export type SessionRow = Tables<"cashier_sessions">
 export type StockCountLineRow = Tables<"stock_count_lines">
 export type StockCountRow = Tables<"stock_counts">
@@ -4964,6 +5129,16 @@ export const Constants = {
         "session_open_float",
         "admin_withdraw",
       ],
+      cash_treasury_entry_type: [
+        "transfer_out",
+        "transfer_in",
+        "cashier_collect",
+        "expense_payout",
+        "collection_deposit",
+        "supplier_payout",
+        "period_sweep",
+      ],
+      cash_treasury_kind: ["hq", "store"],
       cost_center_type: [
         "operations",
         "cleaning",

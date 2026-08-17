@@ -2,6 +2,7 @@ import * as orderRepo from "@/lib/repositories/order.repository";
 import * as customerRepo from "@/lib/repositories/customer.repository";
 import * as catalogRepo from "@/lib/repositories/catalog.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
+import { glSaleDiscount } from "@/lib/line-discount";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import type { Order, OrderItem, OrderPayment } from "@/lib/types";
 
@@ -113,7 +114,7 @@ export async function voidOrder(
       kind: "void",
       total: order.total,
       tax: order.tax,
-      discount: order.discount,
+      discount: glSaleDiscount(order.discount, items),
       payments: payments.map((p) => ({ method: p.method, amount: p.amount })),
       cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
       createdBy: userId,
@@ -164,7 +165,7 @@ export async function refundOrder(
       kind: "refund",
       total: order.total,
       tax: order.tax,
-      discount: order.discount,
+      discount: glSaleDiscount(order.discount, items),
       payments: payments.map((p) => ({ method: p.method, amount: p.amount })),
       cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
       createdBy: userId,

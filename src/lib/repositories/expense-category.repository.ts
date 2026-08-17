@@ -38,17 +38,22 @@ export async function createExpenseCategory(input: {
   cost_center_id: string;
   name: string;
   requires_inventory_item?: boolean;
+  gl_account_id?: string | null;
 }): Promise<ExpenseCategory> {
   const db = await getDb();
   const orgId = await getOrgId();
   const { data, error } = await db
     .from("expense_categories")
+    // gl_account_id is app-level until a migration adds the column
     .insert({
       org_id: orgId,
       cost_center_id: input.cost_center_id,
       name: input.name,
       requires_inventory_item: input.requires_inventory_item ?? false,
-    })
+      ...(input.gl_account_id !== undefined
+        ? { gl_account_id: input.gl_account_id }
+        : {}),
+    } as never)
     .select()
     .single();
   if (error || !data) throwDbError(error, "createExpenseCategory");
@@ -58,14 +63,17 @@ export async function createExpenseCategory(input: {
 export async function updateExpenseCategory(
   id: string,
   patch: Partial<
-    Pick<ExpenseCategory, "name" | "is_active" | "requires_inventory_item">
+    Pick<
+      ExpenseCategory,
+      "name" | "is_active" | "requires_inventory_item" | "gl_account_id"
+    >
   >
 ): Promise<ExpenseCategory | null> {
   const db = await getDb();
   const orgId = await getOrgId();
   const { data, error } = await db
     .from("expense_categories")
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update({ ...patch, updated_at: new Date().toISOString() } as never)
     .eq("id", id)
     .eq("org_id", orgId)
     .select()

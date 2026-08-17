@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useAppRouter as useRouter } from "@/hooks/use-app-router";
 import { toast } from "sonner";
-import { BookOpen, Landmark, Plus, Power, ScrollText, Sparkles, BarChart3, FileSpreadsheet, Scale, Wallet, Upload } from "lucide-react";
+import { BookOpen, Landmark, Plus, Power, ScrollText, Sparkles, BarChart3, FileSpreadsheet, Scale, Wallet, Upload, Layers } from "lucide-react";
 import { PageHeader } from "@/components/Velora/page-header";
 import { CompactAction, CompactActions } from "@/components/Velora/compact-actions";
 import { KpiCard } from "@/components/Velora/kpi-card";
@@ -14,6 +14,7 @@ import { ResponsiveListLayout } from "@/components/Velora/responsive-list-layout
 import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -151,6 +152,22 @@ export function ChartOfAccountsPage({
         return;
       }
       toast.success(account.is_active ? "تم تعطيل الحساب" : "تم تفعيل الحساب");
+      router.refresh();
+    });
+  };
+
+  const onTogglePostable = (account: GlAccountTreeNode) => {
+    startTransition(async () => {
+      const result = await updateGlAccountAction(account.id, {
+        is_postable: !account.is_postable,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(
+        account.is_postable ? "الحساب بقى تجميعي" : "الحساب بقى قابل للترحيل"
+      );
       router.refresh();
     });
   };
@@ -362,13 +379,22 @@ export function ChartOfAccountsPage({
                       <span className="text-xs text-muted-foreground">مفيش دفتر</span>
                     )}
                     {canManage && !account.is_system ? (
-                      <CompactAction
-                        label={account.is_active ? "تعطيل" : "تفعيل"}
-                        icon={Power}
-                        variant="ghost"
-                        disabled={pending}
-                        onClick={() => onToggleActive(account)}
-                      />
+                      <>
+                        <CompactAction
+                          label={account.is_postable ? "تجميعي" : "تفصيلي"}
+                          icon={Layers}
+                          variant="ghost"
+                          disabled={pending}
+                          onClick={() => onTogglePostable(account)}
+                        />
+                        <CompactAction
+                          label={account.is_active ? "تعطيل" : "تفعيل"}
+                          icon={Power}
+                          variant="ghost"
+                          disabled={pending}
+                          onClick={() => onToggleActive(account)}
+                        />
+                      </>
                     ) : null}
                   </CompactActions>
                 }
@@ -436,15 +462,26 @@ export function ChartOfAccountsPage({
                         {canManage ? (
                           <td className="px-3 py-2">
                             {!account.is_system ? (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                disabled={pending}
-                                onClick={() => onToggleActive(account)}
-                              >
-                                {account.is_active ? "تعطيل" : "تفعيل"}
-                              </Button>
+                              <div className="flex flex-wrap gap-1">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={pending}
+                                  onClick={() => onTogglePostable(account)}
+                                >
+                                  {account.is_postable ? "تجميعي" : "تفصيلي"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={pending}
+                                  onClick={() => onToggleActive(account)}
+                                >
+                                  {account.is_active ? "تعطيل" : "تفعيل"}
+                                </Button>
+                              </div>
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
@@ -618,6 +655,21 @@ export function ChartOfAccountsPage({
                 </SelectContent>
               </Select>
             </div>
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox
+                checked={form.is_postable}
+                onCheckedChange={(v) =>
+                  setForm((f) => ({ ...f, is_postable: v === true }))
+                }
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">قابل للترحيل</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  غير محدد = حساب تجميعي (مفيش قيود عليه)
+                </span>
+              </span>
+            </label>
           </div>
         </StandardModalContent>
       </Dialog>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   Archive,
@@ -47,7 +47,13 @@ import {
 } from "@/modules/pos/services/receipt-format.service";
 import { printReceiptViaUsb } from "@/modules/pos/services/receipt-usb-printer.service";
 import { findPosProductByBarcode } from "@/modules/pos/utils/barcode-lookup";
-import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
+import {
+  playPosErrorSound,
+  playPosNewOrderSound,
+  playPosScanSound,
+  playPosSuccessSound,
+  unlockPosAudio,
+} from "@/modules/pos/lib/pos-sounds";
 import type { Category, CostCenter, ExpenseCategory, PromotionRule } from "@/lib/types";
 import type { CartLine, Customer, PaymentMethod, PaymentSplit } from "@/lib/types";
 import type { FeatureFlag, SalesMode } from "@/lib/constants";
@@ -73,7 +79,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/format";
-import { requiresManagerDiscountOverride } from "@/modules/pos/services/manager-override.service";
+import { requiresManagerDiscountOverride } from "@/modules/pos/lib/requires-manager-discount-override";
 import { WeightAmountModal } from "@/modules/pos/components/weight-amount-modal";
 import { PosDeviceGate } from "@/modules/pos/components/pos-device-gate";
 import { PosStoreGate } from "@/modules/pos/components/pos-store-gate";
@@ -133,6 +139,7 @@ async function postPosCheckout(input: {
     discount?: boolean;
     expiredSession?: boolean;
     reason?: string;
+    pin?: string;
   };
 }): Promise<CheckoutFlowResult> {
   const started = performance.now();
@@ -193,6 +200,9 @@ interface PosScreenProps {
   canAddSessionExpense?: boolean;
   featureFlags?: Partial<Record<FeatureFlag, boolean>>;
   canManagerOverride?: boolean;
+  requireManagerOverrideForExpiredSale?: boolean;
+  scaleEnabled?: boolean;
+  scaleSettings?: Record<string, unknown> | null;
   canCollectPayment?: boolean;
   canPaySupplier?: boolean;
   managerDiscountOverrideAmount?: number | null;
@@ -243,7 +253,10 @@ export function PosScreen({
   expenseCategories = [],
   canAddSessionExpense = false,
   featureFlags = {},
-  canManagerOverride = false,
+  canManagerOverride: _canManagerOverride = false,
+  requireManagerOverrideForExpiredSale = true,
+  scaleEnabled = false,
+  scaleSettings = null,
   canCollectPayment = false,
   canPaySupplier = false,
   managerDiscountOverrideAmount = null,
@@ -302,6 +315,8 @@ export function PosScreen({
   const [catalogProducts, setCatalogProducts] = useState<POSProduct[]>(initialProducts);
   const [liveOnlineOrders, setLiveOnlineOrders] =
     useState<OnlineOrderWithItems[]>(onlineOrdersProp);
+  const seenOnlineOrderIds = useRef(new Set(onlineOrdersProp.map((order) => order.id)));
+  const onlineOrdersSeeded = useRef(onlineOrdersProp.length > 0 || !loadCatalogClient);
   const [catalogLoading, setCatalogLoading] = useState(loadCatalogClient);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const addItem = usePosStore((s) => s.addItem);
@@ -338,8 +353,39 @@ export function PosScreen({
 
   useEffect(() => {
     setHeldCarts(initialHeldCarts);
+    unlockPosAudio();
     // Hydrate once from server props for this device load.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount hydrate
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollOnlineOrders() {
+      try {
+        const ordersRes = await fetch("/api/pos/online-orders", { credentials: "same-origin" });
+        if (!ordersRes.ok) return;
+        const ordersJson = (await ordersRes.json()) as { orders?: OnlineOrderWithItems[] };
+        const next = ordersJson.orders ?? [];
+        if (cancelled) return;
+        const hasNew = next.some((order) => !seenOnlineOrderIds.current.has(order.id));
+        seenOnlineOrderIds.current = new Set(next.map((order) => order.id));
+        setLiveOnlineOrders(next);
+        if (onlineOrdersSeeded.current && hasNew) {
+          playPosNewOrderSound();
+          toast.message("طلب أونلاين جديد");
+        }
+        onlineOrdersSeeded.current = true;
+      } catch {
+        // Keep last known board; next poll retries.
+      }
+    }
+
+    const id = window.setInterval(pollOnlineOrders, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
@@ -373,6 +419,10 @@ export function PosScreen({
           };
           if (!cancelled) {
             setLiveOnlineOrders(ordersJson.orders ?? []);
+            seenOnlineOrderIds.current = new Set(
+              (ordersJson.orders ?? []).map((order) => order.id)
+            );
+            onlineOrdersSeeded.current = true;
           }
         }
       } catch (error) {
@@ -397,7 +447,7 @@ export function PosScreen({
   const checkoutBlocked =
     readinessState !== "ready" &&
     readinessState !== "session_warning" &&
-    !(readinessState === "session_expired" && canManagerOverride);
+    readinessState !== "session_expired";
   const cashDrawerEnabled = featureFlags.cash_drawer === true;
   const discountsEnabled = featureFlags.customer_discounts === true;
   const promotionsEnabled = featureFlags.promotions === true;
@@ -468,7 +518,9 @@ export function PosScreen({
     : pending
       ? "جاري إتمام البيع…"
       : readinessState === "session_expired"
-        ? "أقفل الوردية عشان تكمّل البيع"
+        ? requireManagerOverrideForExpiredSale
+          ? "مدة الوردية خلصت — البيع محتاج PIN المدير"
+          : "مدة الوردية خلصت — الأفضل تقفل الوردية"
         : readinessState === "no_session"
           ? "افتح جلسة كاشير الأول"
           : checkoutBlocked
@@ -633,6 +685,7 @@ export function PosScreen({
     }
 
     const { product, variant } = match ?? { product: products[0]!, variant: null };
+    playPosScanSound();
     const useWeightFlow =
       (enableWeightSales && product.supports_weight_sale) ||
       (enablePriceByAmount && product.supports_amount_sale);
@@ -652,7 +705,8 @@ export function PosScreen({
   function runCheckout(
     payments: PaymentSplit[],
     overrideReason?: string,
-    accountCollection = 0
+    accountCollection = 0,
+    overridePin?: string
   ) {
     if (checkoutSaving) {
       toast.message("الفاتورة السابقة بتتحفظ… استنى لحظة");
@@ -664,8 +718,9 @@ export function PosScreen({
       discountAmount,
       managerDiscountOverrideAmount
     );
+    const sessionExpired = readinessState === "session_expired";
     const needsExpiredSessionOverride =
-      readinessState === "session_expired" && canManagerOverride;
+      sessionExpired && requireManagerOverrideForExpiredSale;
 
     const state = usePosStore.getState();
     const receiptCart = [...state.cart];
@@ -687,6 +742,7 @@ export function PosScreen({
     const checkoutSalesMode = state.salesMode;
 
     if (checkoutCart.length === 0) {
+      playPosErrorSound();
       toast.error("السلة فارغة");
       return;
     }
@@ -709,11 +765,12 @@ export function PosScreen({
           couponCode: promotionsEnabled ? checkoutCoupon || null : null,
           loyaltyPoints: checkoutLoyaltyPoints,
           override:
-            needsDiscountOverride || needsExpiredSessionOverride
+            needsDiscountOverride || sessionExpired
               ? {
                   discount: needsDiscountOverride || undefined,
-                  expiredSession: needsExpiredSessionOverride || undefined,
+                  expiredSession: sessionExpired || undefined,
                   reason: overrideReason,
+                  pin: overridePin,
                 }
               : undefined,
         });
@@ -745,6 +802,9 @@ export function PosScreen({
           });
         }
         playPosSuccessSound();
+        if (result.loyaltyRedeemWarning) {
+          toast.error(result.loyaltyRedeemWarning);
+        }
 
         if (
           accountCollection > 0.001 &&
@@ -759,6 +819,7 @@ export function PosScreen({
             notes: `تحصيل مع فاتورة ${result.orderNumber}`,
           }).then((collected) => {
             if (!collected.success) {
+              playPosErrorSound();
               toast.error(`تم البيع، لكن تحصيل المستحق فشل: ${collected.error}`);
               return;
             }
@@ -802,12 +863,7 @@ export function PosScreen({
       managerDiscountOverrideAmount
     );
     const needsExpiredSessionOverride =
-      readinessState === "session_expired" && canManagerOverride;
-    if (needsDiscountOverride && !canManagerOverride) {
-      playPosErrorSound();
-      toast.error("هذا الخصم يحتاج موافقة المالك أو المدير");
-      return;
-    }
+      readinessState === "session_expired" && requireManagerOverrideForExpiredSale;
     if (needsDiscountOverride || needsExpiredSessionOverride) {
       const both = needsDiscountOverride && needsExpiredSessionOverride;
       setOverrideDialog({
@@ -897,10 +953,10 @@ export function PosScreen({
     });
   }
 
-  function confirmCashDrawer(reason: string) {
+  function confirmCashDrawer(reason: string, pin: string) {
     startTransition(async () => {
       try {
-        await openCashDrawerAction(reason);
+        await openCashDrawerAction({ reason, pin });
         openCashDrawerHook();
         setOverrideDialog(null);
         toast.success("تم فتح درج النقدية");
@@ -1018,7 +1074,7 @@ export function PosScreen({
                 />
               </div>
             ) : null}
-            {cashDrawerEnabled && canManagerOverride ? (
+            {cashDrawerEnabled ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -1033,7 +1089,7 @@ export function PosScreen({
             {(canCollectPayment ||
               canPaySupplier ||
               (canAddSessionExpense && storeId && cashierId && sessionId) ||
-              (cashDrawerEnabled && canManagerOverride)) ? (
+              (cashDrawerEnabled)) ? (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -1067,7 +1123,7 @@ export function PosScreen({
                       دفع مورد
                     </DropdownMenuItem>
                   ) : null}
-                  {cashDrawerEnabled && canManagerOverride ? (
+                  {cashDrawerEnabled ? (
                     <DropdownMenuItem
                       disabled={pending}
                       onClick={handleOpenCashDrawer}
@@ -1239,9 +1295,6 @@ export function PosScreen({
                   pendingOpeningFloat={pendingOpeningFloat}
                 />
               ) : null}
-              {readinessState === "session_expired" && sessionBannerAction ? (
-                <div className="flex justify-center">{sessionBannerAction}</div>
-              ) : null}
             </div>
           ) : null}
         </aside>
@@ -1302,9 +1355,6 @@ export function PosScreen({
                       label="ابدأ البيع الآن"
                       pendingOpeningFloat={pendingOpeningFloat}
                     />
-                  ) : null}
-                  {readinessState === "session_expired" && sessionBannerAction ? (
-                    <div className="flex justify-center">{sessionBannerAction}</div>
                   ) : null}
                 </div>
               ) : null}
@@ -1389,8 +1439,8 @@ export function PosScreen({
           if (!open) setWeightProduct(null);
         }}
         product={weightProduct}
-        scaleEnabled={false}
-        scaleSettings={null}
+        scaleEnabled={scaleEnabled}
+        scaleSettings={scaleSettings}
         onConfirm={({ quantity, unitPrice, saleInputMode, enteredAmount }) => {
           if (!weightProduct) return;
           const resolved = resolveCheckoutVariant(weightProduct);
@@ -1486,11 +1536,11 @@ export function PosScreen({
       }}
       title={overrideDialog?.title ?? "موافقة المدير"}
       defaultReason={overrideDialog?.defaultReason ?? ""}
-      onConfirm={(reason) => {
+      onConfirm={(reason, pin) => {
         if (!overrideDialog) return;
         if (overrideDialog.kind === "cash_drawer") {
           if (pending) return;
-          confirmCashDrawer(reason);
+          confirmCashDrawer(reason, pin);
           return;
         }
         if (checkoutSaving) return;
@@ -1498,7 +1548,8 @@ export function PosScreen({
           runCheckout(
             overrideDialog.payments,
             reason,
-            overrideDialog.accountCollection ?? 0
+            overrideDialog.accountCollection ?? 0,
+            pin
           );
         }
       }}

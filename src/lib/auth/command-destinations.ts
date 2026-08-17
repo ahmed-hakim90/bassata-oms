@@ -66,6 +66,7 @@ const NAV_KEYWORDS: Record<string, string[]> = {
   "/accounting/ledger": ["أستاذ"],
   "/accounting/income-statement": ["قائمة الدخل", "ربح"],
   "/accounting/balance-sheet": ["ميزانية"],
+  "/treasury": ["خزينة", "خزائن", "نقد", "صندوق"],
   "/expenses": ["مصروف"],
   "/monthly-closing": ["إقفال", "فترة"],
   "/reports": ["تقارير"],

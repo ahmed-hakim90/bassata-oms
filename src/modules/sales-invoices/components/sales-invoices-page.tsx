@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { todayDocumentDate } from "@/lib/document-date";
 import { selectLabelById } from "@/lib/select-label";
 import type {
   Customer,
@@ -32,12 +33,53 @@ import type {
   Warehouse,
 } from "@/lib/types";
 import {
-  createSalesInvoiceAction,
   getSalesInvoiceCatalogAction,
   getSalesInvoiceDetailAction,
 } from "@/modules/sales-invoices/actions/sales-invoice.actions";
 import type { SalesInvoiceWithDetails } from "@/modules/sales-invoices/services/sales-invoice.service";
 import { SalesInvoiceForm } from "./sales-invoice-form";
+
+const LOCAL_DRAFT_PREFIX = "local-";
+
+function buildLocalSalesDraft(input: {
+  documentKind: NonNullable<Order["document_kind"]>;
+  warehouseId: string;
+  customerId: string | null;
+  customers: Customer[];
+  warehouses: Warehouse[];
+}): SalesInvoiceWithDetails {
+  const warehouse = input.warehouses.find((w) => w.id === input.warehouseId);
+  const customer = input.customerId
+    ? input.customers.find((c) => c.id === input.customerId)
+    : null;
+  const now = new Date().toISOString();
+  return {
+    id: `${LOCAL_DRAFT_PREFIX}${crypto.randomUUID()}`,
+    store_id: "",
+    session_id: null,
+    order_number: "مسودة جديدة",
+    customer_id: input.customerId,
+    status: "completed",
+    subtotal: 0,
+    discount: 0,
+    tax: 0,
+    total: 0,
+    payment_status: "unpaid",
+    created_by: "",
+    created_at: now,
+    sales_mode: "wholesale",
+    document_status: "draft",
+    document_kind: input.documentKind,
+    source_document_id: null,
+    document_notes: "",
+    document_date: todayDocumentDate(),
+    warehouse_id: input.warehouseId,
+    valid_until: null,
+    lines: [],
+    customerName: customer?.name ?? null,
+    warehouseName: warehouse?.name ?? null,
+  };
+}
 
 interface SalesInvoicesPageProps {
   invoices: SalesInvoiceWithDetails[];
@@ -109,17 +151,12 @@ export function SalesInvoicesPage({
   const [products, setProducts] = useState(initialProducts);
   const [wholesaleTiersByProductId, setWholesaleTiersByProductId] = useState(initialTiers);
   const [activeId, setActiveId] = useState<string | null>(openFromQuery);
-  const [creating, setCreating] = useState(false);
   const [openBootstrapped, setOpenBootstrapped] = useState(false);
   const [createBootstrapped, setCreateBootstrapped] = useState(false);
   const [warehouseId, setWarehouseId] = useState(
     warehouses.find((w) => w.is_default)?.id ?? warehouses[0]?.id ?? ""
   );
   const [customerId, setCustomerId] = useState<string>("__none__");
-  const [draftDefaults, setDraftDefaults] = useState<{
-    warehouseId: string;
-    customerId: string | null;
-  } | null>(null);
 
   useEffect(() => {
     setInvoices(initial);
@@ -146,34 +183,29 @@ export function SalesInvoicesPage({
 
   const startDraftCreate = useCallback(
     (defaults: { warehouseId: string; customerId: string | null }) => {
+      if (!defaults.warehouseId) {
+        toast.error("اختار المخزن");
+        return;
+      }
+      if (warehouses.length === 0) {
+        toast.error("مفيش مخزن متاح — راجع إعدادات الفرع");
+        return;
+      }
       formOpenRef.current = true;
-      setDraftDefaults(defaults);
-      setCreating(true);
-      refreshCatalog(true);
-      void createSalesInvoiceAction({ ...defaults, documentKind }).then((result) => {
-        if (!result.ok) {
-          toast.error(result.error);
-          if (formOpenRef.current) {
-            formOpenRef.current = false;
-            setCreating(false);
-            setActiveId(null);
-            setDraftDefaults(null);
-          }
-          return;
-        }
-        const next: SalesInvoiceWithDetails = {
-          ...result.data,
-          warehouseName:
-            warehouses.find((warehouse) => warehouse.id === defaults.warehouseId)?.name ??
-            result.data.warehouseName,
-          customerName: defaults.customerId
-            ? customers.find((customer) => customer.id === defaults.customerId)?.name ??
-              result.data.customerName
-            : result.data.customerName,
-        };
-        setInvoices((prev) => [next, ...prev.filter((invoice) => invoice.id !== next.id)]);
-        if (formOpenRef.current) setActiveId(next.id);
+      const local = buildLocalSalesDraft({
+        documentKind,
+        warehouseId: defaults.warehouseId,
+        customerId: defaults.customerId,
+        customers,
+        warehouses,
       });
+      // افتح الوثيقة فورًا — المسودة تتسجل على السيرفر عند أول صنف/حفظ/استدعاء
+      setInvoices((prev) => [
+        local,
+        ...prev.filter((invoice) => !invoice.id.startsWith(LOCAL_DRAFT_PREFIX)),
+      ]);
+      setActiveId(local.id);
+      refreshCatalog(true);
     },
     [refreshCatalog, warehouses, customers, documentKind]
   );
@@ -273,9 +305,8 @@ export function SalesInvoicesPage({
 
   function closeForm() {
     formOpenRef.current = false;
-    setCreating(false);
+    setInvoices((prev) => prev.filter((i) => !i.id.startsWith(LOCAL_DRAFT_PREFIX)));
     setActiveId(null);
-    setDraftDefaults(null);
   }
 
   function openNewDraft() {
@@ -302,11 +333,10 @@ export function SalesInvoicesPage({
       return;
     }
     setInvoices((prev) => {
-      const idx = prev.findIndex((i) => i.id === next.id);
-      if (idx === -1) return [next, ...prev];
-      const copy = [...prev];
-      copy[idx] = next;
-      return copy;
+      const others = prev.filter(
+        (i) => i.id !== next.id && !i.id.startsWith(LOCAL_DRAFT_PREFIX)
+      );
+      return [next, ...others];
     });
     if (formOpenRef.current) setActiveId(next.id);
     if (options?.refresh) router.refresh();
@@ -368,17 +398,16 @@ export function SalesInvoicesPage({
     );
   }
 
-  if (creating || active) {
+  if (active) {
     return (
       <div className="flex flex-col gap-3">
         <PageHeader
           breadcrumb={<span>المبيعات · {title}</span>}
-          title={active ? title : `${createLabel}`}
+          title={title}
           description={description}
         />
         <SalesInvoiceForm
           invoice={active}
-          draftDefaults={draftDefaults ?? undefined}
           customers={customers}
           products={products}
           warehouses={warehouses}
@@ -395,7 +424,7 @@ export function SalesInvoicesPage({
           onChanged={(next, options) => {
             if (next === null) {
               upsertInvoice(null, {
-                removedId: active?.id,
+                removedId: active.id,
                 refresh: options?.refresh ?? true,
               });
               return;

@@ -351,6 +351,12 @@ export const MODULE_HUBS = {
         requiresFlag: "general_ledger",
       },
       {
+        href: "/treasury",
+        label: "الخزائن",
+        description: "رئيسية وفروع وسجل حركات النقد",
+        icon: "Landmark",
+      },
+      {
         href: "/expenses",
         label: "المصروفات",
         description: "تسجيل ومراجعة المصروف",

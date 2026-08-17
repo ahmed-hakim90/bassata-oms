@@ -104,6 +104,19 @@ export async function listCustomerPayments(customerId: string): Promise<Customer
   return (data ?? []).map((row) => mapPayment(row as Record<string, unknown>));
 }
 
+export async function getCustomerPayment(id: string): Promise<CustomerPayment | null> {
+  const db = await getDb();
+  const orgId = await getOrgId();
+  const { data, error } = await db
+    .from("customer_payments")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throwDbError(error, "getCustomerPayment");
+  return data ? mapPayment(data as Record<string, unknown>) : null;
+}
+
 export async function recordCustomerPaymentRpc(input: {
   storeId: string;
   customerId: string;

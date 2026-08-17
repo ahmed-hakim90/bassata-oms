@@ -26,6 +26,10 @@ const atomicPurchaseReceive = readFileSync(
   "supabase/migrations/20260816192751_receive_purchase_invoice.sql",
   "utf8"
 );
+const managerOverridePin = readFileSync(
+  "supabase/migrations/20260817061500_verify_manager_override_pin.sql",
+  "utf8"
+);
 
 describe("checkout trust boundary", () => {
   it("keeps checkout cores private and validates permission, identity, and discount threshold", () => {
@@ -99,5 +103,14 @@ describe("kitchen state machine", () => {
     );
     expect(migration).toContain("AFTER INSERT ON organizations");
     expect(migration).toContain("'cashier', 'kitchen_manage'");
+  });
+});
+
+describe("manager override PIN", () => {
+  it("verifies owner/manager PIN without switching the active cashier", () => {
+    expect(managerOverridePin).toContain("verify_manager_override_pin");
+    expect(managerOverridePin).toContain("u.role IN ('owner', 'manager')");
+    expect(managerOverridePin).toContain("GRANT EXECUTE ON FUNCTION public.verify_manager_override_pin");
+    expect(managerOverridePin).toContain("FROM PUBLIC, anon");
   });
 });

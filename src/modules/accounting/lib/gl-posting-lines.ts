@@ -72,6 +72,28 @@ export function buildSaleJournalLines(input: {
   return lines.filter((line) => line.debit > 0 || line.credit > 0);
 }
 
+/**
+ * Session till variance (actual − expected).
+ * Shortage: Dr cash_over_short / Cr cash. Overage: Dr cash / Cr cash_over_short.
+ */
+export function buildSessionVarianceJournalLines(input: {
+  variance: number;
+}): BuiltGlLine[] {
+  const variance = roundMoney(input.variance);
+  if (variance === 0) return [];
+  if (variance < 0) {
+    const shortage = roundMoney(-variance);
+    return [
+      { systemKey: "cash_over_short", debit: shortage, credit: 0 },
+      { systemKey: "cash", debit: 0, credit: shortage },
+    ];
+  }
+  return [
+    { systemKey: "cash", debit: variance, credit: 0 },
+    { systemKey: "cash_over_short", debit: 0, credit: variance },
+  ];
+}
+
 export function buildExpenseJournalLines(input: {
   amount: number;
   paymentMethod: PaymentMethod;
@@ -204,6 +226,28 @@ export function buildStockCountJournalLines(input: {
   return [
     { systemKey: "waste", debit: shortage, credit: 0 },
     { systemKey: "inventory", debit: 0, credit: shortage },
+  ];
+}
+
+/**
+ * Move extra (or reduced) COGS after a delivered-invoice cost correction.
+ * Positive delta: Dr cogs / Cr inventory. Negative: the opposite.
+ */
+export function buildCogsAdjustmentJournalLines(input: {
+  cogsDelta: number;
+}): BuiltGlLine[] {
+  const delta = roundMoney(input.cogsDelta);
+  if (delta === 0) return [];
+  if (delta > 0) {
+    return [
+      { systemKey: "cogs", debit: delta, credit: 0 },
+      { systemKey: "inventory", debit: 0, credit: delta },
+    ];
+  }
+  const creditCogs = roundMoney(-delta);
+  return [
+    { systemKey: "inventory", debit: creditCogs, credit: 0 },
+    { systemKey: "cogs", debit: 0, credit: creditCogs },
   ];
 }
 

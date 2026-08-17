@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import { CashierVaultBatchWithdrawDialog } from "@/modules/sessions/components/cashier-vault-batch-withdraw-dialog";
 import { CashierVaultWithdrawDialog } from "@/modules/sessions/components/cashier-vault-withdraw-dialog";
@@ -38,7 +39,14 @@ export function CashierVaultPanel({
           <h2 className="font-heading text-base font-semibold">خزائن الكاشير</h2>
           <p className="text-sm text-muted-foreground">
             أمانة الكاش لكل موظف في {storeName} — منفصلة عن عدّ درج الوردية. السحب
-            للإدارة فقط، ورصيد بداية الوردية الجاية بيتقفّل على الكاشير.
+            بيورّد لخزينة الفرع أو الرئيسية، ورصيد بداية الوردية الجاية بيتقفّل على
+            الكاشير.{" "}
+            <Link
+              href="/treasury"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              فتح الخزائن
+            </Link>
           </p>
         </div>
         {canManage ? (

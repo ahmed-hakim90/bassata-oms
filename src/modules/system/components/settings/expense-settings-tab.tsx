@@ -25,6 +25,7 @@ interface ExpenseSettingsTabProps {
   costCentersPage?: {
     centers: CostCenter[];
     categories: ExpenseCategory[];
+    expenseAccounts: { id: string; code: string; name: string }[];
     activeStoreId: string | null;
   } | null;
 }
@@ -157,6 +158,7 @@ export function ExpenseSettingsTab({
           <CostCentersPage
             centers={costCentersPage.centers}
             categories={costCentersPage.categories}
+            expenseAccounts={costCentersPage.expenseAccounts}
             embedded
           />
         ) : (

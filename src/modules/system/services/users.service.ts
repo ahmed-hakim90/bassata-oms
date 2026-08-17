@@ -11,7 +11,7 @@ import {
 } from "@/lib/repositories/organization.repository";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AppUser, Store } from "@/lib/types";
-import type { UserRole } from "@/lib/constants";
+import { userRoleSupportsPin, type UserRole } from "@/lib/constants";
 
 export async function listUsers(): Promise<AppUser[]> {
   return userRepo.listUsers();
@@ -83,7 +83,7 @@ export async function createUser(input: {
       throw new Error("Created user profile is not visible in the current organization");
     }
 
-    if (input.pin && input.role === "cashier") {
+    if (input.pin && userRoleSupportsPin(input.role)) {
       await userRepo.setPin(user.id, input.pin);
     }
     if (deviceIds.length) {
@@ -127,7 +127,9 @@ export async function createUser(input: {
 
 export async function resetUserPin(id: string, pin: string, userId: string): Promise<void> {
   const user = await userRepo.getUser(id);
-  if (!user || user.role !== "cashier") throw new Error("Cashier not found");
+  if (!user || !userRoleSupportsPin(user.role)) {
+    throw new Error("المستخدم غير صالح لرقم PIN");
+  }
   await userRepo.setPin(id, pin);
   const orgId = await getOrgId();
   await writeAuditLog({

@@ -106,6 +106,7 @@ export interface SettingsShellProps {
   costCentersBundle: {
     centers: CostCenter[];
     categories: ExpenseCategory[];
+    expenseAccounts: { id: string; code: string; name: string }[];
     activeStoreId: string | null;
   } | null;
   auditBundle: {

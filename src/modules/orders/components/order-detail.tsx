@@ -3,6 +3,7 @@
 import { Ban, Printer, RotateCcw } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { playPosErrorSound, playPosSuccessSound } from "@/modules/pos/lib/pos-sounds";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -35,9 +36,17 @@ interface OrderDetailProps {
   /** When true, hide page chrome (title) — used inside a modal. */
   embedded?: boolean;
   onUpdated?: () => void;
+  canRefund?: boolean;
+  canVoid?: boolean;
 }
 
-export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailProps) {
+export function OrderDetail({
+  order,
+  embedded = false,
+  onUpdated,
+  canRefund = false,
+  canVoid = false,
+}: OrderDetailProps) {
   const { t } = useTranslation();
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState<"void" | "refund" | null>(null);
@@ -51,6 +60,7 @@ export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailP
       try {
         if (kind === "void") {
           const result = await voidOrderAction(order.id);
+          playPosSuccessSound();
           toast.success(
             result.restock.restocked
               ? `تم إلغاء الطلب وإرجاع ${result.restock.restockMovementCount} حركة مخزون`
@@ -58,6 +68,7 @@ export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailP
           );
         } else {
           const result = await refundOrderAction(order.id);
+          playPosSuccessSound();
           toast.success(
             result.restock.restocked
               ? `تم رد الطلب وإرجاع ${result.restock.restockMovementCount} حركة مخزون`
@@ -70,9 +81,10 @@ export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailP
           window.location.reload();
         }
       } catch (error) {
+        playPosErrorSound();
         const message = error instanceof Error ? error.message : null;
         toast.error(
-          message && message !== "Order not found or already voided" && message !== "Order not found or cannot be refunded"
+          message
             ? message
             : kind === "void"
               ? "تعذر إلغاء الطلب"
@@ -101,21 +113,25 @@ export function OrderDetail({ order, embedded = false, onUpdated }: OrderDetailP
           }
         />
       ) : null}
-      {order.status === "completed" ? (
+      {order.status === "completed" && (canRefund || canVoid) ? (
         <>
-          <CompactAction
-            label="رد"
-            icon={RotateCcw}
-            disabled={pending}
-            onClick={() => setConfirm("refund")}
-          />
-          <CompactAction
-            label="إلغاء"
-            icon={Ban}
-            variant="destructive"
-            disabled={pending}
-            onClick={() => setConfirm("void")}
-          />
+          {canRefund ? (
+            <CompactAction
+              label="رد"
+              icon={RotateCcw}
+              disabled={pending}
+              onClick={() => setConfirm("refund")}
+            />
+          ) : null}
+          {canVoid ? (
+            <CompactAction
+              label="إلغاء"
+              icon={Ban}
+              variant="destructive"
+              disabled={pending}
+              onClick={() => setConfirm("void")}
+            />
+          ) : null}
         </>
       ) : null}
     </CompactActions>

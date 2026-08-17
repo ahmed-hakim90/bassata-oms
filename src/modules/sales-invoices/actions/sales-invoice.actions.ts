@@ -23,14 +23,17 @@ import {
   deleteDraftSalesInvoice,
   deliverSalesInvoice,
   getSalesInvoice,
+  importSalesSourcesIntoInvoice,
   issueSalesCreditNote,
   issueSalesInvoice,
+  listImportableSalesSources,
   listSalesDocuments,
   removeSalesInvoiceLine,
   transitionSalesDocument,
   updateDraftSalesInvoiceHeader,
   updateSalesInvoiceLine,
   type CorrectDeliveredCostsResult,
+  type ImportableSalesSource,
   type SalesInvoiceLineMutationResult,
   type SalesInvoiceWithDetails,
 } from "@/modules/sales-invoices/services/sales-invoice.service";
@@ -315,6 +318,35 @@ export async function convertSalesDocumentAction(input: {
     revalidatePath("/sales-orders");
     revalidatePath("/sales-invoices");
     return created;
+  });
+}
+
+export async function listImportableSalesSourcesAction(input?: {
+  customerId?: string | null;
+  warehouseId?: string | null;
+}): Promise<SalesInvoiceActionResult<ImportableSalesSource[]>> {
+  return runAction(async () => {
+    await requireSalesInvoiceUser();
+    const storeId = await getValidatedActiveStoreId();
+    return listImportableSalesSources({
+      storeId,
+      customerId: input?.customerId,
+      warehouseId: input?.warehouseId,
+    });
+  });
+}
+
+export async function importSalesSourcesIntoInvoiceAction(input: {
+  invoiceId: string;
+  sourceIds: string[];
+}): Promise<SalesInvoiceActionResult<SalesInvoiceWithDetails>> {
+  return runAction(async () => {
+    await requireSalesInvoiceUser();
+    const updated = await importSalesSourcesIntoInvoice(input);
+    revalidatePath("/quotations");
+    revalidatePath("/sales-orders");
+    revalidatePath("/sales-invoices");
+    return updated;
   });
 }
 

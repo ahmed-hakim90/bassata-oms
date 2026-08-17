@@ -13,8 +13,12 @@ import {
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { assertPeriodOpen } from "@/lib/services/period-lock.service";
 import { productPackingForPricing } from "@/lib/units";
-import { lineTotalAfterDiscount } from "@/lib/line-discount";
+import { glSaleDiscount, lineTotalAfterDiscount } from "@/lib/line-discount";
 import { roundMoney } from "@/lib/money";
+import {
+  canImportSalesSource,
+  salesSourceLockStatus,
+} from "@/lib/commercial-document-import";
 import { listPriceTiers, resolveUnitPrice } from "@/modules/products/services/pricing-tier.service";
 import {
   getBusinessActivitySettings,
@@ -564,7 +568,22 @@ export async function removeSalesInvoiceLine(lineId: string): Promise<{
 export async function deleteDraftSalesInvoice(orderId: string): Promise<void> {
   const order = await requireEditableDraft(orderId);
   await assertPeriodOpen(order.store_id);
+  if (order.source_document_id) {
+    await restoreSalesImportSource(order.source_document_id);
+  }
   await orderRepo.deleteSalesInvoiceDraft(orderId);
+}
+
+async function restoreSalesImportSource(sourceId: string): Promise<void> {
+  const source = await getSalesInvoice(sourceId);
+  if (!source?.document_kind || !source.document_status) return;
+  if (source.document_kind === "quotation" && source.document_status === "accepted") {
+    await orderRepo.updateSalesDocumentStatus(sourceId, "accepted", "sent");
+    return;
+  }
+  if (source.document_kind === "sales_order" && source.document_status === "invoiced") {
+    await orderRepo.updateSalesDocumentStatus(sourceId, "invoiced", "confirmed");
+  }
 }
 
 export async function issueSalesInvoice(orderId: string): Promise<void> {
@@ -628,7 +647,7 @@ export async function deliverSalesInvoice(input: {
           storeId: delivered.store_id,
           total: delivered.total,
           tax: delivered.tax,
-          discount: delivered.discount,
+          discount: glSaleDiscount(delivered.discount, items),
           payments: glPayments,
           cogs: items.reduce((s, i) => s + Number(i.line_cost ?? 0), 0),
           entryDate: documentDate,
@@ -769,6 +788,26 @@ export async function correctDeliveredSalesInvoiceCosts(
     },
   });
 
+  after(() => {
+    void (async () => {
+      try {
+        const { safePostCogsAdjustmentJournal } = await import(
+          "@/modules/accounting/services/gl-posting.service"
+        );
+        await safePostCogsAdjustmentJournal({
+          orderId,
+          storeId: order.store_id,
+          currentCogs: summary.nextTotal,
+          entryDate: documentDate,
+          createdBy: actor.id,
+          memo: `تصحيح تكلفة ${order.order_number}`,
+        });
+      } catch (error) {
+        console.error("[sales-invoice] deferred COGS adjustment failed", error);
+      }
+    })();
+  });
+
   return { ...summary, lines: corrections };
 }
 
@@ -787,10 +826,155 @@ async function copyOrderLines(fromId: string, toId: string): Promise<void> {
       tierId: item.tier_id,
       wholesaleApplied: item.wholesale_applied,
       listUnitPrice: item.list_unit_price ?? item.unit_price,
+      discountAmount: item.discount_amount ?? 0,
     });
   }
   const taxRate = await getTaxRate();
   await orderRepo.recalcSalesInvoiceTotals(toId, taxRate);
+}
+
+export type ImportableSalesSource = {
+  id: string;
+  order_number: string;
+  document_kind: "quotation" | "sales_order";
+  document_status: NonNullable<Order["document_status"]>;
+  customer_id: string | null;
+  customerName: string | null;
+  warehouse_id: string | null;
+  document_date: string | null;
+  lineCount: number;
+  total: number;
+};
+
+export async function listImportableSalesSources(input: {
+  storeId: string;
+  customerId?: string | null;
+  warehouseId?: string | null;
+}): Promise<ImportableSalesSource[]> {
+  const [quotations, salesOrders] = await Promise.all([
+    listSalesDocuments(input.storeId, "quotation"),
+    listSalesDocuments(input.storeId, "sales_order"),
+  ]);
+  const candidates = [
+    ...quotations.filter((doc) => canImportSalesSource(doc.document_kind, doc.document_status)),
+    ...salesOrders.filter((doc) => canImportSalesSource(doc.document_kind, doc.document_status)),
+  ];
+  return candidates
+    .filter((doc) => {
+      if (input.warehouseId && doc.warehouse_id && doc.warehouse_id !== input.warehouseId) {
+        return false;
+      }
+      if (input.customerId && doc.customer_id && doc.customer_id !== input.customerId) {
+        return false;
+      }
+      return (doc.lines?.length ?? 0) > 0;
+    })
+    .map((doc) => ({
+      id: doc.id,
+      order_number: doc.order_number,
+      document_kind: doc.document_kind as "quotation" | "sales_order",
+      document_status: doc.document_status as NonNullable<Order["document_status"]>,
+      customer_id: doc.customer_id,
+      customerName: doc.customerName,
+      warehouse_id: doc.warehouse_id ?? null,
+      document_date: doc.document_date ?? null,
+      lineCount: doc.lines.length,
+      total: doc.total,
+    }));
+}
+
+/** Pull lines from sent quotations / confirmed sales orders into a draft sales invoice. */
+export async function importSalesSourcesIntoInvoice(input: {
+  invoiceId: string;
+  sourceIds: string[];
+}): Promise<SalesInvoiceWithDetails> {
+  const target = await getSalesInvoice(input.invoiceId);
+  if (!target || target.document_kind !== "sales_invoice") {
+    throw new Error("فاتورة المبيعات غير موجودة");
+  }
+  if (target.document_status !== "draft") {
+    throw new Error("الاستيراد متاح على مسودة فاتورة المبيعات فقط");
+  }
+  if (!target.warehouse_id) throw new Error("المخزن مطلوب على الفاتورة");
+  if (input.sourceIds.length === 0) {
+    throw new Error("اختار عرض سعر أو أمر بيع واحد على الأقل");
+  }
+
+  const uniqueIds = [...new Set(input.sourceIds)];
+  if (uniqueIds.length > 1) {
+    throw new Error("استورد عرض سعر أو أمر بيع واحد في المرة");
+  }
+  const sources: SalesInvoiceWithDetails[] = [];
+  for (const sourceId of uniqueIds) {
+    const source = await getSalesInvoice(sourceId);
+    if (!source) throw new Error("المستند المصدر غير موجود");
+    if (source.store_id !== target.store_id) {
+      throw new Error("المستند المصدر من فرع تاني");
+    }
+    if (source.warehouse_id && source.warehouse_id !== target.warehouse_id) {
+      throw new Error("المستند المصدر على مخزن مختلف عن الفاتورة");
+    }
+    if (
+      target.customer_id &&
+      source.customer_id &&
+      source.customer_id !== target.customer_id
+    ) {
+      throw new Error("المستند المصدر لعميل مختلف عن الفاتورة");
+    }
+    if (
+      (source.document_kind !== "quotation" && source.document_kind !== "sales_order") ||
+      !canImportSalesSource(source.document_kind, source.document_status)
+    ) {
+      throw new Error("الاستيراد من عروض الأسعار المُرسلة أو أوامر البيع المؤكدة فقط");
+    }
+    if (source.lines.length === 0) {
+      throw new Error("المستند المصدر مفيهوش بنود");
+    }
+    sources.push(source);
+  }
+
+  const customerIds = [
+    ...new Set(sources.map((s) => s.customer_id).filter((id): id is string => Boolean(id))),
+  ];
+  if (customerIds.length > 1) {
+    throw new Error("اختار مستندات لنفس العميل");
+  }
+
+  if (!target.customer_id) {
+    const customerId = customerIds[0] ?? null;
+    if (customerId) {
+      await orderRepo.updateSalesInvoiceDraft(target.id, { customerId });
+    }
+  }
+
+  if (!target.source_document_id && sources[0]) {
+    await orderRepo.updateSalesInvoiceDraft(target.id, {
+      sourceDocumentId: sources[0].id,
+    });
+  }
+
+  for (const source of sources) {
+    const fromStatus = source.document_status as NonNullable<Order["document_status"]>;
+    const lockStatus = salesSourceLockStatus(
+      source.document_kind as "quotation" | "sales_order"
+    );
+    const locked = await orderRepo.updateSalesDocumentStatus(
+      source.id,
+      fromStatus,
+      lockStatus
+    );
+    if (!locked) throw new Error("تم تحويل المستند من قبل");
+    try {
+      await copyOrderLines(source.id, target.id);
+    } catch (error) {
+      await orderRepo.updateSalesDocumentStatus(source.id, lockStatus, fromStatus);
+      throw error;
+    }
+  }
+
+  const detail = await getSalesInvoice(target.id);
+  if (!detail) throw new Error("تعذر تحديث فاتورة المبيعات");
+  return detail;
 }
 
 export async function convertSalesDocument(input: {
@@ -923,7 +1107,7 @@ export async function issueSalesCreditNote(orderId: string): Promise<SalesInvoic
           storeId: issued.store_id,
           total: issued.total,
           tax: issued.tax,
-          discount: issued.discount,
+          discount: glSaleDiscount(issued.discount, items),
           cogs: roundMoney(cogs),
           entryDate: documentDate,
           createdBy: issued.created_by,

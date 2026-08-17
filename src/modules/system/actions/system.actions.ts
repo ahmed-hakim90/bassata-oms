@@ -41,9 +41,13 @@ import {
   updateUser,
 } from "@/modules/system/services/users.service";
 import type { FeatureFlag, PermissionKey, UserRole } from "@/lib/constants";
+import { userRoleSupportsPin } from "@/lib/constants";
 import type { ExpenseSettings, SessionSettings } from "@/lib/types";
 import { listCostCenters } from "@/modules/accounting/services/cost-center.service";
-import { listExpenseCategories } from "@/modules/accounting/services/expense-category.service";
+import {
+  listExpenseCategories,
+  listPostableExpenseAccounts,
+} from "@/modules/accounting/services/expense-category.service";
 import { getValidatedActiveStoreId } from "@/lib/auth/guards";
 import * as warehouseRepo from "@/lib/repositories/warehouse.repository";
 import {
@@ -331,6 +335,12 @@ export async function createUserAction(input: {
     if (!input.pin || !/^[0-9]{4,8}$/.test(input.pin)) {
       return { success: false, error: "رقم PIN يجب أن يكون من 4 إلى 8 أرقام." };
     }
+  } else if (
+    input.pin &&
+    userRoleSupportsPin(input.role) &&
+    !/^[0-9]{4,8}$/.test(input.pin)
+  ) {
+    return { success: false, error: "رقم PIN يجب أن يكون من 4 إلى 8 أرقام." };
   }
 
   try {
@@ -999,11 +1009,12 @@ async function loadUsersBundle() {
 
 async function loadCostCentersBundle() {
   const storeId = await getValidatedActiveStoreId();
-  const [centers, categories] = await Promise.all([
+  const [centers, categories, expenseAccounts] = await Promise.all([
     listCostCenters(storeId),
     listExpenseCategories(),
+    listPostableExpenseAccounts().catch(() => []),
   ]);
-  return { centers, categories, activeStoreId: storeId };
+  return { centers, categories, expenseAccounts, activeStoreId: storeId };
 }
 
 export async function getUnifiedSettingsData(

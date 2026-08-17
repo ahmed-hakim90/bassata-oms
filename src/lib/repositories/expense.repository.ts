@@ -69,7 +69,11 @@ export async function createExpense(
   }
 ): Promise<Expense> {
   const db = await getDb();
-  const { data, error } = await db.from("expenses").insert(input).select().single();
+  const { data, error } = await db
+    .from("expenses")
+    .insert(input)
+    .select()
+    .single();
   if (error || !data) throwDbError(error, "createExpense");
   return mapExpense(data);
 }

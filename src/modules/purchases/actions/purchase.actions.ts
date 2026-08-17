@@ -14,6 +14,8 @@ import {
   createDraftPurchasesFromReorder,
   deleteDraftPurchase,
   getPurchase,
+  importPurchaseOrdersIntoInvoice,
+  listImportablePurchaseOrders,
   listPurchaseDocuments,
   postPurchaseReturn,
   receivePurchase,
@@ -23,6 +25,7 @@ import {
   updateDraftPurchase,
   updatePurchaseLine,
   voidReceivedPurchase,
+  type ImportablePurchaseOrder,
 } from "@/modules/purchases/services/purchase.service";
 import {
   createSupplier,
@@ -42,7 +45,7 @@ export type PurchaseActionResult<T = void> =
   | { ok: false; error: string };
 
 function actionError(e: unknown): string {
-  return e instanceof Error ? e.message : "Something went wrong";
+  return e instanceof Error ? e.message : "تعذر تنفيذ العملية";
 }
 
 async function runPurchaseAction<T>(fn: () => Promise<T>): Promise<PurchaseActionResult<T>> {
@@ -61,7 +64,7 @@ export async function getPurchaseDetailAction(
     await requireFeature("purchases");
     await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
     const purchase = await getPurchase(invoiceId);
-    if (!purchase) throw new Error("Purchase not found");
+    if (!purchase) throw new Error("فاتورة الشراء غير موجودة");
     return purchase;
   });
 }
@@ -207,7 +210,7 @@ export async function voidPurchaseAction(
     const user = await requirePermissionOrRole("purchase_manage", ["owner", "manager"]);
     await voidReceivedPurchase(invoiceId, user.id);
     const purchase = await getPurchase(invoiceId);
-    if (!purchase) throw new Error("Purchase not found");
+    if (!purchase) throw new Error("فاتورة الشراء غير موجودة");
     revalidatePath("/inventory/purchases");
     revalidatePath("/inventory");
     return purchase;
@@ -379,6 +382,35 @@ export async function previewPurchaseConvertAction(
       });
     }
     return rows;
+  });
+}
+
+export async function listImportablePurchaseOrdersAction(input?: {
+  supplierId?: string | null;
+  warehouseId?: string | null;
+}): Promise<PurchaseActionResult<ImportablePurchaseOrder[]>> {
+  return runPurchaseAction(async () => {
+    await requireFeature("purchases");
+    await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
+    const storeId = await getValidatedActiveStoreId();
+    return listImportablePurchaseOrders({
+      storeId,
+      supplierId: input?.supplierId,
+      warehouseId: input?.warehouseId,
+    });
+  });
+}
+
+export async function importPurchaseOrdersIntoInvoiceAction(input: {
+  invoiceId: string;
+  sourceIds: string[];
+}): Promise<PurchaseActionResult<PurchaseWithLines>> {
+  return runPurchaseAction(async () => {
+    await requireFeature("purchases");
+    await requirePermissionOrRole("purchase_manage", ["owner", "manager", "inventory"]);
+    const updated = await importPurchaseOrdersIntoInvoice(input);
+    revalidatePurchasePaths();
+    return updated;
   });
 }
 

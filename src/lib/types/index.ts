@@ -285,6 +285,8 @@ export interface SupplierPayment {
   created_by: string;
   created_at: string;
   voided_at: string | null;
+  /** Cash paid from HQ/store treasury (not session drawer). */
+  treasury_id?: string | null;
 }
 
 export type SupplierStatementTransactionType =
@@ -484,6 +486,47 @@ export interface CashierVaultLedgerEntry {
   amount: number;
   balance_after: number;
   session_id: string | null;
+  notes: string;
+  created_by: string;
+  created_at: string;
+}
+
+export type CashTreasuryKind = "hq" | "store";
+
+export type CashTreasuryEntryType =
+  | "transfer_out"
+  | "transfer_in"
+  | "cashier_collect"
+  | "expense_payout"
+  | "collection_deposit"
+  | "supplier_payout"
+  | "period_sweep";
+
+/** Org HQ or per-store operational cash treasury (خزينة). */
+export interface CashTreasury {
+  id: string;
+  org_id: string;
+  kind: CashTreasuryKind;
+  store_id: string | null;
+  balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashTreasuryLedgerEntry {
+  id: string;
+  org_id: string;
+  treasury_id: string;
+  store_id: string | null;
+  entry_type: CashTreasuryEntryType;
+  amount: number;
+  balance_after: number;
+  counterpart_treasury_id: string | null;
+  session_id: string | null;
+  expense_id: string | null;
+  customer_payment_id: string | null;
+  supplier_payment_id: string | null;
+  period_id: string | null;
   notes: string;
   created_by: string;
   created_at: string;
@@ -701,6 +744,7 @@ export interface ExpenseCategory {
   name: string;
   is_active: boolean;
   requires_inventory_item: boolean;
+  gl_account_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -744,6 +788,8 @@ export interface Expense {
   approved_at: string | null;
   created_by: string;
   created_at: string;
+  /** When cash is paid from HQ/store treasury (not session drawer). */
+  treasury_id?: string | null;
 }
 
 export interface ExpenseWithDetails extends Expense {
@@ -806,6 +852,8 @@ export interface CustomerPayment {
   created_by: string;
   created_at: string;
   voided_at: string | null;
+  /** Cash deposited into HQ/store treasury. */
+  treasury_id?: string | null;
 }
 
 export interface MonthlyClose {
@@ -925,6 +973,7 @@ export type GlSystemKey =
   | "sales_discount"
   | "cogs"
   | "expense_default"
+  | "cash_over_short"
   | "waste";
 
 export interface GlAccount {

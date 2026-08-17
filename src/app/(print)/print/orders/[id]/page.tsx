@@ -13,7 +13,7 @@ export default async function PrintOrderInvoicePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ variant?: string; embed?: string }>;
+  searchParams: Promise<{ variant?: string; embed?: string; hidePrices?: string }>;
 }) {
   const { id } = await params;
   const query = await searchParams;
@@ -33,6 +33,9 @@ export default async function PrintOrderInvoicePage({
   const qrDataUrl = template.fields.showQr
     ? await commercialDocumentQrDataUrl(document.number)
     : null;
+  const hideMoney =
+    query.hidePrices === "1" &&
+    (order.document_kind === "quotation" || order.document_kind === "sales_order");
 
   return (
     <CommercialDocumentView
@@ -42,6 +45,7 @@ export default async function PrintOrderInvoicePage({
       generatedBy={user.name}
       generatedAt={new Date().toISOString()}
       qrDataUrl={qrDataUrl}
+      hideMoney={hideMoney}
     />
   );
 }

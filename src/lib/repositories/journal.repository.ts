@@ -17,6 +17,21 @@ export type JournalLineInput = {
   line_no?: number;
 };
 
+const STORE_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Store journals plus org-level rows (openings) that have no store. */
+function applyStoreOrOrgFilter<T extends { or: (filters: string) => T }>(
+  query: T,
+  storeId?: string
+): T {
+  if (!storeId) return query;
+  if (!STORE_ID_RE.test(storeId)) {
+    throw new Error("فرع غير صالح");
+  }
+  return query.or(`store_id.eq.${storeId},store_id.is.null`);
+}
+
 export async function listJournalEntries(filters?: {
   storeId?: string;
   status?: JournalEntryStatus;
@@ -32,7 +47,7 @@ export async function listJournalEntries(filters?: {
     .eq("org_id", orgId)
     .order("entry_date", { ascending: false })
     .order("created_at", { ascending: false });
-  if (filters?.storeId) q = q.eq("store_id", filters.storeId);
+  if (filters?.storeId) q = applyStoreOrOrgFilter(q, filters.storeId);
   if (filters?.status) q = q.eq("status", filters.status);
   if (filters?.from) q = q.gte("entry_date", filters.from);
   if (filters?.to) q = q.lte("entry_date", filters.to);
@@ -266,7 +281,7 @@ async function listPostedEntryIds(input: {
   if (input.from) entryQuery = entryQuery.gte("entry_date", input.from);
   if (input.to) entryQuery = entryQuery.lte("entry_date", input.to);
   if (input.before) entryQuery = entryQuery.lt("entry_date", input.before);
-  if (input.storeId) entryQuery = entryQuery.eq("store_id", input.storeId);
+  if (input.storeId) entryQuery = applyStoreOrOrgFilter(entryQuery, input.storeId);
 
   const { data: entries, error: entryError } = await entryQuery;
   if (entryError) throwDbError(entryError, "listPostedEntryIds");
@@ -380,7 +395,7 @@ export async function getAccountLedgerLines(input: {
     .lte("entry_date", input.to)
     .order("entry_date", { ascending: true })
     .order("entry_number", { ascending: true });
-  if (input.storeId) entryQuery = entryQuery.eq("store_id", input.storeId);
+  if (input.storeId) entryQuery = applyStoreOrOrgFilter(entryQuery, input.storeId);
 
   const { data: entries, error: entryError } = await entryQuery;
   if (entryError) throwDbError(entryError, "getAccountLedgerLines.entries");

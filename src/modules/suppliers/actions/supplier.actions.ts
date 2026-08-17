@@ -142,6 +142,7 @@ export async function createSupplierPaymentAction(input: {
   reference?: string;
   notes?: string;
   paidAt?: string;
+  treasuryId?: string | null;
 }): Promise<SupplierActionResult<SupplierPayment>> {
   return runSupplierAction(async () => {
     await requireFeature("purchases");
@@ -160,9 +161,11 @@ export async function createSupplierPaymentAction(input: {
       notes: input.notes,
       paidAt: input.paidAt,
       createdBy: user.id,
+      treasuryId: input.treasuryId,
     });
     revalidatePath("/inventory/suppliers");
     revalidatePath(`/inventory/suppliers/${input.supplierId}`);
+    revalidatePath("/treasury");
     return payment;
   });
 }

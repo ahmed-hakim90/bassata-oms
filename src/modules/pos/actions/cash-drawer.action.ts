@@ -4,27 +4,30 @@ import { requireFeature, requirePermissionOrRole } from "@/lib/auth/guards";
 import { requirePosAccess } from "@/lib/auth/pos-access";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { writeAuditLog } from "@/lib/services/audit.service";
+import { assertManagerOverridePin } from "@/modules/pos/services/manager-override.service";
 
-export async function openCashDrawerAction(reason?: string) {
-  const user = await requirePermissionOrRole("checkout_create", ["owner", "manager"]);
+export async function openCashDrawerAction(input: { reason?: string; pin?: string }) {
+  await requirePermissionOrRole("checkout_create", ["owner", "manager", "cashier"]);
   const ctx = await requirePosAccess();
   await requireFeature("cash_drawer");
 
-  if (user.role !== "owner" && user.role !== "manager") {
-    throw new Error("موافقة المالك أو المدير مطلوبة");
-  }
+  const approver = await assertManagerOverridePin({
+    storeId: ctx.storeId,
+    deviceId: ctx.deviceId,
+    pin: input.pin,
+  });
 
   const orgId = await getOrgId();
   await writeAuditLog({
     orgId,
     storeId: ctx.storeId,
-    userId: user.id,
+    userId: approver.managerId,
     action: "pos.manager_override.cash_drawer_open",
     entityType: "device",
     entityId: ctx.deviceId ?? ctx.storeId,
     metadata: {
       activeCashierId: ctx.activeCashierId,
-      reason: reason?.trim() || null,
+      reason: input.reason?.trim() || null,
     },
   });
 
