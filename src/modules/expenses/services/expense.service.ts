@@ -234,6 +234,11 @@ export async function deleteExpense(id: string, user: AppUser): Promise<boolean>
   await assertSessionEditable(existing.session_id);
   await assertPeriodOpen(existing.store_id);
 
+  const { reverseExpenseFromTreasury } = await import(
+    "@/modules/treasury/services/treasury.service"
+  );
+  await reverseExpenseFromTreasury(id);
+
   if (existing.status === "approved") {
     const { safeReversePostedBySource } = await import(
       "@/modules/accounting/services/gl-posting.service"

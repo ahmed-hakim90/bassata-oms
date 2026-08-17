@@ -377,6 +377,11 @@ export async function voidSupplierPayment(
 
   await assertPeriodOpen(existing.store_id);
 
+  const { reverseSupplierPayFromTreasury } = await import(
+    "@/modules/treasury/services/treasury.service"
+  );
+  await reverseSupplierPayFromTreasury(paymentId);
+
   const payment = await paymentRepo.voidSupplierPayment(paymentId);
   if (!payment) throw new Error("Failed to void payment");
 

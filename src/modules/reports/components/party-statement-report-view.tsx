@@ -18,7 +18,7 @@ import { EmptyStateBlock } from "@/components/Velora/state-blocks";
 import { formatCurrency } from "@/lib/format";
 import { selectLabelById } from "@/lib/select-label";
 import type { CustomerStatement, SupplierStatement, SupplierStatementTransactionType } from "@/lib/types";
-import { CUSTOMER_LEDGER_TYPE_LABELS } from "@/modules/customers/lib/ledger-type-labels";
+import { customerLedgerDisplayLabel } from "@/modules/customers/lib/ledger-type-labels";
 import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
 import { ReportKpiGrid } from "@/modules/reports/components/report-kpi-grid";
 import { ReportPage } from "@/modules/reports/components/report-page";
@@ -325,7 +325,11 @@ export function PartyStatementReportView({
                 ? customerStatement!.transactions.map((t) => ({
                     id: t.id,
                     date: t.at,
-                    type: CUSTOMER_LEDGER_TYPE_LABELS[t.type] ?? t.type,
+                    type: customerLedgerDisplayLabel({
+                      type: t.type,
+                      paymentId: t.paymentId,
+                      debit: t.debit,
+                    }),
                     reference: t.reference || t.description,
                     debit: t.debit,
                     credit: t.credit,

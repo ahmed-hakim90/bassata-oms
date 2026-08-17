@@ -12,11 +12,15 @@ import { CompactAction, CompactActions } from "@/components/Velora/compact-actio
 import { PageHeader } from "@/components/Velora/page-header";
 import { KpiCard } from "@/components/Velora/kpi-card";
 import { OperationalCard } from "@/components/Velora/operational-card";
+import { ConfirmActionDialog } from "@/components/Velora/confirm-action-dialog";
 import { formatCurrency } from "@/lib/format";
 import type { CustomerStatement, LoyaltyLedgerEntry } from "@/lib/types";
 import type { CustomerProfile } from "@/modules/customers/services/customer.service";
-import { CUSTOMER_LEDGER_TYPE_LABELS } from "@/modules/customers/lib/ledger-type-labels";
-import { getCustomerStatementAction } from "@/modules/customers/actions/customer.actions";
+import { customerLedgerDisplayLabel } from "@/modules/customers/lib/ledger-type-labels";
+import {
+  getCustomerStatementAction,
+  voidCustomerPaymentAction,
+} from "@/modules/customers/actions/customer.actions";
 import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
 import { StatementTable } from "@/modules/reports/components/statement-table";
 import { exportCustomerStatementExcel } from "@/modules/reports/actions/statement-report.actions";
@@ -43,6 +47,7 @@ interface CustomerDetailPageProps {
   statement: CustomerStatement | null;
   canCollect: boolean;
   canEdit: boolean;
+  canVoidPayment: boolean;
   currency?: string;
   /** Soft-hide credit limit controls when org credit_sales is off. */
   creditSalesEnabled?: boolean;
@@ -56,6 +61,7 @@ export function CustomerDetailPage({
   statement: initialStatement,
   canCollect,
   canEdit,
+  canVoidPayment,
   currency = "EGP",
   creditSalesEnabled = false,
   initialCollectOpen = false,
@@ -69,6 +75,7 @@ export function CustomerDetailPage({
   );
   const [showCredit, setShowCredit] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
+  const [voidPaymentId, setVoidPaymentId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const descriptionParts = [
@@ -92,6 +99,21 @@ export function CustomerDetailPage({
 
   const applyFilter = () => {
     refreshStatement(statementRange(from, to));
+  };
+
+  const confirmVoidPayment = () => {
+    if (!voidPaymentId) return;
+    startTransition(async () => {
+      const result = await voidCustomerPaymentAction(voidPaymentId, profile.id);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("تم إلغاء التحصيل");
+      setVoidPaymentId(null);
+      router.refresh();
+      refreshStatement(statementRange(from, to));
+    });
   };
 
   const clearFilter = () => {
@@ -267,12 +289,34 @@ export function CustomerDetailPage({
             rows={statement.transactions.map((t) => ({
               id: t.id,
               date: t.at,
-              type: CUSTOMER_LEDGER_TYPE_LABELS[t.type] ?? t.type,
+              type: customerLedgerDisplayLabel({
+                type: t.type,
+                paymentId: t.paymentId,
+                debit: t.debit,
+              }),
               reference: t.reference || t.description,
               debit: t.debit,
               credit: t.credit,
               balance: t.balance,
+              paymentId: t.paymentId,
+              canVoid: t.canVoid,
             }))}
+            renderRowActions={
+              canVoidPayment
+                ? (row) =>
+                    row.canVoid && row.paymentId ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => setVoidPaymentId(row.paymentId ?? null)}
+                        disabled={pending}
+                      >
+                        إلغاء
+                      </Button>
+                    ) : null
+                : undefined
+            }
           />
         </OperationalCard>
       ) : null}
@@ -308,6 +352,16 @@ export function CustomerDetailPage({
           onSuccess={() => router.refresh()}
         />
       ) : null}
+
+      <ConfirmActionDialog
+        open={voidPaymentId !== null}
+        onOpenChange={(open) => !open && setVoidPaymentId(null)}
+        title="إلغاء التحصيل"
+        description="سيتم إرجاع المبلغ على حساب العميل وعكس حركة الخزينة إن وُجدت. سطر التحصيل يفضل ظاهر ومعاه سطر الإلغاء."
+        confirmLabel="إلغاء التحصيل"
+        destructive
+        onConfirm={confirmVoidPayment}
+      />
     </div>
   );
 }

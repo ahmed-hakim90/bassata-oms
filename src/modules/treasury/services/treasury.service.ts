@@ -130,3 +130,15 @@ export async function postSupplierPayToTreasury(input: {
     amount: roundMoney(input.amount),
   });
 }
+
+export async function reverseSupplierPayFromTreasury(supplierPaymentId: string): Promise<void> {
+  await treasuryRepo.reverseSupplierPay(supplierPaymentId);
+}
+
+export async function reverseExpenseFromTreasury(expenseId: string): Promise<void> {
+  await treasuryRepo.reverseExpense(expenseId);
+}
+
+export async function reverseCollectionFromTreasury(customerPaymentId: string): Promise<void> {
+  await treasuryRepo.reverseCollection(customerPaymentId);
+}

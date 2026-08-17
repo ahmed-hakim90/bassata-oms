@@ -26,6 +26,11 @@ const ENTRY_LABELS: Record<CashTreasuryEntryType, string> = {
   period_sweep: "سحب فترة",
 };
 
-export function treasuryEntryLabel(type: CashTreasuryEntryType): string {
+export function treasuryEntryLabel(type: CashTreasuryEntryType, amount?: number): string {
+  if (amount != null) {
+    if (type === "supplier_payout" && amount > 0) return "عكس سداد مورد";
+    if (type === "expense_payout" && amount > 0) return "عكس صرف مصروف";
+    if (type === "collection_deposit" && amount < 0) return "عكس تحصيل عميل";
+  }
   return ENTRY_LABELS[type] ?? type;
 }

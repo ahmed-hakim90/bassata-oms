@@ -3,6 +3,7 @@ import {
   createSupplierPayment,
   getSupplierStatement,
   listSupplierSummaries,
+  voidSupplierPayment,
 } from "@/modules/suppliers/services/supplier.service";
 import * as purchaseRepo from "@/lib/repositories/purchase.repository";
 import * as paymentRepo from "@/lib/repositories/supplier-payment.repository";
@@ -24,6 +25,7 @@ vi.mock("@/modules/accounting/services/gl-posting.service", () => ({
 }));
 vi.mock("@/modules/treasury/services/treasury.service", () => ({
   postSupplierPayToTreasury: vi.fn(),
+  reverseSupplierPayFromTreasury: vi.fn(),
 }));
 
 describe("createSupplierPayment", () => {
@@ -165,5 +167,62 @@ describe("supplier opening balance", () => {
     const statement = await getSupplierStatement("s1", { storeId: "store-1" });
     expect(statement?.openingBalance).toBe(300);
     expect(statement?.closingBalance).toBe(300);
+  });
+});
+
+describe("voidSupplierPayment", () => {
+  const payment = {
+    id: "pay-1",
+    org_id: "org-1",
+    store_id: "store-1",
+    supplier_id: "s1",
+    session_id: null,
+    amount: 50,
+    payment_method: "cash" as const,
+    reference: "",
+    notes: "",
+    paid_at: "2026-08-17T00:00:00.000Z",
+    created_by: "u1",
+    created_at: "2026-08-17T00:00:00.000Z",
+    voided_at: null,
+    treasury_id: "tr-1",
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("reverses treasury cash before voiding the payment", async () => {
+    const { reverseSupplierPayFromTreasury } = await import(
+      "@/modules/treasury/services/treasury.service"
+    );
+    const { safeReversePostedBySource } = await import(
+      "@/modules/accounting/services/gl-posting.service"
+    );
+    vi.mocked(paymentRepo.getSupplierPayment).mockResolvedValue(payment);
+    vi.mocked(paymentRepo.voidSupplierPayment).mockResolvedValue({
+      ...payment,
+      voided_at: "2026-08-17T01:00:00.000Z",
+      treasury_id: null,
+    });
+
+    await voidSupplierPayment("pay-1", "u1");
+
+    expect(reverseSupplierPayFromTreasury).toHaveBeenCalledWith("pay-1");
+    expect(paymentRepo.voidSupplierPayment).toHaveBeenCalledWith("pay-1");
+    expect(safeReversePostedBySource).toHaveBeenCalled();
+  });
+
+  it("does not void when treasury reverse fails", async () => {
+    const { reverseSupplierPayFromTreasury } = await import(
+      "@/modules/treasury/services/treasury.service"
+    );
+    vi.mocked(paymentRepo.getSupplierPayment).mockResolvedValue(payment);
+    vi.mocked(reverseSupplierPayFromTreasury).mockRejectedValue(
+      new Error("رصيد الخزينة غير كافٍ")
+    );
+
+    await expect(voidSupplierPayment("pay-1", "u1")).rejects.toThrow(/رصيد الخزينة/);
+    expect(paymentRepo.voidSupplierPayment).not.toHaveBeenCalled();
   });
 });

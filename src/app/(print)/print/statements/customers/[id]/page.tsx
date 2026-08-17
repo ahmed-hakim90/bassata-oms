@@ -6,7 +6,7 @@ import { getReportBranding } from "@/modules/reports/services/report-branding.se
 import { requireCustomerStatementAccess } from "@/modules/reports/actions/report-access.actions";
 import { PrintableDocument } from "@/modules/reports/components/printable-document";
 import { StatementTable } from "@/modules/reports/components/statement-table";
-import { CUSTOMER_LEDGER_TYPE_LABELS } from "@/modules/customers/lib/ledger-type-labels";
+import { customerLedgerDisplayLabel } from "@/modules/customers/lib/ledger-type-labels";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 
 export default async function PrintCustomerStatementPage({
@@ -47,7 +47,11 @@ export default async function PrintCustomerStatementPage({
         rows={statement.transactions.map((t) => ({
           id: t.id,
           date: t.at,
-          type: CUSTOMER_LEDGER_TYPE_LABELS[t.type] ?? t.type,
+          type: customerLedgerDisplayLabel({
+            type: t.type,
+            paymentId: t.paymentId,
+            debit: t.debit,
+          }),
           reference: t.reference || t.description,
           debit: t.debit,
           credit: t.credit,

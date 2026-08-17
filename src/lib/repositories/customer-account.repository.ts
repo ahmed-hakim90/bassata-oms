@@ -40,6 +40,7 @@ function mapPayment(row: Record<string, unknown>): CustomerPayment {
     created_by: row.created_by as string,
     created_at: row.created_at as string,
     voided_at: (row.voided_at as string) ?? null,
+    treasury_id: (row.treasury_id as string) ?? null,
   };
 }
 
@@ -133,8 +134,16 @@ export async function recordCustomerPaymentRpc(input: {
     p_reference: input.reference ?? "",
     p_notes: input.notes ?? "",
   });
-  if (error) throwDbError(error, "recordCustomerPayment");
+  if (error)   throwDbError(error, "recordCustomerPayment");
   return data as string;
+}
+
+export async function voidCustomerPaymentRpc(paymentId: string): Promise<string> {
+  const { data, error } = await callRpc<string>("void_customer_payment", {
+    p_payment_id: paymentId,
+  });
+  if (error || !data) throwDbError(error, "voidCustomerPayment");
+  return data;
 }
 
 export async function recordCustomerLedgerEntry(input: {

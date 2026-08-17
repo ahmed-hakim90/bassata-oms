@@ -52,6 +52,7 @@ export async function deleteExpenseAction(id: string) {
   if (!ok) throw new Error("Expense not found");
   revalidatePath("/expenses");
   revalidatePath("/sessions");
+  revalidatePath("/treasury");
 }
 
 export async function approveExpenseAction(id: string) {

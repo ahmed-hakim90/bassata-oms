@@ -4595,6 +4595,10 @@ export type Database = {
         }
         Returns: string
       }
+      void_customer_payment: {
+        Args: { p_payment_id: string }
+        Returns: string
+      }
       record_device_pairing_attempt: {
         Args: { p_org_id: string; p_success: boolean }
         Returns: undefined
@@ -4741,6 +4745,18 @@ export type Database = {
           p_treasury_id: string
         }
         Returns: string
+      }
+      treasury_reverse_collection: {
+        Args: { p_customer_payment_id: string }
+        Returns: string | null
+      }
+      treasury_reverse_expense: {
+        Args: { p_expense_id: string }
+        Returns: string | null
+      }
+      treasury_reverse_supplier_pay: {
+        Args: { p_supplier_payment_id: string }
+        Returns: string | null
       }
       treasury_transfer: {
         Args: {

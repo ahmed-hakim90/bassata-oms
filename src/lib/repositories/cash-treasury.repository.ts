@@ -224,3 +224,27 @@ export async function postSupplierPay(input: {
   if (error || !data) throwDbError(error, "treasuryPostSupplierPay");
   return data;
 }
+
+export async function reverseSupplierPay(supplierPaymentId: string): Promise<string | null> {
+  const { data, error } = await callRpc<string | null>("treasury_reverse_supplier_pay", {
+    p_supplier_payment_id: supplierPaymentId,
+  });
+  if (error) throwDbError(error, "treasuryReverseSupplierPay");
+  return data ?? null;
+}
+
+export async function reverseExpense(expenseId: string): Promise<string | null> {
+  const { data, error } = await callRpc<string | null>("treasury_reverse_expense", {
+    p_expense_id: expenseId,
+  });
+  if (error) throwDbError(error, "treasuryReverseExpense");
+  return data ?? null;
+}
+
+export async function reverseCollection(customerPaymentId: string): Promise<string | null> {
+  const { data, error } = await callRpc<string | null>("treasury_reverse_collection", {
+    p_customer_payment_id: customerPaymentId,
+  });
+  if (error) throwDbError(error, "treasuryReverseCollection");
+  return data ?? null;
+}

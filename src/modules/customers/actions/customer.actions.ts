@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermissionOrRole } from "@/lib/auth/guards";
-import { getValidatedActiveStoreId } from "@/lib/auth/guards";
+import { requirePermissionOrRole, requireRole, getValidatedActiveStoreId } from "@/lib/auth/guards";
 import {
   createCustomer,
   deleteCustomer,
@@ -14,6 +13,7 @@ import {
 import {
   getCustomerStatement,
   recordCustomerPayment,
+  voidCustomerPayment,
 } from "@/modules/customers/services/customer-account.service";
 import type { CustomerStatement, PaymentMethod } from "@/lib/types";
 
@@ -164,6 +164,27 @@ export async function recordCustomerPaymentAction(input: {
     return {
       success: false,
       error: error instanceof Error ? error.message : "تعذر تسجيل التحصيل",
+    };
+  }
+}
+
+export async function voidCustomerPaymentAction(
+  paymentId: string,
+  customerId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const user = await requireRole(["owner", "manager"]);
+    await voidCustomerPayment({ paymentId, userId: user.id });
+    revalidatePath("/customers");
+    revalidatePath("/customers/directory");
+    revalidatePath(`/customers/${customerId}`);
+    revalidatePath("/treasury");
+    revalidatePath("/accounting/journals");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "تعذر إلغاء التحصيل",
     };
   }
 }

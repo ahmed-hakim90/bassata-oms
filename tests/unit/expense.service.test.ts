@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createExpense, type CreateExpenseInput } from "@/modules/expenses/services/expense.service";
+import {
+  createExpense,
+  deleteExpense,
+  type CreateExpenseInput,
+} from "@/modules/expenses/services/expense.service";
 import * as expenseRepo from "@/lib/repositories/expense.repository";
 import * as categoryRepo from "@/lib/repositories/expense-category.repository";
 import * as sessionRepo from "@/lib/repositories/session.repository";
@@ -26,6 +30,14 @@ vi.mock("@/lib/services/period-lock.service", async (importOriginal) => {
 vi.mock("@/lib/services/inventory-movement.service", () => ({ adjustStock: vi.fn() }));
 vi.mock("@/lib/services/audit.service", () => ({ writeAuditLog: vi.fn() }));
 vi.mock("@/lib/repositories/organization.repository", () => ({ getOrgId: vi.fn() }));
+vi.mock("@/modules/accounting/services/gl-posting.service", () => ({
+  safePostExpenseJournal: vi.fn(),
+  safeReversePostedBySource: vi.fn(),
+}));
+vi.mock("@/modules/treasury/services/treasury.service", () => ({
+  postExpenseToTreasury: vi.fn(),
+  reverseExpenseFromTreasury: vi.fn(),
+}));
 
 const cashier: AppUser = {
   id: "cashier-1",
@@ -224,5 +236,54 @@ describe("createExpense", () => {
     expect(categoryRepo.getExpenseCategory).not.toHaveBeenCalled();
     expect(expenseRepo.createExpense).not.toHaveBeenCalled();
     expect(sessionRepo.getSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteExpense", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(getOrgId).mockResolvedValue("org-1");
+    vi.mocked(assertPeriodOpen).mockResolvedValue(undefined);
+  });
+
+  it("reverses treasury cash before deleting a treasury expense", async () => {
+    const { reverseExpenseFromTreasury } = await import(
+      "@/modules/treasury/services/treasury.service"
+    );
+    const { safeReversePostedBySource } = await import(
+      "@/modules/accounting/services/gl-posting.service"
+    );
+    const treasuryExpense: Expense = {
+      ...savedExpense,
+      session_id: null,
+      expense_source: "external",
+      treasury_id: "tr-1",
+    };
+    vi.mocked(expenseRepo.getExpense).mockResolvedValue(treasuryExpense);
+    vi.mocked(expenseRepo.deleteExpense).mockResolvedValue(true);
+
+    await expect(deleteExpense(treasuryExpense.id, cashier)).resolves.toBe(true);
+
+    expect(reverseExpenseFromTreasury).toHaveBeenCalledWith(treasuryExpense.id);
+    expect(safeReversePostedBySource).toHaveBeenCalled();
+    expect(expenseRepo.deleteExpense).toHaveBeenCalledWith(treasuryExpense.id);
+  });
+
+  it("does not delete when treasury reverse fails", async () => {
+    const { reverseExpenseFromTreasury } = await import(
+      "@/modules/treasury/services/treasury.service"
+    );
+    vi.mocked(expenseRepo.getExpense).mockResolvedValue({
+      ...savedExpense,
+      session_id: null,
+      expense_source: "external",
+      treasury_id: "tr-1",
+    });
+    vi.mocked(reverseExpenseFromTreasury).mockRejectedValue(
+      new Error("رصيد الخزينة غير كافٍ")
+    );
+
+    await expect(deleteExpense("expense-1", cashier)).rejects.toThrow(/رصيد الخزينة/);
+    expect(expenseRepo.deleteExpense).not.toHaveBeenCalled();
   });
 });

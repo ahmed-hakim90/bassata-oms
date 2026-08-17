@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   transferBetweenTreasuries,
   sweepClosedPeriodToHq,
+  reverseSupplierPayFromTreasury,
+  reverseExpenseFromTreasury,
+  reverseCollectionFromTreasury,
 } from "@/modules/treasury/services/treasury.service";
+import { treasuryEntryLabel } from "@/modules/treasury/lib/treasury-view";
 import * as treasuryRepo from "@/lib/repositories/cash-treasury.repository";
 import * as closingRepo from "@/lib/repositories/closing.repository";
 
@@ -83,5 +87,30 @@ describe("treasury.service", () => {
     await expect(
       sweepClosedPeriodToHq({ storeId: "store-1", periodId: "p1" })
     ).rejects.toThrow(/اتسحبت/);
+  });
+
+  it("reverses treasury movements through the repository", async () => {
+    vi.mocked(treasuryRepo.reverseSupplierPay).mockResolvedValue("tr-1");
+    vi.mocked(treasuryRepo.reverseExpense).mockResolvedValue(null);
+    vi.mocked(treasuryRepo.reverseCollection).mockResolvedValue("tr-2");
+
+    await reverseSupplierPayFromTreasury("pay-1");
+    await reverseExpenseFromTreasury("exp-1");
+    await reverseCollectionFromTreasury("cp-1");
+
+    expect(treasuryRepo.reverseSupplierPay).toHaveBeenCalledWith("pay-1");
+    expect(treasuryRepo.reverseExpense).toHaveBeenCalledWith("exp-1");
+    expect(treasuryRepo.reverseCollection).toHaveBeenCalledWith("cp-1");
+  });
+});
+
+describe("treasuryEntryLabel", () => {
+  it("labels opposite-signed void lines as reversals", () => {
+    expect(treasuryEntryLabel("supplier_payout")).toBe("سداد مورد");
+    expect(treasuryEntryLabel("supplier_payout", -50)).toBe("سداد مورد");
+    expect(treasuryEntryLabel("supplier_payout", 50)).toBe("عكس سداد مورد");
+    expect(treasuryEntryLabel("expense_payout", 25)).toBe("عكس صرف مصروف");
+    expect(treasuryEntryLabel("collection_deposit", -40)).toBe("عكس تحصيل عميل");
+    expect(treasuryEntryLabel("collection_deposit", 40)).toBe("تحصيل عميل");
   });
 });

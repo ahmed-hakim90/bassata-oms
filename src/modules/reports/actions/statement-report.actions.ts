@@ -2,6 +2,7 @@
 
 import { requireAuth } from "@/lib/auth/guards";
 import { getCustomerStatement } from "@/modules/customers/services/customer-account.service";
+import { customerLedgerDisplayLabel } from "@/modules/customers/lib/ledger-type-labels";
 import { getSupplierStatement } from "@/modules/suppliers/services/supplier.service";
 import { buildReportContext } from "@/modules/reports/services/report-branding.service";
 import {
@@ -57,7 +58,11 @@ export async function exportCustomerStatementExcel(
           },
           ...statement.transactions.map((t) => ({
             date: t.at,
-            type: t.type,
+            type: customerLedgerDisplayLabel({
+              type: t.type,
+              paymentId: t.paymentId,
+              debit: t.debit,
+            }),
             description: t.description,
             debit: t.debit,
             credit: t.credit,

@@ -192,6 +192,7 @@ export async function voidSupplierPaymentAction(
     const payment = await voidSupplierPayment(paymentId, user.id);
     revalidatePath("/inventory/suppliers");
     revalidatePath(`/inventory/suppliers/${supplierId}`);
+    revalidatePath("/treasury");
     return payment;
   });
 }

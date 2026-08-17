@@ -28,6 +28,8 @@ export default async function CustomerDetailRoute({
     user?.role === "manager" ||
     permissions.has("customer_manage");
 
+  const canVoidPayment = user?.role === "owner" || user?.role === "manager";
+
   return (
     <CustomerDetailPage
       profile={data.profile}
@@ -35,6 +37,7 @@ export default async function CustomerDetailRoute({
       statement={data.statement}
       canCollect={canCollect}
       canEdit={canEdit}
+      canVoidPayment={canVoidPayment}
       creditSalesEnabled={flags.credit_sales === true}
       initialCollectOpen={query.collect === "1" && canCollect}
     />

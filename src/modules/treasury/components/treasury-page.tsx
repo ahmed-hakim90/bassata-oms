@@ -302,7 +302,9 @@ export function TreasuryPage({
                     <TableCell className="whitespace-nowrap text-sm">
                       {formatDateTime(entry.created_at)}
                     </TableCell>
-                    <TableCell className="text-sm">{treasuryEntryLabel(entry.entry_type)}</TableCell>
+                    <TableCell className="text-sm">
+                      {treasuryEntryLabel(entry.entry_type, entry.amount)}
+                    </TableCell>
                     <TableCell
                       className={`tabular-nums font-semibold ${
                         entry.amount < 0 ? "text-destructive" : "text-emerald-700 dark:text-emerald-400"

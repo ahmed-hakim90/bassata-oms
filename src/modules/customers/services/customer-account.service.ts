@@ -31,9 +31,16 @@ export async function getCustomerStatement(
     return true;
   });
 
+  const voidedPaymentIds = new Set(
+    entries
+      .filter((e) => e.entry_type === "adjustment" && e.payment_id && e.debit > 0)
+      .map((e) => e.payment_id as string)
+  );
+
   let balance = openingBalance;
   const transactions: CustomerStatementTransaction[] = filtered.map((e) => {
     balance += e.debit - e.credit;
+    const isPaymentVoid = e.entry_type === "adjustment" && Boolean(e.payment_id) && e.debit > 0;
     return {
       id: e.id,
       at: e.created_at,
@@ -47,12 +54,19 @@ export async function getCustomerStatement(
             ? "تحصيل"
             : e.entry_type === "refund"
               ? "مرتجع"
-              : e.entry_type === "adjustment"
-                ? "تسوية"
-                : e.entry_type),
+              : isPaymentVoid
+                ? "إلغاء تحصيل"
+                : e.entry_type === "adjustment"
+                  ? "تسوية"
+                  : e.entry_type),
       debit: e.debit,
       credit: e.credit,
       balance,
+      paymentId: e.payment_id,
+      canVoid:
+        e.entry_type === "payment_received" &&
+        Boolean(e.payment_id) &&
+        !voidedPaymentIds.has(e.payment_id as string),
     };
   });
 
@@ -125,6 +139,42 @@ export async function recordCustomerPayment(input: {
     });
   }
   return paymentId;
+}
+
+export async function voidCustomerPayment(input: {
+  paymentId: string;
+  userId: string;
+}): Promise<void> {
+  const existing = await accountRepo.getCustomerPayment(input.paymentId);
+  if (!existing) throw new Error("تحصيل العميل غير موجود");
+  if (existing.voided_at) throw new Error("التحصيل ملغي");
+
+  await assertPeriodOpen(existing.store_id);
+  await accountRepo.voidCustomerPaymentRpc(existing.id);
+
+  const { safeReversePostedBySource } = await import(
+    "@/modules/accounting/services/gl-posting.service"
+  );
+  await safeReversePostedBySource({
+    originalSource: "customer_payment",
+    originalSourceId: existing.id,
+    reverseSource: "adjustment",
+    reverseSourceId: `customer-payment-void:${existing.id}`,
+    storeId: existing.store_id,
+    createdBy: input.userId,
+    memo: "عكس تحصيل عميل ملغي",
+  });
+
+  const orgId = await getOrgId();
+  await writeAuditLog({
+    orgId,
+    storeId: existing.store_id,
+    userId: input.userId,
+    action: "customer.payment_voided",
+    entityType: "customer_payment",
+    entityId: existing.id,
+    metadata: { customerId: existing.customer_id, amount: existing.amount },
+  });
 }
 
 export async function getOutstandingBalances() {

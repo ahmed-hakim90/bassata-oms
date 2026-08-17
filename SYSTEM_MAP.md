@@ -1,7 +1,7 @@
 # SYSTEM MAP / BAS-01
 
 > Velora (GitHub `velora` · local `velora` · Vercel `velora`) — multi-location POS + light ERP for cafés, restaurants, and retail  
-> Last updated: 2026-08-17 (GL expense mapping + cash over/short + org CoA openings; HQ treasuries)
+> Last updated: 2026-08-17 (void customer collection reverses AR + treasury)
 
 ## Core / runtime
 
@@ -93,7 +93,7 @@ MOD / 12 Daily-close / reports
 - Sessions → glance فروقات/إيراد مفتوح + روابط تقرير الجلسات / الكاشير / الإقفال اليومي
 - Online orders → glance حالات + AOV + مصادر فتح المنيو؛ رابط من إعدادات الفرع
 - Expenses / accounting → glance مصروفات حسب تصنيف/شهر + روابط PnL وميزان وقائمة دخل (الدفاتر مصدر الحقيقة)
-- Cash treasuries → خزينة رئيسية + خزينة فرع + سجل حركات؛ توريد من أمانة الكاشير؛ سحب فترة مقفولة؛ صرف/تحصيل نقدي مربوط بخزينة (`/treasury`)
+- Cash treasuries → خزينة رئيسية + خزينة فرع + سجل حركات؛ توريد من أمانة الكاشير؛ سحب فترة مقفولة؛ صرف/تحصيل نقدي مربوط بخزينة؛ إلغاء سداد مورد أو تحصيل عميل أو حذف مصروف نقدي يعكس حركة الخزينة (`/treasury`)
 - Kitchen → backlog/أقدم طلب من الطابور الحالي (بدون متوسط تحضير لحد ما تتوفر أحداث زمن)
 - Devices → نشط / last_seen 24س من قائمة الأجهزة
 - Platform → glance صحة الشركات + شركات هادئة 30 يوم + توزيع الباقات/الضغط في `/platform/usage` (بدون MRR؛ Stripe Planned)

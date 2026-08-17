@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   Table,
   TableBody,
@@ -21,6 +22,8 @@ export interface StatementRow {
   debit: number;
   credit: number;
   balance: number;
+  paymentId?: string | null;
+  canVoid?: boolean;
 }
 
 interface StatementTableProps {
@@ -28,6 +31,7 @@ interface StatementTableProps {
   openingBalance: number;
   closingBalance: number;
   rows: StatementRow[];
+  renderRowActions?: (row: StatementRow) => ReactNode;
 }
 
 export function StatementTable({
@@ -35,8 +39,10 @@ export function StatementTable({
   openingBalance,
   closingBalance,
   rows,
+  renderRowActions,
 }: StatementTableProps) {
   const { t } = useTranslation();
+  const hasActions = Boolean(renderRowActions);
 
   return (
     <ResponsiveListLayout
@@ -93,6 +99,7 @@ export function StatementTable({
                   ),
                 },
               ]}
+              footer={renderRowActions?.(row) ?? undefined}
             />
           ))}
           <MobileEntityCard
@@ -121,6 +128,7 @@ export function StatementTable({
                 <TableHead className="text-end">{t("Debit")}</TableHead>
                 <TableHead className="text-end">{t("Credit")}</TableHead>
                 <TableHead className="text-end">{t("Balance")}</TableHead>
+                {hasActions ? <TableHead className="w-24" /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -129,6 +137,7 @@ export function StatementTable({
                 <TableCell className="text-end tabular-nums">
                   {formatCurrency(openingBalance, currency)}
                 </TableCell>
+                {hasActions ? <TableCell /> : null}
               </TableRow>
               {rows.map((row) => (
                 <TableRow key={row.id}>
@@ -144,6 +153,9 @@ export function StatementTable({
                   <TableCell className="text-end tabular-nums">
                     {formatCurrency(row.balance, currency)}
                   </TableCell>
+                  {hasActions ? (
+                    <TableCell className="text-end">{renderRowActions?.(row)}</TableCell>
+                  ) : null}
                 </TableRow>
               ))}
               <TableRow className="bg-muted/40 font-semibold">
@@ -151,6 +163,7 @@ export function StatementTable({
                 <TableCell className="text-end tabular-nums">
                   {formatCurrency(closingBalance, currency)}
                 </TableCell>
+                {hasActions ? <TableCell /> : null}
               </TableRow>
             </TableBody>
           </Table>

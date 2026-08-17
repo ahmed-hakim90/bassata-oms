@@ -877,6 +877,8 @@ export interface CustomerStatementTransaction {
   debit: number;
   credit: number;
   balance: number;
+  paymentId: string | null;
+  canVoid: boolean;
 }
 
 export interface CustomerStatement {
