@@ -18,6 +18,13 @@ vi.mock("@/lib/repositories/organization.repository", () => ({
 vi.mock("@/lib/services/period-lock.service", () => ({
   assertPeriodOpen: vi.fn(),
 }));
+vi.mock("@/modules/accounting/services/gl-posting.service", () => ({
+  safePostSupplierPaymentJournal: vi.fn(),
+  safeReversePostedBySource: vi.fn(),
+}));
+vi.mock("@/modules/treasury/services/treasury.service", () => ({
+  postSupplierPayToTreasury: vi.fn(),
+}));
 
 describe("createSupplierPayment", () => {
   beforeEach(() => {
@@ -37,6 +44,50 @@ describe("createSupplierPayment", () => {
 
     expect(purchaseRepo.getSupplier).not.toHaveBeenCalled();
     expect(paymentRepo.insertSupplierPayment).not.toHaveBeenCalled();
+  });
+
+  it("persists treasuryId on cash payments outside a session", async () => {
+    vi.mocked(purchaseRepo.getSupplier).mockResolvedValue({
+      id: "s1",
+      org_id: "org-1",
+      name: "Supplier",
+      contact_info: "",
+      opening_balance: 0,
+      address: "",
+      tax_id: "",
+    });
+    vi.mocked(paymentRepo.insertSupplierPayment).mockResolvedValue({
+      id: "pay-1",
+      org_id: "org-1",
+      store_id: "store-1",
+      supplier_id: "s1",
+      session_id: null,
+      amount: 50,
+      payment_method: "cash",
+      reference: "",
+      notes: "",
+      paid_at: "2026-08-17T00:00:00.000Z",
+      created_by: "u1",
+      created_at: "2026-08-17T00:00:00.000Z",
+      voided_at: null,
+      treasury_id: "tr-1",
+    });
+
+    await createSupplierPayment({
+      storeId: "store-1",
+      supplierId: "s1",
+      amount: 50,
+      paymentMethod: "cash",
+      createdBy: "u1",
+      treasuryId: "tr-1",
+    });
+
+    expect(paymentRepo.insertSupplierPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        treasuryId: "tr-1",
+        sessionId: null,
+      })
+    );
   });
 });
 
