@@ -16,6 +16,7 @@ export async function insertSupplierPayment(input: {
   paidAt: string;
   createdBy: string;
   sessionId?: string | null;
+  treasuryId?: string | null;
 }): Promise<SupplierPayment> {
   const storeIds = (await listStores()).map((store) => store.id);
   if (!storeIds.includes(input.storeId)) {
@@ -37,6 +38,7 @@ export async function insertSupplierPayment(input: {
       paid_at: input.paidAt,
       created_by: input.createdBy,
       session_id: input.sessionId ?? null,
+      treasury_id: input.sessionId ? null : input.treasuryId ?? null,
     })
     .select()
     .single();

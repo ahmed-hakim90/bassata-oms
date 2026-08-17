@@ -319,6 +319,7 @@ export async function createSupplierPayment(input: {
     paidAt: input.paidAt ?? new Date().toISOString(),
     createdBy: input.createdBy,
     sessionId,
+    treasuryId: sessionId ? null : input.treasuryId ?? null,
   });
 
   const orgId = await getOrgId();
