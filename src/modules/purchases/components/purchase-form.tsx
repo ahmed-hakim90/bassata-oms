@@ -92,6 +92,7 @@ import {
   formatCommercialDocumentForWhatsApp,
 } from "@/modules/pos/services/receipt-format.service";
 import { COMMERCIAL_DOCUMENT_KIND_LABELS } from "@/modules/print-engine/lib/print-engine-settings";
+import { EXTRA_COST_INVOICE_HINT } from "@/modules/purchases/lib/landed-cost-split";
 import type {
   ImportablePurchaseOrder,
   PurchaseWithLines,
@@ -1432,6 +1433,9 @@ export function PurchaseForm({
                   {formatCurrency(invoice.extra_cost, currency)}
                 </p>
               )}
+              {importsEnabled ? (
+                <p className="text-xs text-muted-foreground">{EXTRA_COST_INVOICE_HINT}</p>
+              ) : null}
             </div>
             {importsEnabled ? (
               <>

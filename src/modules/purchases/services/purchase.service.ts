@@ -16,6 +16,7 @@ import { lineTotalAfterDiscount } from "@/lib/line-discount";
 import type { MeasurementUnit, PaymentMethod, PurchaseInvoice, PurchaseInvoiceLine } from "@/lib/types";
 import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import { remainingPurchaseLineQty } from "@/modules/purchases/lib/remaining-qty";
+import { isReceiveTimeSupplierPayment } from "@/modules/purchases/lib/receive-time-payment";
 import { canImportPurchaseOrderStatus } from "@/lib/commercial-document-import";
 import { after } from "next/server";
 
@@ -832,6 +833,24 @@ export async function voidReceivedPurchase(
   if (invoice.status !== "received") throw new Error("Cannot void purchase in this status");
 
   await assertPeriodOpen(invoice.store_id);
+
+  if (invoice.supplier_id) {
+    const { listPaymentsForStore } = await import(
+      "@/lib/repositories/supplier-payment.repository"
+    );
+    const { voidSupplierPayment } = await import(
+      "@/modules/suppliers/services/supplier.service"
+    );
+    const receivePays = (
+      await listPaymentsForStore(invoice.store_id, { supplierId: invoice.supplier_id })
+    ).filter((payment) =>
+      isReceiveTimeSupplierPayment(payment, invoice.invoice_number)
+    );
+    for (const payment of receivePays) {
+      await voidSupplierPayment(payment.id, userId);
+    }
+  }
+
   const { voidPostedBySource } = await import(
     "@/modules/accounting/services/gl-posting.service"
   );

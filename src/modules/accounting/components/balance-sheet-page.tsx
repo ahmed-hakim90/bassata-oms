@@ -24,6 +24,7 @@ import type { Store } from "@/lib/types";
 import { exportBalanceSheetExcel } from "@/modules/accounting/actions/gl-export.actions";
 import { AccountingStoreSelect } from "@/modules/accounting/components/accounting-store-select";
 import { AccountingSubnav } from "@/modules/accounting/components/accounting-subnav";
+import { accountingReportEmptyScopeLabel } from "@/modules/accounting/lib/report-store";
 import type {
   BalanceSheetLine,
   BalanceSheetResult,
@@ -261,6 +262,7 @@ export function BalanceSheetPage({
             stores={stores}
             value={selectedStore}
             onValueChange={setSelectedStore}
+            allowAll
           />
           <div className="flex items-end">
             <Button type="button" disabled={pending} onClick={applyFilters}>
@@ -274,7 +276,7 @@ export function BalanceSheetPage({
         {empty ? (
           <EmptyStateBlock
             title="مفيش أرصدة"
-            description="مفيش قيود مرحلة حتى التاريخ ده للفرع المختار."
+            description={`مفيش قيود مرحلة حتى التاريخ ده ${accountingReportEmptyScopeLabel(selectedStore)}.`}
           />
         ) : (
           <div className="space-y-6">

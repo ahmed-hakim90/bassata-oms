@@ -2,11 +2,14 @@ import { getDb, throwDbError } from "@/lib/repositories/client";
 import { getOrgId } from "@/lib/repositories/organization.repository";
 import { listStores } from "@/lib/repositories/store.repository";
 import { chunkIds } from "@/lib/query-chunks";
+import type { Database } from "@/lib/supabase/database.types";
 import type {
   CustomsCertificateCostType,
   CustomsCertificateStatus,
   PurchaseContainerStatus,
 } from "@/modules/purchases/lib/import-constants";
+
+type PurchaseStatus = Database["public"]["Enums"]["purchase_status"];
 
 export type PurchaseContainerRow = {
   id: string;
@@ -437,8 +440,16 @@ export async function deleteCertificateCost(id: string): Promise<void> {
   if (error) throwDbError(error, "deleteCertificateCost");
 }
 
-export async function listReceivedInvoicesForContainers(
-  containerIds: string[]
+const OPEN_PURCHASE_INVOICE_STATUSES = [
+  "draft",
+  "sent",
+  "received",
+] as const satisfies readonly PurchaseStatus[];
+
+async function listInvoiceExtraCostsForContainers(
+  containerIds: string[],
+  statuses: readonly PurchaseStatus[],
+  context: string
 ): Promise<{ id: string; container_id: string; extra_cost: number }[]> {
   if (containerIds.length === 0) return [];
   const db = await getDb();
@@ -448,9 +459,9 @@ export async function listReceivedInvoicesForContainers(
       .from("purchase_invoices")
       .select("id, container_id, extra_cost")
       .in("container_id", chunk)
-      .eq("status", "received")
+      .in("status", [...statuses])
       .eq("document_kind", "purchase_invoice");
-    if (error) throwDbError(error, "listReceivedInvoicesForContainers");
+    if (error) throwDbError(error, context);
     for (const row of data ?? []) {
       if (!row.container_id) continue;
       rows.push({
@@ -461,4 +472,25 @@ export async function listReceivedInvoicesForContainers(
     }
   }
   return rows;
+}
+
+export async function listReceivedInvoicesForContainers(
+  containerIds: string[]
+): Promise<{ id: string; container_id: string; extra_cost: number }[]> {
+  return listInvoiceExtraCostsForContainers(
+    containerIds,
+    ["received"] as const,
+    "listReceivedInvoicesForContainers"
+  );
+}
+
+/** Draft / sent / received invoices — used to warn if extra_cost is already on the commercial invoice. */
+export async function listOpenInvoiceExtraCostsForContainers(
+  containerIds: string[]
+): Promise<{ id: string; container_id: string; extra_cost: number }[]> {
+  return listInvoiceExtraCostsForContainers(
+    containerIds,
+    OPEN_PURCHASE_INVOICE_STATUSES,
+    "listOpenInvoiceExtraCostsForContainers"
+  );
 }

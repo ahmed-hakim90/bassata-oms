@@ -204,6 +204,7 @@ export function AccountLedgerPage({
             stores={stores}
             value={selectedStore}
             onValueChange={setSelectedStore}
+            allowAll
           />
           <div className="flex items-end">
             <Button type="button" disabled={pending || !selectedAccount} onClick={applyFilters}>

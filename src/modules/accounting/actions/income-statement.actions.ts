@@ -1,12 +1,12 @@
 "use server";
 
 import {
-  getValidatedActiveStoreId,
   requireFeature,
   requirePermissionOrRole,
 } from "@/lib/auth/guards";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
+import { resolveAuthorizedAccountingReportStore } from "@/modules/accounting/actions/resolve-report-store";
 import {
   getIncomeStatement,
   type IncomeStatementResult,
@@ -26,8 +26,9 @@ export async function getIncomeStatementPageData(input?: {
   await requireFeature("general_ledger");
   await requirePermissionOrRole("gl_view", ["owner", "manager"]);
 
-  const activeStoreId = await getValidatedActiveStoreId();
-  const storeId = input?.storeId || activeStoreId;
+  const { selected, queryStoreId } = await resolveAuthorizedAccountingReportStore(
+    input?.storeId
+  );
   const today = new Date();
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     .toISOString()
@@ -38,7 +39,7 @@ export async function getIncomeStatementPageData(input?: {
     getIncomeStatement({
       from: input?.from || monthStart,
       to: input?.to || todayStr,
-      storeId,
+      storeId: queryStoreId,
     }),
     storeRepo.listStores(),
     orgRepo.getOrganization(),
@@ -47,7 +48,7 @@ export async function getIncomeStatementPageData(input?: {
   return {
     result,
     stores,
-    storeId,
+    storeId: selected,
     currency: org.currency,
   };
 }

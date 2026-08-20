@@ -9,6 +9,7 @@ import { isFeatureEnabled } from "@/modules/system/services/settings.service";
 import {
   allocateCertificateCosts,
 } from "@/modules/purchases/lib/import-fx";
+import { sumLinkedInvoiceExtraCost } from "@/modules/purchases/lib/landed-cost-split";
 import {
   type CustomsCertificateCostType,
   CUSTOMS_CERTIFICATE_COST_TYPES,
@@ -23,6 +24,8 @@ export type CertificateWithDetails = importRepo.CustomsCertificateRow & {
   costs: importRepo.CustomsCertificateCostRow[];
   containers: importRepo.PurchaseContainerRow[];
   costsTotal: number;
+  /** Supplier add-on already on linked commercial invoices (not cancelled). */
+  linkedInvoiceExtraCost: number;
 };
 
 async function assertImportsEnabled(): Promise<void> {
@@ -53,13 +56,27 @@ export async function listCertificatesWithDetails(options?: {
     list.push(container);
     containersByCert.set(container.customs_certificate_id, list);
   }
+  const extraRows = await importRepo.listOpenInvoiceExtraCostsForContainers(
+    containers.filter((c) => c.customs_certificate_id).map((c) => c.id)
+  );
+  const extraByContainer = new Map<string, { extra_cost: number }[]>();
+  for (const row of extraRows) {
+    const list = extraByContainer.get(row.container_id) ?? [];
+    list.push(row);
+    extraByContainer.set(row.container_id, list);
+  }
   return certificates.map((cert) => {
     const certCosts = costsByCert.get(cert.id) ?? [];
+    const certContainers = containersByCert.get(cert.id) ?? [];
+    const linkedInvoices = certContainers.flatMap(
+      (container) => extraByContainer.get(container.id) ?? []
+    );
     return {
       ...cert,
       costs: certCosts,
-      containers: containersByCert.get(cert.id) ?? [],
+      containers: certContainers,
       costsTotal: roundMoney(certCosts.reduce((sum, c) => sum + c.amount, 0)),
+      linkedInvoiceExtraCost: sumLinkedInvoiceExtraCost(linkedInvoices),
     };
   });
 }

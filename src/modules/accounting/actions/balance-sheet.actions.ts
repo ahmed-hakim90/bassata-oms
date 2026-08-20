@@ -1,12 +1,12 @@
 "use server";
 
 import {
-  getValidatedActiveStoreId,
   requireFeature,
   requirePermissionOrRole,
 } from "@/lib/auth/guards";
 import * as orgRepo from "@/lib/repositories/organization.repository";
 import * as storeRepo from "@/lib/repositories/store.repository";
+import { resolveAuthorizedAccountingReportStore } from "@/modules/accounting/actions/resolve-report-store";
 import {
   getBalanceSheet,
   type BalanceSheetResult,
@@ -25,14 +25,15 @@ export async function getBalanceSheetPageData(input?: {
   await requireFeature("general_ledger");
   await requirePermissionOrRole("gl_view", ["owner", "manager"]);
 
-  const activeStoreId = await getValidatedActiveStoreId();
-  const storeId = input?.storeId || activeStoreId;
+  const { selected, queryStoreId } = await resolveAuthorizedAccountingReportStore(
+    input?.storeId
+  );
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const [result, stores, org] = await Promise.all([
     getBalanceSheet({
       asOf: input?.asOf || todayStr,
-      storeId,
+      storeId: queryStoreId,
     }),
     storeRepo.listStores(),
     orgRepo.getOrganization(),
@@ -41,7 +42,7 @@ export async function getBalanceSheetPageData(input?: {
   return {
     result,
     stores,
-    storeId,
+    storeId: selected,
     currency: org.currency,
   };
 }

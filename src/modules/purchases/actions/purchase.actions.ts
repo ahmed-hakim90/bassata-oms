@@ -213,6 +213,8 @@ export async function voidPurchaseAction(
     if (!purchase) throw new Error("فاتورة الشراء غير موجودة");
     revalidatePath("/inventory/purchases");
     revalidatePath("/inventory");
+    revalidatePath("/inventory/suppliers");
+    revalidatePath("/treasury");
     return purchase;
   });
 }

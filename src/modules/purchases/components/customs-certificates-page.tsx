@@ -31,6 +31,7 @@ import {
   CUSTOMS_CERTIFICATE_STATUS_LABELS,
   type CustomsCertificateCostType,
 } from "@/modules/purchases/lib/import-constants";
+import { CERTIFICATE_COST_HINT } from "@/modules/purchases/lib/landed-cost-split";
 import type { Supplier } from "@/lib/types";
 
 interface CustomsCertificatesPageProps {
@@ -114,7 +115,7 @@ export function CustomsCertificatesPage({
     <div className="space-y-4">
       <PageHeader
         title="الشهادات الجمركية"
-        description="رقم الجمارك الرسمي + مصاريف المينا لحد المخزن على مجموعة حاويات"
+        description="رقم الجمارك الرسمي + مصاريف المينا لحد المخزن. شحن المورد على فاتورة الشراء مش هنا."
       />
 
       <OperationalCard title="شهادة جديدة">
@@ -210,6 +211,14 @@ export function CustomsCertificatesPage({
 
                 <div>
                   <h3 className="mb-2 text-sm font-medium">المصاريف</h3>
+                  <p className="mb-3 text-xs text-muted-foreground">{CERTIFICATE_COST_HINT}</p>
+                  {selected.linkedInvoiceExtraCost > 0 ? (
+                    <p className="mb-3 rounded-[var(--mds-radius-lg)] border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
+                      فواتير الحاويات فيها تكلفة إضافية{" "}
+                      {formatCurrency(selected.linkedInvoiceExtraCost, currency)} — ده شحن من
+                      المورد على الفاتورة. متسجلش نفس المبلغ تاني هنا.
+                    </p>
+                  ) : null}
                   {selected.costs.length === 0 ? (
                     <p className="mb-3 text-sm text-muted-foreground">لسه مفيش مصاريف</p>
                   ) : (

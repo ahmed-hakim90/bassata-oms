@@ -10,6 +10,7 @@ import { getAccountLedgerPageData } from "@/modules/accounting/actions/account-l
 import { getBalanceSheetPageData } from "@/modules/accounting/actions/balance-sheet.actions";
 import { getIncomeStatementPageData } from "@/modules/accounting/actions/income-statement.actions";
 import { getTrialBalancePageData } from "@/modules/accounting/actions/trial-balance.actions";
+import { brandingStoreIdForAccountingReport } from "@/modules/accounting/lib/report-store";
 
 async function requireGlExportUser() {
   await requireFeature("general_ledger");
@@ -27,12 +28,12 @@ export async function exportTrialBalanceExcel(input: {
     {
       from: data.result.from,
       to: data.result.to,
-      storeId: data.storeId,
+      storeId: brandingStoreIdForAccountingReport(data.storeId),
       page: 1,
       pageSize: 50,
     },
     user.name,
-    data.storeId
+    brandingStoreIdForAccountingReport(data.storeId)
   );
   const workbook = buildReportWorkbook({
     title: "Trial Balance",
@@ -76,12 +77,12 @@ export async function exportIncomeStatementExcel(input: {
     {
       from: data.result.from,
       to: data.result.to,
-      storeId: data.storeId,
+      storeId: brandingStoreIdForAccountingReport(data.storeId),
       page: 1,
       pageSize: 50,
     },
     user.name,
-    data.storeId
+    brandingStoreIdForAccountingReport(data.storeId)
   );
   const lines = [
     ...data.result.revenueLines.map((line) => ({
@@ -147,12 +148,12 @@ export async function exportBalanceSheetExcel(input: {
   const context = await buildReportContext(
     {
       to: data.result.asOf,
-      storeId: data.storeId,
+      storeId: brandingStoreIdForAccountingReport(data.storeId),
       page: 1,
       pageSize: 50,
     },
     user.name,
-    data.storeId
+    brandingStoreIdForAccountingReport(data.storeId)
   );
   const lines = [
     ...data.result.assets.map((line) => ({
@@ -230,12 +231,12 @@ export async function exportAccountLedgerExcel(input: {
     {
       from: data.result.from,
       to: data.result.to,
-      storeId: data.storeId,
+      storeId: brandingStoreIdForAccountingReport(data.storeId),
       page: 1,
       pageSize: 50,
     },
     user.name,
-    data.storeId
+    brandingStoreIdForAccountingReport(data.storeId)
   );
   const rows = [
     {

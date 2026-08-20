@@ -20,6 +20,7 @@ import { exportTrialBalanceExcel } from "@/modules/accounting/actions/gl-export.
 import { AccountingStoreSelect } from "@/modules/accounting/components/accounting-store-select";
 import { AccountingSubnav } from "@/modules/accounting/components/accounting-subnav";
 import type { TrialBalanceResult } from "@/modules/accounting/services/trial-balance.service";
+import { accountingReportEmptyScopeLabel } from "@/modules/accounting/lib/report-store";
 import { ExportButtonGroup } from "@/modules/reports/components/export-button-group";
 import { downloadBase64Excel } from "@/modules/reports/export/excel-builder";
 
@@ -157,6 +158,7 @@ export function TrialBalancePage({
             stores={stores}
             value={selectedStore}
             onValueChange={setSelectedStore}
+            allowAll
           />
           <div className="flex items-end">
             <Button type="button" disabled={pending} onClick={applyFilters}>
@@ -173,7 +175,7 @@ export function TrialBalancePage({
         {result.lines.length === 0 ? (
           <EmptyStateBlock
             title="مفيش حركات"
-            description="مفيش قيود مرحلة في الفترة دي للفرع المختار."
+            description={`مفيش قيود مرحلة في الفترة دي ${accountingReportEmptyScopeLabel(selectedStore)}.`}
           />
         ) : (
           <ResponsiveListLayout

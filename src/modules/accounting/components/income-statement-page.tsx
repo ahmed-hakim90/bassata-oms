@@ -144,6 +144,7 @@ export function IncomeStatementPage({
             stores={stores}
             value={selectedStore}
             onValueChange={setSelectedStore}
+            allowAll
           />
           <div className="flex items-end">
             <Button type="button" disabled={pending} onClick={applyFilters}>
